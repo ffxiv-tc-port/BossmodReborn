@@ -1,18 +1,20 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Authors></Authors>
-    <Company></Company>
-    <Version>0.0.0.0</Version>
+    <Authors>
+    </Authors>
+    <Company>
+    </Company>
+    <Version>7.15.0.20</Version>
     <Description>Boss mod.</Description>
-    <Copyright></Copyright>
-    <PackageProjectUrl></PackageProjectUrl>
+    <Copyright>
+    </Copyright>
+    <PackageProjectUrl>
+    </PackageProjectUrl>
   </PropertyGroup>
-
-<PropertyGroup>
-  <AssemblyName>BossModReborn</AssemblyName>
-</PropertyGroup>
-
+  <PropertyGroup>
+    <AssemblyName>BossModReborn</AssemblyName>
+  </PropertyGroup>
   <PropertyGroup>
     <TargetFramework>net9.0-windows</TargetFramework>
     <Platforms>x64</Platforms>
@@ -24,7 +26,6 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
   </PropertyGroup>
-
   <ItemGroup>
     <Using Include="System" />
     <Using Include="System.Collections" />
@@ -38,20 +39,19 @@
     <Using Include="System.Threading.Tasks;" />
     <Using Include="System.Text" />
   </ItemGroup>
-
   <PropertyGroup>
-    <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+    <DalamudLibPath>$(appdata)\FFXIVSimpleLauncher\Dalamud\Injector\</DalamudLibPath>
   </PropertyGroup>
-
   <PropertyGroup Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))'">
     <DalamudLibPath>$(DALAMUD_HOME)/</DalamudLibPath>
   </PropertyGroup>
-
+  <ItemGroup>
+    <EmbeddedResource Include="loc\*.json" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="DalamudPackager" Version="12.0.0" />
     <PackageReference Include="SharpDX.Mathematics" Version="4.2.0" />
     <ProjectReference Include="..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" />
-
     <Reference Include="Dalamud">
       <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
       <Private>false</Private>
@@ -85,14 +85,15 @@
       <Private>False</Private>
     </Reference>
   </ItemGroup>
-
   <ItemGroup>
     <None Update="DefaultRotationPresets.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-
   <ItemGroup>
     <EmbeddedResource Include="Pathfinding\ObstacleMaps\*" />
   </ItemGroup>
+  <Target Name="IncrementBuildNumber" AfterTargets="Build">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\increment_version.ps1&quot; -ProjectFile &quot;$(MSBuildProjectFullPath)&quot;" />
+  </Target>
 </Project>

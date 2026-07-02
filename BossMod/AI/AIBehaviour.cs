@@ -21,6 +21,9 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
     private WPos _masterMovementStart;
     private DateTime _masterLastMoved;
     private DateTime _navStartTime; // if current time is < this, navigation won't start
+    private WPos? _preDodgeAnchor; // position to try returning to once a forced dodge is over, if ReturnToPreDodgePosition is enabled
+    private bool _wasForcedDodging;
+    private DateTime _preDodgeAnchorExpiry;
     private static readonly SemaphoreSlim _semaphore = new(1, 1);
     private static readonly Random random = new();
     private bool cancel; // used to cancel autorotation AI preset during async
@@ -88,6 +91,8 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
                 var moveWithMaster = masterIsMoving && _followMaster && master != player;
                 ForceMovementIn = moveWithMaster || gazeImminent || pyreticImminent ? 0f : _naviDecision.LeewaySeconds;
 
+                TrackPreDodgeAnchor(player, moveWithMaster || gazeImminent || pyreticImminent);
+
                 if (_config.MoveDelay != 0d && !hadNavi && _naviDecision.Destination != null)
                     _navStartTime = WorldState.FutureTime(_config.MoveDelay);
 
@@ -153,6 +158,45 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             targeting.PreferredPosition = Positional.Any;
     }
 
+    // remembers the position player was standing at right before a forced dodge, so we can try to walk back to it once the dodge is over
+    private void TrackPreDodgeAnchor(Actor player, bool forcedByExternalFactor)
+    {
+        if (!_config.ReturnToPreDodgePosition)
+        {
+            _preDodgeAnchor = null;
+            _wasForcedDodging = false;
+            return;
+        }
+
+        var forcedDodging = !forcedByExternalFactor && ForceMovementIn <= 0f && _naviDecision.Destination != null;
+        if (forcedDodging && !_wasForcedDodging)
+            _preDodgeAnchor = player.Position; // just started dodging - remember where we came from
+        _wasForcedDodging = forcedDodging;
+
+        if (_preDodgeAnchor == null)
+            return;
+
+        if (!forcedDodging && (player.Position - _preDodgeAnchor.Value).LengthSq() < 1f)
+            _preDodgeAnchor = null; // arrived back, done
+        else if (!forcedDodging && !IsAnchorSafe(_preDodgeAnchor.Value))
+            _preDodgeAnchor = null; // spot became dangerous or is out of bounds - give up
+        else if (_preDodgeAnchor != null && WorldState.CurrentTime > _preDodgeAnchorExpiry)
+            _preDodgeAnchor = null; // took too long, give up and let normal positioning take over
+        if (forcedDodging)
+            _preDodgeAnchorExpiry = WorldState.FutureTime(4d);
+    }
+
+    // true if pos is inside the arena bounds and not inside any (even future) forbidden zone
+    private bool IsAnchorSafe(WPos pos)
+    {
+        if (!autorot.Hints.PathfindMapBounds.Contains(pos - autorot.Hints.PathfindMapCenter))
+            return false;
+        foreach (var z in autorot.Hints.ForbiddenZones)
+            if (z.shapeDistance(pos) < 0f)
+                return false;
+        return true;
+    }
+
     private async Task<NavigationDecision> BuildNavigationDecision(Actor player, Actor master, Targeting targeting)
     {
         if (_config.ForbidMovement || _config.ForbidAIMovementMounted && player.MountId != 0
@@ -178,6 +222,9 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
 
         _followMaster = interactTarget == null && (_config.FollowDuringCombat || !master.InCombat || (_masterPrevPos - _masterMovementStart).LengthSq() > 100f) && (_config.FollowDuringActiveBossModule || autorot.Bossmods.ActiveModule?.StateMachine.ActiveState == null) && (_config.FollowOutOfCombat || master.InCombat);
 
+        if (_preDodgeAnchor != null && !_wasForcedDodging)
+            autorot.Hints.GoalZones.Add(autorot.Hints.GoalProximity(_preDodgeAnchor.Value, 3f, 1.5f));
+
         if (_followMaster)
         {
             if (forceDestination != null && forceDestination.OID != master.OID && autorot.Hints.PathfindMapBounds.Contains(forceDestination.Position - autorot.Hints.PathfindMapCenter))
@@ -185,8 +232,12 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
                 autorot.Hints.GoalZones.Add(autorot.Hints.GoalProximity(forceDestination, 3.5f, 100f));
             }
             var target = autorot.WorldState.Actors.Find(player.TargetID);
+            var masterInBounds = !_config.StayWithinArenaBounds || autorot.Hints.PathfindMapBounds.Contains(master.Position - autorot.Hints.PathfindMapCenter);
             if (!_config.FollowTarget || _config.FollowTarget && target == null)
-                autorot.Hints.GoalZones.Add(autorot.Hints.GoalSingleTarget(master, Positional.Any, _config.FollowTarget && player.InCombat ? _config.MaxDistanceToTarget : _config.MaxDistanceToSlot));
+            {
+                if (masterInBounds)
+                    autorot.Hints.GoalZones.Add(autorot.Hints.GoalSingleTarget(master, Positional.Any, _config.FollowTarget && player.InCombat ? _config.MaxDistanceToTarget : _config.MaxDistanceToSlot));
+            }
             else if (_config.FollowTarget && target != null && AIPreset == null)
             {
                 var positional = _config.DesiredPositional;
@@ -194,7 +245,8 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
                 var maxdist = _config.MaxDistanceToTarget;
                 if (positional is Positional.Rear or Positional.Flank && (target.CastInfo == null && target.NameID != 541u && target.TargetID == player.InstanceID || target.Omnidirectional)) // if player is target, rear/flank is usually impossible unless target is casting
                     positional = Positional.Any;
-                autorot.Hints.GoalZones.Add(autorot.Hints.GoalSingleTarget(master, positional, positional != Positional.Any ? 2.6f : maxdist));
+                if (masterInBounds)
+                    autorot.Hints.GoalZones.Add(autorot.Hints.GoalSingleTarget(master, positional, positional != Positional.Any ? 2.6f : maxdist));
 
                 if (mindist != default && target.InstanceID != player.InstanceID && interactTarget == null)
                 {
@@ -205,13 +257,13 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
                     autorot.Hints.GoalZones.Add(autorot.Hints.GoalDonut(target.Position, min, max, 2f));
                 }
             }
-            return await Task.Run(() => NavigationDecision.Build(_naviCtx, WorldState, autorot.Hints, player, autorot.Bossmods.WorldState.Client.MoveSpeed, forbiddenZoneCushion: _config.PreferredDistance)).ConfigureAwait(false);
+            return await Task.Run(() => NavigationDecision.Build(_naviCtx, WorldState, autorot.Hints, player, autorot.Bossmods.WorldState.Client.MoveSpeed, forbiddenZoneCushion: _config.PreferredDistance, avoidFutureAOEs: _config.AvoidFutureAOEs, activationTimeCushion: _config.AggressiveUptime ? 0.1f : NavigationDecision.ActivationTimeCushion)).ConfigureAwait(false);
         }
 
         // TODO: remove this once all rotation modules are fixed
         if (autorot.Hints.GoalZones.Count == 0 && targeting.Target != null)
             autorot.Hints.GoalZones.Add(autorot.Hints.GoalSingleTarget(targeting.Target.Actor, targeting.PreferredPosition, targeting.PreferredRange));
-        return await Task.Run(() => NavigationDecision.Build(_naviCtx, WorldState, autorot.Hints, player, autorot.Bossmods.WorldState.Client.MoveSpeed, _config.PreferredDistance)).ConfigureAwait(false);
+        return await Task.Run(() => NavigationDecision.Build(_naviCtx, WorldState, autorot.Hints, player, autorot.Bossmods.WorldState.Client.MoveSpeed, _config.PreferredDistance, avoidFutureAOEs: _config.AvoidFutureAOEs, activationTimeCushion: _config.AggressiveUptime ? 0.1f : NavigationDecision.ActivationTimeCushion)).ConfigureAwait(false);
     }
 
     private void FocusMaster(Actor master)

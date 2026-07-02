@@ -30,7 +30,7 @@ public sealed class UIPresetDatabaseEditor(PresetDatabase db)
         }
         else
         {
-            ImGui.TextUnformatted("Select preset to edit or create a new one.");
+            ImGui.TextUnformatted(Loc.T("PRESETDB_SelectOrCreate", "Select preset to edit or create a new one."));
         }
     }
 
@@ -50,8 +50,8 @@ public sealed class UIPresetDatabaseEditor(PresetDatabase db)
         if (!modal)
             return;
         ImGui.TextUnformatted($"Currently opened preset {_selectedPreset?.Preset.Name} has unsaved modifications.");
-        ImGui.TextUnformatted("To select a new preset, you need to either save or discard them.");
-        ImGui.TextUnformatted("How do you want to proceed?");
+        ImGui.TextUnformatted(Loc.T("PRESETDB_UnsavedMsg", "To select a new preset, you need to either save or discard them."));
+        ImGui.TextUnformatted(Loc.T("PRESETDB_HowToProceed", "How do you want to proceed?"));
         if (DrawSaveCurrentPresetButton())
         {
             SaveCurrentPreset();
@@ -64,12 +64,12 @@ public sealed class UIPresetDatabaseEditor(PresetDatabase db)
             CompleteChangeCurrentPreset();
         }
         ImGui.SameLine();
-        if (ImGui.Button("Discard"))
+        if (ImGui.Button(Loc.T("PRESETDB_Discard", "Discard")))
         {
             CompleteChangeCurrentPreset();
         }
         ImGui.SameLine();
-        if (ImGui.Button("Cancel") || !modalOpen)
+        if (ImGui.Button(Loc.T("PRESETDB_Cancel", "Cancel")) || !modalOpen)
         {
             _pendingSelectPresetIndex = -1;
         }

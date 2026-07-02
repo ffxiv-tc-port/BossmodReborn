@@ -70,5 +70,17 @@ sealed class AIConfig : ConfigNode
     [PropertyDisplay("Idle while mounted")]
     public bool ForbidAIMovementMounted = false;
 
+    [PropertyDisplay("Stay within arena bounds", tooltip: "When following, do not move outside the current arena/pathfind map boundary (useful in boss modules to prevent walking out of the arena)")]
+    public bool StayWithinArenaBounds = true;
+
+    [PropertyDisplay("Treat all forbidden zones as immediate", tooltip: "Never move into an AOE zone even if you could pass through before it activates; safer but may reduce uptime")]
+    public bool AvoidFutureAOEs = false;
+
+    [PropertyDisplay("Prioritize uptime (aggressive dodge timing)", tooltip: "Keep attacking as long as possible before a mechanic resolves, moving out only at the very last safe moment instead of leaving a 1s safety cushion. Improves uptime, but leaves no margin for lag/hitching - only enable if you trust your connection and this specific fight's pathfinding.")]
+    public bool AggressiveUptime = false;
+
+    [PropertyDisplay("Return to pre-dodge position", tooltip: "After a forced dodge is over, try to walk back to the spot you were standing at right before it started, for better uptime/positioning. Abandoned immediately if that spot is currently inside a forbidden zone or outside the arena bounds.")]
+    public bool ReturnToPreDodgePosition = false;
+
     public string? AIAutorotPresetName;
 }

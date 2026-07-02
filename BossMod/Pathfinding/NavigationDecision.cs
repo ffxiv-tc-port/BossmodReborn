@@ -25,7 +25,7 @@ public struct NavigationDecision
 
     public const float ActivationTimeCushion = 1f; // reduce time between now and activation by this value in seconds; increase for more conservativeness
 
-    public static NavigationDecision Build(Context ctx, WorldState ws, AIHints hints, Actor player, float playerSpeed = 6f, float forbiddenZoneCushion = default)
+    public static NavigationDecision Build(Context ctx, WorldState ws, AIHints hints, Actor player, float playerSpeed = 6f, float forbiddenZoneCushion = default, bool avoidFutureAOEs = false, float activationTimeCushion = ActivationTimeCushion)
     {
         // build a pathfinding map: rasterize all forbidden zones and goals
         hints.InitPathfindMap(ctx.Map);
@@ -34,7 +34,14 @@ public struct NavigationDecision
         Func<WPos, float>[] localGoalZones = [.. hints.GoalZones];
         if (hints.ForbiddenZones.Count != 0)
         {
-            RasterizeForbiddenZones(ctx.Map, localForbiddenZones, ws.CurrentTime, ctx.Scratch);
+            if (avoidFutureAOEs)
+            {
+                // treat all zones as immediately active: the AI will never enter any AOE even briefly
+                var now = ws.CurrentTime;
+                for (var i = 0; i < localForbiddenZones.Length; i++)
+                    localForbiddenZones[i] = (localForbiddenZones[i].Item1, now, localForbiddenZones[i].Item3);
+            }
+            RasterizeForbiddenZones(ctx.Map, localForbiddenZones, ws.CurrentTime, ctx.Scratch, activationTimeCushion);
         }
         if (player.CastInfo == null) // don't rasterize goal zones if casting or if inside a very dangerous pixel
         {
@@ -100,7 +107,7 @@ public struct NavigationDecision
         }
     }
 
-    public static void RasterizeForbiddenZones(Map map, (Func<WPos, float> shapeDistance, DateTime activation, ulong source)[] zones, DateTime current, float[] scratch)
+    public static void RasterizeForbiddenZones(Map map, (Func<WPos, float> shapeDistance, DateTime activation, ulong source)[] zones, DateTime current, float[] scratch, float activationTimeCushion = ActivationTimeCushion)
     {
         // 1) Cluster activation times
         // very slight difference in activation times cause issues for pathfinding - cluster them together
@@ -114,7 +121,7 @@ public struct NavigationDecision
             var activation = zone.activation.Clamp(globalStart, globalEnd);
             if (activation > clusterEnd)
             {
-                clusterG = ActivationToG(activation, current);
+                clusterG = ActivationToG(activation, current, activationTimeCushion);
                 clusterEnd = activation.AddSeconds(0.5d);
             }
             zonesFixed[i] = (zone.shapeDistance, clusterG);
@@ -403,7 +410,7 @@ public struct NavigationDecision
         // Finally store the global maximum in map.MaxPriority
         map.MaxPriority = globalMaxPriority;
     }
-    private static float ActivationToG(DateTime activation, DateTime current) => Math.Max(0f, (float)(activation - current).TotalSeconds - ActivationTimeCushion);
+    private static float ActivationToG(DateTime activation, DateTime current, float activationTimeCushion) => Math.Max(0f, (float)(activation - current).TotalSeconds - activationTimeCushion);
 
     private static float CalculateMaxG(ref (Func<WPos, float> shapeDistance, float g)[] zones, WPos p, float cushion = 0f)
     {

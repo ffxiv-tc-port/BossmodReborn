@@ -168,7 +168,7 @@ public sealed class ModuleViewer : IDisposable
         ImGui.TableNextColumn();
         ImGui.TableNextColumn(); //spacing with only one seemed to be a bit small on certain window sizes
         ImGui.AlignTextToFramePadding();
-        ImGui.Text("Search:");
+        ImGui.Text(Loc.T("MV_Search", "Search:"));
         ImGui.SameLine();
         ImGui.SetNextItemWidth(-1);
         DrawSearchBar();
@@ -196,7 +196,7 @@ public sealed class ModuleViewer : IDisposable
         if (ImGui.IsItemHovered() && !ImGui.IsItemFocused())
         {
             ImGui.BeginTooltip();
-            ImGui.Text("Type here to search for any specific instance by its respective title.");
+            ImGui.Text(Loc.T("MV_SearchTip", "Type here to search for any specific instance by its respective title."));
             ImGui.EndTooltip();
         }
     }

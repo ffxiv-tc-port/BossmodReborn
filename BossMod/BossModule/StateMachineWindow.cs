@@ -15,11 +15,11 @@ public sealed class StateMachineWindow : UIWindow
 
     public override void Draw()
     {
-        if (ImGui.CollapsingHeader("Settings"))
+        if (ImGui.CollapsingHeader(Loc.T("SMW_Settings", "Settings")))
         {
-            ImGui.Checkbox("Draw unnamed nodes", ref _col.DrawUnnamedNodes);
-            ImGui.Checkbox("Draw tankbuster nodes only", ref _col.DrawTankbusterNodesOnly);
-            ImGui.Checkbox("Draw raidwide nodes only", ref _col.DrawRaidwideNodesOnly);
+            ImGui.Checkbox(Loc.T("SMW_DrawUnnamed", "Draw unnamed nodes"), ref _col.DrawUnnamedNodes);
+            ImGui.Checkbox(Loc.T("SMW_DrawTankbuster", "Draw tankbuster nodes only"), ref _col.DrawTankbusterNodesOnly);
+            ImGui.Checkbox(Loc.T("SMW_DrawRaidwide", "Draw raidwide nodes only"), ref _col.DrawRaidwideNodesOnly);
         }
 
         _timeline.CurrentTime = null;

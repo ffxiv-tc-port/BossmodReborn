@@ -14,8 +14,8 @@ public sealed class BossModuleConfigWindow : UIWindow
     {
         _node = info.ConfigType != null ? Service.Config.Get<ConfigNode>(info.ConfigType) : null;
         _ws = ws;
-        _tabs.Add("Encounter-specific config", DrawEncounterTab);
-        _tabs.Add("Party roles assignment", DrawPartyRolesAssignmentsTab);
+        _tabs.Add(Loc.T("BMCW_EncounterConfig", "Encounter-specific config"), DrawEncounterTab);
+        _tabs.Add(Loc.T("BMCW_PartyRoles", "Party roles assignment"), DrawPartyRolesAssignmentsTab);
     }
 
     public override void Draw() => _tabs.Draw();
@@ -25,7 +25,7 @@ public sealed class BossModuleConfigWindow : UIWindow
         if (_node != null)
             ConfigUI.DrawNode(_node, Service.Config, _tree, _ws);
         else
-            ImGui.TextUnformatted("This module does not expose any configuration");
+            ImGui.TextUnformatted(Loc.T("BMCW_NoConfig", "This module does not expose any configuration"));
     }
 
     private void DrawPartyRolesAssignmentsTab()

@@ -60,6 +60,7 @@ public sealed class Plugin : IDalamudPlugin
         InteropGenerator.Runtime.Resolver.GetInstance.Resolve();
 
         dalamud.Create<Service>();
+        Loc.Load("tw");
         Service.LogHandlerDebug = msg => Service.Logger.Debug(msg);
         Service.LogHandlerVerbose = msg => Service.Logger.Verbose(msg);
         Service.LuminaGameData = dataManager.GameData;
@@ -239,7 +240,7 @@ public sealed class Plugin : IDalamudPlugin
     private void OpenConfigUI(string showTab = "")
     {
         _configUI.ShowTab(showTab);
-        _ = new UISimpleWindow("BossModReborn", _configUI.Draw, true, new(300, 300));
+        _ = new UISimpleWindow("BossModReborn [TC-7.15]", _configUI.Draw, true, new(300, 300));
     }
 
     private void DrawUI()

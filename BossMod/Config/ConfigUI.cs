@@ -34,11 +34,11 @@ public sealed class ConfigUI : IDisposable
         _mv = new(rotationDB?.Plans, ws);
         _presets = rotationDB != null ? new(rotationDB.Presets) : null;
 
-        _tabs.Add("Settings", DrawSettings);
-        _tabs.Add("Supported bosses", () => _mv.Draw(_tree, _ws));
-        _tabs.Add("Autorotation presets", () => _presets?.Draw());
-        _tabs.Add("Slash commands", DrawAvailableCommands);
-        _tabs.Add("About", _about.Draw);
+        _tabs.Add(Loc.T("Tab_Settings", "Settings"), DrawSettings);
+        _tabs.Add(Loc.T("Tab_SupportedFights", "Supported bosses"), () => _mv.Draw(_tree, _ws));
+        _tabs.Add(Loc.T("Tab_AutorotPresets", "Autorotation presets"), () => _presets?.Draw());
+        _tabs.Add(Loc.T("Tab_SlashCommands", "Slash commands"), DrawAvailableCommands);
+        _tabs.Add(Loc.T("Tab_About", "About"), _about.Draw);
 
         Dictionary<Type, UINode> nodes = [];
         var nodes2 = _root.Nodes;
@@ -131,9 +131,9 @@ public sealed class ConfigUI : IDisposable
 
     private static void DrawAvailableCommands()
     {
-        ImGui.Text("Available Commands:");
+        ImGui.Text(Loc.T("CFG_AvailableCommands", "Available Commands:"));
         ImGui.Separator();
-        ImGui.Text("AI:");
+        ImGui.Text(Loc.T("CFG_AI", "AI:"));
         ImGui.Separator();
         for (var i = 0; i < 28; ++i)
         {
@@ -141,7 +141,7 @@ public sealed class ConfigUI : IDisposable
             ImGui.Text($"/bmrai {text.Item1}: {text.Item2}");
         }
         ImGui.Separator();
-        ImGui.Text("Autorotation commands:");
+        ImGui.Text(Loc.T("CFG_AutorotCommands", "Autorotation commands:"));
         ImGui.Separator();
         for (var i = 0; i < 6; ++i)
         {
@@ -149,7 +149,7 @@ public sealed class ConfigUI : IDisposable
             ImGui.Text($"/bmr {text.Item1}: {text.Item2}");
         }
         ImGui.Separator();
-        ImGui.Text("Other commands:");
+        ImGui.Text(Loc.T("CFG_OtherCommands", "Other commands:"));
         ImGui.Separator();
         for (var i = 0; i < 7; ++i)
         {
@@ -175,7 +175,7 @@ public sealed class ConfigUI : IDisposable
                 continue;
 
             var value = field.GetValue(node);
-            if (DrawProperty(props.Label, props.Tooltip, node, field, value, root, tree, ws))
+            if (DrawProperty(Loc.T(props.Label, props.Label), Loc.T(props.Tooltip, props.Tooltip), node, field, value, root, tree, ws))
             {
                 node.Modified.Fire();
             }
@@ -201,7 +201,7 @@ public sealed class ConfigUI : IDisposable
 
     private void DrawNodes(List<UINode> nodes)
     {
-        foreach (var n in _tree.Nodes(nodes, n => new(n.Name)))
+        foreach (var n in _tree.Nodes(nodes, n => new(Loc.T(n.Name, n.Name))))
         {
             DrawNode(n.Node, _root, _tree, _ws);
             DrawNodes(n.Children);

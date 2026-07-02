@@ -2,8 +2,8 @@
   "Author": "The Combat Reborn Team",
   "Name": "Bossmod Reborn",
   "InternalName": "BossModReborn",
-  "Punchline": "Don't fail at raid mechanics anymore",
-  "Description": "A bunch of utilities to simplify bosses.",
+  "Punchline": "不再因副本機制失誤",
+  "Description": "繁體中文分支（TC-7.15）。提供 Boss 戰雷達、自動循環、冷卻計劃與 AI 功能，幫助您輕鬆應對各種 Boss 機制。",
   "RepoUrl": "https://github.com/FFXIV-CombatReborn/BossmodReborn",
   "IconUrl": "https://raw.githubusercontent.com/FFXIV-CombatReborn/RebornAssets/main/IconAssets/BMR_Icon.png",
   "ImageUrls": [
