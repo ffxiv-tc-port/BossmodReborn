@@ -55,6 +55,9 @@ sealed class AIConfig : ConfigNode
     [PropertyDisplay("Preferred distance to forbidden zones")]
     public float PreferredDistance = default;
 
+    [PropertyDisplay("Extra safety margin in Gold Saucer minigames", tooltip: "Adds extra distance-from-danger buffer on top of \"Preferred distance to forbidden zones\", so the AI stands further into a safe zone when there's room to spare instead of hugging the edge of danger.\nOnly applies in Gold Saucer minigames - never in dungeons/trials/raids, where positioning still needs to stay precise.")]
+    public float CasualSafetyMargin = default;
+
     [PropertyDisplay("Enable auto AFK", tooltip: "Enables auto AFK if out of combat. While AFK AI will not use autorotation or target anything")]
     public bool AutoAFK = false;
 

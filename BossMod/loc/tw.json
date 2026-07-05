@@ -351,6 +351,8 @@
   "Max distance to slot": { "message": "最大距離 - 槽位" },
   "Minimum distance to hitbox": { "message": "最小距離 - 判定框" },
   "Preferred distance to forbidden zones": { "message": "禁區偏好距離" },
+  "Extra safety margin in Gold Saucer minigames": { "message": "黃金碟小遊戲額外安全距離" },
+  "Adds extra distance-from-danger buffer on top of \"Preferred distance to forbidden zones\", so the AI stands further into a safe zone when there's room to spare instead of hugging the edge of danger.\nOnly applies in Gold Saucer minigames - never in dungeons/trials/raids, where positioning still needs to stay precise.": { "message": "在「禁區偏好距離」之上再加一段安全距離，讓 AI 在安全區夠大時盡量往裡面站，而不是卡在危險邊界。\n只在黃金碟小遊戲生效，副本/團戰不受影響，仍維持原本精準閃避。" },
   "Movement decision delay": { "message": "移動決策延遲" },
   "Show AI interface": { "message": "顯示 AI 介面" },
   "Show status in DTR bar": { "message": "在 DTR 欄顯示狀態" },

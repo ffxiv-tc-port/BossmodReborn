@@ -186,6 +186,9 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             _preDodgeAnchorExpiry = WorldState.FutureTime(4d);
     }
 
+    // true for Gold Saucer minigames, where standing further into a safe zone than strictly necessary costs nothing meaningful (as opposed to dungeons/trials/raids, where positioning still needs to stay precise)
+    private bool IsCasualContent() => autorot.Bossmods.ActiveModule?.Info?.GroupType == BossModuleInfo.GroupType.GoldSaucer;
+
     // true if pos is inside the arena bounds and not inside any (even future) forbidden zone
     private bool IsAnchorSafe(WPos pos)
     {
@@ -222,8 +225,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
 
         _followMaster = interactTarget == null && (_config.FollowDuringCombat || !master.InCombat || (_masterPrevPos - _masterMovementStart).LengthSq() > 100f) && (_config.FollowDuringActiveBossModule || autorot.Bossmods.ActiveModule?.StateMachine.ActiveState == null) && (_config.FollowOutOfCombat || master.InCombat);
 
-        if (_preDodgeAnchor != null && !_wasForcedDodging)
-            autorot.Hints.GoalZones.Add(autorot.Hints.GoalProximity(_preDodgeAnchor.Value, 3f, 1.5f));
+        var forbiddenZoneCushion = _config.PreferredDistance + (IsCasualContent() ? _config.CasualSafetyMargin : 0f);
 
         if (_followMaster)
         {
@@ -257,13 +259,17 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
                     autorot.Hints.GoalZones.Add(autorot.Hints.GoalDonut(target.Position, min, max, 2f));
                 }
             }
-            return await Task.Run(() => NavigationDecision.Build(_naviCtx, WorldState, autorot.Hints, player, autorot.Bossmods.WorldState.Client.MoveSpeed, forbiddenZoneCushion: _config.PreferredDistance, avoidFutureAOEs: _config.AvoidFutureAOEs, activationTimeCushion: _config.AggressiveUptime ? 0.1f : NavigationDecision.ActivationTimeCushion)).ConfigureAwait(false);
+            if (_preDodgeAnchor != null && !_wasForcedDodging)
+                autorot.Hints.GoalZones.Add(autorot.Hints.GoalProximity(_preDodgeAnchor.Value, 3f, 1.5f));
+            return await Task.Run(() => NavigationDecision.Build(_naviCtx, WorldState, autorot.Hints, player, autorot.Bossmods.WorldState.Client.MoveSpeed, forbiddenZoneCushion: forbiddenZoneCushion, avoidFutureAOEs: _config.AvoidFutureAOEs, activationTimeCushion: _config.AggressiveUptime ? 0.1f : NavigationDecision.ActivationTimeCushion)).ConfigureAwait(false);
         }
 
         // TODO: remove this once all rotation modules are fixed
         if (autorot.Hints.GoalZones.Count == 0 && targeting.Target != null)
             autorot.Hints.GoalZones.Add(autorot.Hints.GoalSingleTarget(targeting.Target.Actor, targeting.PreferredPosition, targeting.PreferredRange));
-        return await Task.Run(() => NavigationDecision.Build(_naviCtx, WorldState, autorot.Hints, player, autorot.Bossmods.WorldState.Client.MoveSpeed, _config.PreferredDistance, avoidFutureAOEs: _config.AvoidFutureAOEs, activationTimeCushion: _config.AggressiveUptime ? 0.1f : NavigationDecision.ActivationTimeCushion)).ConfigureAwait(false);
+        if (_preDodgeAnchor != null && !_wasForcedDodging)
+            autorot.Hints.GoalZones.Add(autorot.Hints.GoalProximity(_preDodgeAnchor.Value, 3f, 1.5f));
+        return await Task.Run(() => NavigationDecision.Build(_naviCtx, WorldState, autorot.Hints, player, autorot.Bossmods.WorldState.Client.MoveSpeed, forbiddenZoneCushion, avoidFutureAOEs: _config.AvoidFutureAOEs, activationTimeCushion: _config.AggressiveUptime ? 0.1f : NavigationDecision.ActivationTimeCushion)).ConfigureAwait(false);
     }
 
     private void FocusMaster(Actor master)
