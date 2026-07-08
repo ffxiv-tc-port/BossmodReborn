@@ -5,6 +5,8 @@ using Ex6 = BossMod.Stormblood.Extreme.Ex6Byakko;
 
 namespace BossMod.Dawntrail.Unreal.UnByakko;
 
+// TODO: needs its own real Boss NPC OID (Unreal encounters always get a distinct monster row from their Extreme counterpart,
+// even when reusing the same mechanics) - using Ex6.OID.Boss here would collide with Ex6Byakko's own module registration
 [ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "Lother", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 1042, NameID = 7092, PlanLevel = 100)]
 public sealed class UnByakko(WorldState ws, Actor primary) : BossModule(ws, primary, default, Ex6.Ex6Byakko.NormalBounds)
 {
