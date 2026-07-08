@@ -40,7 +40,7 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
         for (var i = 0; i < lenC; ++i)
         {
             ref readonly var c = ref State.Chests[i];
-            if (c.Room > 0)
+            if (c.Room > 0 && c.Room < chests.Length && c.Type > 0)
                 chests[c.Room] |= (RoomChest)(1 << (c.Type - 1));
         }
 

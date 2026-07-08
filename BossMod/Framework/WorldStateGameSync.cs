@@ -27,6 +27,7 @@ sealed class WorldStateGameSync : IDisposable
     private readonly ActionManagerEx _amex;
     private readonly DateTime _startTime;
     private readonly long _startQPC;
+    private bool _loggedDeepDungeonBase; // TEMP DEBUG
 
     // list of actors that are present in the user's enemy list
     private readonly List<ulong> _playerEnmity = [];
@@ -771,6 +772,13 @@ sealed class WorldStateGameSync : IDisposable
         {
             var currentId = (DeepDungeonState.DungeonType)dd->DeepDungeonId;
             var fullUpdate = currentId != _ws.DeepDungeon.DungeonId;
+
+            // TEMP DEBUG: print struct base address every time we (re-)enter a deep dungeon, in case it moves between instances
+            if (fullUpdate || !_loggedDeepDungeonBase)
+            {
+                _loggedDeepDungeonBase = true;
+                Service.Log($"[DD debug] struct base = 0x{(nint)dd:X}");
+            }
 
             var progress = new DeepDungeonState.DungeonProgress(dd->Floor, dd->ActiveLayoutIndex, dd->WeaponLevel, dd->ArmorLevel, dd->SyncedGearLevel, dd->HoardCount, dd->ReturnProgress, dd->PassageProgress);
             if (fullUpdate || progress != _ws.DeepDungeon.Progress)
