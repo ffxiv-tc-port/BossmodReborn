@@ -100,7 +100,7 @@ class AddEnrage(BossModule module) : BossComponent(module)
     }
 }
 
-class Heirsbane(BossModule module) : Components.SingleTargetCast(module, (uint)AID.Innocence, "");
+class Heirsbane(BossModule module) : Components.SingleTargetCast(module, (uint)AID.Heirsbane, "");
 
 class D143GaiusStates : StateMachineBuilder
 {

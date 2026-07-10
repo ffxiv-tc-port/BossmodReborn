@@ -183,7 +183,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         else if (_preDodgeAnchor != null && WorldState.CurrentTime > _preDodgeAnchorExpiry)
             _preDodgeAnchor = null; // took too long, give up and let normal positioning take over
         if (forcedDodging)
-            _preDodgeAnchorExpiry = WorldState.FutureTime(4d);
+            _preDodgeAnchorExpiry = WorldState.FutureTime(_config.ReturnToPreDodgePositionTimeout);
     }
 
     // true for Gold Saucer minigames, where standing further into a safe zone than strictly necessary costs nothing meaningful (as opposed to dungeons/trials/raids, where positioning still needs to stay precise)
@@ -261,7 +261,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             }
             if (_preDodgeAnchor != null && !_wasForcedDodging)
                 autorot.Hints.GoalZones.Add(autorot.Hints.GoalProximity(_preDodgeAnchor.Value, 3f, 1.5f));
-            return await Task.Run(() => NavigationDecision.Build(_naviCtx, WorldState, autorot.Hints, player, autorot.Bossmods.WorldState.Client.MoveSpeed, forbiddenZoneCushion: forbiddenZoneCushion, avoidFutureAOEs: _config.AvoidFutureAOEs, activationTimeCushion: _config.AggressiveUptime ? 0.1f : NavigationDecision.ActivationTimeCushion)).ConfigureAwait(false);
+            return await Task.Run(() => NavigationDecision.Build(_naviCtx, WorldState, autorot.Hints, player, autorot.Bossmods.WorldState.Client.MoveSpeed, forbiddenZoneCushion: forbiddenZoneCushion, avoidFutureAOEs: _config.AvoidFutureAOEs, activationTimeCushion: _config.ActivationTimeCushion)).ConfigureAwait(false);
         }
 
         // TODO: remove this once all rotation modules are fixed
@@ -269,7 +269,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             autorot.Hints.GoalZones.Add(autorot.Hints.GoalSingleTarget(targeting.Target.Actor, targeting.PreferredPosition, targeting.PreferredRange));
         if (_preDodgeAnchor != null && !_wasForcedDodging)
             autorot.Hints.GoalZones.Add(autorot.Hints.GoalProximity(_preDodgeAnchor.Value, 3f, 1.5f));
-        return await Task.Run(() => NavigationDecision.Build(_naviCtx, WorldState, autorot.Hints, player, autorot.Bossmods.WorldState.Client.MoveSpeed, forbiddenZoneCushion, avoidFutureAOEs: _config.AvoidFutureAOEs, activationTimeCushion: _config.AggressiveUptime ? 0.1f : NavigationDecision.ActivationTimeCushion)).ConfigureAwait(false);
+        return await Task.Run(() => NavigationDecision.Build(_naviCtx, WorldState, autorot.Hints, player, autorot.Bossmods.WorldState.Client.MoveSpeed, forbiddenZoneCushion, avoidFutureAOEs: _config.AvoidFutureAOEs, activationTimeCushion: _config.ActivationTimeCushion)).ConfigureAwait(false);
     }
 
     private void FocusMaster(Actor master)
@@ -362,7 +362,18 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         {
             var toDest = _naviDecision.Destination != null ? _naviDecision.Destination.Value - player.Position : default;
             var distSq = toDest.LengthSq();
-            ctrl.NaviTargetPos = WorldState.CurrentTime >= _navStartTime ? _naviDecision.Destination : null;
+
+            // avoid relocating the instant a marginally "safer" spot appears when there's no real urgency yet (see MovementUrgencyThreshold);
+            // still move immediately if that's actually needed to stay in range of whatever we're following
+            var mustMoveNow = _config.MovementUrgencyThreshold <= 0f || ForceMovementIn <= _config.MovementUrgencyThreshold;
+            if (!mustMoveNow)
+            {
+                var followActor = target.Target?.Actor ?? master;
+                var maxRange = target.Target != null ? _config.MaxDistanceToTarget : _config.MaxDistanceToSlot;
+                mustMoveNow = followActor != player && (followActor.Position - player.Position).LengthSq() > maxRange * maxRange;
+            }
+
+            ctrl.NaviTargetPos = WorldState.CurrentTime >= _navStartTime && mustMoveNow ? _naviDecision.Destination : null;
             ctrl.NaviTargetVertical = master != player ? master.PosRot.Y : null;
             ctrl.AllowInterruptingCastByMovement = player.CastInfo != null && _naviDecision.LeewaySeconds <= player.CastInfo.RemainingTime - 0.5d;
             ctrl.ForceCancelCast = false;

@@ -79,11 +79,20 @@ sealed class AIConfig : ConfigNode
     [PropertyDisplay("Treat all forbidden zones as immediate", tooltip: "Never move into an AOE zone even if you could pass through before it activates; safer but may reduce uptime")]
     public bool AvoidFutureAOEs = false;
 
-    [PropertyDisplay("Prioritize uptime (aggressive dodge timing)", tooltip: "Keep attacking as long as possible before a mechanic resolves, moving out only at the very last safe moment instead of leaving a 1s safety cushion. Improves uptime, but leaves no margin for lag/hitching - only enable if you trust your connection and this specific fight's pathfinding.")]
-    public bool AggressiveUptime = false;
+    [PropertyDisplay("Dodge timing safety cushion (seconds)", tooltip: "How many seconds before a mechanic actually resolves the AI still treats it as \"safe to be in\" for pathfinding purposes. Lower = dodges later/closer to the last safe moment (more uptime, less margin for lag/hitching). Higher = dodges earlier/more conservatively. Default is 1s; try 0.1-0.2 for aggressive uptime, only if you trust your connection and this fight's pathfinding.")]
+    [PropertySlider(0f, 2f)]
+    public float ActivationTimeCushion = Pathfinding.NavigationDecision.ActivationTimeCushion;
 
     [PropertyDisplay("Return to pre-dodge position", tooltip: "After a forced dodge is over, try to walk back to the spot you were standing at right before it started, for better uptime/positioning. Abandoned immediately if that spot is currently inside a forbidden zone or outside the arena bounds.")]
     public bool ReturnToPreDodgePosition = false;
+
+    [PropertyDisplay("Return to pre-dodge position timeout (seconds)", tooltip: "How long to keep trying to walk back to the pre-dodge position before giving up and letting normal positioning take over.")]
+    [PropertySlider(0.5f, 15f)]
+    public float ReturnToPreDodgePositionTimeout = 4f;
+
+    [PropertyDisplay("Movement urgency threshold (seconds)", tooltip: "The pathfinder often finds a marginally \"safer\" spot to stand at the moment a new AOE telegraph appears, even though there's no need to move yet. This keeps the AI standing still (for uptime) until fewer than this many seconds of safety margin remain, instead of relocating right away. Does not delay movement that's actually needed to stay in range of your target/master.")]
+    [PropertySlider(0f, 3f)]
+    public float MovementUrgencyThreshold = 0f;
 
     public string? AIAutorotPresetName;
 }

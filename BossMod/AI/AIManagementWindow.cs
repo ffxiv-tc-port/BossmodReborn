@@ -86,12 +86,23 @@ sealed class AIManagementWindow : UIWindow
         }
         ImGui.SameLine();
         configModified |= ImGui.Checkbox(Loc.T("AI_DisableObstacleMaps", "Disable loading obstacle maps"), ref _config.DisableObstacleMaps);
+        ImGui.Text(Loc.T("AI_ActivationTimeCushion", "Dodge timing safety cushion"));
         ImGui.SameLine();
-        configModified |= ImGui.Checkbox(Loc.T("AI_AggressiveUptime", "Prioritize uptime"), ref _config.AggressiveUptime);
+        ImGui.SetNextItemWidth(100f);
+        var activationTimeCushionStr = _config.ActivationTimeCushion.ToString(CultureInfo.InvariantCulture);
+        if (ImGui.InputText("##ActivationTimeCushion", ref activationTimeCushionStr, 64u))
+        {
+            activationTimeCushionStr = activationTimeCushionStr.Replace(',', '.');
+            if (float.TryParse(activationTimeCushionStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var cushion))
+            {
+                _config.ActivationTimeCushion = cushion;
+                configModified = true;
+            }
+        }
         if (ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
-            ImGui.Text(Loc.T("AI_AggressiveUptime_Tip", "Keep attacking as long as possible before a mechanic resolves, moving out only at the very last safe moment instead of leaving a 1s safety cushion.\nImproves uptime, but leaves no margin for lag/hitching - only enable if you trust your connection and this specific fight's pathfinding."));
+            ImGui.Text(Loc.T("AI_ActivationTimeCushion_Tip", "How many seconds before a mechanic actually resolves the AI still treats it as \"safe to be in\".\nLower = dodges later/closer to the last safe moment (more uptime, less margin for lag/hitching). Default is 1s; try 0.1-0.2 for aggressive uptime."));
             ImGui.EndTooltip();
         }
         ImGui.SameLine();
@@ -100,6 +111,45 @@ sealed class AIManagementWindow : UIWindow
         {
             ImGui.BeginTooltip();
             ImGui.Text(Loc.T("AI_ReturnToPreDodgePosition_Tip", "After a forced dodge is over, try to walk back to the spot you were standing at right before it started, for better uptime/positioning.\nAbandoned immediately if that spot is currently inside a forbidden zone or outside the arena bounds."));
+            ImGui.EndTooltip();
+        }
+        ImGui.SameLine();
+        ImGui.Text(Loc.T("AI_ReturnToPreDodgePositionTimeout", "Timeout"));
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(80f);
+        var preDodgeTimeoutStr = _config.ReturnToPreDodgePositionTimeout.ToString(CultureInfo.InvariantCulture);
+        if (ImGui.InputText("##ReturnToPreDodgePositionTimeout", ref preDodgeTimeoutStr, 64u))
+        {
+            preDodgeTimeoutStr = preDodgeTimeoutStr.Replace(',', '.');
+            if (float.TryParse(preDodgeTimeoutStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var timeout))
+            {
+                _config.ReturnToPreDodgePositionTimeout = timeout;
+                configModified = true;
+            }
+        }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.Text(Loc.T("AI_ReturnToPreDodgePositionTimeout_Tip", "How long to keep trying to walk back to the pre-dodge position before giving up and letting normal positioning take over."));
+            ImGui.EndTooltip();
+        }
+        ImGui.Text(Loc.T("AI_MovementUrgencyThreshold", "Movement urgency threshold"));
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(80f);
+        var movementUrgencyStr = _config.MovementUrgencyThreshold.ToString(CultureInfo.InvariantCulture);
+        if (ImGui.InputText("##MovementUrgencyThreshold", ref movementUrgencyStr, 64u))
+        {
+            movementUrgencyStr = movementUrgencyStr.Replace(',', '.');
+            if (float.TryParse(movementUrgencyStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var urgency))
+            {
+                _config.MovementUrgencyThreshold = urgency;
+                configModified = true;
+            }
+        }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.Text(Loc.T("AI_MovementUrgencyThreshold_Tip", "The pathfinder often finds a marginally \"safer\" spot the instant a new AOE telegraph appears, even though there's no need to move yet.\nSetting this above 0 keeps the AI standing still (for uptime) until fewer than this many seconds of safety margin remain, instead of relocating right away.\nDoes not delay movement that's actually needed to stay in range of your target/master. Default 0 = old behavior (move immediately)."));
             ImGui.EndTooltip();
         }
 
