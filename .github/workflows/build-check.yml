@@ -1,0 +1,33 @@
+name: Build Check
+
+on:
+  push:
+    branches: '*'
+    tags-ignore: '*'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Download Dalamud Latest
+        run: |
+          Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile latest.zip
+          Expand-Archive -Force latest.zip "$env:AppData\XIVLauncher\addon\Hooks\dev"
+
+      - name: Restore Nuget Packages
+        run: dotnet restore BossMod\BossModReborn.csproj
+
+      - name: Build Plugin
+        run: dotnet build --no-restore -c Release BossMod\BossModReborn.csproj
