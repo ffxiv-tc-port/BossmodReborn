@@ -16,7 +16,7 @@ jobs:
 
       - name: Get Environment Variables
         run: |
-          $tag = "${{ github.ref }}" -replace 'refs/tags/', ''
+          $tag = "${{ github.ref }}" -replace 'refs/tags/', '' -replace '^v', ''
 
           "tag=$tag" | Out-File -Append -FilePath $Env:GITHUB_ENV
           
