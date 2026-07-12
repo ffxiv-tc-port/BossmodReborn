@@ -25,10 +25,10 @@ jobs:
         with:
           dotnet-version: 9.0.x
 
-      - name: Download Dalamud Latest
+      - name: Download Dalamud (pinned TC-compatible build)
         run: |
-          Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile latest.zip
-          Expand-Archive -Force latest.zip "$env:AppData\XIVLauncher\addon\Hooks\dev"
+          Invoke-WebRequest -Uri https://github.com/Lother/dalamud-tc-pin/releases/download/v12.0.2/dalamud-api12-net9.zip -OutFile dalamud-pinned.zip
+          Expand-Archive -Force dalamud-pinned.zip "$env:AppData\FFXIVSimpleLauncher\Dalamud\Injector\"
 
       - name: Restore Nuget Packages
         run: dotnet restore BossMod\BossModReborn.csproj
