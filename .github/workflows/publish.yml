@@ -2,7 +2,7 @@ name: Publish
 on:
   push:
     tags:
-      - '*.*.*.*'
+      - 'v*'
 jobs:
   Build:
     permissions:
@@ -42,5 +42,7 @@ jobs:
       - name: Publish Plugin
         uses: softprops/action-gh-release@v2
         with:
-          files: ./build/BossModReborn.zip
+          files: |
+            ./build/BossModReborn.zip
+            ./build/BossModReborn.json
           token: ${{ secrets.GITHUB_TOKEN }}
