@@ -5,7 +5,7 @@
   "Punchline": "不再因副本機制失誤",
   "Description": "繁體中文分支（TC-7.15）。提供 Boss 戰雷達、自動循環、冷卻計劃與 AI 功能，幫助您輕鬆應對各種 Boss 機制。",
   "RepoUrl": "https://github.com/Lother/BossmodReborn",
-  "IconUrl": "https://raw.githubusercontent.com/Lother/BossmodReborn/tc-7.15/Data/icon.png",
+  "IconUrl": "https://raw.githubusercontent.com/Lother/DalamudPluginsTC/main/icons/BossModReborn.png",
   "ImageUrls": [
     "https://raw.githubusercontent.com/awgil/ffxiv_bossmod/master/Data/image1.png",
     "https://raw.githubusercontent.com/awgil/ffxiv_bossmod/master/Data/image2.png",
