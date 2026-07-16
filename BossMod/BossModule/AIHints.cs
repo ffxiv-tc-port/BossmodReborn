@@ -472,6 +472,25 @@ public sealed class AIHints
     }
     public Func<WPos, float> GoalProximity(Actor target, float range, float weight = 1f) => GoalProximity(target.Position, range + target.HitboxRadius, weight);
 
+    // goal zone used as a tie-breaker while dodging: prefers positions behind the target's facing direction over its front/flanks,
+    // and penalizes positions that retreat further away from the target than the player's current distance (discourages simply backing away)
+    public Func<WPos, float> GoalDodgeDirection(Actor target, WPos playerPos, float weight = 0.5f)
+    {
+        var origin = target.Position;
+        var facing = target.Rotation.ToDirection();
+        var curDist = (playerPos - origin).Length();
+        return p =>
+        {
+            var offset = p - origin;
+            var dist = offset.Length();
+            if (dist < 0.01f)
+                return default;
+            var behind = -facing.Dot(offset / dist); // 1 = directly behind target, -1 = directly in front
+            var retreat = Math.Max(0f, dist - curDist); // positive if this cell is further from target than our current position
+            return weight * (behind - retreat * 0.5f);
+        };
+    }
+
     public Func<WPos, float> GoalDonut(WPos center, float innerRadius, float outerRadius, float weight = 1f)
     {
         var innerR = Math.Max(0f, innerRadius);

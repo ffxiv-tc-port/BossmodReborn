@@ -77,3 +77,22 @@ public override void Update()
 （實際案例見 [BossMod/Modules/RealmReborn/Dungeon/D14Praetorium/D143Gaius.cs](../../../BossMod/Modules/RealmReborn/Dungeon/D14Praetorium/D143Gaius.cs) 的 `TerminusEst` component。）
 
 `ActorCastInfo.NPCRemainingTime`（[BossMod/Data/Actor.cs](../../../BossMod/Data/Actor.cs)）是官方施法時間扣掉 NPC 回報延遲後的精確剩餘秒數，配合 `WorldState.FutureTime(...)` 就能算出準確的結算時間。判斷「這個機制的 AI 逃跑路線/回位邏輯感覺怪怪的」時，第一步就是去對應模組找 `AddForbiddenZone`/`AOEInstance` 建立的地方，檢查 `activation` 是不是用猜的、有沒有機會換成真實 `CastInfo`。
+
+## 全域規則：AI 閃避範圍時的方向偏好
+
+這是使用者對整個 AI 尋路系統的通用要求（不是單一 boss 模組的個案），已實作為核心引擎行為：
+
+**規則**：AI 在閃避 AOE/危險區時，應該：
+1. 優先往目標（boss）背後移動
+2. 如果目標背後的位置在場地邊界外（out of bounds），改往側面移動
+3. 盡量不要單純往回跑（遠離目標的方向）
+
+**實作位置**：
+- [BossMod/BossModule/AIHints.cs](../../../BossMod/BossModule/AIHints.cs) 的 `AIHints.GoalDodgeDirection(Actor target, WPos playerPos, float weight = 0.5f)`：回傳一個 goal-zone 評分函式，對候選位置依「是否在目標背後」給正分（用 `-facing.Dot(offset/dist)`，背後 = 1，正面 = -1），並依「這個位置是否比玩家目前距離更遠離目標」扣分（`retreat * 0.5f`），藉此同時鼓勵繞到背後、懲罰單純後退。
+- [BossMod/AI/AIBehaviour.cs](../../../BossMod/AI/AIBehaviour.cs) 的 `BuildNavigationDecision`：在 `autorot.Hints.ForbiddenZones.Count != 0 && targeting.Target != null` 時把這個 goal zone 加進 `Hints.GoalZones`。
+
+**為什麼是「加權 tie-breaker」而不是硬性方向規則**：`NavigationDecision.Build`（[BossMod/Pathfinding/NavigationDecision.cs](../../../BossMod/Pathfinding/NavigationDecision.cs)）的 goal zone 只在玩家目前所在格子夠安全（`PixelMaxG >= 1` 或 `< 0` 代表在場外）時才會被 rasterize（`RasterizeGoalZones`），且優先權永遠低於安全性（`ThetaStar.Score` 先比安全等級，goal zone priority 只在同安全等級內比大小）。所以這個新函式的 weight（0.5）刻意比其他 goal zone 常見數值（1、2、100、101）小很多，確保它只在「兩個候選位置一樣安全」時才影響選擇，絕不會讓 AI 為了繞背後而多承擔風險。
+
+「背後位置在場外時自動改往側面」不需要額外程式碼特別處理：因為地圖只涵蓋場地邊界內的格子，場外的「背後理想點」本來就不在 pathfinder 的可達範圍內，評分函式對「越接近背後方向」給分是連續的，所以 pathfinder 自然會選次佳的可達格子（通常就是側面）。
+
+若之後要調整這個行為（例如偏好強度、要不要對特定模組停用），改 `GoalDodgeDirection` 的 weight 或呼叫條件即可，不需要動 `ThetaStar`/`NavigationDecision` 核心尋路演算法。

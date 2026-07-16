@@ -227,6 +227,11 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
 
         var forbiddenZoneCushion = _config.PreferredDistance + (IsCasualContent() ? _config.CasualSafetyMargin : 0f);
 
+        // while actually dodging something, prefer moving behind the target over its front/flanks, and avoid simply backing away from it;
+        // this is only a tie-breaker among otherwise equally-safe cells, so it never overrides actual AOE safety
+        if (autorot.Hints.ForbiddenZones.Count != 0 && targeting.Target != null)
+            autorot.Hints.GoalZones.Add(autorot.Hints.GoalDodgeDirection(targeting.Target.Actor, player.Position));
+
         if (_followMaster)
         {
             if (forceDestination != null && forceDestination.OID != master.OID && autorot.Hints.PathfindMapBounds.Contains(forceDestination.Position - autorot.Hints.PathfindMapCenter))
