@@ -1,4 +1,4 @@
-name: Publish
+name: Release
 on:
   push:
     tags:
@@ -21,7 +21,7 @@ jobs:
           "tag=$tag" | Out-File -Append -FilePath $Env:GITHUB_ENV
           
       - name: Set up .NET
-        uses: actions/setup-dotnet@v1
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 9.0.x
 
