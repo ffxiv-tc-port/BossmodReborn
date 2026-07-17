@@ -5,13 +5,26 @@
     </Authors>
     <Company>
     </Company>
-    <Version>7.15.0.51</Version>
     <Description>Boss mod.</Description>
     <Copyright>
     </Copyright>
     <PackageProjectUrl>
     </PackageProjectUrl>
   </PropertyGroup>
+  <!-- Auto-Incrementing Build Number -->
+  <PropertyGroup>
+    <BuildNumberFile>$(MSBuildProjectDirectory)\BuildNumber.txt</BuildNumberFile>
+    <_PreviousBuildNumber Condition="Exists('$(BuildNumberFile)')">$([System.IO.File]::ReadAllText('$(BuildNumberFile)').Trim())</_PreviousBuildNumber>
+    <_PreviousBuildNumber Condition="'$(_PreviousBuildNumber)' == ''">0</_PreviousBuildNumber>
+    <BuildNumber>$([MSBuild]::Add($(_PreviousBuildNumber), 1))</BuildNumber>
+    <VersionPrefix>7.15.0</VersionPrefix>
+    <Version>$(VersionPrefix).$(BuildNumber)</Version>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <FileVersion>$(Version)</FileVersion>
+  </PropertyGroup>
+  <Target Name="PersistBuildNumber" AfterTargets="Build">
+    <WriteLinesToFile File="$(BuildNumberFile)" Lines="$(BuildNumber)" Overwrite="true" />
+  </Target>
   <PropertyGroup>
     <AssemblyName>BossModReborn</AssemblyName>
   </PropertyGroup>
@@ -93,7 +106,4 @@
   <ItemGroup>
     <EmbeddedResource Include="Pathfinding\ObstacleMaps\*" />
   </ItemGroup>
-  <Target Name="IncrementBuildNumber" AfterTargets="Build">
-    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\increment_version.ps1&quot; -ProjectFile &quot;$(MSBuildProjectFullPath)&quot;" />
-  </Target>
 </Project>
