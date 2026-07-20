@@ -402,10 +402,10 @@ public abstract class QuestBattle : ZoneModule
 
     public void DrawDebugInfo()
     {
-        if (UIMisc.Button("Leave duty", !ImGui.GetIO().KeyShift, "Hold shift to leave"))
+        if (UIMisc.Button(Loc.T("QB_LeaveDuty", "Leave duty"), !ImGui.GetIO().KeyShift, Loc.T("QB_LeaveDutyTip", "Hold shift to leave")))
             _abandonDuty?.Invoke(false);
         ImGui.SameLine();
-        UIMisc.HelpMarker("Attempt to leave duty by directly sending the \"abandon duty\" packet, which may be able to bypass the out-of-combat restriction. Only works in some duties.");
+        UIMisc.HelpMarker(Loc.T("QB_LeaveDutyHelp", "Attempt to leave duty by directly sending the \"abandon duty\" packet, which may be able to bypass the out-of-combat restriction. Only works in some duties."));
 
         ImGui.Text($"Module: {GetType().Name}");
         DrawObjectives();
@@ -421,7 +421,7 @@ public abstract class QuestBattle : ZoneModule
         {
             ImGui.TextUnformatted($"Position: {Utils.Vec3String(player.PosRot.XYZ())}");
             ImGui.SameLine();
-            if (ImGui.Button("Copy vec"))
+            if (ImGui.Button(Loc.T("QB_CopyVec", "Copy vec")))
             {
                 var x = player.PosRot.X;
                 var y = player.PosRot.Y;
@@ -429,7 +429,7 @@ public abstract class QuestBattle : ZoneModule
                 ImGui.SetClipboardText($"new Vector3({x:F2}f, {y:F2}f, {z:F2}f)");
             }
             ImGui.SameLine();
-            if (ImGui.Button("Copy moveto"))
+            if (ImGui.Button(Loc.T("QB_CopyMoveto", "Copy moveto")))
             {
                 var x = player.PosRot.X;
                 var y = player.PosRot.Y;
@@ -447,10 +447,10 @@ public abstract class QuestBattle : ZoneModule
             ImGui.Separator();
             ImGui.Spacing();
 
-            if (ImGui.Button("Record position"))
+            if (ImGui.Button(Loc.T("QB_RecordPosition", "Record position")))
                 _debugWaymarks.Add(player.Position);
 
-            if (ImGui.Button("Copy all"))
+            if (ImGui.Button(Loc.T("QB_CopyAll", "Copy all")))
                 ImGui.SetClipboardText(string.Join(", ", _debugWaymarks.Select(w => $"new({w.X:F2}f, {w.Z:F2}f)")));
 
             foreach (var w in _debugWaymarks)
@@ -638,15 +638,15 @@ public abstract class QuestBattle : ZoneModule
 
     private void DrawObjectives()
     {
-        if (ImGui.Button(Paused ? "Resume" : "Pause"))
+        if (ImGui.Button(Paused ? Loc.T("QB_Resume", "Resume") : Loc.T("QB_Pause", "Pause")))
             Paused ^= true;
 
         ImGui.SameLine();
 
-        if (ImGui.Button("Skip current step"))
+        if (ImGui.Button(Loc.T("QB_SkipStep", "Skip current step")))
             CurrentObjectiveIndex++;
         ImGui.SameLine();
-        if (ImGui.Button("Restart from step 1"))
+        if (ImGui.Button(Loc.T("QB_RestartStep1", "Restart from step 1")))
             CurrentObjectiveIndex = 0;
 
         ImGui.Spacing();
@@ -679,7 +679,7 @@ public abstract class QuestBattle : ZoneModule
         if (World.CurrentCFCID == 0)
             return;
 
-        if (ImGui.Button("Generate module stub"))
+        if (ImGui.Button(Loc.T("QB_GenerateModuleStub", "Generate module stub")))
         {
             var cfc = Service.LuminaRow<Lumina.Excel.Sheets.ContentFinderCondition>(World.CurrentCFCID);
             if (cfc == null)

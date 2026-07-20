@@ -1573,5 +1573,107 @@
   },
   "[3] Movement module. Responsible for pathfinding and executing movement.": {
     "message": "[3] 移動模組。負責尋路與執行移動。"
+  },
+  "QB_LeaveDuty": {
+    "message": "離開副本"
+  },
+  "QB_LeaveDutyTip": {
+    "message": "按住Shift以離開"
+  },
+  "QB_LeaveDutyHelp": {
+    "message": "嘗試直接傳送「放棄副本」封包以離開，可能繞過戰鬥中限制。僅部分副本可用。"
+  },
+  "QB_CopyVec": {
+    "message": "複製座標"
+  },
+  "QB_CopyMoveto": {
+    "message": "複製移動指令"
+  },
+  "QB_RecordPosition": {
+    "message": "記錄位置"
+  },
+  "QB_CopyAll": {
+    "message": "全部複製"
+  },
+  "QB_Resume": {
+    "message": "繼續"
+  },
+  "QB_Pause": {
+    "message": "暫停"
+  },
+  "QB_SkipStep": {
+    "message": "跳過目前步驟"
+  },
+  "QB_RestartStep1": {
+    "message": "從第1步重新開始"
+  },
+  "QB_GenerateModuleStub": {
+    "message": "產生模組範本"
+  },
+  "PATH_ResetPf": {
+    "message": "重置尋路"
+  },
+  "PATH_StepPf": {
+    "message": "單步尋路"
+  },
+  "PATH_RunPf": {
+    "message": "執行尋路"
+  },
+  "PATH_StepBack": {
+    "message": "退回一步"
+  },
+  "PATH_RunUntilReopen": {
+    "message": "執行至重新開啟"
+  },
+  "PATH_Step100": {
+    "message": "執行100步"
+  },
+  "PATH_Waypoints": {
+    "message": "路徑點"
+  },
+  "TL_Modules": {
+    "message": "模組"
+  },
+  "TL_ColumnVisibility": {
+    "message": "欄位顯示"
+  },
+  "TL_ExportToClipboard": {
+    "message": "匯出至剪貼簿"
+  },
+  "TL_ImportFromClipboard": {
+    "message": "從剪貼簿匯入"
+  },
+  "TL_Name": {
+    "message": "名稱"
+  },
+  "TL_HoldShiftToRemove": {
+    "message": "按住Shift以移除"
+  },
+  "TL_HideColumn": {
+    "message": "隱藏欄位"
+  },
+  "TL_AppliesWholeEncounter": {
+    "message": "此數值套用於整場戰鬥，但會被個別項目覆蓋。"
+  },
+  "TL_ChangeBySelecting": {
+    "message": "可透過選取"
+  },
+  "TL_AtTopOfTimeline": {
+    "message": "（位於時間軸頂端）來變更此設定。"
+  },
+  "DD_ReloadObstacles": {
+    "message": "重新載入障礙物"
+  },
+  "DD_SetClosestTrapIgnored": {
+    "message": "將最近的陷阱位置設為忽略"
+  },
+  "BME_WheelZoomTip": {
+    "message": "滾輪縮放，Shift+滾輪調整筆刷大小"
+  },
+  "BME_Undo": {
+    "message": "復原"
+  },
+  "BME_Redo": {
+    "message": "重做"
   }
 }

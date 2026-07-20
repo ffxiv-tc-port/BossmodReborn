@@ -311,7 +311,7 @@ public abstract class AutoClear : ZoneModule
             Config.Modified.Fire();
         }
 
-        if (ImGui.Button("Reload obstacles"))
+        if (ImGui.Button(Loc.T("DD_ReloadObstacles", "Reload obstacles")))
         {
             _obstacles.Dispose();
             _obstacles = new(World);
@@ -333,7 +333,7 @@ public abstract class AutoClear : ZoneModule
             UIMisc.HelpMarker(() => $"Wrong resolution for map; should be 0.5, got {data.PixelSize}", Dalamud.Interface.FontAwesomeIcon.ExclamationTriangle);
         }
 
-        if (ImGui.Button("Set closest trap location as ignored"))
+        if (ImGui.Button(Loc.T("DD_SetClosestTrapIgnored", "Set closest trap location as ignored")))
         {
             WPos? pos = null;
             var minDistanceSq = float.MaxValue;

@@ -173,16 +173,16 @@ public sealed class MapVisualizer
         }
 
         // pathfinding
-        if (ImGui.Button("Reset pf"))
+        if (ImGui.Button(Loc.T("PATH_ResetPf", "Reset pf")))
             ExecTimed(() => _pathfind = BuildPathfind());
         ImGui.SameLine();
-        if (ImGui.Button("Step pf"))
+        if (ImGui.Button(Loc.T("PATH_StepPf", "Step pf")))
             ExecTimed(() => _pathfind.ExecuteStep());
         ImGui.SameLine();
-        if (ImGui.Button("Run pf"))
+        if (ImGui.Button(Loc.T("PATH_RunPf", "Run pf")))
             ExecTimed(() => _pathfind.Execute());
         ImGui.SameLine();
-        if (ImGui.Button("Step back") && _pathfind.NumSteps > 0)
+        if (ImGui.Button(Loc.T("PATH_StepBack", "Step back")) && _pathfind.NumSteps > 0)
             ExecTimed(() =>
             {
                 var s = _pathfind.NumSteps - 1;
@@ -191,7 +191,7 @@ public sealed class MapVisualizer
                     ;
             });
         ImGui.SameLine();
-        if (ImGui.Button("Run until reopen"))
+        if (ImGui.Button(Loc.T("PATH_RunUntilReopen", "Run until reopen")))
             ExecTimed(() =>
             {
                 var startR = _pathfind.NumReopens;
@@ -199,7 +199,7 @@ public sealed class MapVisualizer
                     ;
             });
         ImGui.SameLine();
-        if (ImGui.Button("Step x100"))
+        if (ImGui.Button(Loc.T("PATH_Step100", "Step x100")))
             ExecTimed(() =>
             {
                 var cntr = 0;
@@ -216,7 +216,7 @@ public sealed class MapVisualizer
             ImGui.TextUnformatted($"Path length: {node.GScore:f3} to {_pathfind.CellCenter(pfRes)}, leeway={node.PathLeeway}");
         }
 
-        using (var n = ImRaii.TreeNode("Waypoints"))
+        using (var n = ImRaii.TreeNode(Loc.T("PATH_Waypoints", "Waypoints")))
             if (n)
                 DrawWaypoints(hoverNode >= 0 ? hoverNode : _pathfind.BestIndex());
     }

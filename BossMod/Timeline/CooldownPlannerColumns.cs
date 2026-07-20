@@ -43,20 +43,20 @@ public sealed class CooldownPlannerColumns : Timeline.ColumnGroup
 
     public void DrawCommonControls()
     {
-        if (ImGui.Button("Modules"))
+        if (ImGui.Button(Loc.T("TL_Modules", "Modules")))
             ImGui.OpenPopup("modules");
         ImGui.SameLine();
-        if (ImGui.Button("Column visibility"))
+        if (ImGui.Button(Loc.T("TL_ColumnVisibility", "Column visibility")))
             ImGui.OpenPopup("columns");
         ImGui.SameLine();
-        if (ImGui.Button("Export to clipboard"))
+        if (ImGui.Button(Loc.T("TL_ExportToClipboard", "Export to clipboard")))
             ExportToClipboard();
         ImGui.SameLine();
-        if (ImGui.Button("Import from clipboard"))
+        if (ImGui.Button(Loc.T("TL_ImportFromClipboard", "Import from clipboard")))
             ImportFromClipboard();
         ImGui.SameLine();
         ImGui.SetNextItemWidth(150);
-        Modified |= ImGui.InputText("Name", ref Plan.Name, 255);
+        Modified |= ImGui.InputText(Loc.T("TL_Name", "Name"), ref Plan.Name, 255);
 
         using (var popup = ImRaii.Popup("modules"))
         {
@@ -88,7 +88,7 @@ public sealed class CooldownPlannerColumns : Timeline.ColumnGroup
                         using var tooltip = ImRaii.Tooltip();
                         if (tooltip)
                         {
-                            ImGui.TextUnformatted("Hold shift to remove");
+                            ImGui.TextUnformatted(Loc.T("TL_HoldShiftToRemove", "Hold shift to remove"));
                             UIRotationModule.DescribeModule(m.Type, m.Definition);
                         }
                     }
