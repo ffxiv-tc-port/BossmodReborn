@@ -15,6 +15,7 @@ sealed class AIManager : IDisposable
     public int MasterSlot = PartyState.PlayerSlot; // non-zero means corresponding player is master
     public AIBehaviour? Beh;
     public Preset? AiPreset;
+    private bool _autoEnableAttempted;
 
     public WorldState WorldState => Autorot.Bossmods.WorldState;
     public float ForceMovementIn => Beh?.ForceMovementIn ?? float.MaxValue;
@@ -46,6 +47,16 @@ sealed class AIManager : IDisposable
 
     public void Update()
     {
+        if (!_autoEnableAttempted && _config.AutoEnableOnLoad && Beh == null && WorldState.Party.Player() != null)
+        {
+            // deferred to the first tick where party data actually exists (rather than done
+            // in the constructor) so this doesn't race plugin load happening before the
+            // character/party is fully in world - only ever attempted once per session, so it
+            // won't fight a player who deliberately switches AI back off afterward
+            _autoEnableAttempted = true;
+            SwitchToFollow(_config.FollowSlot);
+        }
+
         if (!WorldState.Party.Members[MasterSlot].IsValid())
             SwitchToIdle();
 
