@@ -28,7 +28,13 @@ sealed class AIManager : IDisposable
         Autorot = autorot;
         Controller = new(autorot.WorldState, amex, movement);
         Service.CommandManager.AddHandler("/bmrai", new Dalamud.Game.Command.CommandInfo(OnCommand) { HelpMessage = "Toggle AI mode" });
+        // the plugin instance (and this manager) survives character switches and full relogs
+        // within the same game client session - re-arm the one-shot auto-enable attempt on
+        // every new character login, not just once for the plugin's entire lifetime
+        Service.ClientState.Login += OnLogin;
     }
+
+    private void OnLogin() => _autoEnableAttempted = false;
 
     public void SetAIPreset(Preset? p)
     {
@@ -42,6 +48,7 @@ sealed class AIManager : IDisposable
         SwitchToIdle();
         _wndAI.Dispose();
         Service.CommandManager.RemoveHandler("/bmrai");
+        Service.ClientState.Login -= OnLogin;
         Instance = null;
     }
 
