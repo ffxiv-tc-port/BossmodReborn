@@ -47,12 +47,19 @@ sealed class AIManager : IDisposable
 
     public void Update()
     {
-        if (!_autoEnableAttempted && _config.AutoEnableOnLoad && Beh == null && WorldState.Party.Player() != null)
+        if (!_autoEnableAttempted && _config.AutoEnableOnLoad && Beh == null && WorldState.Party.Player() != null
+            && WorldState.Party.Members[_config.FollowSlot].IsValid())
         {
             // deferred to the first tick where party data actually exists (rather than done
             // in the constructor) so this doesn't race plugin load happening before the
             // character/party is fully in world - only ever attempted once per session, so it
-            // won't fight a player who deliberately switches AI back off afterward
+            // won't fight a player who deliberately switches AI back off afterward. Player()
+            // (world actor) and Members[].IsValid() (party-list network state) are two
+            // independent data streams that don't necessarily land on the same tick - gating
+            // on both, not just Player(), avoids the immediately-following
+            // "!Members[MasterSlot].IsValid() -> SwitchToIdle()" check undoing this on the
+            // same frame it just enabled AI (which then never retried, since the attempt flag
+            // was already set) - this is why AI stayed off by default in practice.
             _autoEnableAttempted = true;
             SwitchToFollow(_config.FollowSlot);
         }
