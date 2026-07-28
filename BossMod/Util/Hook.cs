@@ -10,7 +10,9 @@ public sealed class HookAddress<T> : IDisposable where T : Delegate
     private readonly Hook<T>? _hook;
 
     public nint Address => _hook?.Address ?? 0;
-    public T Original => _hook != null ? _hook.Original : throw new InvalidOperationException($"Hook {typeof(T)} was not installed (address/signature resolution failed - probably a game update)");
+    // note: detours can still fire after the hook is disposed (plugin unload/hot-update race), so always use the dispose-safe original to avoid ObjectDisposedException killing the game
+    public T Original => _hook != null ? _hook.OriginalDisposeSafe : throw new InvalidOperationException($"Hook {typeof(T)} was not installed (address/signature resolution failed - probably a game update)");
+    public bool IsDisposed => _hook == null || _hook.IsDisposed;
     public bool Enabled
     {
         get => _hook?.IsEnabled ?? false;

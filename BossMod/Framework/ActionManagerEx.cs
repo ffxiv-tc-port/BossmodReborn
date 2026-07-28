@@ -76,6 +76,14 @@ public sealed unsafe class ActionManagerEx : IDisposable
     private const uint InvalidEntityId = 0xE0000000;
 
     private readonly unsafe delegate* unmanaged<TargetSystem*, TargetSystem*> _autoSelectTarget;
+    private bool _disposed;
+
+    // GameObjectManager (like most game singletons) is null during early login / zoning / title screen; dereferencing it from a per-frame detour throws NRE and kills the game
+    private static GameObject* PlayerObject()
+    {
+        var gom = GameObjectManager.Instance();
+        return gom != null ? gom->Objects.IndexSorted[0].Value : null;
+    }
 
     public ActionManagerEx(WorldState ws, AIHints hints, MovementOverride movement)
     {
@@ -114,6 +122,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
 
     public void Dispose()
     {
+        _disposed = true;
         _setAutoAttackStateHook.Dispose();
         _processPacketActionEffectHook.Dispose();
         _useStoneHook.Dispose();
@@ -162,7 +171,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
 
     public void FaceDirection(Angle direction)
     {
-        var player = (Character*)GameObjectManager.Instance()->Objects.IndexSorted[0].Value;
+        var player = (Character*)PlayerObject();
         if (player != null)
         {
             var position = player->Position.ToSystem() + direction.ToDirection().ToVec3();
@@ -297,12 +306,15 @@ public sealed unsafe class ActionManagerEx : IDisposable
                 if (action == ActionDefinitions.IDGeneralLimitBreak)
                 {
                     var lb = LimitBreakController.Instance();
+                    var lbPlayer = (Character*)PlayerObject();
+                    if (lb == null || lbPlayer == null)
+                        return action;
                     var level = lb->BarUnits != 0 ? lb->CurrentUnits / lb->BarUnits : 0;
-                    var id = level > 0 ? lb->GetActionId((Character*)GameObjectManager.Instance()->Objects.IndexSorted[0].Value, (byte)(level - 1)) : 0;
+                    var id = level > 0 ? lb->GetActionId(lbPlayer, (byte)(level - 1)) : 0;
                     return id != 0 ? new(ActionType.Spell, id) : action;
                 }
                 // special case for lunar sprint, copied from UseGeneralAction
-                else if (action == ActionDefinitions.IDGeneralSprint && GameMain.Instance()->CurrentTerritoryIntendedUseId == 60)
+                else if (action == ActionDefinitions.IDGeneralSprint && GameMain.Instance() != null && GameMain.Instance()->CurrentTerritoryIntendedUseId == 60)
                 {
                     return new(ActionType.Spell, 43357);
                 }
@@ -362,7 +374,8 @@ public sealed unsafe class ActionManagerEx : IDisposable
                 var holsterIndex = state != null ? state->HolsterActions.IndexOf((byte)action.ID) : -1;
                 return holsterIndex >= 0 && PublicContentBozja.GetInstance()->UseFromHolster((uint)holsterIndex, action.Type == ActionType.BozjaHolsterSlot1 ? 1u : 0);
             case ActionType.Pomander:
-                var dd = EventFramework.Instance()->GetInstanceContentDeepDungeon();
+                var ef = EventFramework.Instance();
+                var dd = ef != null ? ef->GetInstanceContentDeepDungeon() : null;
                 var slot = _ws.DeepDungeon.GetPomanderSlot((PomanderID)action.ID);
                 if (dd != null && slot >= 0)
                 {
@@ -371,7 +384,8 @@ public sealed unsafe class ActionManagerEx : IDisposable
                 }
                 return false;
             case ActionType.Magicite:
-                dd = EventFramework.Instance()->GetInstanceContentDeepDungeon();
+                ef = EventFramework.Instance();
+                dd = ef != null ? ef->GetInstanceContentDeepDungeon() : null;
                 if (dd != null)
                 {
                     dd->UseStone(action.ID);
@@ -390,7 +404,10 @@ public sealed unsafe class ActionManagerEx : IDisposable
         if (actionImminent && AutoQueue.FacingAngle != null)
             return AutoQueue.FacingAngle; // explicit angle overrides all other concerns
 
-        var player = (Character*)GameObjectManager.Instance()->Objects.IndexSorted[0].Value;
+        var gom = GameObjectManager.Instance();
+        if (gom == null)
+            return null; // early login / zoning / title screen - no object manager yet
+        var player = (Character*)gom->Objects.IndexSorted[0].Value;
         if (player == null)
             return null;
         var current = player->Rotation.Radians();
@@ -407,7 +424,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
         var currentAction = isCasting ? new((ActionType)castInfo->ActionType, castInfo->ActionId) : actionImminent ? AutoQueue.Action : default;
         var currentTargetId = isCasting ? (ulong)castInfo->TargetId : (AutoQueue.Target?.InstanceID ?? InvalidEntityId);
         var currentTargetSelf = currentTargetId == player->EntityId;
-        var currentTargetObj = currentTargetSelf ? &player->GameObject : currentTargetId is not 0 and not InvalidEntityId ? GameObjectManager.Instance()->Objects.GetObjectByGameObjectId(currentTargetId) : null;
+        var currentTargetObj = currentTargetSelf ? &player->GameObject : currentTargetId is not 0 and not InvalidEntityId ? gom->Objects.GetObjectByGameObjectId(currentTargetId) : null;
         WPos? currentTargetPos = currentTargetObj != null ? new WPos(currentTargetObj->Position.X, currentTargetObj->Position.Z) : null;
         var currentTargetLoc = isCasting ? new WPos(castInfo->TargetLocation.X, castInfo->TargetLocation.Z) : new(AutoQueue.TargetPos.XZ()); // note: this only matters for area-targeted spells, for which targetlocation in castinfo is set correctly
         var idealOrientation = currentAction ? _smartRotationTweak.GetSpellOrientation(GetSpellIdForAction(currentAction), new(player->Position.X, player->Position.Z), currentTargetSelf, currentTargetPos, currentTargetLoc) : null;
@@ -420,6 +437,14 @@ public sealed unsafe class ActionManagerEx : IDisposable
     private void UpdateDetour(ActionManager* self)
     {
         var fwk = Framework.Instance();
+        // the detour can still fire while/after we're being torn down (plugin unload or hot-update), and singletons can be null in early login / zoning / title states;
+        // in either case just run the original update and skip all our per-frame logic instead of throwing out of the framework tick (which kills the game)
+        if (_disposed || _updateHook.IsDisposed || fwk == null || _inst == null)
+        {
+            _updateHook.Original(self);
+            return;
+        }
+
         var dt = fwk->GameSpeedMultiplier * fwk->FrameDeltaTime;
         var imminentAction = _inst->ActionQueued ? QueuedAction : AutoQueue.Action;
         var imminentActionAdj = imminentAction.Type == ActionType.Spell ? new(ActionType.Spell, GetAdjustedActionID(imminentAction.ID)) : imminentAction;
@@ -445,10 +470,11 @@ public sealed unsafe class ActionManagerEx : IDisposable
 
         // execute rotation, if needed
         var autoRotateConfig = fwk->SystemConfig.GetConfigOption((uint)ConfigOption.AutoFaceTargetOnAction);
-        var autoRotateOriginal = autoRotateConfig->Value.UInt;
+        var autoRotateOriginal = autoRotateConfig != null ? autoRotateConfig->Value.UInt : 0u;
         if (desiredRotation != null)
         {
-            autoRotateConfig->Value.UInt = 1;
+            if (autoRotateConfig != null)
+                autoRotateConfig->Value.UInt = 1;
             FaceDirection(desiredRotation.Value);
         }
 
@@ -460,7 +486,8 @@ public sealed unsafe class ActionManagerEx : IDisposable
             if (status == 0)
             {
                 // disable in-game auto rotation, to prevent fucking up with our logic
-                autoRotateConfig->Value.UInt = _smartRotationTweak.Enabled || AI.AIManager.Instance?.Beh != null ? 0 : autoRotateOriginal;
+                if (autoRotateConfig != null)
+                    autoRotateConfig->Value.UInt = _smartRotationTweak.Enabled || AI.AIManager.Instance?.Beh != null ? 0 : autoRotateOriginal;
                 var res = ExecuteAction(actionAdj, targetID, AutoQueue.TargetPos);
                 //Service.Log($"[AMEx] Auto-execute {AutoQueue.Source} action {AutoQueue.Action} (=> {actionAdj}) @ {targetID:X} {Utils.Vec3String(AutoQueue.TargetPos)} => {res}");
             }
@@ -476,17 +503,22 @@ public sealed unsafe class ActionManagerEx : IDisposable
             }
         }
 
-        autoRotateConfig->Value.UInt = autoRotateOriginal;
+        if (autoRotateConfig != null)
+            autoRotateConfig->Value.UInt = autoRotateOriginal;
         _cooldownTweak.StopAdjustment(); // clear any potential adjustments
         _movement.MovementBlocked = blockMovement;
 
         // TODO: what's the reason to do it in AM update, rather than plugin's executehints?..
-        if (_ws.Party.Player()?.CastInfo != null && _cancelCastTweak.ShouldCancel(_ws.CurrentTime, _hints.ForceCancelCast))
-            UIState.Instance()->Hotbar.CancelCast();
+        var uiState = UIState.Instance();
+        if (uiState != null)
+        {
+            if (_ws.Party.Player()?.CastInfo != null && _cancelCastTweak.ShouldCancel(_ws.CurrentTime, _hints.ForceCancelCast))
+                uiState->Hotbar.CancelCast();
 
-        var autosEnabled = UIState.Instance()->WeaponState.AutoAttackState.IsAutoAttacking;
-        if (_autoAutosTweak.GetDesiredState(autosEnabled, _ws.Party.Player()?.TargetID ?? 0) != autosEnabled)
-            _inst->UseAction(CSActionType.GeneralAction, 1);
+            var autosEnabled = uiState->WeaponState.AutoAttackState.IsAutoAttacking;
+            if (_autoAutosTweak.GetDesiredState(autosEnabled, _ws.Party.Player()?.TargetID ?? 0) != autosEnabled)
+                _inst->UseAction(CSActionType.GeneralAction, 1);
+        }
 
         if (_hints.WantDismount && !_movement.FollowPathActive() && _dismountTweak.AllowDismount())
             _inst->UseAction(CSActionType.Action, 4);
@@ -501,14 +533,17 @@ public sealed unsafe class ActionManagerEx : IDisposable
         var spellId = GetSpellIdForAction(action);
 
         var targetSystem = TargetSystem.Instance();
+        if (targetSystem == null)
+            return _useActionHook.Original(self, actionType, actionId, targetId, extraParam, mode, comboRouteId, outOptAreaTargeted);
 
         // if mouseover mode is enabled AND target is a usual primary target AND current mouseover is valid target for action, then we override target to mouseover
         var primaryTarget = targetSystem->Target;
         var primaryTargetId = primaryTarget != null ? primaryTarget->GetGameObjectId() : InvalidEntityId;
         var targetOverridden = targetId != primaryTargetId;
-        if (Config.PreferMouseover && !targetOverridden)
+        var pronounModule = PronounModule.Instance();
+        if (Config.PreferMouseover && !targetOverridden && pronounModule != null)
         {
-            var mouseoverTarget = PronounModule.Instance()->UiMouseOverTarget;
+            var mouseoverTarget = pronounModule->UiMouseOverTarget;
             if (mouseoverTarget != null && ActionManager.CanUseActionOnTarget(spellId, mouseoverTarget))
             {
                 targetId = mouseoverTarget->GetGameObjectId();
@@ -521,7 +556,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
 
         ulong findNearestTarget()
         {
-            if (_autoSelectTarget != null && Framework.Instance()->SystemConfig.GetConfigOption((uint)ConfigOption.AutoNearestTarget)->Value.UInt == 1u)
+            if (_autoSelectTarget != null && Framework.Instance() is var fwk && fwk != null && fwk->SystemConfig.GetConfigOption((uint)ConfigOption.AutoNearestTarget)->Value.UInt == 1u)
             {
                 _autoSelectTarget(targetSystem);
                 if (targetSystem->Target != null)
@@ -550,11 +585,11 @@ public sealed unsafe class ActionManagerEx : IDisposable
     private bool UseActionLocationDetour(ActionManager* self, CSActionType actionType, uint actionId, ulong targetId, Vector3* location, uint extraParam, byte a7)
     {
         var targetSystem = TargetSystem.Instance();
-        var player = GameObjectManager.Instance()->Objects.IndexSorted[0].Value;
+        var player = PlayerObject();
         var prevSeq = _inst->LastUsedActionSequence;
         var prevRot = player != null ? player->Rotation.Radians() : default;
-        var hardTarget = targetSystem->Target;
-        var preventAutos = _autoAutosTweak.ShouldPreventAutoActivation(ActionManager.GetSpellIdForAction(actionType, actionId));
+        var hardTarget = targetSystem != null ? targetSystem->Target : null;
+        var preventAutos = targetSystem != null && _autoAutosTweak.ShouldPreventAutoActivation(ActionManager.GetSpellIdForAction(actionType, actionId));
         if (preventAutos)
             targetSystem->Target = null;
         bool ret = _useActionLocationHook.Original(self, actionType, actionId, targetId, location, extraParam, a7);
@@ -571,7 +606,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
 
     private bool UseBozjaFromHolsterDirectorDetour(PublicContentBozja* self, uint holsterIndex, uint slot)
     {
-        var player = GameObjectManager.Instance()->Objects.IndexSorted[0].Value;
+        var player = PlayerObject();
         var prevRot = player != null ? player->Rotation.Radians() : default;
         var res = _useBozjaFromHolsterDirectorHook.Original(self, holsterIndex, slot);
         var currRot = player != null ? player->Rotation.Radians() : default;
@@ -665,7 +700,8 @@ public sealed unsafe class ActionManagerEx : IDisposable
     // TODO: current implementation means that we'll check desired state twice (once before making a decision to start autos, then again in the hook)
     private bool SetAutoAttackStateDetour(AutoAttackState* self, bool value, bool sendPacket, bool isInstant)
     {
-        if (value && !_autoAutosTweak.GetDesiredState(true, TargetSystem.Instance()->GetTargetObjectId()))
+        var targetSystem = TargetSystem.Instance();
+        if (value && targetSystem != null && !_autoAutosTweak.GetDesiredState(true, targetSystem->GetTargetObjectId()))
         {
             Service.Log($"[AMEx] Prevented starting autoattacks");
             return true;
@@ -683,9 +719,13 @@ public sealed unsafe class ActionManagerEx : IDisposable
         if (!row.Value.RequiresLineOfSight)
             return true;
 
-        var player = GameObjectManager.Instance()->Objects.IndexSorted[0].Value;
-        var targetObj = GameObjectManager.Instance()->Objects.GetObjectByGameObjectId(targetID);
-        if (targetObj == null || targetObj->EntityId == player->EntityId)
+        var gom = GameObjectManager.Instance();
+        if (gom == null)
+            return true;
+
+        var player = gom->Objects.IndexSorted[0].Value;
+        var targetObj = gom->Objects.GetObjectByGameObjectId(targetID);
+        if (player == null || targetObj == null || targetObj->EntityId == player->EntityId)
             return true;
 
         var playerPos = *player->GetPosition();
