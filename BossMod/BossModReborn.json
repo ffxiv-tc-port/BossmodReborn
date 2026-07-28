@@ -4,7 +4,7 @@
   "InternalName": "BossModReborn",
   "DalamudApiLevel": 13,
   "Punchline": "不再因副本機制失誤",
-  "Description": "繁體中文分支（TC-7.15）。提供 Boss 戰雷達、自動循環、冷卻計劃與 AI 功能，幫助您輕鬆應對各種 Boss 機制。",
+  "Description": "提供 Boss 戰雷達、自動循環、冷卻計劃與 AI 功能，幫助您輕鬆應對各種 Boss 機制。",
   "RepoUrl": "https://github.com/ffxiv-tc-port/BossmodReborn",
   "IconUrl": "https://raw.githubusercontent.com/ffxiv-tc-port/DalamudPluginsTC/main/icons/BossModReborn.png",
   "ImageUrls": [
