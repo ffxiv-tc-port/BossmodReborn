@@ -4,7 +4,7 @@ using Dalamud.Game.Gui.Dtr;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Interface.Utility.Raii;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace BossMod;
 
@@ -21,8 +21,8 @@ internal sealed class DTRProvider : IDisposable
     {
         _mgr = manager;
         _ai = ai;
-        _autorotationEntry.OnClick = () => _wantOpenPopup = true;
-        _aiEntry.OnClick = () =>
+        _autorotationEntry.OnClick = _ => _wantOpenPopup = true;
+        _aiEntry.OnClick = _ =>
         {
             if (_ai.Beh == null)
                 _ai.SwitchToFollow(_aiConfig.FollowSlot);

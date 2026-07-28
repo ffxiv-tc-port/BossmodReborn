@@ -1,7 +1,7 @@
 using Dalamud.Game.ClientState.Keys;
 using Dalamud.Plugin.Services;
 using BossMod.Util;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using FFXIVClientStructs.FFXIV.Client.System.Framework;
 
 namespace BossMod;

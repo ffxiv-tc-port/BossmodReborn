@@ -1,4 +1,4 @@
-﻿using ImGuiNET;
+﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility.Raii;
 using System.Globalization;
 
@@ -90,7 +90,7 @@ sealed class AIManagementWindow : UIWindow
         ImGui.SameLine();
         ImGui.SetNextItemWidth(100f);
         var activationTimeCushionStr = _config.ActivationTimeCushion.ToString(CultureInfo.InvariantCulture);
-        if (ImGui.InputText("##ActivationTimeCushion", ref activationTimeCushionStr, 64u))
+        if (ImGui.InputText("##ActivationTimeCushion", ref activationTimeCushionStr, 64))
         {
             activationTimeCushionStr = activationTimeCushionStr.Replace(',', '.');
             if (float.TryParse(activationTimeCushionStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var cushion))
@@ -118,7 +118,7 @@ sealed class AIManagementWindow : UIWindow
         ImGui.SameLine();
         ImGui.SetNextItemWidth(80f);
         var preDodgeTimeoutStr = _config.ReturnToPreDodgePositionTimeout.ToString(CultureInfo.InvariantCulture);
-        if (ImGui.InputText("##ReturnToPreDodgePositionTimeout", ref preDodgeTimeoutStr, 64u))
+        if (ImGui.InputText("##ReturnToPreDodgePositionTimeout", ref preDodgeTimeoutStr, 64))
         {
             preDodgeTimeoutStr = preDodgeTimeoutStr.Replace(',', '.');
             if (float.TryParse(preDodgeTimeoutStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var timeout))
@@ -137,7 +137,7 @@ sealed class AIManagementWindow : UIWindow
         ImGui.SameLine();
         ImGui.SetNextItemWidth(80f);
         var movementUrgencyStr = _config.MovementUrgencyThreshold.ToString(CultureInfo.InvariantCulture);
-        if (ImGui.InputText("##MovementUrgencyThreshold", ref movementUrgencyStr, 64u))
+        if (ImGui.InputText("##MovementUrgencyThreshold", ref movementUrgencyStr, 64))
         {
             movementUrgencyStr = movementUrgencyStr.Replace(',', '.');
             if (float.TryParse(movementUrgencyStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var urgency))
@@ -193,7 +193,7 @@ sealed class AIManagementWindow : UIWindow
         ImGui.SameLine();
         ImGui.SetNextItemWidth(100);
         var maxDistanceTargetStr = _config.MaxDistanceToTarget.ToString(CultureInfo.InvariantCulture);
-        if (ImGui.InputText("##MaxDistanceToTarget", ref maxDistanceTargetStr, 64u))
+        if (ImGui.InputText("##MaxDistanceToTarget", ref maxDistanceTargetStr, 64))
         {
             maxDistanceTargetStr = maxDistanceTargetStr.Replace(',', '.');
             if (float.TryParse(maxDistanceTargetStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var maxDistance))
@@ -213,7 +213,7 @@ sealed class AIManagementWindow : UIWindow
         ImGui.SameLine();
         ImGui.SetNextItemWidth(100f);
         var maxDistanceSlotStr = _config.MaxDistanceToSlot.ToString(CultureInfo.InvariantCulture);
-        if (ImGui.InputText("##MaxDistanceToSlot", ref maxDistanceSlotStr, 64u))
+        if (ImGui.InputText("##MaxDistanceToSlot", ref maxDistanceSlotStr, 64))
         {
             maxDistanceSlotStr = maxDistanceSlotStr.Replace(',', '.');
             if (float.TryParse(maxDistanceSlotStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var maxDistance))
@@ -232,7 +232,7 @@ sealed class AIManagementWindow : UIWindow
         ImGui.SameLine();
         ImGui.SetNextItemWidth(100f);
         var minDistanceStr = _config.MinDistance.ToString(CultureInfo.InvariantCulture);
-        if (ImGui.InputText("##MinDistance", ref minDistanceStr, 64u))
+        if (ImGui.InputText("##MinDistance", ref minDistanceStr, 64))
         {
             minDistanceStr = minDistanceStr.Replace(',', '.');
             if (float.TryParse(minDistanceStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var minDistance))
@@ -252,7 +252,7 @@ sealed class AIManagementWindow : UIWindow
         ImGui.SameLine();
         ImGui.SetNextItemWidth(100f);
         var prefDistanceStr = _config.PreferredDistance.ToString(CultureInfo.InvariantCulture);
-        if (ImGui.InputText("##PrefDistance", ref prefDistanceStr, 64u))
+        if (ImGui.InputText("##PrefDistance", ref prefDistanceStr, 64))
         {
             prefDistanceStr = prefDistanceStr.Replace(',', '.');
             if (float.TryParse(prefDistanceStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var prefDistance))
@@ -271,7 +271,7 @@ sealed class AIManagementWindow : UIWindow
         ImGui.SameLine();
         ImGui.SetNextItemWidth(100f);
         var movementDelayStr = _config.MoveDelay.ToString(CultureInfo.InvariantCulture);
-        if (ImGui.InputText("##MovementDelay", ref movementDelayStr, 64u))
+        if (ImGui.InputText("##MovementDelay", ref movementDelayStr, 64))
         {
             movementDelayStr = movementDelayStr.Replace(',', '.');
             if (float.TryParse(movementDelayStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var delay))
