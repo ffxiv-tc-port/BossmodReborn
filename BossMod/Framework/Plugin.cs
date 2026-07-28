@@ -36,6 +36,13 @@ public sealed class Plugin : IDalamudPlugin
     private DateTime _throttleJump;
     private DateTime _throttleInteract;
 
+    // 設定存檔去抖動用的狀態(見 RequestConfigSave)
+    private static readonly TimeSpan ConfigSaveDebounce = TimeSpan.FromSeconds(1d);
+    private readonly FileInfo _configFile;
+    private readonly object _configSaveLock = new();
+    private DateTime _configSaveDeadline = DateTime.MaxValue; // MaxValue 表示目前沒有待寫入的改動
+    private Task? _configSaveTask;
+
     // windows
     private readonly ConfigUI _configUI; // TODO: should be a proper window!
     private readonly BossModuleMainWindow _wndBossmod;
@@ -72,7 +79,8 @@ public sealed class Plugin : IDalamudPlugin
 
         Service.Config.Initialize();
         Service.Config.LoadFromFile(dalamud.ConfigFile);
-        Service.Config.Modified.Subscribe(() => Task.Run(() => Service.Config.SaveToFile(dalamud.ConfigFile)));
+        _configFile = dalamud.ConfigFile;
+        Service.Config.Modified.Subscribe(RequestConfigSave);
 
         CommandManager = commandManager;
         CommandManager.AddHandler("/bmr", new CommandInfo(OnCommand) { HelpMessage = "Show boss mod settings UI" });
@@ -134,7 +142,60 @@ public sealed class Plugin : IDalamudPlugin
         _bossmod.Dispose();
         ActionDefinitions.Instance.Dispose();
         CommandManager.RemoveHandler("/bmr");
+        FlushPendingConfigSave(); // 放在最後,連拆除過程中(例如回放清單)產生的改動也一併寫出去
         GarbageCollection();
+    }
+
+    // 設定存檔去抖動:設定 UI 用的是 DragFloat/DragInt/ColorEdit,這類控制項在「拖曳期間每一幀」都會回傳 true
+    // 並觸發 Modified。原本每次都直接排一個背景存檔,拖 3 秒 slider 就會排出上百個並行 Task,每個都要用
+    // Parallel.ForEach 序列化全部設定節點,又互搶同一個 FileShare.None 的檔案 handle(多數直接丟 IOException
+    // 被吞掉):落地順序沒有保證,最後成功寫入的可能是較舊的快照,而且 thread pool 被佔滿後會回頭拖慢繪製執行緒。
+    // 改成合流:只記下「最後一次改動的時間」,等安靜 ConfigSaveDebounce 之後才真的寫一次。
+    private void RequestConfigSave()
+    {
+        lock (_configSaveLock)
+            _configSaveDeadline = DateTime.UtcNow + ConfigSaveDebounce;
+    }
+
+    // 每幀檢查一次:待寫入的改動安靜夠久了就真的存檔,且同一時間只允許一個存檔在跑
+    private void UpdatePendingConfigSave()
+    {
+        lock (_configSaveLock)
+        {
+            if (_configSaveDeadline == DateTime.MaxValue || DateTime.UtcNow < _configSaveDeadline)
+                return;
+            if (_configSaveTask is { IsCompleted: false })
+                return; // 上一次存檔還沒寫完,下一幀再試,避免兩個寫入互搶檔案 handle
+
+            _configSaveDeadline = DateTime.MaxValue;
+            _configSaveTask = Task.Run(() => Service.Config.SaveToFile(_configFile));
+        }
+    }
+
+    // 卸載外掛/關遊戲時同步沖掉待寫入的改動,避免使用者最後一次調整因為去抖延遲而遺失
+    private void FlushPendingConfigSave()
+    {
+        Task? inflight;
+        bool pending;
+        lock (_configSaveLock)
+        {
+            inflight = _configSaveTask;
+            pending = _configSaveDeadline != DateTime.MaxValue;
+            _configSaveDeadline = DateTime.MaxValue;
+            _configSaveTask = null;
+        }
+
+        try
+        {
+            inflight?.Wait(TimeSpan.FromSeconds(5d));
+        }
+        catch (Exception e)
+        {
+            Service.Log($"Failed to wait for pending config save: {e}");
+        }
+
+        if (pending)
+            Service.Config.SaveToFile(_configFile);
     }
 
     private void OnCommand(string cmd, string args)
@@ -240,7 +301,7 @@ public sealed class Plugin : IDalamudPlugin
     private void OpenConfigUI(string showTab = "")
     {
         _configUI.ShowTab(showTab);
-        _ = new UISimpleWindow("BossModReborn [TC-7.15]", _configUI.Draw, true, new(300, 300));
+        _ = new UISimpleWindow("BossModReborn", _configUI.Draw, true, new(300, 300));
     }
 
     private void DrawUI()
@@ -269,6 +330,7 @@ public sealed class Plugin : IDalamudPlugin
         ExecuteHints();
 
         Camera.Instance?.DrawWorldPrimitives();
+        UpdatePendingConfigSave();
         _prevUpdateTime = DateTime.Now - tsStart;
     }
 
