@@ -62,7 +62,7 @@
     <EmbeddedResource Include="loc\*.json" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="DalamudPackager" Version="12.0.0" />
+    <PackageReference Include="DalamudPackager" Version="13.0.0" />
     <PackageReference Include="SharpDX.Mathematics" Version="4.2.0" />
     <ProjectReference Include="..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" />
     <Reference Include="TerraFX.Interop.Windows">
