@@ -1675,5 +1675,11 @@
   },
   "BME_Redo": {
     "message": "重做"
+  },
+  "Enable AI automatically when the plugin loads": {
+    "message": "插件載入時自動啟用 AI"
+  },
+  "Starts AI in follow mode (using the configured follow slot) as soon as party/world data is available after plugin load, instead of starting idle and requiring a manual /bmrai on or UI toggle every session.": {
+    "message": "插件載入後，一旦隊伍／世界資料就緒即以跟隨模式啟動 AI（使用已設定的跟隨位置），而不是先閒置、每次都要手動輸入 /bmrai on 或用介面開關。"
   }
 }
