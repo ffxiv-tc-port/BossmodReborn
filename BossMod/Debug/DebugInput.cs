@@ -51,17 +51,18 @@ public unsafe struct PlayerController
     [FieldOffset(0x559)] public byte ControlMode;
 }
 
-[StructLayout(LayoutKind.Explicit, Size = 0x2B0)]
+// 同 BossMod.Util.CameraEx:TC 7.20 起整批往後移 0x10,對齊 pin 版 CS 的 Camera。
+[StructLayout(LayoutKind.Explicit, Size = 0x2C0)]
 public unsafe struct CameraX
 {
-    [FieldOffset(0x130)] public float DirH;
-    [FieldOffset(0x134)] public float DirV;
-    [FieldOffset(0x138)] public float InputDeltaHAdjusted;
-    [FieldOffset(0x13C)] public float InputDeltaVAdjusted;
-    [FieldOffset(0x140)] public float InputDeltaH;
-    [FieldOffset(0x144)] public float InputDeltaV;
-    [FieldOffset(0x148)] public float DirVMin;
-    [FieldOffset(0x14C)] public float DirVMax;
+    [FieldOffset(0x140)] public float DirH;
+    [FieldOffset(0x144)] public float DirV;
+    [FieldOffset(0x148)] public float InputDeltaHAdjusted;
+    [FieldOffset(0x14C)] public float InputDeltaVAdjusted;
+    [FieldOffset(0x150)] public float InputDeltaH;
+    [FieldOffset(0x154)] public float InputDeltaV;
+    [FieldOffset(0x158)] public float DirVMin;
+    [FieldOffset(0x15C)] public float DirVMax;
 }
 
 internal sealed unsafe class DebugInput : IDisposable
