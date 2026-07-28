@@ -71,7 +71,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
     private readonly HookAddress<AutoAttackState.Delegates.SetImpl> _setAutoAttackStateHook;
 
     private delegate void ExecuteCommandGTDelegate(uint commandId, Vector3* position, uint param1, uint param2, uint param3, uint param4);
-    private readonly ExecuteCommandGTDelegate _executeCommandGT;
+    private readonly ExecuteCommandGTDelegate? _executeCommandGT;
     private DateTime _nextAllowedExecuteCommand;
     private const uint InvalidEntityId = 0xE0000000;
 
@@ -99,13 +99,17 @@ public sealed unsafe class ActionManagerEx : IDisposable
         _processPacketActionEffectHook = new(ActionEffectHandler.Addresses.Receive, ProcessPacketActionEffectDetour);
         _setAutoAttackStateHook = new(AutoAttackState.Addresses.SetImpl, SetAutoAttackStateDetour);
 
-        var executeCommandGTAddress = Service.SigScanner.ScanText("E8 ?? ?? ?? ?? EB 1E 48 8B 53 08");
+        if (Service.SigScanner.TryScanText("E8 ?? ?? ?? ?? EB 3D 8B 93 ?? ?? ?? ??", out var executeCommandGTAddress))
+            _executeCommandGT = Marshal.GetDelegateForFunctionPointer<ExecuteCommandGTDelegate>(executeCommandGTAddress);
+        else
+            Service.Log("[AMEx] ExecuteCommandGT signature not found; ground-targeted pet actions will be unavailable");
         Service.Log($"ExecuteCommandGT address: 0x{executeCommandGTAddress:X}");
-        _executeCommandGT = Marshal.GetDelegateForFunctionPointer<ExecuteCommandGTDelegate>(executeCommandGTAddress);
 
-        var selectTargetAddress = Service.SigScanner.ScanText("E8 ?? ?? ?? ?? 48 8B CE E8 ?? ?? ?? ?? 48 3B C5");
+        if (Service.SigScanner.TryScanText("E8 ?? ?? ?? ?? 48 8B CE E8 ?? ?? ?? ?? 48 3B C5", out var selectTargetAddress))
+            _autoSelectTarget = (delegate* unmanaged<TargetSystem*, TargetSystem*>)selectTargetAddress;
+        else
+            Service.Log("[AMEx] SelectTarget signature not found; auto nearest-target selection will be unavailable");
         Service.Log($"SelectTarget address: 0x{selectTargetAddress:X}");
-        _autoSelectTarget = (delegate* unmanaged<TargetSystem*, TargetSystem*>)selectTargetAddress;
     }
 
     public void Dispose()
@@ -335,6 +339,8 @@ public sealed unsafe class ActionManagerEx : IDisposable
                 if (action.ID == 3)
                 {
                     // pet action "Place" - uses location targeting but doesn't interact with UseActionLocation at all, meaning it requires its own send-packet function
+                    if (_executeCommandGT == null)
+                        return false;
                     var now = DateTime.Now;
                     if (_nextAllowedExecuteCommand > now)
                         return false;
@@ -515,7 +521,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
 
         ulong findNearestTarget()
         {
-            if (Framework.Instance()->SystemConfig.GetConfigOption((uint)ConfigOption.AutoNearestTarget)->Value.UInt == 1u)
+            if (_autoSelectTarget != null && Framework.Instance()->SystemConfig.GetConfigOption((uint)ConfigOption.AutoNearestTarget)->Value.UInt == 1u)
             {
                 _autoSelectTarget(targetSystem);
                 if (targetSystem->Target != null)
@@ -541,7 +547,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
         return res;
     }
 
-    private bool UseActionLocationDetour(ActionManager* self, CSActionType actionType, uint actionId, ulong targetId, Vector3* location, uint extraParam)
+    private bool UseActionLocationDetour(ActionManager* self, CSActionType actionType, uint actionId, ulong targetId, Vector3* location, uint extraParam, byte a7)
     {
         var targetSystem = TargetSystem.Instance();
         var player = GameObjectManager.Instance()->Objects.IndexSorted[0].Value;
@@ -551,7 +557,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
         var preventAutos = _autoAutosTweak.ShouldPreventAutoActivation(ActionManager.GetSpellIdForAction(actionType, actionId));
         if (preventAutos)
             targetSystem->Target = null;
-        bool ret = _useActionLocationHook.Original(self, actionType, actionId, targetId, location, extraParam);
+        bool ret = _useActionLocationHook.Original(self, actionType, actionId, targetId, location, extraParam, a7);
         if (preventAutos)
             targetSystem->Target = hardTarget;
         var currSeq = _inst->LastUsedActionSequence;
