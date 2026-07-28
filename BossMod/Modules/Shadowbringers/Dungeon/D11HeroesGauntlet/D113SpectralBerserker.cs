@@ -86,7 +86,7 @@ class FallingRock(BossModule module) : Components.SpreadFromIcon(module, (uint)I
             {
                 if (!rubble[i].IsDead)
                 {
-                    hints.Add("Stack alone with rubble!");
+                    hints.Add(Loc.T("Stack alone with rubble!"));
                     return;
                 }
             }
@@ -263,7 +263,7 @@ class CratersWildRampage(BossModule module) : Components.GenericAOEs(module)
                     break;
                 }
             }
-            hints.Add("Go inside crater!", isRisky);
+            hints.Add(Loc.T("Go inside crater!"), isRisky);
         }
         else
             base.AddHints(slot, actor, hints);

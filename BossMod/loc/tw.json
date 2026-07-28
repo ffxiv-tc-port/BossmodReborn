@@ -1681,5 +1681,1550 @@
   },
   "Starts AI in follow mode (using the configured follow slot) as soon as party/world data is available after plugin load, instead of starting idle and requiring a manual /bmrai on or UI toggle every session.": {
     "message": "插件載入後，一旦隊伍／世界資料就緒即以跟隨模式啟動 AI（使用已設定的跟隨位置），而不是先閒置、每次都要手動輸入 /bmrai on 或用介面開關。"
+  },
+  "3 single target hits + DoTs": {
+    "message": "3 次單體傷害 + DoT"
+  },
+  "About to be knocked into danger!": {
+    "message": "即將被擊退到危險區域！"
+  },
+  "About to be knocked into wall!": {
+    "message": "即將被擊退撞牆！"
+  },
+  "Adds spawning soon!": {
+    "message": "小怪即將出現！"
+  },
+  "Aim away from boss!": {
+    "message": "朝遠離 Boss 的方向引導！"
+  },
+  "Aim away from comets!": {
+    "message": "朝遠離彗星的方向引導！"
+  },
+  "Aim away from wall!": {
+    "message": "朝遠離牆壁的方向引導！"
+  },
+  "Aim bomb into quicksand!": {
+    "message": "把炸彈引導到流沙上！"
+  },
+  "Aim for green safe spot!": {
+    "message": "前往綠色安全點！"
+  },
+  "Aim for safe spot!": {
+    "message": "前往安全點！"
+  },
+  "Aim into AOEs!": {
+    "message": "朝 AOE 內引導！"
+  },
+  "Aim outside of the AOE!": {
+    "message": "朝 AOE 外引導！"
+  },
+  "Aim spread away from raid!": {
+    "message": "把分散點名引導到遠離隊伍處！"
+  },
+  "Aim stack away from spreads!": {
+    "message": "把集合點名引導到遠離分散者處！"
+  },
+  "Aim to break tether!": {
+    "message": "朝拉斷連線的方向移動！"
+  },
+  "Aim to hit partner!": {
+    "message": "瞄準命中同伴！"
+  },
+  "Aim towards safe zone!": {
+    "message": "朝安全區方向引導！"
+  },
+  "Aim towards tornado!": {
+    "message": "朝龍捲風方向引導！"
+  },
+  "Applies Pyretic - STOP everything until it runs out!": {
+    "message": "會附加熱病（Pyretic）－在效果結束前停止一切動作！"
+  },
+  "Apply backwards march debuff": {
+    "message": "附加「移動命令：後」減益"
+  },
+  "Apply doom & march debuffs": {
+    "message": "附加死亡宣告與強制移動減益"
+  },
+  "Apply fowards march debuff": {
+    "message": "附加「移動命令：前」減益"
+  },
+  "Apply left march debuff": {
+    "message": "附加「移動命令：左」減益"
+  },
+  "Apply march debuffs": {
+    "message": "附加強制移動減益"
+  },
+  "Apply right march debuff": {
+    "message": "附加「移動命令：右」減益"
+  },
+  "Attack target from unshielded side!": {
+    "message": "從沒有盾牌的一側攻擊目標！"
+  },
+  "Attack the head! (Attacking the tail will reflect damage onto you)": {
+    "message": "攻擊頭部！（攻擊尾部會把傷害反彈給自己）"
+  },
+  "Attack the tail! (Attacking the head will reflect damage onto you)": {
+    "message": "攻擊尾部！（攻擊頭部會把傷害反彈給自己）"
+  },
+  "Autorotation will not attack if boss HP is between 15 and 16% - press buttons manually when ready to start burst": {
+    "message": "Boss 血量在 15% 至 16% 之間時自動循環不會攻擊－準備好爆發時請手動按技能"
+  },
+  "Avoid bait!": {
+    "message": "避開引導點！"
+  },
+  "Avoid baiting jump!": {
+    "message": "避免引導跳擊！"
+  },
+  "Avoid baiting!": {
+    "message": "避免引導！"
+  },
+  "Avoid clipping crystals!": {
+    "message": "避免波及水晶！"
+  },
+  "Avoid clipping irrelevant players!": {
+    "message": "避免波及無關的隊員！"
+  },
+  "Avoid intersecting bird hitboxes!": {
+    "message": "避免與鳥的判定範圍重疊！"
+  },
+  "Avoid other meteors!": {
+    "message": "避開其他隕石！"
+  },
+  "Avoid taking tether!": {
+    "message": "不要接連線！"
+  },
+  "Avoid the orbs!": {
+    "message": "避開球體！"
+  },
+  "Bait away + look away!": {
+    "message": "引導遠離＋背對！"
+  },
+  "Bait away and move!": {
+    "message": "引導遠離並移動！"
+  },
+  "Bait away at marked spot!": {
+    "message": "在標記位置引導遠離！"
+  },
+  "Bait away from other towers!": {
+    "message": "引導遠離其他塔！"
+  },
+  "Bait away from raid!": {
+    "message": "引導遠離隊伍！"
+  },
+  "Bait away or interrupt!": {
+    "message": "引導遠離或打斷！"
+  },
+  "Bait away!": {
+    "message": "引導遠離！"
+  },
+  "Bait away! (3 times)": {
+    "message": "引導遠離！（共 3 次）"
+  },
+  "Bait away, avoid intersecting bubble hitboxes!": {
+    "message": "引導遠離，避免與泡泡的判定範圍重疊！"
+  },
+  "Bait away, avoid intersecting cage hitboxes!": {
+    "message": "引導遠離，避免與牢籠的判定範圍重疊！"
+  },
+  "Bait away, avoid intersecting furniture hitboxes!": {
+    "message": "引導遠離，避免與家具的判定範圍重疊！"
+  },
+  "Bait away, avoid intersecting wall hitboxes!": {
+    "message": "引導遠離，避免與牆壁的判定範圍重疊！"
+  },
+  "Bait bubble away!": {
+    "message": "把泡泡引導遠離！"
+  },
+  "Bait close or far!": {
+    "message": "引導到近處或遠處！"
+  },
+  "Bait cloud away, avoid intersecting wall hitboxes!": {
+    "message": "把雲霧引導遠離，避免與牆壁的判定範圍重疊！"
+  },
+  "Bait cone away from raid!": {
+    "message": "把扇形引導遠離隊伍！"
+  },
+  "Bait into a hole!": {
+    "message": "引導到坑洞裡！"
+  },
+  "Bait levinorb away!": {
+    "message": "把雷球引導遠離！"
+  },
+  "Bait next aoe": {
+    "message": "引導下一個 AOE"
+  },
+  "Bait the cone AOEs!": {
+    "message": "引導扇形 AOE！"
+  },
+  "Bait to glowing comet!": {
+    "message": "引導到發光的彗星！"
+  },
+  "Baiting mulitple cones!": {
+    "message": "正在引導多個扇形！"
+  },
+  "Be inside river!": {
+    "message": "待在河流內！"
+  },
+  "Block a drain!": {
+    "message": "堵住一個排水口！"
+  },
+  "Boss is running to the North wall to cast Trounce!": {
+    "message": "Boss 正跑向北牆準備施放 Trounce！"
+  },
+  "Boss is running to the South wall to cast Trounce!": {
+    "message": "Boss 正跑向南牆準備施放 Trounce！"
+  },
+  "Break chains!": {
+    "message": "掙脫鎖鏈！"
+  },
+  "Break tether!": {
+    "message": "拉斷連線！"
+  },
+  "Cancel knockback immunity!": {
+    "message": "取消防擊退效果！"
+  },
+  "Charybdis -> Thunderbolt -> Charybdis -> Trounce from West Wall.": {
+    "message": "Charybdis → Thunderbolt → Charybdis → Trounce，從西牆。"
+  },
+  "Charybdis -> Thunderbolt -> Trounce from East Wall": {
+    "message": "Charybdis → Thunderbolt → Trounce，從東牆"
+  },
+  "Charybdis -> Trounce from North Wall!": {
+    "message": "Charybdis → Trounce，從北牆！"
+  },
+  "Charybdis -> Trounce from West Wall!": {
+    "message": "Charybdis → Trounce，從西牆！"
+  },
+  "Charybdis x1 -> Thunderbolt -> Charybdis -> Trounce from North Wall.": {
+    "message": "Charybdis ×1 → Thunderbolt → Charybdis → Trounce，從北牆。"
+  },
+  "Charybdis x1 -> Thunderbolt -> Trounce from South Wall!": {
+    "message": "Charybdis ×1 → Thunderbolt → Trounce，從南牆！"
+  },
+  "Charybdis x2 -> Thunderbolt -> Charybdis -> Trounce from North Wall.": {
+    "message": "Charybdis ×2 → Thunderbolt → Charybdis → Trounce，從北牆。"
+  },
+  "Charybdis x2 -> Thunderbolt -> Trounce from South Wall.": {
+    "message": "Charybdis ×2 → Thunderbolt → Trounce，從南牆。"
+  },
+  "Circles resolve before cross": {
+    "message": "圓形會先於十字結算"
+  },
+  "Circles resolve before cross, aim forced march into cross": {
+    "message": "圓形會先於十字結算，把強制移動引導進十字"
+  },
+  "Clipped by other tethers!": {
+    "message": "被其他連線波及！"
+  },
+  "Dark Loaded": {
+    "message": "已裝填暗屬性彈"
+  },
+  "Debuffs: OK": {
+    "message": "減益：OK"
+  },
+  "Debuffs: avoid": {
+    "message": "減益：避開"
+  },
+  "Debuffs: failed to handle": {
+    "message": "減益：處理失敗"
+  },
+  "Debuffs: grab!": {
+    "message": "減益：接下！"
+  },
+  "Debuffs: pass!": {
+    "message": "減益：傳遞！"
+  },
+  "Debuffs: spread and prepare to handle!": {
+    "message": "減益：分散並準備接下！"
+  },
+  "Debuffs: stack and prepare to pass!": {
+    "message": "減益：集合並準備傳遞！"
+  },
+  "Deliver the coins!": {
+    "message": "把硬幣送過去！"
+  },
+  "Destroy the airstones to remove invincibility!": {
+    "message": "摧毀風石以解除無敵！"
+  },
+  "Dispel buff!": {
+    "message": "驅散增益！"
+  },
+  "Don't move!": {
+    "message": "不要移動！"
+  },
+  "Don't panic! AOEs start resolving 3.8s after towers.": {
+    "message": "別慌！AOE 會在塔結算後 3.8 秒才開始結算。"
+  },
+  "Doom": {
+    "message": "死亡宣告"
+  },
+  "Drag bird away!": {
+    "message": "把鳥拉開！"
+  },
+  "Drop seed outside of vulnerable area!": {
+    "message": "在易傷區域外放下種子！"
+  },
+  "Drop your seed!": {
+    "message": "放下你的種子！"
+  },
+  "Eat a fruit to cleanse debuff!": {
+    "message": "吃一顆果實以解除減益！"
+  },
+  "Face away from raid": {
+    "message": "背對隊伍"
+  },
+  "Face open weakpoint to eye!": {
+    "message": "把露出的弱點朝向眼睛！"
+  },
+  "Face raid": {
+    "message": "面向隊伍"
+  },
+  "Face the hand to petrify it!": {
+    "message": "面向手掌使其石化！"
+  },
+  "Failed orbs...": {
+    "message": "球體處理失敗…"
+  },
+  "Follow the charge!": {
+    "message": "跟著衝鋒移動！"
+  },
+  "GTFO from AOE!": {
+    "message": "遠離 AOE！"
+  },
+  "GTFO from Tataru!": {
+    "message": "遠離 Tataru！"
+  },
+  "GTFO from acid square!": {
+    "message": "遠離酸性方格！"
+  },
+  "GTFO from aoe!": {
+    "message": "遠離 AOE！"
+  },
+  "GTFO from aoes!": {
+    "message": "遠離 AOE！"
+  },
+  "GTFO from avarice!": {
+    "message": "遠離 avarice！"
+  },
+  "GTFO from baited AOE!": {
+    "message": "遠離被引導的 AOE！"
+  },
+  "GTFO from baited aoe!": {
+    "message": "遠離被引導的 AOE！"
+  },
+  "GTFO from baited cone!": {
+    "message": "遠離被引導的扇形！"
+  },
+  "GTFO from baiters!": {
+    "message": "遠離引導者！"
+  },
+  "GTFO from baits!": {
+    "message": "遠離引導點！"
+  },
+  "GTFO from bird/behemoth aoe!": {
+    "message": "遠離鳥／貝希摩斯的 AOE！"
+  },
+  "GTFO from bit aoe!": {
+    "message": "遠離 Bit 的 AOE！"
+  },
+  "GTFO from black hole baiter!": {
+    "message": "遠離黑洞引導者！"
+  },
+  "GTFO from boss!": {
+    "message": "遠離 Boss！"
+  },
+  "GTFO from cataract!": {
+    "message": "遠離 cataract！"
+  },
+  "GTFO from center!": {
+    "message": "遠離中央！"
+  },
+  "GTFO from charge zone!": {
+    "message": "遠離衝鋒路徑！"
+  },
+  "GTFO from charge!": {
+    "message": "遠離衝鋒！"
+  },
+  "GTFO from charges!": {
+    "message": "遠離衝鋒！"
+  },
+  "GTFO from chests!": {
+    "message": "遠離寶箱！"
+  },
+  "GTFO from cleave!": {
+    "message": "遠離扇形攻擊！"
+  },
+  "GTFO from cleaved side!": {
+    "message": "遠離被攻擊的一側！"
+  },
+  "GTFO from co-tank!": {
+    "message": "遠離協同坦克！"
+  },
+  "GTFO from conduit!": {
+    "message": "遠離 conduit！"
+  },
+  "GTFO from cone aoe!": {
+    "message": "遠離扇形 AOE！"
+  },
+  "GTFO from cone!": {
+    "message": "遠離扇形！"
+  },
+  "GTFO from defamation!": {
+    "message": "遠離 defamation！"
+  },
+  "GTFO from delimiter!": {
+    "message": "遠離 delimiter！"
+  },
+  "GTFO from diagonal aoe!": {
+    "message": "遠離對角線 AOE！"
+  },
+  "GTFO from dissociation!": {
+    "message": "遠離 dissociation！"
+  },
+  "GTFO from exhaust intersection": {
+    "message": "遠離排氣交會處"
+  },
+  "GTFO from exo aoe!": {
+    "message": "遠離 exo AOE！"
+  },
+  "GTFO from explosion!": {
+    "message": "遠離爆炸！"
+  },
+  "GTFO from fire aoe!": {
+    "message": "遠離火焰 AOE！"
+  },
+  "GTFO from fire square!": {
+    "message": "遠離火屬性方格！"
+  },
+  "GTFO from flood!": {
+    "message": "遠離洪流！"
+  },
+  "GTFO from forbidden color!": {
+    "message": "遠離禁止的顏色！"
+  },
+  "GTFO from forbidden stacks!": {
+    "message": "遠離禁止的集合點！"
+  },
+  "GTFO from glory aoe!": {
+    "message": "遠離 glory AOE！"
+  },
+  "GTFO from head aoe!": {
+    "message": "遠離頭部 AOE！"
+  },
+  "GTFO from imminent flow!": {
+    "message": "遠離即將到來的水流！"
+  },
+  "GTFO from knockback!": {
+    "message": "遠離擊退範圍！"
+  },
+  "GTFO from laser aoe!": {
+    "message": "遠離雷射 AOE！"
+  },
+  "GTFO from lighting square!": {
+    "message": "遠離雷屬性方格！"
+  },
+  "GTFO from marked players!": {
+    "message": "遠離被標記的玩家！"
+  },
+  "GTFO from neurolink!": {
+    "message": "遠離 neurolink！"
+  },
+  "GTFO from normal comets!": {
+    "message": "遠離普通彗星！"
+  },
+  "GTFO from one of the knockbacks!": {
+    "message": "遠離其中一個擊退！"
+  },
+  "GTFO from other bait!": {
+    "message": "遠離其他引導點！"
+  },
+  "GTFO from other bubble!": {
+    "message": "遠離其他泡泡！"
+  },
+  "GTFO from other charges!": {
+    "message": "遠離其他衝鋒！"
+  },
+  "GTFO from other crystals!": {
+    "message": "遠離其他水晶！"
+  },
+  "GTFO from other spreads!": {
+    "message": "遠離其他分散者！"
+  },
+  "GTFO from other tethers!": {
+    "message": "遠離其他連線！"
+  },
+  "GTFO from others!": {
+    "message": "遠離其他人！"
+  },
+  "GTFO from pillars!": {
+    "message": "遠離柱子！"
+  },
+  "GTFO from planet aoe!": {
+    "message": "遠離行星 AOE！"
+  },
+  "GTFO from protean!": {
+    "message": "遠離放射狀 AOE！"
+  },
+  "GTFO from raid!": {
+    "message": "遠離隊伍！"
+  },
+  "GTFO from ray aoe!": {
+    "message": "遠離光線 AOE！"
+  },
+  "GTFO from river!": {
+    "message": "遠離河流！"
+  },
+  "GTFO from rots!": {
+    "message": "遠離 rot！"
+  },
+  "GTFO from side smash aoe!": {
+    "message": "遠離側面重擊 AOE！"
+  },
+  "GTFO from snake aoe!": {
+    "message": "遠離蛇的 AOE！"
+  },
+  "GTFO from spreads!": {
+    "message": "遠離分散者！"
+  },
+  "GTFO from sword!": {
+    "message": "遠離劍！"
+  },
+  "GTFO from tank!": {
+    "message": "遠離坦克！"
+  },
+  "GTFO from tankbuster!": {
+    "message": "遠離坦克死刑！"
+  },
+  "GTFO from tanks!": {
+    "message": "遠離坦克！"
+  },
+  "GTFO from target!": {
+    "message": "遠離目標！"
+  },
+  "GTFO from tether targets!": {
+    "message": "遠離連線目標！"
+  },
+  "GTFO from tether!": {
+    "message": "遠離連線！"
+  },
+  "GTFO from tower": {
+    "message": "遠離塔"
+  },
+  "GTFO from tower!": {
+    "message": "遠離塔！"
+  },
+  "GTFO from voidzone!": {
+    "message": "遠離毒圈！"
+  },
+  "GTFO from water square!": {
+    "message": "遠離水屬性方格！"
+  },
+  "GTFO from wave!": {
+    "message": "遠離波動！"
+  },
+  "GTFO from webs!": {
+    "message": "遠離蛛網！"
+  },
+  "GTFO from wind area!": {
+    "message": "遠離風區域！"
+  },
+  "GTFO from wrong orb!": {
+    "message": "遠離錯誤的球！"
+  },
+  "GTFO from wrong side!": {
+    "message": "遠離錯誤的一側！"
+  },
+  "Get closer to adds!": {
+    "message": "靠近小怪！"
+  },
+  "Get closer to co-tank!": {
+    "message": "靠近協同坦克！"
+  },
+  "Get closer to eye placement position!": {
+    "message": "靠近眼睛的放置位置！"
+  },
+  "Get hit by AOE of correct temperature!": {
+    "message": "被正確溫度的 AOE 命中！"
+  },
+  "Get hit by AOE!": {
+    "message": "被 AOE 命中！"
+  },
+  "Get hit by a fire blade!": {
+    "message": "被火屬性劍刃命中！"
+  },
+  "Get hit by a single ice blade!": {
+    "message": "只被一道冰屬性劍刃命中！"
+  },
+  "Get hit by an ice AOE!": {
+    "message": "被冰屬性 AOE 命中！"
+  },
+  "Get hit by correct AOE!": {
+    "message": "被正確的 AOE 命中！"
+  },
+  "Get hit by the cone!": {
+    "message": "被扇形命中！"
+  },
+  "Get morphed!": {
+    "message": "讓自己被變形！"
+  },
+  "Getting hit by the needle attack will instantly kill you from now on!": {
+    "message": "從現在起被針刺攻擊命中會立即死亡！"
+  },
+  "Go behind shield or duty fails!": {
+    "message": "躲到盾牌後方，否則任務失敗！"
+  },
+  "Go behind shield!": {
+    "message": "躲到盾牌後方！"
+  },
+  "Go behind tank!": {
+    "message": "躲到坦克後方！"
+  },
+  "Go in front of raid!": {
+    "message": "站到隊伍前方！"
+  },
+  "Go inside crater!": {
+    "message": "進入坑洞內！"
+  },
+  "Go inside puddle!": {
+    "message": "進入水窪內！"
+  },
+  "Go inside shield": {
+    "message": "進入盾牌內"
+  },
+  "Go into a spotlight!": {
+    "message": "進入聚光燈內！"
+  },
+  "Go into middle to prepare for knockback!": {
+    "message": "前往中央準備承受擊退！"
+  },
+  "Go into quicksand to avoid AOE!": {
+    "message": "進入流沙以避開 AOE！"
+  },
+  "Go opposite distance of co-tank!": {
+    "message": "與協同坦克保持相反的距離！"
+  },
+  "Go to assigned cell!": {
+    "message": "前往指定的格子！"
+  },
+  "Go to correct cell!": {
+    "message": "前往正確的格子！"
+  },
+  "Go to correct geyser and wait for erruption!": {
+    "message": "前往正確的噴泉並等待噴發！"
+  },
+  "Go to correct group!": {
+    "message": "前往正確的分組！"
+  },
+  "Go to edge": {
+    "message": "前往場地邊緣"
+  },
+  "Go to edge!": {
+    "message": "前往場地邊緣！"
+  },
+  "Go to glowing platform!": {
+    "message": "前往發光的平台！"
+  },
+  "Go to ground!": {
+    "message": "前往地面！"
+  },
+  "Go to marked area for rotation start!": {
+    "message": "前往標記區域以開始旋轉！"
+  },
+  "Go to neurolink!": {
+    "message": "前往 neurolink！"
+  },
+  "Go to safe side!": {
+    "message": "前往安全的一側！"
+  },
+  "Go to safe zone!": {
+    "message": "前往安全區！"
+  },
+  "Go to the edge and run until 4 orbs are spawned": {
+    "message": "前往場地邊緣持續繞跑，直到出現 4 顆球"
+  },
+  "Go to the opposite side of the arena and work against getting sucked in!": {
+    "message": "前往場地對側，並抵抗吸引效果！"
+  },
+  "Go under shield!": {
+    "message": "進入盾牌下方！"
+  },
+  "Grab tether!": {
+    "message": "接下連線！"
+  },
+  "Grab the tether!": {
+    "message": "接下連線！"
+  },
+  "Heal yourself to full! (Doom).": {
+    "message": "把自己補滿血！（死亡宣告）"
+  },
+  "Hide behind boulder!": {
+    "message": "躲到巨石後方！"
+  },
+  "Hide behind crystal!": {
+    "message": "躲到水晶後方！"
+  },
+  "Hide behind meteor!": {
+    "message": "躲到隕石後方！"
+  },
+  "Hide behind partner!": {
+    "message": "躲到同伴後方！"
+  },
+  "Hide behind party!": {
+    "message": "躲到隊伍後方！"
+  },
+  "Hide behind someone!": {
+    "message": "躲到其他人後方！"
+  },
+  "Hide behind tank!": {
+    "message": "躲到坦克後方！"
+  },
+  "Hit at least one add!": {
+    "message": "至少命中一隻小怪！"
+  },
+  "Hit by aether explosion!": {
+    "message": "被以太爆炸命中！"
+  },
+  "Hit by baited AOE": {
+    "message": "被引導的 AOE 命中"
+  },
+  "Hit by first flail!": {
+    "message": "被第一次連枷命中！"
+  },
+  "Hit by second flail!": {
+    "message": "被第二次連枷命中！"
+  },
+  "Hit by tankbuster": {
+    "message": "被坦克死刑命中"
+  },
+  "Hit by two aoes!": {
+    "message": "同時被兩個 AOE 命中！"
+  },
+  "Hitting others with tether!": {
+    "message": "連線正在波及其他人！"
+  },
+  "Incorrect pairing!": {
+    "message": "配對錯誤！"
+  },
+  "Incorrect stack!": {
+    "message": "集合錯誤！"
+  },
+  "Interact with control unit to continue!": {
+    "message": "與控制單元互動以繼續！"
+  },
+  "Intercept charge!": {
+    "message": "攔截衝鋒！"
+  },
+  "Intercept next cleave!": {
+    "message": "攔截下一次扇形攻擊！"
+  },
+  "Intercept tether!": {
+    "message": "攔截連線！"
+  },
+  "Intercept the charge!": {
+    "message": "攔截衝鋒！"
+  },
+  "Interrupt cross caster!": {
+    "message": "打斷施放十字 AOE 的小怪！"
+  },
+  "Interrupt donut caster!": {
+    "message": "打斷施放環形 AOE 的小怪！"
+  },
+  "Intersect black walls!": {
+    "message": "與黑色牆面交會！"
+  },
+  "Intersect marked tiles to share damage over distance!": {
+    "message": "與標記的地磚交會以分攤遠距傷害！"
+  },
+  "Intersect the hitbox of a bird and pull it out of AOEs!": {
+    "message": "與鳥的判定範圍重疊，把牠拉出 AOE！"
+  },
+  "Intersect white walls!": {
+    "message": "與白色牆面交會！"
+  },
+  "Kill Queer Bubble to free bound player!": {
+    "message": "擊殺 Queer Bubble 以解救被束縛的玩家！"
+  },
+  "Kill Sahagins or lose control!": {
+    "message": "擊殺 Sahagin，否則會失去操控！"
+  },
+  "Kill a feather!": {
+    "message": "擊殺一根羽毛！"
+  },
+  "Kill birds outside of AOEs!": {
+    "message": "在 AOE 外擊殺鳥！"
+  },
+  "Kill the Iron Chain on bound players!": {
+    "message": "擊殺被束縛玩家身上的 Iron Chain！"
+  },
+  "Kill the adds to stop the frog song.": {
+    "message": "擊殺小怪以停止青蛙之歌。"
+  },
+  "Kill the imps!": {
+    "message": "擊殺小惡魔！"
+  },
+  "Kill the small dolls to free the players!": {
+    "message": "擊殺小娃娃以解救玩家！"
+  },
+  "Kite the add!": {
+    "message": "拉走小怪！"
+  },
+  "Kite the orb!": {
+    "message": "拉走球體！"
+  },
+  "Knockback": {
+    "message": "擊退"
+  },
+  "Leave unsafe area!": {
+    "message": "離開危險區域！"
+  },
+  "Light party stack!": {
+    "message": "4 人小隊集合！"
+  },
+  "Maintain Distance": {
+    "message": "保持距離"
+  },
+  "Make sure ray hits everyone!": {
+    "message": "確保光線命中所有人！"
+  },
+  "Meet at marked spot for chains!": {
+    "message": "到標記位置會合以處理鎖鏈！"
+  },
+  "Mitigate NOW!": {
+    "message": "立刻開減傷！"
+  },
+  "More than 1 defamation on your platform!": {
+    "message": "你的平台上有超過 1 個 defamation！"
+  },
+  "More than 2 players on your platform!": {
+    "message": "你的平台上有超過 2 名玩家！"
+  },
+  "Move a little to avoid voidzone spawning under you": {
+    "message": "稍微移動，避免毒圈生成在腳下"
+  },
+  "Move away from light beacon!": {
+    "message": "遠離光之信標！"
+  },
+  "Move away from other baits!": {
+    "message": "遠離其他引導點！"
+  },
+  "Move away from partner!": {
+    "message": "遠離同伴！"
+  },
+  "Move away from raid!": {
+    "message": "遠離隊伍！"
+  },
+  "Move closer to boss!": {
+    "message": "靠近 Boss！"
+  },
+  "Move closer to center!": {
+    "message": "靠近中央！"
+  },
+  "Move closer to dark beacon!": {
+    "message": "靠近暗之信標！"
+  },
+  "Move closer to partner!": {
+    "message": "靠近同伴！"
+  },
+  "Move closer to the edge!": {
+    "message": "靠近場地邊緣！"
+  },
+  "Move closer!": {
+    "message": "再靠近一點！"
+  },
+  "Move from boss": {
+    "message": "遠離 Boss"
+  },
+  "Move further away from boss!": {
+    "message": "離 Boss 再遠一點！"
+  },
+  "Move into a voidzone to turn into pudding!": {
+    "message": "進入毒圈以變成布丁！"
+  },
+  "Move to a safe tile!": {
+    "message": "移動到安全的地磚！"
+  },
+  "Move!": {
+    "message": "移動！"
+  },
+  "Multiple soakers for the tower!": {
+    "message": "塔內有多人踩踏！"
+  },
+  "Order: AOE -> Knockback": {
+    "message": "順序：AOE → 擊退"
+  },
+  "Order: Fater -> mother -> brother -> sister -> drakeling": {
+    "message": "順序：父 → 母 → 兄 → 姊 → 幼龍"
+  },
+  "Order: Knockback -> AOE": {
+    "message": "順序：擊退 → AOE"
+  },
+  "Overlap with other web!": {
+    "message": "與其他蛛網重疊！"
+  },
+  "Pairs": {
+    "message": "兩人一組"
+  },
+  "Pass aggro to co-tank!": {
+    "message": "把仇恨交給協同坦克！"
+  },
+  "Pass aggro!": {
+    "message": "轉移仇恨！"
+  },
+  "Pass flames debuff to furniture!": {
+    "message": "把火焰減益傳給家具！"
+  },
+  "Pass nisi!": {
+    "message": "傳遞 nisi！"
+  },
+  "Pass tether to tank!": {
+    "message": "把連線傳給坦克！"
+  },
+  "Pass tether!": {
+    "message": "傳遞連線！"
+  },
+  "Pass the lightning to a rod!": {
+    "message": "把雷電傳給避雷針！"
+  },
+  "Pass the tether to a statue!": {
+    "message": "把連線傳給雕像！"
+  },
+  "Pass the tether!": {
+    "message": "傳遞連線！"
+  },
+  "Pick up seeds in vulnerable area!": {
+    "message": "在易傷區域內撿起種子！"
+  },
+  "Place bomb inside quicksand": {
+    "message": "把炸彈放在流沙上"
+  },
+  "Place meteor!": {
+    "message": "放置隕石！"
+  },
+  "Position in group properly!": {
+    "message": "在隊伍中站好位置！"
+  },
+  "Prepare for divebomb!": {
+    "message": "準備應對俯衝轟炸！"
+  },
+  "Prepare for lightning!": {
+    "message": "準備應對雷擊！"
+  },
+  "Prepare for movement!": {
+    "message": "準備移動！"
+  },
+  "Prepare to defend Clive!": {
+    "message": "準備保護 Clive！"
+  },
+  "Prepare to go to upcoming safespot!": {
+    "message": "準備前往下一個安全點！"
+  },
+  "Prepare to soak the orbs!": {
+    "message": "準備踩球！"
+  },
+  "Prepare to solve a QTE!": {
+    "message": "準備應對 QTE！"
+  },
+  "Prepare to spread": {
+    "message": "準備分散"
+  },
+  "Prepare to stack": {
+    "message": "準備集合"
+  },
+  "Press invul!": {
+    "message": "開無敵！"
+  },
+  "Provoke for tankbuster!": {
+    "message": "用挑釁接坦克死刑！"
+  },
+  "Pull boss out of puddle!": {
+    "message": "把 Boss 拉出水窪！"
+  },
+  "Pull lightning orb into black hole!": {
+    "message": "把雷球拉進黑洞！"
+  },
+  "Pull the orb to the boss!": {
+    "message": "把球拉到 Boss 身上！"
+  },
+  "Push defeated moogles out of circles!": {
+    "message": "把被擊敗的莫古力推出圓圈！"
+  },
+  "Pyretic on you! STOP everything!": {
+    "message": "你身上有熱病（Pyretic）！停止一切動作！"
+  },
+  "Raidwide after dragon heads leave arena": {
+    "message": "龍首離開場地後會有全體傷害"
+  },
+  "Role stack!": {
+    "message": "依職能集合！"
+  },
+  "Run through a DPS!": {
+    "message": "穿過一名 DPS！"
+  },
+  "Separate adds!": {
+    "message": "把小怪分開！"
+  },
+  "Share damage inside wild charge!": {
+    "message": "在衝鋒範圍內分攤傷害！"
+  },
+  "Share damage inside wildcharge!": {
+    "message": "在衝鋒範圍內分攤傷害！"
+  },
+  "Shirk!": {
+    "message": "使用退避！"
+  },
+  "Soak assigned tower!": {
+    "message": "踩指定的塔！"
+  },
+  "Soak next tower": {
+    "message": "踩下一個塔"
+  },
+  "Soak the mine!": {
+    "message": "踩地雷！"
+  },
+  "Soak the orbs (with mitigations)!": {
+    "message": "踩球（記得開減傷）！"
+  },
+  "Soak the orbs!": {
+    "message": "踩球！"
+  },
+  "Soak the tower": {
+    "message": "踩塔"
+  },
+  "Soak the tower!": {
+    "message": "踩塔！"
+  },
+  "Soak tower!": {
+    "message": "踩塔！"
+  },
+  "Spread": {
+    "message": "分散"
+  },
+  "Spread by roles!": {
+    "message": "依職能分散！"
+  },
+  "Spread on different squares!": {
+    "message": "分散到不同方格！"
+  },
+  "Spread out!": {
+    "message": "分散開！"
+  },
+  "Spread!": {
+    "message": "分散！"
+  },
+  "Spread, avoid intersecting cage hitboxes!": {
+    "message": "分散，避免與牢籠的判定範圍重疊！"
+  },
+  "Spread, avoid intersecting wall hitboxes!": {
+    "message": "分散，避免與牆壁的判定範圍重疊！"
+  },
+  "Stack alone with rubble!": {
+    "message": "單獨與碎石集合！"
+  },
+  "Stack and knockback": {
+    "message": "集合並擊退"
+  },
+  "Stack in fours!": {
+    "message": "4 人一組集合！"
+  },
+  "Stack in pairs!": {
+    "message": "2 人一組集合！"
+  },
+  "Stack inside charge!": {
+    "message": "在衝鋒範圍內集合！"
+  },
+  "Stack with Wuk Lamat!": {
+    "message": "與 Wuk Lamat 集合！"
+  },
+  "Stack with breaking tether!": {
+    "message": "與拉斷連線的人集合！"
+  },
+  "Stack with co-tank": {
+    "message": "與協同坦克集合"
+  },
+  "Stack with healer!": {
+    "message": "與補師集合！"
+  },
+  "Stack with opposite color!": {
+    "message": "與相反顏色的人集合！"
+  },
+  "Stack with other tank or press invuln!": {
+    "message": "與另一名坦克集合或開無敵！"
+  },
+  "Stack with other tanks or press invuln!": {
+    "message": "與其他坦克集合或開無敵！"
+  },
+  "Stack with other targets!": {
+    "message": "與其他目標集合！"
+  },
+  "Stack with others!": {
+    "message": "與其他人集合！"
+  },
+  "Stack with raid!": {
+    "message": "與隊伍集合！"
+  },
+  "Stack with single group!": {
+    "message": "與單一小組集合！"
+  },
+  "Stack with tank!": {
+    "message": "與坦克集合！"
+  },
+  "Stack with target!": {
+    "message": "與目標集合！"
+  },
+  "Stack!": {
+    "message": "集合！"
+  },
+  "Stand between assigned shapes!": {
+    "message": "站在指定的圖形之間！"
+  },
+  "Stand in a tower and match the arrow direction!": {
+    "message": "站進塔內並對齊箭頭方向！"
+  },
+  "Stand in an air bubble!": {
+    "message": "站進氣泡內！"
+  },
+  "Stand in correct tile!": {
+    "message": "站在正確的地磚上！"
+  },
+  "Stand in own cell!": {
+    "message": "站在自己的格子內！"
+  },
+  "Stand inside AOE of assigned boss!": {
+    "message": "站進指定 Boss 的 AOE 內！"
+  },
+  "Stand near inner edge": {
+    "message": "靠近內側邊緣"
+  },
+  "Stand near pillar!": {
+    "message": "靠近柱子！"
+  },
+  "Stand under a statue if assigned for floating towers!": {
+    "message": "若被分配到浮空塔，請站到雕像下方！"
+  },
+  "Stay away from bridges and go to different islands!": {
+    "message": "遠離橋樑並前往不同的島！"
+  },
+  "Stay between tanks!": {
+    "message": "站在兩名坦克之間！"
+  },
+  "Stay close to tethered wall or pass aggro to co-tank if needed!": {
+    "message": "靠近連線的牆，必要時把仇恨轉給協同坦克！"
+  },
+  "Stay close to tethered wall!": {
+    "message": "靠近連線的牆！"
+  },
+  "Stay closer to bait!": {
+    "message": "更靠近引導點！"
+  },
+  "Stay closer to center!": {
+    "message": "更靠近中央！"
+  },
+  "Stay closer to partner!": {
+    "message": "更靠近同伴！"
+  },
+  "Stay farther away!": {
+    "message": "再離遠一點！"
+  },
+  "Stay farther from partner!": {
+    "message": "離同伴再遠一點！"
+  },
+  "Stay in center": {
+    "message": "待在中央"
+  },
+  "Stay in group!": {
+    "message": "待在隊伍中！"
+  },
+  "Stay in safe area!": {
+    "message": "待在安全區內！"
+  },
+  "Stay in single charge!": {
+    "message": "只待在單一衝鋒範圍內！"
+  },
+  "Stay inside charge!": {
+    "message": "待在衝鋒範圍內！"
+  },
+  "Stay inside one defamation!": {
+    "message": "只待在一個 defamation 內！"
+  },
+  "Stay near dodge spot!": {
+    "message": "待在閃避點附近！"
+  },
+  "Stay near one stack!": {
+    "message": "待在其中一個集合點附近！"
+  },
+  "Stay near one tether!": {
+    "message": "待在其中一條連線附近！"
+  },
+  "Stay on bridges!": {
+    "message": "待在橋上！"
+  },
+  "Stay on different segments!": {
+    "message": "待在不同的區塊上！"
+  },
+  "Stay still!": {
+    "message": "站著別動！"
+  },
+  "Stop everything!": {
+    "message": "停止一切動作！"
+  },
+  "Stretch tether!": {
+    "message": "拉開連線！"
+  },
+  "Stretch the tether!": {
+    "message": "拉開連線！"
+  },
+  "Swap target!": {
+    "message": "切換目標！"
+  },
+  "Take bait to side with meteor!": {
+    "message": "把引導帶到有隕石的一側！"
+  },
+  "Take tether!": {
+    "message": "接下連線！"
+  },
+  "Tankbuster 5x": {
+    "message": "坦克死刑 5 連"
+  },
+  "Tankbuster cleave": {
+    "message": "坦克死刑扇形攻擊"
+  },
+  "Target of two tethers!": {
+    "message": "被兩條連線指定！"
+  },
+  "Taunt boss!": {
+    "message": "嘲諷 Boss！"
+  },
+  "Taunt!": {
+    "message": "嘲諷！"
+  },
+  "Tethers: GTFO from aoe!": {
+    "message": "連線：遠離 AOE！"
+  },
+  "Tethers: GTFO from others!": {
+    "message": "連線：遠離其他人！"
+  },
+  "Tethers: OK": {
+    "message": "連線：OK"
+  },
+  "Tethers: avoid": {
+    "message": "連線：避開"
+  },
+  "Tethers: intercept!": {
+    "message": "連線：攔截！"
+  },
+  "Tethers: pass!": {
+    "message": "連線：傳遞！"
+  },
+  "Tethers: prepare to intercept": {
+    "message": "連線：準備攔截"
+  },
+  "Tethers: prepare to pass": {
+    "message": "連線：準備傳遞"
+  },
+  "Thunderbolt -> Charybdis -> Thunderbolt -> Trounce from East Wall": {
+    "message": "Thunderbolt → Charybdis → Thunderbolt → Trounce，從東牆"
+  },
+  "Thunderbolt -> Charybdis -> Trounce from North Wall!": {
+    "message": "Thunderbolt → Charybdis → Trounce，從北牆！"
+  },
+  "Thunderbolt -> Charybdis -> Trounce from West Wall.": {
+    "message": "Thunderbolt → Charybdis → Trounce，從西牆。"
+  },
+  "Thunderbolt -> Charybdis x2 -> Thunderbolt -> Trounce from South Wall.": {
+    "message": "Thunderbolt → Charybdis ×2 → Thunderbolt → Trounce，從南牆。"
+  },
+  "Thunderbolt -> Trounce from East Wall": {
+    "message": "Thunderbolt → Trounce，從東牆"
+  },
+  "Thunderbolt -> Trounce from South Wall!": {
+    "message": "Thunderbolt → Trounce，從南牆！"
+  },
+  "To unlock path 12, pull the ghosts to the marked spots\nand kill them one at a time while they face a lantern.": {
+    "message": "要解鎖路線 12，請把幽靈拉到標記位置，\n並在牠們面向燈籠時逐一擊殺。"
+  },
+  "Too close to other players!": {
+    "message": "離其他玩家太近！"
+  },
+  "Too close to partner!": {
+    "message": "離同伴太近！"
+  },
+  "Too close!": {
+    "message": "太近了！"
+  },
+  "Too far from other players!": {
+    "message": "離其他玩家太遠！"
+  },
+  "Too few soakers in the tower!": {
+    "message": "塔內踩踏人數不足！"
+  },
+  "Too many soakers in the tower!": {
+    "message": "塔內踩踏人數過多！"
+  },
+  "Touch bomb when ready to resolve stack!": {
+    "message": "準備好處理集合時再去碰炸彈！"
+  },
+  "Trounce from East Wall": {
+    "message": "Trounce，從東牆"
+  },
+  "Trounce from West Wall!": {
+    "message": "Trounce，從西牆！"
+  },
+  "Turn away from gaze!": {
+    "message": "背對視線攻擊！"
+  },
+  "Use Esuna on yourself.": {
+    "message": "對自己使用復原。"
+  },
+  "Use an incubator to stun the boss!": {
+    "message": "使用培養艙擊暈 Boss！"
+  },
+  "Use safewalls for knockback!": {
+    "message": "利用安全牆擋擊退！"
+  },
+  "Use the turrets to stun the boss!": {
+    "message": "使用砲塔擊暈 Boss！"
+  },
+  "Wait in marked safespot for donut resolve!": {
+    "message": "在標記的安全點等待環形 AOE 結算！"
+  },
+  "Wait in marked spot for knockback!": {
+    "message": "在標記位置等待擊退！"
+  },
+  "Wait in safe area!": {
+    "message": "在安全區內等待！"
+  },
+  "Wait inside safespot for knockback!": {
+    "message": "在安全點內等待擊退！"
+  },
+  "Walk into the glowing circle!": {
+    "message": "走進發光的圓圈！"
+  },
+  "Walk onto safe square!": {
+    "message": "走到安全的方格上！"
+  },
+  "Wild charges -> Tanks infront!": {
+    "message": "狂野衝鋒 → 坦克站到前方！"
+  },
+  "Windslicer Loaded": {
+    "message": "已裝填風屬性彈"
+  },
+  "You are risking to slide into danger!": {
+    "message": "你有滑進危險區域的風險！"
+  },
+  "You were doomed! Get healed to full fast.": {
+    "message": "你被附加死亡宣告！請盡快把血補滿。"
+  },
+  "Break the chains!": {
+    "message": "掙脫鎖鏈！"
+  },
+  "Stay with partner!": {
+    "message": "待在同伴身邊！"
+  },
+  "Face the eye!": {
+    "message": "面向眼睛！"
+  },
+  "Provoke!": {
+    "message": "使用挑釁！"
+  },
+  "Stay in voidzone": {
+    "message": "待在毒圈內"
+  },
+  "Go to voidzone!": {
+    "message": "前往毒圈！"
+  },
+  "Move closer to charge source!": {
+    "message": "靠近衝鋒起點！"
+  },
+  "GTFO from other stacks!": {
+    "message": "遠離其他集合點！"
+  },
+  "GTFO from stack!": {
+    "message": "遠離集合點！"
+  },
+  "Tether is stretched!": {
+    "message": "連線已拉開！"
+  },
+  "Stretch tether further!": {
+    "message": "把連線再拉開一點！"
+  },
+  "Immune against tether mechanic!": {
+    "message": "已免疫連線機制！"
+  },
+  "Tether can be ignored with knockback immunity!": {
+    "message": "可用防擊退效果無視此連線！"
+  },
+  "You were {0}! Get cleansed fast.": {
+    "message": "你被附加了 {0}！請盡快解除。"
+  },
+  "Cleanse yourself! ({0}).": {
+    "message": "解除自己身上的減益！（{0}）"
+  },
+  "Cleanse {0}! ({1})": {
+    "message": "解除 {0} 身上的減益！（{1}）"
+  },
+  "Dispel {0}!": {
+    "message": "驅散 {0}！"
+  },
+  "Enables the AI.": {
+    "message": "啟用 AI。"
+  },
+  "Disables the AI.": {
+    "message": "停用 AI。"
+  },
+  "Toggles the AI on/off.": {
+    "message": "切換 AI 的啟用／停用。"
+  },
+  "Toggles the focus on target leader.": {
+    "message": "切換「焦點目標主控」（以跟隨對象的目標為目標）。"
+  },
+  "Follows the specified slot, eg. Slot1.": {
+    "message": "跟隨指定的隊伍欄位，例如 Slot1。"
+  },
+  "Follows the specified party member by name.": {
+    "message": "依名稱跟隨指定的隊員。"
+  },
+  "Toggles the AI menu.": {
+    "message": "開關 AI 選單。"
+  },
+  "Toggles the forbidding of actions. (only for autorotation)": {
+    "message": "切換是否禁止使用技能。（僅影響自動循環）"
+  },
+  "Sets forbid actions to on or off. (only for autorotation)": {
+    "message": "設定「禁止使用技能」為開或關。（僅影響自動循環）"
+  },
+  "Toggles the forbidding of movement.": {
+    "message": "切換是否禁止移動。"
+  },
+  "Sets forbid movement to on or off.": {
+    "message": "設定「禁止移動」為開或關。"
+  },
+  "Toggles the idling while mounted.": {
+    "message": "切換「騎乘時待機」。"
+  },
+  "Sets idle while mounted to on or off.": {
+    "message": "設定「騎乘時待機」為開或關。"
+  },
+  "Toggles following during combat.": {
+    "message": "切換「戰鬥中跟隨」。"
+  },
+  "Sets following following during combat to on or off.": {
+    "message": "設定「戰鬥中跟隨」為開或關。"
+  },
+  "Toggles following during active boss module.": {
+    "message": "切換「Boss 模組啟用時跟隨」。"
+  },
+  "Sets following following during active boss module to on or off.": {
+    "message": "設定「Boss 模組啟用時跟隨」為開或關。"
+  },
+  "Toggles following during out of combat.": {
+    "message": "切換「非戰鬥時跟隨」。"
+  },
+  "Sets following target out of combat to on or off.": {
+    "message": "設定「非戰鬥時跟隨目標」為開或關。"
+  },
+  "Toggles following targets during combat.": {
+    "message": "切換「戰鬥中跟隨目標」。"
+  },
+  "Sets following target during combat to on or off.": {
+    "message": "設定「戰鬥中跟隨目標」為開或關。"
+  },
+  "Switch to positional when following targets. (any, rear, flank, front)": {
+    "message": "跟隨目標時切換站位方向。（any、rear、flank、front）"
+  },
+  "Sets max distance to target. (default = 2.6)": {
+    "message": "設定與目標的最大距離。（預設 = 2.6）"
+  },
+  "Sets max distance to slot. (default = 1)": {
+    "message": "設定與跟隨欄位的最大距離。（預設 = 1）"
+  },
+  "Sets min distance to hitbox. (default = 0)": {
+    "message": "設定與判定範圍的最小距離。（預設 = 0）"
+  },
+  "Sets preferred distance to forbidden zones. (default = 0)": {
+    "message": "設定與禁區的偏好距離。（預設 = 0）"
+  },
+  "Sets AI movement decision delay. (default = 0)": {
+    "message": "設定 AI 移動決策的延遲。（預設 = 0）"
+  },
+  "Toggles loading obstacle maps.": {
+    "message": "切換是否載入障礙物地圖。"
+  },
+  "Sets the loading of obstacle maps to on or off.": {
+    "message": "設定「載入障礙物地圖」為開或關。"
+  },
+  "Sets an autorotation preset for the AI, eg. setpresetname vbm default.": {
+    "message": "為 AI 指定自動循環預設，例如 setpresetname vbm default。"
+  },
+  "Clear current preset; autorotation will do nothing unless plan is active": {
+    "message": "清除目前的預設；除非有生效中的計劃，否則自動循環不會執行任何動作"
+  },
+  "Force disable autorotation; no actions will be executed automatically even if plan is active.": {
+    "message": "強制停用自動循環；即使有生效中的計劃也不會自動施放任何技能。"
+  },
+  "Start executing specified preset.": {
+    "message": "開始執行指定的預設。"
+  },
+  "Force disable autorotation if not already; otherwise clear overrides.": {
+    "message": "若尚未停用則強制停用自動循環；否則清除覆寫設定。"
+  },
+  "Start executing specified preset unless it's already active; clear otherwise": {
+    "message": "開始執行指定的預設；若該預設已在執行中則改為清除"
+  },
+  "Toggle autorotation ui.": {
+    "message": "開關自動循環介面。"
+  },
+  "Toggle restore character orientation after action use setting.": {
+    "message": "開關「使用技能後恢復角色面向」設定。"
+  },
+  "Resets all colors to their default values.": {
+    "message": "將所有顏色重設為預設值。"
+  },
+  "Opens the debug menu.": {
+    "message": "開啟除錯選單。"
+  },
+  "Opens the replay menu.": {
+    "message": "開啟重播選單。"
+  },
+  "Starts/stops recording a replay.": {
+    "message": "開始／停止錄製重播。"
+  },
+  "Triggers the garbage collection.": {
+    "message": "觸發記憶體垃圾回收。"
+  },
+  "Lists all configs.": {
+    "message": "列出所有設定項目。"
+  },
+  "Press at (relative to pull)": {
+    "message": "施放時機（相對於開怪）"
+  },
+  "Press at (relative to phase)": {
+    "message": "施放時機（相對於階段）"
+  },
+  "Press at (relative to state)": {
+    "message": "施放時機（相對於狀態）"
+  },
+  "Window length": {
+    "message": "視窗長度"
+  },
+  "Comment": {
+    "message": "備註"
+  },
+  "Edit {0} '{1}' ({2})": {
+    "message": "編輯 {0} 的「{1}」（{2}）"
+  },
+  "New plan for {0}...": {
+    "message": "為 {0} 建立新計劃…"
+  },
+  "Max mobs to pull": {
+    "message": "一次最多拉幾隻怪"
+  },
+  "Max distance to look for new mobs": {
+    "message": "搜尋新怪的最大距離"
+  },
+  "Max mobs to pull (set to 0 for no limit)": {
+    "message": "一次最多拉幾隻怪（設為 0 表示不限制）"
+  },
+  "Assist mode (only attack mobs that are already in combat)": {
+    "message": "協助模式（只攻擊已進入戰鬥的怪）"
   }
 }

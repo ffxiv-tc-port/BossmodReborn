@@ -137,7 +137,7 @@ sealed class ShimmeringShot1(BossModule module) : ShimmeringShot(module, 12.8d)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (ActorUnsafeAt(actor, actor.Position))
-            hints.Add("Go to safe zone!");
+            hints.Add(Loc.T("Go to safe zone!"));
     }
 }
 

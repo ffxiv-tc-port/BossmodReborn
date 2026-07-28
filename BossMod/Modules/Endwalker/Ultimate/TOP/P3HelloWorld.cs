@@ -26,30 +26,30 @@ sealed class P3HelloWorld(BossModule module) : Components.GenericTowers(module)
             {
                 case PlayerRole.Defamation:
                     if (party.InRadiusExcluding(actor, 20f).WhereSlot(s => RoleForNextTowers(s) != PlayerRole.LocalTether).Any())
-                        hints.Add("GTFO from others!");
+                        hints.Add(Loc.T("GTFO from others!"));
                     break;
                 case PlayerRole.RemoteTether:
                     if (party.InRadiusExcluding(actor, 20f).WhereSlot(s => RoleForNextTowers(s) == PlayerRole.Defamation).Any())
-                        hints.Add("GTFO from defamation!");
+                        hints.Add(Loc.T("GTFO from defamation!"));
                     if (party.InRadiusExcluding(actor, 5f).WhereSlot(s => RoleForNextTowers(s) == PlayerRole.Stack).Count() != 1)
-                        hints.Add("Stay near one stack!");
+                        hints.Add(Loc.T("Stay near one stack!"));
                     break;
                 case PlayerRole.Stack:
                     if (party.InRadiusExcluding(actor, 20f).WhereSlot(s => RoleForNextTowers(s) == PlayerRole.Defamation).Any())
-                        hints.Add("GTFO from defamation!");
+                        hints.Add(Loc.T("GTFO from defamation!"));
                     if (party.InRadiusExcluding(actor, 5f).WhereSlot(s => RoleForNextTowers(s) == PlayerRole.RemoteTether).Count() != 1)
-                        hints.Add("Stay near one tether!");
+                        hints.Add(Loc.T("Stay near one tether!"));
                     break;
                 case PlayerRole.LocalTether:
                     if (NumCasts < 12)
                     {
                         if (party.InRadiusExcluding(actor, 20f).WhereSlot(s => RoleForNextTowers(s) == PlayerRole.Defamation).Count() != 1)
-                            hints.Add("Stay inside one defamation!");
+                            hints.Add(Loc.T("Stay inside one defamation!"));
                     }
                     else
                     {
                         if (party.InRadiusExcluding(actor, 20f).WhereSlot(s => RoleForNextTowers(s) == PlayerRole.Defamation).Any())
-                            hints.Add("GTFO from defamation!");
+                            hints.Add(Loc.T("GTFO from defamation!"));
                         // TODO: they don't have to share the stack, right?
                     }
                     break;
@@ -60,13 +60,13 @@ sealed class P3HelloWorld(BossModule module) : Components.GenericTowers(module)
             if (PendingRot(slot))
             {
                 if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, 5).Any())
-                    hints.Add("GTFO from raid!");
+                    hints.Add(Loc.T("GTFO from raid!"));
             }
             else
             {
                 // TODO: hint to grab rot?..
                 if (Raid.WithSlot(true, true, true).WhereSlot(PendingRot).InRadius(actor.Position, 5).Any())
-                    hints.Add("GTFO from rots!");
+                    hints.Add(Loc.T("GTFO from rots!"));
             }
         }
 

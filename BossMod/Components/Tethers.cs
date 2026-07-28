@@ -48,7 +48,7 @@ public class TankbusterTether(BossModule module, uint aid, uint tetherID, AOESha
         {
             if (!_tetheredPlayers[slot])
             {
-                hints.Add("Grab the tether!");
+                hints.Add(Loc.T("Grab the tether!"));
                 return;
             }
             var party = Raid.WithoutSlot();
@@ -68,7 +68,7 @@ public class TankbusterTether(BossModule module, uint aid, uint tetherID, AOESha
                     var enemyPos = t.Enemy.Position;
                     if (Shape.Check(playerPos, centerAtTarget ? playerPos : enemyPos, centerAtTarget ? default : Angle.FromDirection(playerPos - enemyPos)))
                     {
-                        hints.Add("GTFO from raid!");
+                        hints.Add(Loc.T("GTFO from raid!"));
                         return;
                     }
                 }
@@ -78,11 +78,11 @@ public class TankbusterTether(BossModule module, uint aid, uint tetherID, AOESha
         {
             if (_tetheredPlayers[slot])
             {
-                hints.Add("Hit by tankbuster");
+                hints.Add(Loc.T("Hit by tankbuster"));
             }
             if (_inAnyAOE[slot])
             {
-                hints.Add("GTFO from tankbuster!");
+                hints.Add(Loc.T("GTFO from tankbuster!"));
             }
         }
     }
@@ -251,7 +251,7 @@ public class InterceptTetherAOE(BossModule module, uint aid, uint tetherID, floa
             return;
         if (!_tetheredPlayers[slot])
         {
-            hints.Add("Grab the tether!");
+            hints.Add(Loc.T("Grab the tether!"));
             return;
         }
         var party = Raid.WithoutSlot();
@@ -263,18 +263,18 @@ public class InterceptTetherAOE(BossModule module, uint aid, uint tetherID, floa
                 continue;
             if (p.Position.InCircle(actor.Position, Radius))
             {
-                hints.Add("GTFO from raid!");
+                hints.Add(Loc.T("GTFO from raid!"));
                 break;
             }
         }
 
         if (_tetheredPlayers[slot])
         {
-            hints.Add("Hit by baited AOE");
+            hints.Add(Loc.T("Hit by baited AOE"));
         }
         if (_inAnyAOE[slot])
         {
-            hints.Add("GTFO from baited AOE!");
+            hints.Add(Loc.T("GTFO from baited AOE!"));
         }
     }
 
@@ -369,7 +369,7 @@ public class InterceptTether(BossModule module, uint aid, uint tetherIDBad = 84u
             return;
         if (!_tetheredPlayers[slot])
         {
-            hints.Add(hint);
+            hints.Add(Loc.T(hint));
         }
     }
 
@@ -579,19 +579,19 @@ public class StretchTetherDuo(BossModule module, float minimumDistance, double a
         var dist = (bait0.Source.Position - actor.Position).LengthSq();
         if (immunity)
         {
-            hints.Add(HintKnockbackImmmunityGood, false);
+            hints.Add(Loc.T(HintKnockbackImmmunityGood), false);
         }
         else if (dist < minSq && TetherOnActor.Contains((actor, TIDBad)))
         {
-            hints.Add(HintBad);
+            hints.Add(Loc.T(HintBad));
         }
         else if (dist >= minSq || TetherOnActor.Contains((actor, TIDGood)))
         {
-            hints.Add(HintGood, false);
+            hints.Add(Loc.T(HintGood), false);
         }
         if (KnockbackImmunity && !immunity)
         {
-            hints.Add(HintKnockbackImmmunityBad);
+            hints.Add(Loc.T(HintKnockbackImmmunityBad));
         }
     }
 
@@ -640,7 +640,7 @@ StretchTetherDuo(module, minimumDistance, activationDelay, tetherID, tetherID, s
         }
         if (needToKite && TetherOnActor.Contains((actor, TIDBad)))
         {
-            hints.Add("Kite the add!");
+            hints.Add(Loc.T("Kite the add!"));
         }
         else
         {

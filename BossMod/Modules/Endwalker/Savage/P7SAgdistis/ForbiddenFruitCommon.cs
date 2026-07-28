@@ -61,9 +61,9 @@ class ForbiddenFruitCommon(BossModule module, uint watchedAction) : Components.G
     {
         base.AddHints(slot, actor, hints);
         if (_tetherClips[slot].Any())
-            hints.Add("Hitting others with tether!");
+            hints.Add(Loc.T("Hitting others with tether!"));
         if (_tetherClips.AnyBitInColumn(slot))
-            hints.Add("Clipped by other tethers!");
+            hints.Add(Loc.T("Clipped by other tethers!"));
     }
 
     public override PlayerPriority CalcPriority(int pcSlot, Actor pc, int playerSlot, Actor player, ref uint customColor)

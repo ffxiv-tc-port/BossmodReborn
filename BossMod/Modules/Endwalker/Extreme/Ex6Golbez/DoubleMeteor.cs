@@ -48,7 +48,7 @@ class Explosion(BossModule module) : BossComponent(module)
     {
         var tower = _forbidden[slot] ? null : actor.Class.IsSupport() ? _towerTH : _towerDD;
         if (tower != null)
-            hints.Add("Soak the tower!", !actor.Position.InCircle(tower.Position, 4f));
+            hints.Add(Loc.T("Soak the tower!"), !actor.Position.InCircle(tower.Position, 4f));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

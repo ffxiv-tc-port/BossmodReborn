@@ -87,6 +87,6 @@ sealed class ShimmeringShot(BossModule module) : Components.GenericAOEs(module)
         if (len == 0)
             return;
         ref readonly var aoe = ref aoes[0];
-        hints.Add("Stand in correct tile!", !aoe.Check(actor.Position));
+        hints.Add(Loc.T("Stand in correct tile!"), !aoe.Check(actor.Position));
     }
 }

@@ -39,7 +39,7 @@ class CaloricTheory1Part2(BossModule module) : Components.UniformStackSpread(mod
         if (IsStackTarget(actor))
         {
             // TODO: do all strategies require fires to stand still here?
-            hints.Add("Stay still!", false);
+            hints.Add(Loc.T("Stay still!"), false);
         }
         else
         {
@@ -70,7 +70,7 @@ class CaloricTheory1Part3(BossModule module) : Components.UniformStackSpread(mod
         if (IsSpreadTarget(actor))
         {
             // TODO: do all strategies require airs to stand still here?
-            hints.Add("Stay still!", false);
+            hints.Add(Loc.T("Stay still!"), false);
         }
         else
         {

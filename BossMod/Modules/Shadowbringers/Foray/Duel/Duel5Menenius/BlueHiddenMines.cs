@@ -13,6 +13,6 @@ sealed class BlueHiddenMines(BossModule module) : Components.GenericTowers(modul
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (Towers.Count > 0)
-            hints.Add("Soak the mine!");
+            hints.Add(Loc.T("Soak the mine!"));
     }
 }

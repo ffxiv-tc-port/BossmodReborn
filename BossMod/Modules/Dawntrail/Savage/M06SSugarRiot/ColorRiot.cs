@@ -39,12 +39,12 @@ sealed class ColorRiot(BossModule module) : Components.GenericBaitAway(module, d
         {
             if (actor == closest)
             {
-                hints.Add("Move further away from boss!");
+                hints.Add(Loc.T("Move further away from boss!"));
                 return;
             }
             if (actor == furthest)
             {
-                hints.Add("Move closer to boss!");
+                hints.Add(Loc.T("Move closer to boss!"));
                 return;
             }
             return;
@@ -52,7 +52,7 @@ sealed class ColorRiot(BossModule module) : Components.GenericBaitAway(module, d
 
         if (!warmPlayers.Any() && !coolPlayers.Any())
         {
-            hints.Add("Bait close or far!", actor != closest && actor != furthest);
+            hints.Add(Loc.T("Bait close or far!"), actor != closest && actor != furthest);
             return;
         }
 
@@ -74,7 +74,7 @@ sealed class ColorRiot(BossModule module) : Components.GenericBaitAway(module, d
         }
         else
         {
-            hints.Add("Go opposite distance of co-tank!");
+            hints.Add(Loc.T("Go opposite distance of co-tank!"));
         }
     }
 

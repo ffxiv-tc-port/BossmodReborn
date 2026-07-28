@@ -53,7 +53,7 @@ abstract class LawsOfEarthBurst(BossModule module) : Components.GenericTowers(mo
             {
                 if (!Towers[i].ForbiddenSoakers[slot])
                 {
-                    hints.Add("Go to ground!");
+                    hints.Add(Loc.T("Go to ground!"));
                     break;
                 }
             }
@@ -216,7 +216,7 @@ sealed class MeteorImpact(BossModule module) : Components.CastCounter(module, de
             }
         }
         if (showHint)
-            hints.Add("Spread!");
+            hints.Add(Loc.T("Spread!"));
 
         // TODO: don't overlap with previous meteors?..
     }
@@ -273,7 +273,7 @@ sealed class WeightyBlow(BossModule module) : Components.CastCounter(module, (ui
             return;
 
         if (_virtualShift != null && _virtualShift.Flying[slot])
-            hints.Add("Go to ground!");
+            hints.Add(Loc.T("Go to ground!"));
 
         var origin = BaitSource(actor);
         var count = _boulders.Count;
@@ -284,7 +284,7 @@ sealed class WeightyBlow(BossModule module) : Components.CastCounter(module, (ui
                 return;
             }
         }
-        hints.Add("Hide behind boulder!");
+        hints.Add(Loc.T("Hide behind boulder!"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

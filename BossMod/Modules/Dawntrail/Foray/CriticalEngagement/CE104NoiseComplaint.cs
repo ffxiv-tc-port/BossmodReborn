@@ -246,7 +246,7 @@ sealed class RushingRumbleRampage(BossModule module) : Components.GenericAOEs(mo
         {
             return;
         }
-        hints.Add("Follow the charge!");
+        hints.Add(Loc.T("Follow the charge!"));
     }
 }
 

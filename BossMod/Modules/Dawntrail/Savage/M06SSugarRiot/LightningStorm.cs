@@ -66,8 +66,8 @@ sealed class LightningStormHint(BossModule module) : Components.GenericAOEs(modu
             return;
         var isRisky = _aoeRisk.Value.Check(actor.Position);
         if (targets[slot])
-            hints.Add("Stay away from bridges and go to different islands!", isRisky);
+            hints.Add(Loc.T("Stay away from bridges and go to different islands!"), isRisky);
         else
-            hints.Add("Stay on bridges!", !isRisky);
+            hints.Add(Loc.T("Stay on bridges!"), !isRisky);
     }
 }

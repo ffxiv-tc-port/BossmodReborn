@@ -24,7 +24,7 @@ class FlukeGale(BossModule module) : Components.GenericKnockback(module)
         {
             var finalPos = CalculateMovements(slot, actor).LastOrDefault((actor.Position, actor.Position)).Item2;
             if (!SafeZones(slot).Any(c => _safeZone.Check(finalPos, c, default)))
-                hints.Add("Aim towards safe zone!");
+                hints.Add(Loc.T("Aim towards safe zone!"));
         }
     }
 

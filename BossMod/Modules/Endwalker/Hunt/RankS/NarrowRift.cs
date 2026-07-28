@@ -110,7 +110,7 @@ class ContinualMeddling(BossModule module) : Components.StatusDrivenForcedMarch(
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (Module.PrimaryActor.CastInfo != null && Module.PrimaryActor.CastInfo.IsSpell() && Module.PrimaryActor.CastInfo.Action.ID is (uint)AID.ContinualMeddlingFR or (uint)AID.ContinualMeddlingFL or (uint)AID.ContinualMeddlingBL or (uint)AID.ContinualMeddlingBR)
-            hints.Add("Apply march debuffs");
+            hints.Add(Loc.T("Apply march debuffs"));
     }
 }
 

@@ -33,7 +33,7 @@ sealed class P1FallOfFaith(BossModule module) : Components.CastCounter(module, d
             hints.Add($"Order: {order}", false);
 
         if (ActiveBaits(slot, actor, true).Any(bait => bait.shape.Check(actor.Position, bait.origin, bait.dir)))
-            hints.Add("GTFO from baited aoe!");
+            hints.Add(Loc.T("GTFO from baited aoe!"));
         // TODO: hint if actor is baiter while it's not his turn?
         // TODO: hint if actor is clipping others?
     }

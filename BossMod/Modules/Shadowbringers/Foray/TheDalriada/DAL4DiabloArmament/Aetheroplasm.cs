@@ -24,7 +24,7 @@ sealed class Aetheroplasm(BossModule module) : BossComponent(module)
     {
         if (orbs.Count != 0)
         {
-            hints.Add("Soak the orbs!");
+            hints.Add(Loc.T("Soak the orbs!"));
         }
     }
 

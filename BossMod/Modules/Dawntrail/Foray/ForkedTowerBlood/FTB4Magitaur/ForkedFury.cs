@@ -191,7 +191,7 @@ sealed class ForkedFury(BossModule module) : Components.GenericAOEs(module)
                     isTarget = true;
                 }
             }
-            hints.Add("Stay between tanks!", isTarget);
+            hints.Add(Loc.T("Stay between tanks!"), isTarget);
         }
     }
 

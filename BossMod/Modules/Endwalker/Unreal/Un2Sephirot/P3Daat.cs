@@ -7,7 +7,7 @@ class P3Daat(BossModule module) : Components.CastCounter(module, (uint)AID.DaatR
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, radius).Any())
-            hints.Add("Spread!");
+            hints.Add(Loc.T("Spread!"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

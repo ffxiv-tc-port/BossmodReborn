@@ -180,14 +180,14 @@ sealed class FlipToABSide(BossModule module) : Components.GenericBaitAway(module
             }
             if (_lightparty)
             {
-                hints.Add("Light party stack!", healers != 1 || tanks != 1 || dps != 2);
+                hints.Add(Loc.T("Light party stack!"), healers != 1 || tanks != 1 || dps != 2);
             }
             else
             {
                 var condTank = tanks == 2 && healers == 0 && dps == 0;
                 var condHealer = healers == 2 && tanks == 0 && dps == 0;
                 var condDps = dps == 4 && healers == 0 && tanks == 0;
-                hints.Add("Role stack!", actor.Role == Role.Healer ? !condHealer : actor.Role == Role.Tank ? !condTank : !condDps);
+                hints.Add(Loc.T("Role stack!"), actor.Role == Role.Healer ? !condHealer : actor.Role == Role.Tank ? !condTank : !condDps);
             }
         }
     }

@@ -156,7 +156,7 @@ sealed class WindsOfDecayBait(BossModule module) : Components.GenericBaitAway(mo
             {
                 if (!_kb.IsImmune(slot, baits.Ref(0).Activation))
                 {
-                    hints.Add("Wait in marked spot for knockback!");
+                    hints.Add(Loc.T("Wait in marked spot for knockback!"));
                 }
             }
         }

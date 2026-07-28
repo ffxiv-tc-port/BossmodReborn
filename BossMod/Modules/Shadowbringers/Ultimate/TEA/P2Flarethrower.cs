@@ -17,7 +17,7 @@ sealed class P2Flarethrower(BossModule module) : Components.GenericBaitAway(modu
     {
         base.AddHints(slot, actor, hints);
         if (_source != null && CurrentBaits.Any(b => b.Target == actor) && Module.Enemies((uint)OID.LiquidRage).Any(r => !_shape.Check(r.Position, _source.Position, Angle.FromDirection(actor.Position - _source.Position))))
-            hints.Add("Aim towards tornado!");
+            hints.Add(Loc.T("Aim towards tornado!"));
     }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)

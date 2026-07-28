@@ -15,7 +15,7 @@ sealed class P1JagdDolls(BossModule module) : BossComponent(module)
     {
         if (NumExhausts < 2 && ActiveDolls.InRadius(actor.Position, _exhaustRadius).Count() > 1)
         {
-            hints.Add("GTFO from exhaust intersection");
+            hints.Add(Loc.T("GTFO from exhaust intersection"));
         }
     }
 

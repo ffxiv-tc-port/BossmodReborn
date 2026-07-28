@@ -7,7 +7,7 @@ sealed class AetherialRay(BossModule module) : Components.GenericBaitAway(module
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (_activation != default)
-            hints.Add("Tankbuster 5x");
+            hints.Add(Loc.T("Tankbuster 5x"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

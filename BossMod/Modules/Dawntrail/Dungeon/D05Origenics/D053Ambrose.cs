@@ -207,7 +207,7 @@ sealed class OverwhelmingCharge(BossModule module) : Components.GenericAOEs(modu
                     break;
                 }
             }
-            hints.Add("Wait inside safespot for knockback!", !actorInSafespot);
+            hints.Add(Loc.T("Wait inside safespot for knockback!"), !actorInSafespot);
         }
     }
 }

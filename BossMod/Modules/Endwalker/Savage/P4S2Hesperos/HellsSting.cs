@@ -14,7 +14,7 @@ class HellsSting(BossModule module) : BossComponent(module)
             return;
 
         if (ConeDirections().Any(x => actor.Position.InCone(Module.PrimaryActor.Position, x, _cone.HalfAngle)))
-            hints.Add("GTFO from cone!");
+            hints.Add(Loc.T("GTFO from cone!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

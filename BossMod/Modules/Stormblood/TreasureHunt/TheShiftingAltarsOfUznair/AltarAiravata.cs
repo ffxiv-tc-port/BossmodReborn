@@ -63,7 +63,7 @@ sealed class Buffet(BossModule module) : Components.SimpleKnockbacks(module, (ui
     {
         base.AddHints(slot, actor, hints);
         if (target == actor && targeted)
-            hints.Add("Bait away!");
+            hints.Add(Loc.T("Bait away!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

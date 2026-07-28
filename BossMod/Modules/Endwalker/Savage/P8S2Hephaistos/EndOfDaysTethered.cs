@@ -15,9 +15,9 @@ class EndOfDaysTethered(BossModule module) : BossComponent(module)
             return; // non-tethered players shouldn't need to worry about this mechanic
 
         if (Raid.WithoutSlot(false, true, true).Exclude(actor).InShape(_shape, tetheredCaster).Count != 0)
-            hints.Add("Bait away from raid!");
+            hints.Add(Loc.T("Bait away from raid!"));
         if (_tethers.Any(t => t.target != actor && _shape.Check(actor.Position, t.source)))
-            hints.Add("Move away from other baits!");
+            hints.Add(Loc.T("Move away from other baits!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

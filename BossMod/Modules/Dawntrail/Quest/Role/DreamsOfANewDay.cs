@@ -121,7 +121,7 @@ sealed class CradleOfTheSleepless(BossModule module) : Components.GenericAOEs(mo
     {
         if (_aoe is not AOEInstance aoe)
             return;
-        hints.Add("Go behind shield or duty fails!", !aoe.Check(actor.Position));
+        hints.Add(Loc.T("Go behind shield or duty fails!"), !aoe.Check(actor.Position));
     }
 }
 

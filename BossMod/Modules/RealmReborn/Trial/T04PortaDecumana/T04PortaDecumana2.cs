@@ -57,7 +57,7 @@ class AethericBoom(BossModule module) : Components.SimpleKnockbacks(module, (uin
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (Casters.Count > 0)
-            hints.Add("Prepare to soak the orbs!");
+            hints.Add(Loc.T("Prepare to soak the orbs!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
@@ -93,7 +93,7 @@ class Aetheroplasm(BossModule module) : BossComponent(module)
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (GetOrbs(Module).Count != 0)
-            hints.Add("Soak the orbs!");
+            hints.Add(Loc.T("Soak the orbs!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

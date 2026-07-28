@@ -111,7 +111,7 @@ class MortalFlame(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (burning[slot])
-            hints.Add("Pass flames debuff to furniture!");
+            hints.Add(Loc.T("Pass flames debuff to furniture!"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)
@@ -192,7 +192,7 @@ class BlackFlame(BossModule module) : Components.GenericBaitAway(module)
     {
         if (ActiveBaitsOn(actor).Count == 0)
             return;
-        hints.Add("Bait away, avoid intersecting furniture hitboxes!");
+        hints.Add(Loc.T("Bait away, avoid intersecting furniture hitboxes!"));
     }
 }
 
@@ -326,7 +326,7 @@ class FiresIreBait(BossModule module) : Components.GenericBaitAway(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (ActiveBaitsOn(actor).Count != 0)
-            hints.Add("Bait away, avoid intersecting furniture hitboxes!");
+            hints.Add(Loc.T("Bait away, avoid intersecting furniture hitboxes!"));
     }
 }
 

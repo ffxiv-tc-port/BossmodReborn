@@ -57,7 +57,7 @@ class DigestiveFluidBait(BossModule module) : Components.GenericBaitAway(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (ActiveBaitsOn(actor).Count != 0)
-            hints.Add("Bait away!");
+            hints.Add(Loc.T("Bait away!"));
     }
 
     public override void Update()

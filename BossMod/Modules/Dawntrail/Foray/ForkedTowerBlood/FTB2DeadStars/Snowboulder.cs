@@ -101,7 +101,7 @@ sealed class Snowboulder(BossModule module) : Components.GenericAOEs(module)
                     break;
                 }
             }
-            hints.Add("Share damage inside wild charge!", risky);
+            hints.Add(Loc.T("Share damage inside wild charge!"), risky);
         }
         else
         {
@@ -125,7 +125,7 @@ sealed class Snowboulder(BossModule module) : Components.GenericAOEs(module)
     {
         if (isInit)
         {
-            hints.Add("Wild charges -> Tanks infront!");
+            hints.Add(Loc.T("Wild charges -> Tanks infront!"));
         }
     }
 }

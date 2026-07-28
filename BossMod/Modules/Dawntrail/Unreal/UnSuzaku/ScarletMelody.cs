@@ -37,7 +37,7 @@ sealed class RapturousEchoTowers(BossModule module) : Components.GenericTowers(m
                 break;
             }
         }
-        hints.Add("Stand in a tower and match the arrow direction!", isRisky);
+        hints.Add(Loc.T("Stand in a tower and match the arrow direction!"), isRisky);
     }
 }
 

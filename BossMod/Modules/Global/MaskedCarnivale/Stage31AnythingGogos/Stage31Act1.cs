@@ -57,7 +57,7 @@ sealed class Hints2(BossModule module) : BossComponent(module)
         }
         if (Module.PrimaryActor.FindStatus((uint)SID.CriticalStrikes) != null)
         {
-            hints.Add("Dispel buff!");
+            hints.Add(Loc.T("Dispel buff!"));
         }
     }
 }

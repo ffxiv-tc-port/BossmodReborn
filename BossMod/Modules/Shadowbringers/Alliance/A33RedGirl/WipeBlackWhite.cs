@@ -122,7 +122,7 @@ sealed class WipeBlackWhite(BossModule module) : Components.GenericAOEs(module)
         if (_aoe is AOEInstance a)
         {
             ref var aoe = ref a;
-            hints.Add("Wait in safe area!", !aoe.Check(actor.Position));
+            hints.Add(Loc.T("Wait in safe area!"), !aoe.Check(actor.Position));
         }
     }
 }

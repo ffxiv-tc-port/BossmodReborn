@@ -139,10 +139,10 @@ public abstract class EurekaZone<NM> : ZoneModule where NM : struct, Enum
         var modified = false;
 
         ImGui.SetNextItemWidth(200);
-        modified |= ImGui.DragFloat("Max distance to look for new mobs", ref globalConfig.MaxPullDistance, 1, 20, 80);
+        modified |= ImGui.DragFloat(Loc.T("Max distance to look for new mobs") + "###MaxPullDistance", ref globalConfig.MaxPullDistance, 1, 20, 80);
         ImGui.SetNextItemWidth(200);
-        modified |= ImGui.DragInt("Max mobs to pull (set to 0 for no limit)", ref globalConfig.MaxPullCount, 1, 0, 30);
-        modified |= ImGui.Checkbox("Assist mode (only attack mobs that are already in combat)", ref globalConfig.AssistMode);
+        modified |= ImGui.DragInt(Loc.T("Max mobs to pull (set to 0 for no limit)") + "###MaxPullCount", ref globalConfig.MaxPullCount, 1, 0, 30);
+        modified |= ImGui.Checkbox(Loc.T("Assist mode (only attack mobs that are already in combat)") + "###AssistMode", ref globalConfig.AssistMode);
 
         if (modified)
             globalConfig.Modified.Fire();

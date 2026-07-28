@@ -23,19 +23,19 @@ public class StayMove(BossModule module, double maxTimeToShowHint = 1e3d) : Boss
             case Requirement.Stay:
                 if (state.Activation <= WorldState.FutureTime(MaxTimeToShowHint))
                 {
-                    hints.Add("Stop everything!", actor.PrevPosition != actor.PrevPosition || actor.CastInfo != null || actor.TargetID != default); // note: assume if target is selected, we might autoattack...
+                    hints.Add(Loc.T("Stop everything!"), actor.PrevPosition != actor.PrevPosition || actor.CastInfo != null || actor.TargetID != default); // note: assume if target is selected, we might autoattack...
                 }
                 break;
             case Requirement.Stay2:
                 if (state.Activation <= WorldState.FutureTime(MaxTimeToShowHint))
                 {
-                    hints.Add("Don't move!", actor.PrevPosition != actor.PrevPosition); // you are allowed to attack here, only moving is forbidden
+                    hints.Add(Loc.T("Don't move!"), actor.PrevPosition != actor.PrevPosition); // you are allowed to attack here, only moving is forbidden
                 }
                 break;
             case Requirement.Move:
                 if (state.Activation <= WorldState.FutureTime(MaxTimeToShowHint))
                 {
-                    hints.Add("Move!", actor.PrevPosition == actor.PrevPosition);
+                    hints.Add(Loc.T("Move!"), actor.PrevPosition == actor.PrevPosition);
                 }
                 break;
 

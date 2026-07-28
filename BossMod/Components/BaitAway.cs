@@ -131,7 +131,7 @@ public class GenericBaitAway(BossModule module, uint aid = default, bool alwaysD
         {
             if (ActiveBaitsOn(actor).Count != 0)
             {
-                hints.Add("Avoid baiting!");
+                hints.Add(Loc.T("Avoid baiting!"));
             }
         }
         else
@@ -145,7 +145,7 @@ public class GenericBaitAway(BossModule module, uint aid = default, bool alwaysD
                 var clippedPlayers = PlayersClippedBy(ref bait);
                 if (clippedPlayers.Count != 0)
                 {
-                    hints.Add(BaitAwayHint);
+                    hints.Add(Loc.T(BaitAwayHint));
                     break;
                 }
             }
@@ -161,7 +161,7 @@ public class GenericBaitAway(BossModule module, uint aid = default, bool alwaysD
                     continue;
                 if (IsClippedBy(actor, bait))
                 {
-                    hints.Add("GTFO from baited aoe!");
+                    hints.Add(Loc.T("GTFO from baited aoe!"));
                     break;
                 }
             }
@@ -267,7 +267,7 @@ public class GenericBaitAway(BossModule module, uint aid = default, bool alwaysD
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (tankbuster && CurrentBaits.Count != 0)
-            hints.Add("Tankbuster cleave");
+            hints.Add(Loc.T("Tankbuster cleave"));
     }
 }
 
@@ -590,7 +590,7 @@ public class BaitAwayChargeTether(BossModule module, float halfWidth, float acti
             }
             if (PlayersClippedBy(ref b).Count != 0)
             {
-                hints.Add(BaitAwayHint);
+                hints.Add(Loc.T(BaitAwayHint));
                 return;
             }
         }

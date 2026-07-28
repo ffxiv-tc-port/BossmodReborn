@@ -68,7 +68,7 @@ sealed class AlexandrianThunderII(BossModule module) : Components.GenericRotatin
         if (NumCasts != 0)
             return;
         if (clockwise != null)
-            hints.Add("Go to marked area for rotation start!");
+            hints.Add(Loc.T("Go to marked area for rotation start!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

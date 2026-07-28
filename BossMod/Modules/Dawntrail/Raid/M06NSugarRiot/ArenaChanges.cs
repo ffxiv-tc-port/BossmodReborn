@@ -69,11 +69,11 @@ sealed class ArenaChanges(BossModule module) : Components.GenericAOEs(module)
         var isInside = _aoe.Value.Check(actor.Position);
         if (!_risky)
         {
-            hints.Add("Be inside river!", !isInside);
+            hints.Add(Loc.T("Be inside river!"), !isInside);
             return;
         }
         if (isInside)
-            hints.Add("GTFO from river!");
+            hints.Add(Loc.T("GTFO from river!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

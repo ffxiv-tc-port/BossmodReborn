@@ -16,18 +16,18 @@ class Planets(BossModule module) : BossComponent(module)
     {
         if (_aoeHead.Check(actor.Position, _head))
         {
-            hints.Add("GTFO from head aoe!");
+            hints.Add(Loc.T("GTFO from head aoe!"));
         }
         if (_planetsFiery.Count > 0 && _aoePlanet.Check(actor.Position, _planetsFiery[0]))
         {
-            hints.Add("GTFO from planet aoe!");
+            hints.Add(Loc.T("GTFO from planet aoe!"));
         }
         if (_planetsAzure.Count > 0)
         {
             var offsetLocation = Components.GenericKnockback.AwayFromSource(actor.Position, _planetsAzure[0], _knockbackDistance);
             if (!Module.InBounds(offsetLocation))
             {
-                hints.Add("About to be knocked into wall!");
+                hints.Add(Loc.T("About to be knocked into wall!"));
             }
         }
     }

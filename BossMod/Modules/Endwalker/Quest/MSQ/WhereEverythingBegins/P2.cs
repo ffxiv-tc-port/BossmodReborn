@@ -171,7 +171,7 @@ class Shield(BossModule module) : Components.GenericAOEs(module)
         {
             return;
         }
-        hints.Add("Go under shield!", !_aoe.Value.Check(actor.Position));
+        hints.Add(Loc.T("Go under shield!"), !_aoe.Value.Check(actor.Position));
     }
 }
 

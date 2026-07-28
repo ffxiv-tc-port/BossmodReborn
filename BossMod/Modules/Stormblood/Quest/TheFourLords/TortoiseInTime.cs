@@ -63,7 +63,7 @@ class ExplosiveTataru(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (Tataru != null && actor.Position.InCircle(Tataru.Position, 6))
-            hints.Add("GTFO from Tataru!");
+            hints.Add(Loc.T("GTFO from Tataru!"));
     }
 }
 

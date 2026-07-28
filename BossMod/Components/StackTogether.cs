@@ -52,7 +52,7 @@ public class StackTogether(BossModule module, uint iconId, float activationDelay
         }
 
         if (actorFound)
-            hints.Add("Stack with other targets!", !foundTarget);
+            hints.Add(Loc.T("Stack with other targets!"), !foundTarget);
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

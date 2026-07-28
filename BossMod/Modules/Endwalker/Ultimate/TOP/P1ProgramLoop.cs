@@ -27,23 +27,23 @@ sealed class P1ProgramLoop(BossModule module) : P1CommonAssignments(module)
         var nextTowers = _towers.Skip(NumTowersDone).Take(2);
         var soakingTower = nextTowers.InRadius(actor.Position, _towerRadius).Any();
         if (order == NextTowersOrder())
-            hints.Add("Soak next tower", !soakingTower);
+            hints.Add(Loc.T("Soak next tower"), !soakingTower);
         else if (soakingTower)
-            hints.Add("GTFO from tower!");
+            hints.Add(Loc.T("GTFO from tower!"));
 
         if (order != NextTethersOrder())
         {
             if (_tethers[slot])
-                hints.Add("Pass the tether!");
+                hints.Add(Loc.T("Pass the tether!"));
             if (Raid.WithSlot(false, true, true).IncludedInMask(_tethers).InRadiusExcluding(actor, _tetherRadius).Any())
-                hints.Add("GTFO from tether targets!");
+                hints.Add(Loc.T("GTFO from tether targets!"));
         }
         else if (_tethers.Any())
         {
             if (!_tethers[slot])
-                hints.Add("Grab the tether!");
+                hints.Add(Loc.T("Grab the tether!"));
             else if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _tetherRadius).Any())
-                hints.Add("GTFO from raid!");
+                hints.Add(Loc.T("GTFO from raid!"));
         }
     }
 

@@ -13,9 +13,9 @@ class EyeOfTheStormGeocrush(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (_eotsCaster != null)
-            hints.Add("Stand near inner edge", _aoeEOTS.Check(actor.Position, _eotsCaster));
+            hints.Add(Loc.T("Stand near inner edge"), _aoeEOTS.Check(actor.Position, _eotsCaster));
         else if (_aoeGeocrush.Check(actor.Position, _geocrushCaster))
-            hints.Add("Go to edge!");
+            hints.Add(Loc.T("Go to edge!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

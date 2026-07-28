@@ -13,14 +13,14 @@ class PandaemoniacMeltdown(BossModule module) : Components.CastCounter(module, (
     {
         var isSpread = _spreadTargets.Contains(actor);
         if (_spreadTargets.Any(t => t != actor && _shapeSpread.Check(actor.Position, Module.PrimaryActor.Position, Angle.FromDirection(t.Position - Module.PrimaryActor.Position))))
-            hints.Add("GTFO from other spreads!");
+            hints.Add(Loc.T("GTFO from other spreads!"));
         if (isSpread && Raid.WithoutSlot(false, true, true).Exclude(actor).InShape(_shapeSpread, Module.PrimaryActor.Position, Angle.FromDirection(actor.Position - Module.PrimaryActor.Position)).Count != 0)
-            hints.Add("Aim spread away from raid!");
+            hints.Add(Loc.T("Aim spread away from raid!"));
 
         if (_stackTarget == actor)
         {
             if (_spreadTargets.InShape(_shapeStack, Module.PrimaryActor.Position, Angle.FromDirection(actor.Position - Module.PrimaryActor.Position)).Count != 0)
-                hints.Add("Aim stack away from spreads!");
+                hints.Add(Loc.T("Aim stack away from spreads!"));
         }
         else if (_stackTarget != null)
         {

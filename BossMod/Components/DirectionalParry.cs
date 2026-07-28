@@ -66,7 +66,7 @@ public class DirectionalParry(BossModule module, uint[] actorOID) : AddsMulti(mo
             (attackDir.Dot(facing.OrthoL()) > 0f ? Side.Left : Side.Right);
 
         if ((forbiddenSides & attackSide) != default)
-            hints.Add("Attack target from unshielded side!");
+            hints.Add(Loc.T("Attack target from unshielded side!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

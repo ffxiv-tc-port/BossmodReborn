@@ -19,7 +19,7 @@ class AstralEclipse(BossModule module) : BossComponent(module)
     {
         var nextPattern = _patterns.SkipWhile(p => p == 0).FirstOrDefault();
         if (PatternSpots(nextPattern).Any(p => _aoe.Check(actor.Position, p)))
-            hints.Add("GTFO from explosion!");
+            hints.Add(Loc.T("GTFO from explosion!"));
     }
 
     public override void AddMovementHints(int slot, Actor actor, MovementHints movementHints)

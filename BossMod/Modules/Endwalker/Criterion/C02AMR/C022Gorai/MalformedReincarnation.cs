@@ -16,7 +16,7 @@ sealed class MalformedPrayer2(BossModule module) : Components.GenericTowers(modu
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (!_baitsDone && (Towers.Any(t => t.Position.InCircle(actor.Position, TowerRadius * 2f)) || Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, TowerRadius * 2f).Any()))
-            hints.Add("Bait away from other towers!");
+            hints.Add(Loc.T("Bait away from other towers!"));
         base.AddHints(slot, actor, hints);
     }
 

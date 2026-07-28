@@ -216,7 +216,7 @@ public sealed class ReplayManager : IDisposable
             ImGui.Checkbox($"{e.Path}", ref e.Selected);
         }
         if (dispose) //  replays somehow don't get cleaned up correctly without this?
-            Plugin.GarbageCollection();
+            Plugin.GarbageCollectionAsync();
     }
 
     private void DrawEntriesOperations()
@@ -259,7 +259,7 @@ public sealed class ReplayManager : IDisposable
             dispose = true;
         }
         if (dispose) //  replays somehow don't get cleaned up correctly without this?
-            Plugin.GarbageCollection();
+            Plugin.GarbageCollectionAsync();
     }
 
     private void DrawNewEntry()

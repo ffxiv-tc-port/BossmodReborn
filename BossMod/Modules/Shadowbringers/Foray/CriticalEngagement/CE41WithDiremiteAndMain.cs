@@ -152,7 +152,7 @@ class Shardstrike(BossModule module) : Components.SpreadFromCastTargets(module, 
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (IsSpreadTarget(actor))
-            hints.Add("Spread, avoid intersecting cage hitboxes!");
+            hints.Add(Loc.T("Spread, avoid intersecting cage hitboxes!"));
     }
 }
 

@@ -73,7 +73,7 @@ sealed class QuicksandDoubleStylePaintBomb(BossModule module) : BossComponent(mo
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (Targets[slot])
-            hints.Add("Place bomb inside quicksand");
+            hints.Add(Loc.T("Place bomb inside quicksand"));
     }
 }
 
@@ -109,7 +109,7 @@ sealed class QuicksandDoubleStyleHeavenBomb(BossModule module) : Components.Gene
     {
         var movements = CalculateMovements(slot, actor);
         if (movements.Count != 0)
-            hints.Add("Aim bomb into quicksand!", DestinationUnsafe(slot, actor, movements[0].to));
+            hints.Add(Loc.T("Aim bomb into quicksand!"), DestinationUnsafe(slot, actor, movements[0].to));
     }
 
     public override bool DestinationUnsafe(int slot, Actor actor, WPos pos)

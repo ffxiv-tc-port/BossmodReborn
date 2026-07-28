@@ -104,7 +104,7 @@ sealed class PrimordialChaos(BossModule module) : Components.GenericAOEs(module)
     {
         if (slot < PartyState.MaxPartySize && playerTemperatures[slot] != 0 && _aoesPerPlayer[slot] != default)
         {
-            hints.Add("Get hit by AOE of correct temperature!", !_aoesPerPlayer[slot][0].Check(actor.Position));
+            hints.Add(Loc.T("Get hit by AOE of correct temperature!"), !_aoesPerPlayer[slot][0].Check(actor.Position));
         }
         else
         {

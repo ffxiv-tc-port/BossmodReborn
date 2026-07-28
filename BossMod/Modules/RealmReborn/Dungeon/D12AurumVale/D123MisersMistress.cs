@@ -127,7 +127,7 @@ sealed class MorbolFruit(BossModule module) : BossComponent(module)
         {
             if (_fruits[i].IsTargetable)
             {
-                hints.Add("Eat a fruit to cleanse debuff!");
+                hints.Add(Loc.T("Eat a fruit to cleanse debuff!"));
                 return;
             }
         }

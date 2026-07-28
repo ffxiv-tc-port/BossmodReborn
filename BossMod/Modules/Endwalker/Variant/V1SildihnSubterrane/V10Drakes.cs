@@ -20,7 +20,7 @@ sealed class BurningCyclone(BossModule module) : Components.SimpleAOEs(module, (
 {
     public override void AddGlobalHints(GlobalHints hints)
     {
-        hints.Add("Order: Fater -> mother -> brother -> sister -> drakeling");
+        hints.Add(Loc.T("Order: Fater -> mother -> brother -> sister -> drakeling"));
     }
 }
 

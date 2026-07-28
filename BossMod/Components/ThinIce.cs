@@ -39,7 +39,7 @@ public abstract class ThinIce(BossModule module, float distance, bool createforb
         var movements = CalculateMovements(slot, actor);
         if (movements.Count != 0 && DestinationUnsafe(slot, actor, movements[0].to))
         {
-            hints.Add("You are risking to slide into danger!");
+            hints.Add(Loc.T("You are risking to slide into danger!"));
         }
     }
 

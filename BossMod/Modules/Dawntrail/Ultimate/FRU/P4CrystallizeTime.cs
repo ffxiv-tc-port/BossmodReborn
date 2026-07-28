@@ -700,7 +700,7 @@ sealed class P4CrystallizeTimeRewind(BossModule module) : Components.GenericKnoc
                 var isFirstX = xOrder < 4;
                 var isFirstZ = zOrder < 4;
                 if (isFirstX == isFirstZ)
-                    hints.Add("Position in group properly!");
+                    hints.Add(Loc.T("Position in group properly!"));
             }
         }
     }

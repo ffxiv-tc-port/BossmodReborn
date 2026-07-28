@@ -26,9 +26,9 @@ class Transmission(BossModule module) : Components.CastCounter(module, (uint)AID
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (_snakeInfection[slot])
-            hints.Add("Face away from raid", _clips[slot].Any());
+            hints.Add(Loc.T("Face away from raid"), _clips[slot].Any());
         if (_wingInfection[slot])
-            hints.Add("Face raid", _clips[slot].Any());
+            hints.Add(Loc.T("Face raid"), _clips[slot].Any());
         if (_clippedByOthers[slot] && ExpireImminent(slot))
             hints.Add("Avoid transmission aoe!");
     }

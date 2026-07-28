@@ -13,6 +13,6 @@ class DragonNight(BossModule module) : BossComponent(module)
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (WorldState.CurrentTime < _hintExpire)
-            hints.Add("Raidwide after dragon heads leave arena");
+            hints.Add(Loc.T("Raidwide after dragon heads leave arena"));
     }
 }

@@ -22,15 +22,15 @@ abstract class P4ForcedMarchDebuffs(BossModule module) : BossComponent(module)
         {
             case Debuff.LightFollow:
                 if (LightBeacon != null && (actor.Position - LightBeacon.Position).LengthSq() < _minLightDistance * _minLightDistance)
-                    hints.Add("Move away from light beacon!");
+                    hints.Add(Loc.T("Move away from light beacon!"));
                 break;
             case Debuff.DarkFollow:
                 if (DarkBeacon != null)
                 {
                     if (!Module.InBounds(Components.GenericKnockback.AwayFromSource(actor.Position, DarkBeacon.Position, _forcedMarchDistance)))
-                        hints.Add("Aim away from wall!");
+                        hints.Add(Loc.T("Aim away from wall!"));
                     if ((actor.Position - DarkBeacon.Position).LengthSq() > _maxDarkDistance * _maxDarkDistance)
-                        hints.Add("Move closer to dark beacon!");
+                        hints.Add(Loc.T("Move closer to dark beacon!"));
                 }
                 break;
         }

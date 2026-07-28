@@ -64,12 +64,12 @@ public abstract class CleansableDebuff(BossModule module, uint statusID, string 
             }
             if (contains)
                 if (!(actor.Role == Role.Healer || actor.Class == Class.BRD))
-                    hints.Add($"You were {Adjective}! Get cleansed fast.");
+                    hints.Add(string.Format(Loc.T("You were {0}! Get cleansed fast."), Adjective));
                 else
-                    hints.Add($"Cleanse yourself! ({Noun}).");
+                    hints.Add(string.Format(Loc.T("Cleanse yourself! ({0})."), Noun));
             else if (actor.Role == Role.Healer || actor.Class == Class.BRD)
                 for (var i = 0; i < count; ++i)
-                    hints.Add($"Cleanse {_affected[i].Name}! ({Noun})");
+                    hints.Add(string.Format(Loc.T("Cleanse {0}! ({1})"), _affected[i].Name, Noun));
         }
     }
 

@@ -12,7 +12,7 @@ class Algedon(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (_shape.Check(actor.Position, _caster))
-            hints.Add("GTFO from diagonal aoe!");
+            hints.Add(Loc.T("GTFO from diagonal aoe!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

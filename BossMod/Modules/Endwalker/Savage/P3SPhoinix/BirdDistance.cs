@@ -33,7 +33,7 @@ class BirdDistance(BossModule module, OID watchedBirdsID) : BossComponent(module
             var bird = watchedBirds[i];
             if (!bird.IsDead && bird.TargetID == actor.InstanceID && _birdsAtRisk[i])
             {
-                hints.Add("Drag bird away!");
+                hints.Add(Loc.T("Drag bird away!"));
                 return;
             }
         }

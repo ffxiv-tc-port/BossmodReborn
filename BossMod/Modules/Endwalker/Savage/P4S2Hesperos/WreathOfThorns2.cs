@@ -27,11 +27,11 @@ class WreathOfThorns2(BossModule module) : BossComponent(module)
         {
             if (!isTowerSoaker)
             {
-                hints.Add("Stay in center", false);
+                hints.Add(Loc.T("Stay in center"), false);
             }
             else if (_darkTH.Item1!.Tether.ID != 0) // tether not broken yet
             {
-                hints.Add("Break tether!");
+                hints.Add(Loc.T("Break tether!"));
             }
         }
         else
@@ -40,12 +40,12 @@ class WreathOfThorns2(BossModule module) : BossComponent(module)
             var isFromCurrentPair = actor == curFirePair.Item1 || actor == curFirePair.Item2;
             if (isFromCurrentPair)
             {
-                hints.Add("Break tether!");
+                hints.Add(Loc.T("Break tether!"));
             }
             else if (curFirePair.Item1 != null && !isTowerSoaker)
             {
                 var nearFire = actor.Position.InCircle(curFirePair.Item1!.Position, _fireExplosionRadius) || actor.Position.InCircle(curFirePair.Item2!.Position, _fireExplosionRadius);
-                hints.Add("Stack with breaking tether!", !nearFire);
+                hints.Add(Loc.T("Stack with breaking tether!"), !nearFire);
             }
 
             if (CurState != State.Done)
@@ -53,18 +53,18 @@ class WreathOfThorns2(BossModule module) : BossComponent(module)
                 var relevantHelpers = CurState == State.FirstSet ? FirstSet : SecondSet;
                 if (relevantHelpers.Where(IsAOE).InRadius(actor.Position, P4S2.WreathAOERadius).Any())
                 {
-                    hints.Add("GTFO from AOE!");
+                    hints.Add(Loc.T("GTFO from AOE!"));
                 }
 
                 var soakedTower = relevantHelpers.Where(IsTower).InRadius(actor.Position, P4S2.WreathTowerRadius).FirstOrDefault();
                 if (isTowerSoaker)
                 {
                     // note: we're assuming that players with 'dark' soak all towers
-                    hints.Add("Soak the tower!", soakedTower == null);
+                    hints.Add(Loc.T("Soak the tower!"), soakedTower == null);
                 }
                 else if (soakedTower != null)
                 {
-                    hints.Add("GTFO from tower!");
+                    hints.Add(Loc.T("GTFO from tower!"));
                 }
             }
         }

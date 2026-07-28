@@ -17,7 +17,7 @@ class NestOfFlamevipersCommon(BossModule module) : Components.CastCounter(module
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (Raid.WithSlot(false, true, true).IncludedInMask(BaitingPlayers).WhereActor(p => p != actor && _shape.Check(actor.Position, Module.PrimaryActor.Position, Angle.FromDirection(p.Position - Module.PrimaryActor.Position))).Any())
-            hints.Add("GTFO from baited aoe!");
+            hints.Add(Loc.T("GTFO from baited aoe!"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

@@ -16,7 +16,7 @@ sealed class ArcanePoint(BossModule module) : BossComponent(module)
             return;
         var spot = CurrentSafeSpot(actor.Position);
         if (spot != null && Raid.WithoutSlot(false, true, true).Exclude(actor).Any(p => CurrentSafeSpot(p.Position) == spot))
-            hints.Add("Spread on different squares!");
+            hints.Add(Loc.T("Spread on different squares!"));
     }
 
     public override PlayerPriority CalcPriority(int pcSlot, Actor pc, int playerSlot, Actor player, ref uint customColor)

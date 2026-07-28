@@ -43,7 +43,7 @@ sealed class PortentousCometeorBait(BossModule module) : Components.GenericBaitA
     {
         if (ActiveBaitsOn(actor).Count != 0)
         {
-            hints.Add("Take bait to side with meteor!");
+            hints.Add(Loc.T("Take bait to side with meteor!"));
         }
     }
 

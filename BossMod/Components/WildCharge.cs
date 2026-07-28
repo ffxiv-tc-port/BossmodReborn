@@ -31,9 +31,9 @@ public class GenericWildCharge(BossModule module, float halfWidth, uint aid = de
                 break; // nothing to advise
             case PlayerRole.TargetNotFirst:
                 if (EnumerateAOEs(slot).Any(aoe => InAOE(aoe, actor)))
-                    hints.Add("GTFO from other charges!");
+                    hints.Add(Loc.T("GTFO from other charges!"));
                 else if (!AnyRoleCloser(GetAOEForTarget(Source.Position, actor.Position), PlayerRole.Share, PlayerRole.Share, (actor.Position - Source.Position).LengthSq()))
-                    hints.Add("Hide behind tank!");
+                    hints.Add(Loc.T("Hide behind tank!"));
                 break;
             case PlayerRole.Share:
             case PlayerRole.ShareNotFirst:
@@ -49,15 +49,15 @@ public class GenericWildCharge(BossModule module, float halfWidth, uint aid = de
                         : !AnyRoleCloser(aoe, PlayerRole.Share, PlayerRole.Target, (actor.Position - Source.Position).LengthSq());
                 }
                 if (numShares == 0)
-                    hints.Add("Stay inside charge!");
+                    hints.Add(Loc.T("Stay inside charge!"));
                 else if (numShares > 1)
-                    hints.Add("Stay in single charge!");
+                    hints.Add(Loc.T("Stay in single charge!"));
                 else if (badShare)
-                    hints.Add(PlayerRoles[slot] == PlayerRole.Share ? "Move closer to charge source!" : "Hide behind tank!");
+                    hints.Add(Loc.T(PlayerRoles[slot] == PlayerRole.Share ? "Move closer to charge source!" : "Hide behind tank!"));
                 break;
             case PlayerRole.Avoid:
                 if (EnumerateAOEs().Any(aoe => InAOE(aoe, actor)))
-                    hints.Add("GTFO from charge!");
+                    hints.Add(Loc.T("GTFO from charge!"));
                 break;
         }
     }

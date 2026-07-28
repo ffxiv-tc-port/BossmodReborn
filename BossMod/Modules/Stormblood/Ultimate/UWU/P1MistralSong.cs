@@ -30,12 +30,12 @@ class P1MistralSongAdds(BossModule module) : Components.CastCounter(module, (uin
     {
         if (actor.Role == Role.Tank && _targets.Count != 0)
         {
-            hints.Add("Intercept charge!", !IsClosest(actor));
+            hints.Add(Loc.T("Intercept charge!"), !IsClosest(actor));
         }
         else if (_targets.Contains(actor))
         {
             var isClosest = ActiveAOEs().Any(aoe => Raid.WithoutSlot(false, true, true).InShape(_shape, aoe.origin, aoe.rotation).Closest(aoe.origin) == actor);
-            hints.Add("Hide behind tank!", IsClosest(actor));
+            hints.Add(Loc.T("Hide behind tank!"), IsClosest(actor));
         }
     }
 

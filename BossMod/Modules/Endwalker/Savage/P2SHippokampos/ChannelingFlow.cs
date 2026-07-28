@@ -37,15 +37,15 @@ class ChannelingFlow(BossModule module) : BossComponent(module)
             }
 
             if (numPartners == 0)
-                hints.Add("Aim to hit partner!");
+                hints.Add(Loc.T("Aim to hit partner!"));
             if (numPartners > 1 || numClipped > 0)
-                hints.Add("Avoid clipping irrelevant players!");
+                hints.Add(Loc.T("Avoid clipping irrelevant players!"));
             if (minDistance < 20) // TODO: verify min range
-                hints.Add("Too close to partner!");
+                hints.Add(Loc.T("Too close to partner!"));
         }
 
         if (ActiveArrows().Any(pd => pd.Item1 != actor && pd.Item1 != partner && actor.Position.InRect(pd.Item1.Position, pd.Item2, 50, 0, _typhoonHalfWidth)))
-            hints.Add("GTFO from imminent flow!");
+            hints.Add(Loc.T("GTFO from imminent flow!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

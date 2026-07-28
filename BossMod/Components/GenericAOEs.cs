@@ -29,7 +29,7 @@ public abstract class GenericAOEs(BossModule module, uint aid = default, string 
             ref readonly var aoe = ref aoes[i];
             if (aoe.Risky && aoe.Check(actor.Position))
             {
-                hints.Add(WarningText);
+                hints.Add(Loc.T(WarningText));
                 return;
             }
         }

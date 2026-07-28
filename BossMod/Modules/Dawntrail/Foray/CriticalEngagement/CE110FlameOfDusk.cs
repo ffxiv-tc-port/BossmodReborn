@@ -212,9 +212,9 @@ sealed class MoltKB(BossModule module) : Components.GenericKnockback(module)
             if (_aoe!.AOEs.Count == 0)
                 return;
             if (_aoe.AOEs[0].Activation > kb.Activation)
-                hints.Add("Order: Knockback -> AOE");
+                hints.Add(Loc.T("Order: Knockback -> AOE"));
             else
-                hints.Add("Order: AOE -> Knockback");
+                hints.Add(Loc.T("Order: AOE -> Knockback"));
         }
     }
 }

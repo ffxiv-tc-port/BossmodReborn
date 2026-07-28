@@ -32,7 +32,7 @@ class FledglingFlight(BossModule module) : BossComponent(module)
         var eyePos = GetEyePlacementPosition(slot, actor);
         if (eyePos != null && !actor.Position.InCircle(eyePos.Value, 5))
         {
-            hints.Add("Get closer to eye placement position!");
+            hints.Add(Loc.T("Get closer to eye placement position!"));
         }
 
         if (_playerAOECount[slot] < _playerDeathTollStacks[slot])

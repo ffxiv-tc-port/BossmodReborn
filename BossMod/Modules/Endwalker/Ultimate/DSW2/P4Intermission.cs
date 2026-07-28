@@ -39,7 +39,7 @@ sealed class P4IntermissionSkyblindBait(BossModule module) : BossComponent(modul
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (_baiters[slot] && Raid.WithSlot(false, true, true).ExcludedFromMask(_baiters).InRadius(actor.Position, _radius).Any())
-            hints.Add("GTFO from raid!");
+            hints.Add(Loc.T("GTFO from raid!"));
     }
 
     public override PlayerPriority CalcPriority(int pcSlot, Actor pc, int playerSlot, Actor player, ref uint customColor)

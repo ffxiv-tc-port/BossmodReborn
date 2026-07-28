@@ -97,17 +97,17 @@ class UltimaBlow(BossModule module) : Components.CastCounter(module, (uint)AID.U
             var source = _tethers.Find(t => t.target == actor).source;
             var numHit = source != null ? Raid.WithoutSlot(false, true, true).Exclude(actor).InShape(_shape, source.Position, Angle.FromDirection(actor.Position - source.Position)).Count : 0;
             if (numHit == 0)
-                hints.Add("Hide behind partner!");
+                hints.Add(Loc.T("Hide behind partner!"));
             else if (numHit > 1)
-                hints.Add("Bait away from raid!");
+                hints.Add(Loc.T("Bait away from raid!"));
         }
         else if (_tethers.Count > 0)
         {
             var numHit = _tethers.Count(t => _shape.Check(actor.Position, t.source.Position, Angle.FromDirection(t.target.Position - t.source.Position)));
             if (numHit == 0)
-                hints.Add("Intercept the charge!");
+                hints.Add(Loc.T("Intercept the charge!"));
             else if (numHit > 1)
-                hints.Add("GTFO from other charges!");
+                hints.Add(Loc.T("GTFO from other charges!"));
         }
     }
 

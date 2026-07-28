@@ -196,7 +196,7 @@ class BurningBright(BossModule module) : Components.BaitAwayCast(module, (uint)A
         if (CurrentBaits[0].Target != actor)
             base.AddHints(slot, actor, hints);
         else
-            hints.Add("Bait away, avoid intersecting wall hitboxes!");
+            hints.Add(Loc.T("Bait away, avoid intersecting wall hitboxes!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
@@ -292,7 +292,7 @@ class CloudCall(BossModule module) : Components.GenericBaitAway(module)
         if (CurrentBaits[0].Target != actor)
             base.AddHints(slot, actor, hints);
         else
-            hints.Add("Bait cloud away, avoid intersecting wall hitboxes!");
+            hints.Add(Loc.T("Bait cloud away, avoid intersecting wall hitboxes!"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

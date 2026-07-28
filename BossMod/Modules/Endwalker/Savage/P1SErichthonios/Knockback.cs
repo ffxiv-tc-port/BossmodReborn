@@ -37,7 +37,7 @@ class Knockback : BossComponent
     {
         if (Module.PrimaryActor.CastInfo != null && actor == _knockbackTarget && !Module.InBounds(_knockbackPos))
         {
-            hints.Add("About to be knocked into wall!");
+            hints.Add(Loc.T("About to be knocked into wall!"));
         }
 
         var aoeRange = _isFlare ? _flareRange : _holyRange;
@@ -49,11 +49,11 @@ class Knockback : BossComponent
                 // check that raid is stacked on actor, except for vulnerable target (note that raid never stacks if knockback target is actor, since he is current aoe target)
                 if (_knockbackTarget != null && actor.Position.InCircle(_knockbackPos, aoeRange))
                 {
-                    hints.Add("GTFO from co-tank!");
+                    hints.Add(Loc.T("GTFO from co-tank!"));
                 }
                 if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, aoeRange).Count() < 7)
                 {
-                    hints.Add("Stack with raid!");
+                    hints.Add(Loc.T("Stack with raid!"));
                 }
             }
             else
@@ -61,11 +61,11 @@ class Knockback : BossComponent
                 // check that raid is spread from actor
                 if (actor == _knockbackTarget)
                 {
-                    hints.Add("Press invul!");
+                    hints.Add(Loc.T("Press invul!"));
                 }
                 if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, aoeRange).Any())
                 {
-                    hints.Add("GTFO from raid!");
+                    hints.Add(Loc.T("GTFO from raid!"));
                 }
             }
         }
@@ -81,7 +81,7 @@ class Knockback : BossComponent
                 // check that actor is stacked with tank
                 if (!actor.Position.InCircle(target.Position, aoeRange))
                 {
-                    hints.Add("Stack with target!");
+                    hints.Add(Loc.T("Stack with target!"));
                 }
             }
             else
@@ -90,7 +90,7 @@ class Knockback : BossComponent
                 var pos = actor == _knockbackTarget ? _knockbackPos : actor.Position;
                 if (pos.InCircle(target.Position, aoeRange))
                 {
-                    hints.Add("GTFO from target!");
+                    hints.Add(Loc.T("GTFO from target!"));
                 }
             }
         }

@@ -37,45 +37,45 @@ class Mechanics(BossModule module) : BossComponent(module)
             if (Module.PrimaryActor.TargetID == actor.InstanceID)
             {
                 if (_tankStacks[slot] >= 4)
-                    hints.Add("Pass aggro to co-tank!");
+                    hints.Add(Loc.T("Pass aggro to co-tank!"));
             }
             else
             {
                 if (mtSlot >= 0 && _tankStacks[mtSlot] >= 4)
-                    hints.Add("Taunt boss!");
+                    hints.Add(Loc.T("Taunt boss!"));
             }
         }
 
         var mt = WorldState.Party[mtSlot];
         if (slot != mtSlot && mt != null && (_aoeCleave.Check(actor.Position, mt) || _aoeDiffractive.Check(actor.Position, Module.PrimaryActor.Position, Angle.FromDirection(mt.Position - Module.PrimaryActor.Position))))
         {
-            hints.Add("GTFO from tank!");
+            hints.Add(Loc.T("GTFO from tank!"));
         }
 
         // TODO: reconsider whether we really care about spread for vents/lasers...
         //if (actor.Role is Role.Healer or Role.Ranged && GeometryUtils.InCircle(actor.Position - Module.PrimaryActor.Position, _ceruleumVentRange))
         //{
-        //    hints.Add("Move from boss");
+        //    hints.Add(Loc.T("Move from boss"));
         //}
 
         //if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _homingLasersRange).Any())
         //{
-        //    hints.Add("Spread");
+        //    hints.Add(Loc.T("Spread"));
         //}
 
         if (_magitekOffset != null && _aoeMagitekRay.Check(actor.Position, Module.PrimaryActor.Position, Module.PrimaryActor.Rotation + _magitekOffset.Value))
         {
-            hints.Add("GTFO from ray aoe!");
+            hints.Add(Loc.T("GTFO from ray aoe!"));
         }
 
         if (_orbKiters.Contains(actor.InstanceID))
         {
-            hints.Add("Kite the orb!");
+            hints.Add(Loc.T("Kite the orb!"));
         }
 
         if (Module.Enemies(OID.MagitekBit).Any(bit => bit.CastInfo != null && _aoeAssaultCannon.Check(actor.Position, bit)))
         {
-            hints.Add("GTFO from bit aoe!");
+            hints.Add(Loc.T("GTFO from bit aoe!"));
         }
 
         // TODO: large detonations

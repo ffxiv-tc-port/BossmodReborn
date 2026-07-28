@@ -11,7 +11,7 @@ class SpinyShield(BossModule module) : BossComponent(module)
     {
         var shield = ActiveShield;
         if (shield != null && !actor.Position.InCircle(shield.Position, _radius))
-            hints.Add("Go inside shield");
+            hints.Add(Loc.T("Go inside shield"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

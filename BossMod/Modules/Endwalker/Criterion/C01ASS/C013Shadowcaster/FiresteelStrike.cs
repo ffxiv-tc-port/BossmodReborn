@@ -23,9 +23,9 @@ sealed class FiresteelStrike : Components.UniformStackSpread
         else if (NumCleaves < _jumpTargets.Count)
         {
             if (_jumpTargets[NumCleaves] == actor)
-                hints.Add("Hide behind someone!", !TargetIntercepted());
+                hints.Add(Loc.T("Hide behind someone!"), !TargetIntercepted());
             else if (_interceptors.Contains(actor))
-                hints.Add("Intercept next cleave!", !TargetIntercepted());
+                hints.Add(Loc.T("Intercept next cleave!"), !TargetIntercepted());
         }
     }
 

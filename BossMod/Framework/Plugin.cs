@@ -475,4 +475,9 @@ public sealed class Plugin : IDalamudPlugin
         GC.WaitForPendingFinalizers();
         GC.Collect();
     }
+
+    // 給繪製執行緒用的版本:GC.WaitForPendingFinalizers() 是無界等待,載了幾個大 replay 之後
+    // 在 Draw 裡直接呼叫會讓那一幀卡上數百毫秒(畫面明顯頓一下)。回收本身還是要做——replay 的
+    // 緩衝區確實是靠 finalizer 才真正釋放——只是不能卡在 ImGui 的 frame 裡做。
+    public static void GarbageCollectionAsync() => Task.Run(GarbageCollection);
 }

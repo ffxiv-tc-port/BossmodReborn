@@ -173,7 +173,7 @@ abstract class RubyGlowRecolor(BossModule module, int expectedMagicStones) : Rub
     {
         base.AddHints(slot, actor, hints);
         if (VenomPoolActive && Raid.WithoutSlot(false, true, true).Where(a => a.Role == Role.Healer).InRadius(actor.Position, _recolorRadius).Count() != 1)
-            hints.Add("Stack with healer!");
+            hints.Add(Loc.T("Stack with healer!"));
     }
 
     public override PlayerPriority CalcPriority(int pcSlot, Actor pc, int playerSlot, Actor player, ref uint customColor) => VenomPoolActive && player.Role == Role.Healer ? PlayerPriority.Interesting : PlayerPriority.Irrelevant;

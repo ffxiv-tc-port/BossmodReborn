@@ -23,7 +23,7 @@ class P2BrokenSeal(BossModule module) : BossComponent(module)
             return;
 
         if (_playerStates[slot].TooFar)
-            hints.Add("Move closer to partner!");
+            hints.Add(Loc.T("Move closer to partner!"));
 
         var towers = _playerStates[slot].Color switch
         {
@@ -32,7 +32,7 @@ class P2BrokenSeal(BossModule module) : BossComponent(module)
             _ => null
         };
         if (towers?.Count > 0 && !towers.Any(t => actor.Position.InCircle(t.Position, 2)))
-            hints.Add("Soak the tower!");
+            hints.Add(Loc.T("Soak the tower!"));
     }
 
     public override PlayerPriority CalcPriority(int pcSlot, Actor pc, int playerSlot, Actor player, ref uint customColor)

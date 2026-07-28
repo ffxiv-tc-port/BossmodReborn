@@ -15,13 +15,13 @@ class EntanglingWebHints(BossModule module) : BossComponent(module)
         {
             var overlapCount = _targets.InRadiusExcluding(actor, _radius * 2).Count();
             if (overlapCount < 2 && !_pillars.InRadius(actor.Position, _radius).Any())
-                hints.Add("Stand near pillar!");
+                hints.Add(Loc.T("Stand near pillar!"));
             if (overlapCount == 0)
-                hints.Add("Overlap with other web!");
+                hints.Add(Loc.T("Overlap with other web!"));
         }
         else if (_targets.InRadius(actor.Position, _radius).Any())
         {
-            hints.Add("GTFO from webs!");
+            hints.Add(Loc.T("GTFO from webs!"));
         }
     }
 

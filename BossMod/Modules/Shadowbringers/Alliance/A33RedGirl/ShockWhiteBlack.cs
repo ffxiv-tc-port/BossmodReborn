@@ -9,7 +9,7 @@ abstract class ShockWhiteBait(BossModule module, uint iconID, double delay) : Co
     {
         if (_arena.NumWalls != 0 && ActiveBaitsOn(actor).Count != 0)
         {
-            hints.Add("Intersect black walls!");
+            hints.Add(Loc.T("Intersect black walls!"));
         }
     }
 }
@@ -24,7 +24,7 @@ sealed class ShockBlackBait(BossModule module) : Components.BaitAwayIcon(module,
     {
         if (_arena.NumWalls != 0 && ActiveBaitsOn(actor).Count != 0)
         {
-            hints.Add("Intersect white walls!");
+            hints.Add(Loc.T("Intersect white walls!"));
         }
     }
 }

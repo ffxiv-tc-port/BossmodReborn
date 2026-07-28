@@ -14,16 +14,16 @@ sealed class GunberdShot(BossModule module) : BossComponent(module)
         if (Gunberding)
         {
             if (DarkShotLoaded)
-                hints.Add("Maintain Distance");
+                hints.Add(Loc.T("Maintain Distance"));
             if (WindslicerLoaded)
-                hints.Add("Knockback");
+                hints.Add(Loc.T("Knockback"));
         }
         else
         {
             if (DarkShotLoaded)
-                hints.Add("Dark Loaded");
+                hints.Add(Loc.T("Dark Loaded"));
             if (WindslicerLoaded)
-                hints.Add("Windslicer Loaded");
+                hints.Add(Loc.T("Windslicer Loaded"));
         }
     }
 

@@ -86,7 +86,7 @@ sealed class Rush(BossModule module) : Components.GenericBaitAway(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (_unstretched[slot])
-            hints.Add("Stretch tether!");
+            hints.Add(Loc.T("Stretch tether!"));
         base.AddHints(slot, actor, hints);
     }
 

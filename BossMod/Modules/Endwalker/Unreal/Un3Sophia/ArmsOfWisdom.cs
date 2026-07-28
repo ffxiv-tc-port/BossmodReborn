@@ -19,9 +19,9 @@ class ArmsOfWisdom(BossModule module) : Components.GenericKnockback(module, (uin
         {
             // tank swap hints
             if (_caster.TargetID == actor.InstanceID)
-                hints.Add("Pass aggro to co-tank!");
+                hints.Add(Loc.T("Pass aggro to co-tank!"));
             else if (actor.Role == Role.Tank)
-                hints.Add("Taunt!");
+                hints.Add(Loc.T("Taunt!"));
         }
     }
 

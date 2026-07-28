@@ -107,9 +107,9 @@ sealed class InnerspaceVoidzone(BossModule module) : Components.GenericAOEs(modu
             return;
         var isInside = aoe.Check(actor.Position);
         if (slot == target && !ululation)
-            hints.Add("Go inside puddle!", !isInside);
+            hints.Add(Loc.T("Go inside puddle!"), !isInside);
         else if (isInside)
-            hints.Add("GTFO from AOE!");
+            hints.Add(Loc.T("GTFO from AOE!"));
     }
 }
 

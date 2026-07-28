@@ -138,7 +138,7 @@ public sealed class ConfigUI : IDisposable
         for (var i = 0; i < 28; ++i)
         {
             ref readonly var text = ref _availableAICommands[i];
-            ImGui.Text($"/bmrai {text.Item1}: {text.Item2}");
+            ImGui.Text($"/bmrai {text.Item1}: {Loc.T(text.Item2)}");
         }
         ImGui.Separator();
         ImGui.Text(Loc.T("CFG_AutorotCommands", "Autorotation commands:"));
@@ -146,7 +146,7 @@ public sealed class ConfigUI : IDisposable
         for (var i = 0; i < 6; ++i)
         {
             ref readonly var text = ref _autorotationCommands[i];
-            ImGui.Text($"/bmr {text.Item1}: {text.Item2}");
+            ImGui.Text($"/bmr {text.Item1}: {Loc.T(text.Item2)}");
         }
         ImGui.Separator();
         ImGui.Text(Loc.T("CFG_OtherCommands", "Other commands:"));
@@ -154,7 +154,7 @@ public sealed class ConfigUI : IDisposable
         for (var i = 0; i < 7; ++i)
         {
             ref readonly var text = ref _availableOtherCommands[i];
-            ImGui.Text($"/bmr {text.Item1}: {text.Item2}");
+            ImGui.Text($"/bmr {text.Item1}: {Loc.T(text.Item2)}");
         }
     }
 
