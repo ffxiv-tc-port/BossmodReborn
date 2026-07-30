@@ -105,7 +105,7 @@ class Fetters(BossModule module) : BossComponent(module)
 
 class DeafeningBellow(BossModule module) : Components.RaidwideCast(module, (uint)AID.DeafeningBellow);
 
-class HotTail(BossModule module) : Components.SimpleAOEs(module, (uint)AID.HotTail, new AOEShapeRect(68f, 8f));
+class HotTail(BossModule module) : Components.SimpleAOEs(module, (uint)AID.HotTail, new AOEShapeRect(68f, 8f, 68f)); // 尾掃實際前後皆有判定,向後同樣延伸 68(上游 awgil 6a7a8a7ea)
 class HotWing(BossModule module) : Components.SimpleAOEs(module, (uint)AID.HotWing, new AOEShapeRect(30f, 34f));
 class Cauterize(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Cauterize, new AOEShapeRect(80f, 11f));
 class HorridRoarSpread(BossModule module) : Components.SpreadFromCastTargets(module, (uint)AID.HorridRoarSpread, 6f);
