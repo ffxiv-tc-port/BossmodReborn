@@ -87,7 +87,7 @@ sealed class MountainFireCone(BossModule module) : Components.GenericAOEs(module
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         if (spell.Action.ID == (uint)AID.MountainFireTower)
-            _aoe = new(_shape, spell.LocXZ, spell.Rotation, Module.CastFinishAt(spell, 0.4f));
+            _aoe = new(_shape, spell.LocXZ, spell.Rotation, Module.CastFinishAt(spell, 0.4d));
     }
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
