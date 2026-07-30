@@ -735,9 +735,12 @@ sealed class WorldStateGameSync : IDisposable
         if (_ws.Client.FocusTargetId != focusTargetId)
             _ws.Execute(new ClientState.OpFocusTargetChange(focusTargetId));
 
-        var forcedMovementDir = MovementOverride.ForcedMovementDirection->Radians();
-        if (_ws.Client.ForcedMovementDirection != forcedMovementDir)
-            _ws.Execute(new ClientState.OpForcedMovementDirectionChange(forcedMovementDir));
+        if (MovementOverride.ForcedMovementDirection != null) // sig 失效時為 null(降級停用),見 MovementOverride
+        {
+            var forcedMovementDir = MovementOverride.ForcedMovementDirection->Radians();
+            if (_ws.Client.ForcedMovementDirection != forcedMovementDir)
+                _ws.Execute(new ClientState.OpForcedMovementDirectionChange(forcedMovementDir));
+        }
 
         var contentKeyValue = uiState->PlayerState.ContentKeyValueData;
         var ckArray = new uint[]

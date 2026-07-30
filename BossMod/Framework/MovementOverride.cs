@@ -53,11 +53,20 @@ public sealed unsafe class MovementOverride : IDisposable
         set;
     }
 
-    public static readonly float* ForcedMovementDirection = (float*)Service.SigScanner.GetStaticAddressFromSig("F3 0F 11 0D ?? ?? ?? ?? 48 85 DB");
+    // sig 失效時為 null:誤導(misdirection)輔助與強制移動方向同步降級停用,不讓整個外掛載入失敗
+    public static readonly float* ForcedMovementDirection = InitForcedMovementDirection();
+
+    private static float* InitForcedMovementDirection()
+    {
+        if (Service.SigScanner.TryGetStaticAddressFromSig("F3 0F 11 0D ?? ?? ?? ?? 48 85 DB", out var addr))
+            return (float*)addr;
+        Service.Log("[MovementOverride] 特徵碼解析失敗:ForcedMovementDirection,誤導輔助功能停用");
+        return null;
+    }
 
     private delegate bool RMIWalkIsInputEnabled(void* self);
-    private readonly RMIWalkIsInputEnabled _rmiWalkIsInputEnabled1;
-    private readonly RMIWalkIsInputEnabled _rmiWalkIsInputEnabled2;
+    private readonly RMIWalkIsInputEnabled? _rmiWalkIsInputEnabled1;
+    private readonly RMIWalkIsInputEnabled? _rmiWalkIsInputEnabled2;
 
     private delegate void RMIWalkDelegate(void* self, float* sumLeft, float* sumForward, float* sumTurnLeft, byte* haveBackwardOrStrafe, byte* a6, byte bAdditiveUnk);
     private readonly HookAddress<RMIWalkDelegate> _rmiWalkHook;
@@ -73,12 +82,21 @@ public sealed unsafe class MovementOverride : IDisposable
     {
         _dalamud = dalamud;
         Instance = this;
-        var rmiWalkIsInputEnabled1Addr = Service.SigScanner.ScanText("E8 ?? ?? ?? ?? 84 C0 75 10 38 43 3C");
-        var rmiWalkIsInputEnabled2Addr = Service.SigScanner.ScanText("E8 ?? ?? ?? ?? 84 C0 75 03 88 47 3F");
-        Service.Log($"RMIWalkIsInputEnabled1 address: 0x{rmiWalkIsInputEnabled1Addr:X}");
-        Service.Log($"RMIWalkIsInputEnabled2 address: 0x{rmiWalkIsInputEnabled2Addr:X}");
-        _rmiWalkIsInputEnabled1 = Marshal.GetDelegateForFunctionPointer<RMIWalkIsInputEnabled>(rmiWalkIsInputEnabled1Addr);
-        _rmiWalkIsInputEnabled2 = Marshal.GetDelegateForFunctionPointer<RMIWalkIsInputEnabled>(rmiWalkIsInputEnabled2Addr);
+        // sig 失效時降級:自動走位視同「移動輸入停用」,不讓整個外掛載入失敗
+        if (Service.SigScanner.TryScanText("E8 ?? ?? ?? ?? 84 C0 75 10 38 43 3C", out var rmiWalkIsInputEnabled1Addr))
+        {
+            Service.Log($"RMIWalkIsInputEnabled1 address: 0x{rmiWalkIsInputEnabled1Addr:X}");
+            _rmiWalkIsInputEnabled1 = Marshal.GetDelegateForFunctionPointer<RMIWalkIsInputEnabled>(rmiWalkIsInputEnabled1Addr);
+        }
+        else
+            Service.Log("[MovementOverride] 特徵碼解析失敗:RMIWalkIsInputEnabled1,自動走位降級停用");
+        if (Service.SigScanner.TryScanText("E8 ?? ?? ?? ?? 84 C0 75 03 88 47 3F", out var rmiWalkIsInputEnabled2Addr))
+        {
+            Service.Log($"RMIWalkIsInputEnabled2 address: 0x{rmiWalkIsInputEnabled2Addr:X}");
+            _rmiWalkIsInputEnabled2 = Marshal.GetDelegateForFunctionPointer<RMIWalkIsInputEnabled>(rmiWalkIsInputEnabled2Addr);
+        }
+        else
+            Service.Log("[MovementOverride] 特徵碼解析失敗:RMIWalkIsInputEnabled2,自動走位降級停用");
 
         _rmiWalkHook = new("E8 ?? ?? ?? ?? 80 7B 3E 00 48 8D 3D", RMIWalkDetour);
         _rmiFlyHook = new("E8 ?? ?? ?? ?? 0F B6 0D ?? ?? ?? ?? B8", RMIFlyDetour);
@@ -113,7 +131,7 @@ public sealed unsafe class MovementOverride : IDisposable
         _rmiWalkHook.Original(self, sumLeft, sumForward, sumTurnLeft, haveBackwardOrStrafe, a6, bAdditiveUnk);
 
         // TODO: we really need to introduce some extra checks that PlayerMoveController::readInput does - sometimes it skips reading input, and returning something non-zero breaks stuff...
-        var movementAllowed = bAdditiveUnk == 0 && _rmiWalkIsInputEnabled1(self) && _rmiWalkIsInputEnabled2(self) && !FollowPathActive();
+        var movementAllowed = bAdditiveUnk == 0 && _rmiWalkIsInputEnabled1 != null && _rmiWalkIsInputEnabled1(self) && _rmiWalkIsInputEnabled2 != null && _rmiWalkIsInputEnabled2(self) && !FollowPathActive();
         var misdirectionMode = PlayerHasMisdirection();
         if (!movementAllowed && misdirectionMode)
         {
@@ -145,7 +163,7 @@ public sealed unsafe class MovementOverride : IDisposable
         if (misdirectionMode)
         {
             var thresholdDeg = UserMove != default ? _tweaksConfig.MisdirectionThreshold : MisdirectionThreshold.Deg;
-            if (thresholdDeg < 180f)
+            if (thresholdDeg < 180f && ForcedMovementDirection != null)
             {
                 // note: if we are already moving, it doesn't matter what we do here, only whether 'is input active' function returns true or false
                 _forcedControlState = ActualMove != default && (Angle.FromDirection(ActualMove) + ForwardMovementDirection() - ForcedMovementDirection->Radians()).Normalized().Abs().Deg <= thresholdDeg;

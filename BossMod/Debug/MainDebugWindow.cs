@@ -188,7 +188,7 @@ sealed class MainDebugWindow(WorldState ws, RotationModuleManager autorot, ZoneM
 
     private unsafe void DrawStatuses()
     {
-        ImGui.TextUnformatted($"Forced movement direction: {MovementOverride.ForcedMovementDirection->Radians()}");
+        ImGui.TextUnformatted($"Forced movement direction: {(MovementOverride.ForcedMovementDirection != null ? MovementOverride.ForcedMovementDirection->Radians() : "sig 失效")}");
         ImGui.SameLine();
         if (ImGui.Button("Add misdirection"))
         {
