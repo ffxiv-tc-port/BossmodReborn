@@ -73,6 +73,25 @@ sealed class P2Intermission(BossModule module) : Components.GenericBaitAway(modu
 
     public bool CrystalsActive => CrystalsOfLight.Any();
 
+    public override bool KeepOnPhaseChange => true; // 相位切換太早卸載元件會來不及還原水晶碰撞(上游 21dbbc981)
+
+    public override void OnEventEnvControl(byte index, uint state)
+    {
+        // 中場光之水晶在場中有實體碰撞,加入/移除場地邊界讓尋路不會撞牆(上游 e0beca0a2 的 OnMapEffect)
+        if (index == 0x18)
+        {
+            switch (state)
+            {
+                case 0x00020001u: // 水晶出現
+                    Arena.Bounds = new ArenaBoundsComplex([new Polygon(Arena.Center, 20f, 64)], [new Polygon(new(100.5f, 100f), 6f, 16)]); // 碰撞實測略偏離場地中心
+                    break;
+                case 0x00080004u: // 水晶破壞
+                    Arena.Bounds = FRU.BuildArena();
+                    break;
+            }
+        }
+    }
+
     public override void Update()
     {
         IgnoreOtherBaits = true;

@@ -390,7 +390,6 @@ sealed class FRUStates : StateMachineBuilder
         ActorCast(id + 0x1010, _module.IceVeil, (uint)AID.EndlessIceAge, 4.7f, 40, true, "Enrage")
             .ActivateOnEnter<P2HiemalStorm>()
             .ActivateOnEnter<P2HiemalRay>()
-            .DeactivateOnExit<P2Intermission>()
             .DeactivateOnExit<P2SinboundBlizzard>()
             .DeactivateOnExit<P2HiemalStorm>()
             .DeactivateOnExit<P2HiemalRay>();
@@ -400,6 +399,7 @@ sealed class FRUStates : StateMachineBuilder
     {
         ComponentCondition<P3Junction>(id, delay, comp => comp.NumCasts > 0, "Raidwide")
             .ActivateOnEnter<P3Junction>()
+            .DeactivateOnExit<P2Intermission>() // 延後到 P3 開場才卸載,確保中場水晶碰撞一定被還原(上游 e0beca0a2)
             .DeactivateOnExit<P3Junction>()
             .SetHint(StateMachine.StateHint.Raidwide);
         ActorTargetable(id + 0x10, _module.BossP3, true, 14.2f, "Boss appears")
