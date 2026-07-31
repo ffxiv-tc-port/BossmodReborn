@@ -45,7 +45,10 @@ internal sealed class DTRProvider : IDisposable
         _autorotationEntry.Text = new SeString(prefix, new TextPayload(name));
 
         _aiEntry.Shown = _aiConfig.ShowDTR;
-        _aiEntry.Text = "AI: " + (_ai.Beh == null ? "Off" : "On");
+        // DTR 空間很擠：開關狀態用成對圖示表達，不再寫「AI: On/Off」。
+        // Mentor（導師冠）＝ AI 正在替你行動；NoCircle ＝ 關閉。
+        _aiEntry.Text = new SeString(new IconPayload(
+            _ai.Beh == null ? BitmapFontIcon.NoCircle : BitmapFontIcon.Mentor));
 
         if (_wantOpenPopup && _mgr.Player != null)
         {
