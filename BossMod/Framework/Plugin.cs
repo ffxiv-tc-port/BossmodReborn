@@ -298,10 +298,27 @@ public sealed class Plugin : IDalamudPlugin
         return true;
     }
 
+    private const string ConfigWindowName = "BossModReborn";
+
     private void OpenConfigUI(string showTab = "")
     {
+        // ⚠️ 不能只 new 一個 UISimpleWindow 當成「開關」：UIWindow 的建構式在同名視窗
+        // 已存在時只會做 IsOpen = true 與 BringToFront()（見 UIWindow.cs 的 detached 分支），
+        // 永遠不會關閉，所以 DTR 右鍵按第二次沒有任何反應。這裡自己找既有視窗來開關。
+        var existing = Service.WindowSystem?.Windows.FirstOrDefault(w => w.WindowName == ConfigWindowName);
+        if (existing != null)
+        {
+            existing.IsOpen = !existing.IsOpen;
+            if (existing.IsOpen)
+            {
+                _configUI.ShowTab(showTab);
+                existing.BringToFront();
+            }
+            return;
+        }
+
         _configUI.ShowTab(showTab);
-        _ = new UISimpleWindow("BossModReborn", _configUI.Draw, true, new(300, 300));
+        _ = new UISimpleWindow(ConfigWindowName, _configUI.Draw, true, new(300, 300));
     }
 
     private void DrawUI()
