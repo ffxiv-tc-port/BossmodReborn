@@ -102,7 +102,7 @@ public sealed class Plugin : IDalamudPlugin
         _ai = new(_rotation, _amex, _movementOverride);
         _broadcast = new();
         _ipc = new(_rotation, _amex, _movementOverride, _ai);
-        _dtr = new(_rotation, _ai);
+        _dtr = new(_rotation, _ai, () => OpenConfigUI());
         _wndBossmod = new(_bossmod, _zonemod);
         _wndBossmodHints = new(_bossmod, _zonemod);
         _wndZone = new(_zonemod);
