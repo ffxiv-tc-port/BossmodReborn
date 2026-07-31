@@ -45,8 +45,14 @@ public struct NavigationDecision
         }
         if (player.CastInfo == null) // don't rasterize goal zones if casting or if inside a very dangerous pixel
         {
-            var index = ctx.Map.GridToIndex(ctx.Map.WorldToGrid(player.Position));
-            if (ctx.Map.PixelMaxG.Length > index && ctx.Map.PixelMaxG[index] is >= 1f or < 0f) // prioritize safety over uptime, still needs to be active for below 0 MaxG to go back inside arena bounds if needed
+            // WorldToGrid 不做夾限，玩家在格線外時 x/y 會是負數，GridToIndex 因此算出負的索引。
+            // 原本的守衛只檢查上界（Length > index），任何負索引都會通過 → IndexOutOfRangeException。
+            // 實際發生條件：AIHints.Clear() 把 PathfindMapCenter 歸零，而只有 CalculateAutoHints 會重設它；
+            // 有 active boss module 且該模組沒設定中心時，中心就停在 (0,0)，於是遠離原點的區域必爆。
+            // 用 InBounds 同時驗兩個軸——只檢查 index >= 0 是不夠的：x = -1、y = 1 會算出「看似合法」
+            // 但屬於前一列的索引。這也是本專案其他地方的既有寫法（AIBehaviour.cs:350、NormalMovement.cs:264）。
+            var (playerGridX, playerGridY) = ctx.Map.WorldToGrid(player.Position);
+            if (ctx.Map.InBounds(playerGridX, playerGridY) && ctx.Map.PixelMaxG[ctx.Map.GridToIndex(playerGridX, playerGridY)] is >= 1f or < 0f) // prioritize safety over uptime, still needs to be active for below 0 MaxG to go back inside arena bounds if needed
             {
                 if (hints.GoalZones.Count != 0)
                 {
