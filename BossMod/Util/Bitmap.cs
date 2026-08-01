@@ -174,7 +174,7 @@ public sealed class Bitmap
             throw new ArgumentException($"Bitmap has unsupported compression method {header.Compression:X8}");
         if (header.XPixelsPerMeter != header.YPixelsPerMeter || header.XPixelsPerMeter <= 0)
             throw new ArgumentException($"Bitmap has inconsistent or non-positive resolution {header.XPixelsPerMeter}x{header.YPixelsPerMeter}");
-        if (header.ColorUsedCount is not 0 or 2)
+        if (header.ColorUsedCount is not (0 or 2))
             throw new ArgumentException($"Bitmap has wrong palette size {header.ColorUsedCount}");
 
         Width = header.Width;
