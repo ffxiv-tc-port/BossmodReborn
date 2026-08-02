@@ -62,6 +62,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
     private readonly AutoAutosTweak _autoAutosTweak;
     private readonly CastTimeReductionTweak _castTimeTweak = new();
     private readonly MacroQueueTweak _macroQueueTweak = new();
+    private readonly ActionQueueWindowTweak _queueWindowTweak = new();
 
     private readonly HookAddress<ActionManager.Delegates.Update> _updateHook;
     private readonly HookAddress<ActionManager.Delegates.UseAction> _useActionHook;
@@ -135,6 +136,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
         _updateHook.Dispose();
         _oocActionsTweak.Dispose();
         _castTimeTweak.Dispose();
+        _queueWindowTweak.Dispose();
     }
 
     public void QueueManualActions()

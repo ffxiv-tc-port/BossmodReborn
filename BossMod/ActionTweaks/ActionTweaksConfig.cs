@@ -64,6 +64,16 @@ public sealed class ActionTweaksConfig : ConfigNode
     [PropertyDisplay("Use custom queueing for manually pressed actions", tooltip: "This setting allows better integration with autorotations and will prevent you from triple-weaving or drifting GCDs if you press a healing ability while autorotation is going on")]
     public bool UseManualQueue = false;
 
+    [PropertyDisplay("Use a custom action queue window", tooltip: "The game accepts an action into its native queue when at most 0.5s of cooldown remains. This lets you change that threshold.\n\nA larger window makes early presses stick instead of being dropped, at the cost of committing to an action further ahead of time; a smaller one does the opposite. This only changes how early the client accepts input - the action is still sent when the cooldown actually expires, so the server sees no difference.")]
+    public bool CustomActionQueueWindow = false;
+
+    [PropertyDisplay("Action queue window (seconds)", tooltip: "The game's built-in value is 0.5s.")]
+    [PropertySlider(ActionQueueWindowTweak.MinWindow, ActionQueueWindowTweak.MaxWindow, Speed = 0.01f)]
+    public float ActionQueueWindow = ActionQueueWindowTweak.GameWindow;
+
+    [PropertyDisplay("Derive the queue window from current framerate instead", tooltip: "Ignores the slider and widens the window as the framerate drops (20ms per 5fps below 90fps), to compensate for input being sampled less often. Note that \"Remove extra framerate-induced cooldown delay\" above addresses the same problem in a more precise way.")]
+    public bool ActionQueueWindowFromFramerate = false;
+
     [PropertyDisplay("Allow actions used from macros to be queued", tooltip: "By default the game refuses to queue anything executed from a macro, so a macro pressed slightly too early is simply dropped. This makes such actions behave like a normal hotbar press instead: they get queued and fire as soon as they become available.\n\nAn already queued action is still not overwritten, and nothing is sent to the server any earlier.")]
     public bool QueueMacroActions = false;
 
