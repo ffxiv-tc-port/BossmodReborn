@@ -60,6 +60,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
     private readonly SmartRotationTweak _smartRotationTweak;
     private readonly OutOfCombatActionsTweak _oocActionsTweak;
     private readonly AutoAutosTweak _autoAutosTweak;
+    private readonly CastTimeReductionTweak _castTimeTweak = new();
 
     private readonly HookAddress<ActionManager.Delegates.Update> _updateHook;
     private readonly HookAddress<ActionManager.Delegates.UseAction> _useActionHook;
@@ -132,6 +133,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
         _useActionHook.Dispose();
         _updateHook.Dispose();
         _oocActionsTweak.Dispose();
+        _castTimeTweak.Dispose();
     }
 
     public void QueueManualActions()
@@ -420,7 +422,12 @@ public sealed unsafe class ActionManagerEx : IDisposable
         // to finish a spell without interruption, by the beginning of the slide-cast window target has to be within 75 degrees of character orientation (empirical)
         var castInfo = player->GetCastInfo();
         // with <500ms remaining on cast timer, player can face and move wherever they want and still complete the cast successfully (slidecast)
-        var isCasting = castInfo != null && castInfo->IsCasting && castInfo->CurrentCastTime + 0.5f < castInfo->TotalCastTime;
+        // note: if CastTimeReductionTweak shortened this cast, the client's total is already that much shorter than the duration the server used,
+        // so the window has to shrink by the same amount to keep pointing at the same moment in real time; returns 0 while the tweak is off
+        var slidecastWindow = 0.5f;
+        if (castInfo != null)
+            slidecastWindow -= _castTimeTweak.ReductionSeconds(new((ActionType)castInfo->ActionType, castInfo->ActionId));
+        var isCasting = castInfo != null && castInfo->IsCasting && castInfo->CurrentCastTime + slidecastWindow < castInfo->TotalCastTime;
         var currentAction = isCasting ? new((ActionType)castInfo->ActionType, castInfo->ActionId) : actionImminent ? AutoQueue.Action : default;
         var currentTargetId = isCasting ? (ulong)castInfo->TargetId : (AutoQueue.Target?.InstanceID ?? InvalidEntityId);
         var currentTargetSelf = currentTargetId == player->EntityId;
@@ -592,7 +599,18 @@ public sealed unsafe class ActionManagerEx : IDisposable
         var preventAutos = targetSystem != null && _autoAutosTweak.ShouldPreventAutoActivation(ActionManager.GetSpellIdForAction(actionType, actionId));
         if (preventAutos)
             targetSystem->Target = null;
-        bool ret = _useActionLocationHook.Original(self, actionType, actionId, targetId, location, extraParam, a7);
+        bool ret;
+        // this is the only place where the game is allowed to observe a shortened cast time (it calls GetAdjustedCastTime internally to set up the cast timer);
+        // everything outside this scope - our own GetAdjustedCastTime wrapper, the manual queue, the game's UI, other plugins - keeps seeing the original value
+        _castTimeTweak.EnterGameExecution();
+        try
+        {
+            ret = _useActionLocationHook.Original(self, actionType, actionId, targetId, location, extraParam, a7);
+        }
+        finally
+        {
+            _castTimeTweak.LeaveGameExecution();
+        }
         if (preventAutos)
             targetSystem->Target = hardTarget;
         var currSeq = _inst->LastUsedActionSequence;

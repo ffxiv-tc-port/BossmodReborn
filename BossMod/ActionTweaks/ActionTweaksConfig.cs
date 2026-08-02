@@ -14,6 +14,13 @@ public sealed class ActionTweaksConfig : ConfigNode
     [PropertyDisplay("Remove extra framerate-induced cooldown delay", tooltip: "Dynamically adjusts cooldown and animation locks to ensure queued actions resolve immediately regardless of framerate limitations")]
     public bool RemoveCooldownDelay = false;
 
+    [PropertyDisplay("Shorten long cast times (read tooltip!)", tooltip: "The server resolves a cast about 0.5s before the client's cast bar completes (that is what makes slidecasting possible), so the tail of the bar is pure local idle time. This reclaims part of it by shortening the client's cast timer, letting the next action be requested earlier.\n\nOnly applies when the cast time is longer than the recast time, so it never affects a normal GCD rotation - in practice only BLM Fire IV / Blizzard IV, Teleport/Return, raises and limit breaks. Nothing is sent to the server earlier and no packet is modified.\n\nDefault off; the reduction is hard-capped below the slidecast window.")]
+    public bool ReduceLongCastTime = false;
+
+    [PropertyDisplay("Long cast time reduction (ms)", tooltip: "How much to shorten the client's cast timer by, in milliseconds. Capped at 400ms so that it always stays below the ~500ms slidecast window.")]
+    [PropertySlider(50, CastTimeReductionTweak.MaxReductionMS, Speed = 1)]
+    public int LongCastTimeReductionMS = CastTimeReductionTweak.MaxReductionMS;
+
     [PropertyDisplay("Prevent movement while casting")]
     public bool PreventMovingWhileCasting = false;
 
