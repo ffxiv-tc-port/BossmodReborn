@@ -59,7 +59,9 @@ public sealed unsafe class CastTimeReductionTweak : IDisposable
 
     // how much the currently running cast of a given action was shortened by, in seconds (0 if the tweak is off or did not apply to it)
     // used to correct the slidecast window: the client's total is now 'reduction' shorter than what the server used, so the window shrinks by the same amount
-    public float ReductionSeconds(ActionID action) => action && action == _lastReducedAction ? _lastReductionSeconds : 0;
+    // note the ReductionMS check: the record survives the tweak being switched off mid-session, and without it a later cast of the same action would
+    // still be told it was shortened and would get a slidecast window that is too short by exactly the old reduction
+    public float ReductionSeconds(ActionID action) => ReductionMS > 0 && action && action == _lastReducedAction ? _lastReductionSeconds : 0;
 
     private int GetAdjustedCastTimeDetour(CSActionType actionType, uint actionId, bool applyProcs, ActionManager.CastTimeProc* outOptProc)
     {
@@ -68,11 +70,16 @@ public sealed unsafe class CastTimeReductionTweak : IDisposable
         if (_gameExecutionDepth <= 0)
             return castTimeMS; // not the game's action execution path - every other consumer sees the unmodified value
 
+        // past this point we know the game is setting up a cast for this exact action, so this is also the moment the previous cast's record stops
+        // being true: every path that does not reduce has to clear it, otherwise an unreduced cast of a previously reduced action would keep
+        // reporting a stale reduction to ReductionSeconds and shrink its slidecast window for no reason
         var reduction = ReductionMS;
-        if (reduction <= 0 || castTimeMS - reduction < MinResultingCastMS)
+        // second condition: recast (GCD) is the bottleneck, not the cast - shortening would gain nothing and could outrun the cooldown
+        if (reduction <= 0 || castTimeMS - reduction < MinResultingCastMS || ActionManager.GetAdjustedRecastTime(actionType, actionId) > castTimeMS)
+        {
+            _lastReducedAction = default;
             return castTimeMS;
-        if (ActionManager.GetAdjustedRecastTime(actionType, actionId) > castTimeMS)
-            return castTimeMS; // recast (GCD) is the bottleneck, not the cast - shortening would gain nothing and could outrun the cooldown
+        }
 
         _lastReducedAction = new((ActionType)actionType, actionId);
         _lastReductionSeconds = reduction * 0.001f;

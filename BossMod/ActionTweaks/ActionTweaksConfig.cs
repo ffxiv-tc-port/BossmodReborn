@@ -21,6 +21,9 @@ public sealed class ActionTweaksConfig : ConfigNode
     [PropertySlider(50, CastTimeReductionTweak.MaxReductionMS, Speed = 1)]
     public int LongCastTimeReductionMS = CastTimeReductionTweak.MaxReductionMS;
 
+    [PropertyDisplay("Show slidecast marker on own cast bar", tooltip: "Highlights the tail of your own cast bar, from the point where moving no longer interrupts the cast up to the end of the bar. It turns green the instant the server's action effect for that cast arrives, which is the real moment you are free to move.\n\nDisplay only - the game's cast bar is never modified, and enemy cast bars are never touched. If 'Shorten long cast times' is enabled the band shrinks accordingly, since that setting reclaims part of the same window.")]
+    public bool ShowSlidecastMarker = false;
+
     [PropertyDisplay("Prevent movement while casting")]
     public bool PreventMovingWhileCasting = false;
 

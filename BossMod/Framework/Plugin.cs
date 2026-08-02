@@ -342,6 +342,7 @@ public sealed class Plugin : IDalamudPlugin
         if (!uiHidden)
         {
             Service.WindowSystem?.Draw();
+            _amex.DrawSlidecastMarker(); // overlay anchored to the game's cast bar, so it has to follow the same hidden-UI rule as the rest of the HUD
         }
 
         ExecuteHints();

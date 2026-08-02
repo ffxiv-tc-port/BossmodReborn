@@ -61,6 +61,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
     private readonly OutOfCombatActionsTweak _oocActionsTweak;
     private readonly AutoAutosTweak _autoAutosTweak;
     private readonly CastTimeReductionTweak _castTimeTweak = new();
+    private readonly SlidecastMarkerTweak _slidecastMarkerTweak;
     private readonly MacroQueueTweak _macroQueueTweak = new();
     private readonly ActionQueueWindowTweak _queueWindowTweak = new();
 
@@ -99,6 +100,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
         _smartRotationTweak = new(ws, hints);
         _oocActionsTweak = new(ws);
         _autoAutosTweak = new(ws, hints);
+        _slidecastMarkerTweak = new(_castTimeTweak); // shares the reduction record, so the drawn window always matches the one CalculateDesiredOrientation uses
 
         Service.Log($"[AMEx] ActionManager singleton address = 0x{(ulong)_inst:X}");
         _updateHook = new(ActionManager.Addresses.Update, UpdateDetour);
@@ -138,6 +140,9 @@ public sealed unsafe class ActionManagerEx : IDisposable
         _castTimeTweak.Dispose();
         _queueWindowTweak.Dispose();
     }
+
+    // ImGui overlay on top of the player's own cast bar; no-op unless explicitly enabled, and it neither reads nor writes any BossMod state
+    public void DrawSlidecastMarker() => _slidecastMarkerTweak.Draw();
 
     public void QueueManualActions()
     {
