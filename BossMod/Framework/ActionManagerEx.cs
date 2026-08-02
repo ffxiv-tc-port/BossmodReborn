@@ -64,6 +64,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
     private readonly SlidecastMarkerTweak _slidecastMarkerTweak;
     private readonly MacroQueueTweak _macroQueueTweak = new();
     private readonly ActionQueueWindowTweak _queueWindowTweak = new();
+    private readonly IgnoreLineOfSightTweak _lineOfSightTweak = new();
 
     private readonly HookAddress<ActionManager.Delegates.Update> _updateHook;
     private readonly HookAddress<ActionManager.Delegates.UseAction> _useActionHook;
@@ -139,6 +140,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
         _oocActionsTweak.Dispose();
         _castTimeTweak.Dispose();
         _queueWindowTweak.Dispose();
+        _lineOfSightTweak.Dispose();
     }
 
     // ImGui overlay on top of the player's own cast bar; no-op unless explicitly enabled, and it neither reads nor writes any BossMod state

@@ -80,6 +80,9 @@ public sealed class ActionTweaksConfig : ConfigNode
     [PropertyDisplay("Allow actions used from macros to be queued", tooltip: "By default the game refuses to queue anything executed from a macro, so a macro pressed slightly too early is simply dropped. This makes such actions behave like a normal hotbar press instead: they get queued and fire as soon as they become available.\n\nAn already queued action is still not overwritten, and nothing is sent to the server any earlier.")]
     public bool QueueMacroActions = false;
 
+    [PropertyDisplay("Ignore the \"target is not in line of sight\" restriction (read tooltip!)", tooltip: "The client refuses to send an action request when a raycast finds geometry between you and the target, which is the \"看不到目標。\" error. This makes that single check report success, so the request is sent anyway.\n\nOnly the line-of-sight verdict is changed - range and arc still reject exactly as before, and dashes that refuse to path through walls are not affected.\n\nThis only removes the client's own refusal. Whether the server repeats the check is not known; if it does, the action simply fails the way any rejected action does. Default off.")]
+    public bool IgnoreLineOfSight = false;
+
     [PropertyDisplay("Try to prevent dashing into AOEs", tooltip: "Prevent automatic use of targeted dashes (like WAR Onslaught) if they would move you into a dangerous area. May not work as expected in instances that do not have modules.\n\nThis option will also apply to manually pressed dashes if you have \"Use custom queueing for manually pressed actions\" enabled.")]
     public bool DashSafety = true;
 

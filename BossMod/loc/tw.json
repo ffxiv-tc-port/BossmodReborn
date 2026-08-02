@@ -3226,5 +3226,11 @@
   },
   "Assist mode (only attack mobs that are already in combat)": {
     "message": "協助模式（只攻擊已進入戰鬥的怪）"
+  },
+  "Ignore the \"target is not in line of sight\" restriction (read tooltip!)": {
+    "message": "無視「看不到目標」的限制（請閱讀說明）"
+  },
+  "The client refuses to send an action request when a raycast finds geometry between you and the target, which is the \"看不到目標。\" error. This makes that single check report success, so the request is sent anyway.\n\nOnly the line-of-sight verdict is changed - range and arc still reject exactly as before, and dashes that refuse to path through walls are not affected.\n\nThis only removes the client's own refusal. Whether the server repeats the check is not known; if it does, the action simply fails the way any rejected action does. Default off.": {
+    "message": "客戶端在你與目標之間射線偵測到地形時，會直接拒絕送出技能請求，也就是「看不到目標。」那則錯誤。本選項讓這一項檢查回報通過，請求照樣送出。\n\n只改動視線這一項判定 —— 射程與角度仍然照原本的方式拒絕，會拒絕穿牆的衝刺類技能也不受影響。\n\n這只解除客戶端自己的拒絕。伺服器會不會再驗一次視線並未證實；若它會驗，該次技能就是照一般被拒絕的方式失敗而已。預設關閉。"
   }
 }
