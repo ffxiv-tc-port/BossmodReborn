@@ -61,6 +61,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
     private readonly OutOfCombatActionsTweak _oocActionsTweak;
     private readonly AutoAutosTweak _autoAutosTweak;
     private readonly CastTimeReductionTweak _castTimeTweak = new();
+    private readonly MacroQueueTweak _macroQueueTweak = new();
 
     private readonly HookAddress<ActionManager.Delegates.Update> _updateHook;
     private readonly HookAddress<ActionManager.Delegates.UseAction> _useActionHook;
@@ -579,7 +580,8 @@ public sealed unsafe class ActionManagerEx : IDisposable
             return false;
 
         var areaTargeted = false;
-        var res = _useActionHook.Original(self, actionType, actionId, targetId, extraParam, mode, comboRouteId, &areaTargeted);
+        // note: the transform is applied only here, on the value handed to the game - the manual-queue branch above still sees the original mode
+        var res = _useActionHook.Original(self, actionType, actionId, targetId, extraParam, _macroQueueTweak.TransformMode(mode), comboRouteId, &areaTargeted);
         if (outOptAreaTargeted != null)
             *outOptAreaTargeted = areaTargeted;
         if (areaTargeted && Config.GTMode == ActionTweaksConfig.GroundTargetingMode.AtCursor)

@@ -64,6 +64,9 @@ public sealed class ActionTweaksConfig : ConfigNode
     [PropertyDisplay("Use custom queueing for manually pressed actions", tooltip: "This setting allows better integration with autorotations and will prevent you from triple-weaving or drifting GCDs if you press a healing ability while autorotation is going on")]
     public bool UseManualQueue = false;
 
+    [PropertyDisplay("Allow actions used from macros to be queued", tooltip: "By default the game refuses to queue anything executed from a macro, so a macro pressed slightly too early is simply dropped. This makes such actions behave like a normal hotbar press instead: they get queued and fire as soon as they become available.\n\nAn already queued action is still not overwritten, and nothing is sent to the server any earlier.")]
+    public bool QueueMacroActions = false;
+
     [PropertyDisplay("Try to prevent dashing into AOEs", tooltip: "Prevent automatic use of targeted dashes (like WAR Onslaught) if they would move you into a dangerous area. May not work as expected in instances that do not have modules.\n\nThis option will also apply to manually pressed dashes if you have \"Use custom queueing for manually pressed actions\" enabled.")]
     public bool DashSafety = true;
 
