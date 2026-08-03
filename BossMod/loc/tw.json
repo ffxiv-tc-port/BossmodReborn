@@ -3232,5 +3232,47 @@
   },
   "The client refuses to send an action request when a raycast finds geometry between you and the target, which is the \"看不到目標。\" error. This makes that single check report success, so the request is sent anyway.\n\nOnly the line-of-sight verdict is changed - range and arc still reject exactly as before, and dashes that refuse to path through walls are not affected.\n\nThis only removes the client's own refusal. Whether the server repeats the check is not known; if it does, the action simply fails the way any rejected action does. Default off.": {
     "message": "客戶端在你與目標之間射線偵測到地形時，會直接拒絕送出技能請求，也就是「看不到目標。」那則錯誤。本選項讓這一項檢查回報通過，請求照樣送出。\n\n只改動視線這一項判定 —— 射程與角度仍然照原本的方式拒絕，會拒絕穿牆的衝刺類技能也不受影響。\n\n這只解除客戶端自己的拒絕。伺服器會不會再驗一次視線並未證實；若它會驗，該次技能就是照一般被拒絕的方式失敗而已。預設關閉。"
+  },
+  "Shorten long cast times (read tooltip!)": {
+    "message": "縮短長詠唱時間（請閱讀工具提示！）"
+  },
+  "The server resolves a cast about 0.5s before the client's cast bar completes (that is what makes slidecasting possible), so the tail of the bar is pure local idle time. This reclaims part of it by shortening the client's cast timer, letting the next action be requested earlier.\n\nOnly applies when the cast time is longer than the recast time, so it never affects a normal GCD rotation - in practice only BLM Fire IV / Blizzard IV, Teleport/Return, raises and limit breaks. Nothing is sent to the server earlier and no packet is modified.\n\nDefault off; the reduction is hard-capped below the slidecast window.": {
+    "message": "伺服器會在客戶端詠唱條跑完前約 0.5 秒就解算完成（滑步施法之所以可行正是因為這樣），所以詠唱條尾端其實是純粹的本機空等時間。本選項縮短客戶端的詠唱計時器，把這部分時間要回來，讓下一個技能能提早發出請求。\n\n只有在詠唱時間比再詠唱時間長時才會生效，因此完全不影響一般的 GCD 循環——實際上只會影響黑魔道士的超火焰/超暴雪、傳送/返回、復活技能與極限爆發。不會提早送出任何封包，也不會竄改任何封包內容。\n\n預設關閉；縮短量會被硬性限制在滑步施法區間以下。"
+  },
+  "Long cast time reduction (ms)": {
+    "message": "長詠唱時間縮短量（毫秒）"
+  },
+  "How much to shorten the client's cast timer by, in milliseconds. Capped at 400ms so that it always stays below the ~500ms slidecast window.": {
+    "message": "要縮短客戶端詠唱計時器多少毫秒。上限為 400 毫秒，確保永遠低於約 500 毫秒的滑步施法區間。"
+  },
+  "Show slidecast marker on own cast bar": {
+    "message": "在自己的詠唱條上顯示滑步標記"
+  },
+  "Highlights the tail of your own cast bar, from the point where moving no longer interrupts the cast up to the end of the bar. It turns green the instant the server's action effect for that cast arrives, which is the real moment you are free to move.\n\nDisplay only - the game's cast bar is never modified, and enemy cast bars are never touched. If 'Shorten long cast times' is enabled the band shrinks accordingly, since that setting reclaims part of the same window.": {
+    "message": "在自己的詠唱條尾端標示一段區間：從移動不再會打斷詠唱的那一刻，一直到詠唱條結束。當伺服器針對這次詠唱送來技能效果時會立即轉綠，那才是真正可以自由移動的時刻。\n\n僅供顯示——不會修改遊戲本身的詠唱條，也不會動到敵人的詠唱條。若啟用「縮短長詠唱時間」，這段標記會跟著縮短，因為該選項要回的正是同一段時間。"
+  },
+  "Use a custom action queue window": {
+    "message": "使用自訂技能佇列視窗"
+  },
+  "The game accepts an action into its native queue when at most 0.5s of cooldown remains. This lets you change that threshold.\n\nA larger window makes early presses stick instead of being dropped, at the cost of committing to an action further ahead of time; a smaller one does the opposite. This only changes how early the client accepts input - the action is still sent when the cooldown actually expires, so the server sees no difference.": {
+    "message": "遊戲原生佇列只在冷卻剩餘 0.5 秒以內時才會接受技能，本選項可以調整這個門檻。\n\n視窗越大，提早按下的技能越不容易被遊戲丟棄，但代價是更早就要決定要用哪個技能；視窗越小則相反。這只改變客戶端多早接受輸入——技能仍然是在冷卻真正結束時才送出，伺服器端不會有任何差異。"
+  },
+  "Action queue window (seconds)": {
+    "message": "技能佇列視窗（秒）"
+  },
+  "The game's built-in value is 0.5s.": {
+    "message": "遊戲內建值為 0.5 秒。"
+  },
+  "Derive the queue window from current framerate instead": {
+    "message": "改用目前幀率推算佇列視窗"
+  },
+  "Ignores the slider and widens the window as the framerate drops (20ms per 5fps below 90fps), to compensate for input being sampled less often. Note that \"Remove extra framerate-induced cooldown delay\" above addresses the same problem in a more precise way.": {
+    "message": "忽略滑桿數值，改在幀率低於 90fps 時放寬視窗（每低 5fps 增加 20 毫秒），以補償輸入取樣頻率降低的影響。請注意上方的「移除因幀率造成的額外冷卻延遲」以更精確的方式處理同樣的問題。"
+  },
+  "Allow actions used from macros to be queued": {
+    "message": "允許巨集使用的技能進入佇列"
+  },
+  "By default the game refuses to queue anything executed from a macro, so a macro pressed slightly too early is simply dropped. This makes such actions behave like a normal hotbar press instead: they get queued and fire as soon as they become available.\n\nAn already queued action is still not overwritten, and nothing is sent to the server any earlier.": {
+    "message": "遊戲預設拒絕將巨集執行的任何技能放入佇列，所以巨集只要按得稍微早一點就會直接被丟棄。本選項讓這類技能改成表現得像一般按下快捷列一樣：會進入佇列，並在可用的瞬間立即發動。\n\n已經在佇列中的技能不會被覆蓋，也不會提早送出任何封包給伺服器。"
   }
 }
