@@ -20,9 +20,13 @@ public sealed class BossModuleHintsWindow : UIWindow
         Flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
         if (BossModuleManager.Config.Lock)
             Flags |= ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoInputs;
-        if (BossModuleManager.Config.HintsInSeparateWindowTransparent)
+        var opacity = Math.Clamp(BossModuleManager.Config.HintsWindowOpacity, 0, 100);
+        var fullyTransparent = opacity == 0;
+        if (fullyTransparent)
             Flags |= ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoBackground;
-        ForceMainWindow = BossModuleManager.Config.HintsInSeparateWindowTransparent; // NoBackground flag without ForceMainWindow works incorrectly for whatever reason
+        ForceMainWindow = fullyTransparent; // NoBackground flag without ForceMainWindow works incorrectly for whatever reason
+        // leave BgAlpha alone at the extremes: 0 is already handled by NoBackground, and 100 must keep whatever the default window style is
+        BgAlpha = fullyTransparent || opacity >= 100 ? null : opacity * 0.01f;
     }
 
     public override void Draw()

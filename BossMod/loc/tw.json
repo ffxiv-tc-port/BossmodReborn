@@ -455,6 +455,12 @@
   "Make separate hints window transparent": {
     "message": "將獨立提示視窗設為透明"
   },
+  "Separate hints window background opacity (%)": {
+    "message": "獨立提示視窗背景不透明度（%）"
+  },
+  "0 = fully transparent background, same as the old 'Make separate hints window transparent' checkbox; 100 = normal window background": {
+    "message": "0 ＝ 背景完全透明，等同舊版的「將獨立提示視窗設為透明」選項；100 ＝ 一般視窗背景"
+  },
   "Show mechanic sequence and timer hints": {
     "message": "顯示機制順序與計時提示"
   },
