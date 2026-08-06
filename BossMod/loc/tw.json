@@ -467,6 +467,21 @@
   "Translates hints when displaying them: whole hints that have a translation are replaced outright, otherwise well-known mechanic vocabulary inside the hint is swapped for its localized term. Display only - the hints themselves are not modified": {
     "message": "顯示提示時進行翻譯：整句有譯文時直接換成譯文，否則把提示裡常見的機制詞彙換成中文術語。\n僅影響顯示，不會修改提示內容本身。"
   },
+  "Mark hints as physical or magical damage": {
+    "message": "在提示標示物理／魔法傷害"
+  },
+  "Appends the damage type of the incoming attack to raidwide/tankbuster hints, taken from the action's attack type in the game data.\nAttack types that do not map onto physical or magical (and actions the module does not name) are shown as a greyed out '?' rather than guessed at": {
+    "message": "在全體傷害／坦克死刑提示後面標出來襲技能的傷害屬性，資料取自遊戲的技能攻擊類型。\n無法對應到物理或魔法的攻擊類型（以及模組沒有指名技能的情況）會顯示灰色的「？」，不會用猜的。"
+  },
+  "DMG_Physical": {
+    "message": "［物理］"
+  },
+  "DMG_Magical": {
+    "message": "［魔法］"
+  },
+  "DMG_Unknown": {
+    "message": "［？］"
+  },
   "SM_Cur": {
     "message": "目前："
   },

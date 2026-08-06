@@ -32,6 +32,8 @@ public class CastHints(BossModule module, uint[] aids, string hint, bool showCas
 {
     private readonly uint[] AIDs = aids;
 
+    public override uint[] HintDamageActions => AIDs;
+
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         var len = AIDs.Length;

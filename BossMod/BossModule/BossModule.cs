@@ -236,7 +236,10 @@ public abstract class BossModule : IDisposable
                 StateMachine.Draw();
 
             if (WindowConfig.ShowGlobalHints)
-                DrawGlobalHints(CalculateGlobalHints());
+            {
+                List<ActionDamageType.Kind>? damageTypes = WindowConfig.ShowHintDamageType ? [] : null;
+                DrawGlobalHints(CalculateGlobalHints(damageTypes), damageTypes);
+            }
 
             if (WindowConfig.ShowPlayerHints)
                 DrawPlayerHints(ref pcHints);
@@ -317,12 +320,23 @@ public abstract class BossModule : IDisposable
         return hints;
     }
 
-    public BossComponent.GlobalHints CalculateGlobalHints()
+    // if damageTypes is provided, it is filled with one entry per hint, telling whether the damage the hint warns about is physical or magical
+    public BossComponent.GlobalHints CalculateGlobalHints(List<ActionDamageType.Kind>? damageTypes = null)
     {
         BossComponent.GlobalHints hints = [];
         var count = Components.Count;
         for (var i = 0; i < count; ++i)
-            Components[i].AddGlobalHints(hints);
+        {
+            var before = hints.Count;
+            var comp = Components[i];
+            comp.AddGlobalHints(hints);
+            if (damageTypes != null && hints.Count != before)
+            {
+                var kind = ActionDamageType.Classify(comp.HintDamageActions);
+                for (var j = before; j < hints.Count; ++j)
+                    damageTypes.Add(kind);
+            }
+        }
         return hints;
     }
 
@@ -383,14 +397,23 @@ public abstract class BossModule : IDisposable
         Arena.Actor(PrimaryActor);
     }
 
-    private void DrawGlobalHints(BossComponent.GlobalHints hints)
+    private void DrawGlobalHints(BossComponent.GlobalHints hints, List<ActionDamageType.Kind>? damageTypes)
     {
-        using var color = ImRaii.PushColor(ImGuiCol.Text, Colors.TextColor11);
         var count = hints.Count;
         for (var i = 0; i < count; ++i)
         {
-            ImGui.TextUnformatted(HintText.Translate(hints[i]));
+            using (ImRaii.PushColor(ImGuiCol.Text, Colors.TextColor11))
+                ImGui.TextUnformatted(HintText.Translate(hints[i]));
             ImGui.SameLine();
+
+            var kind = damageTypes != null && i < damageTypes.Count ? damageTypes[i] : ActionDamageType.Kind.None;
+            if (kind != ActionDamageType.Kind.None)
+            {
+                // 'we could not tell' is drawn greyed out rather than hidden - an unlabelled hint would look identical to a hint we never checked
+                using (ImRaii.PushColor(ImGuiCol.Text, kind == ActionDamageType.Kind.Unknown ? Colors.TextColor18 : Colors.TextColor11))
+                    ImGui.TextUnformatted(ActionDamageType.Label(kind));
+                ImGui.SameLine();
+            }
         }
         ImGui.NewLine();
     }

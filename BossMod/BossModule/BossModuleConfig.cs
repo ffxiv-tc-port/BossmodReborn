@@ -103,8 +103,11 @@ public sealed class BossModuleConfig : ConfigNode
     [PropertyDisplay("Show player hints and warnings")]
     public bool ShowPlayerHints = true;
 
-    [PropertyDisplay("Translate hint text", tooltip: "Translates hints when displaying them: whole hints that have a translation are replaced outright, otherwise well-known mechanic vocabulary inside the hint is swapped for its localized term. Display only - the hints themselves are not modified", separator: true)]
+    [PropertyDisplay("Translate hint text", tooltip: "Translates hints when displaying them: whole hints that have a translation are replaced outright, otherwise well-known mechanic vocabulary inside the hint is swapped for its localized term. Display only - the hints themselves are not modified")]
     public bool TranslateHints = true;
+
+    [PropertyDisplay("Mark hints as physical or magical damage", tooltip: "Appends the damage type of the incoming attack to raidwide/tankbuster hints, taken from the action's attack type in the game data.\nAttack types that do not map onto physical or magical (and actions the module does not name) are shown as a greyed out '?' rather than guessed at", separator: true)]
+    public bool ShowHintDamageType = true;
 
     // misc. settings
     [PropertyDisplay("Show movement hints in world", tooltip: "Not used very much, but can show you arrows in the game world to indicate where to move for certain mechanics")]

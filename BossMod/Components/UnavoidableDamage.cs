@@ -15,6 +15,8 @@ public class RaidwideCasts(BossModule module, uint[] aids, string hint = "Raidwi
 {
     private readonly uint[] AIDs = aids;
 
+    public override uint[] HintDamageActions => AIDs;
+
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         var len = AIDs.Length;
@@ -129,6 +131,8 @@ public class SingleTargetCast(BossModule module, uint aid, string hint = "Tankbu
 public class SingleTargetCasts(BossModule module, uint[] aids, string hint = "Tankbuster") : SingleTargetCast(module, default, hint)
 {
     private readonly uint[] AIDs = aids;
+
+    public override uint[] HintDamageActions => AIDs;
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
