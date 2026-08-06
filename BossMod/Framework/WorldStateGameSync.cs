@@ -916,32 +916,57 @@ sealed class WorldStateGameSync : IDisposable
         _actorOps.GetOrAdd(targetID).Add(new ActorState.OpEffectResult(targetID, seq, targetIndex));
     }
 
+    // 以下每一支 detour 都遵守同一個 fail-closed 約定（見 Util/DetourGuard.cs）：
+    // 自訂邏輯進 try、catch 受管理例外後節流記一行 Information，**Original 一律照樣呼叫、照樣回傳其結果**。
+    // ⚠️ 這不防 AccessViolationException（那攔不到），防的是受管理例外逸出到原生框架。
+
     private unsafe void ProcessPacketActorCastDetour(uint casterId, Network.ServerIPC.ActorCast* packet)
     {
-        _lastCastPositions[casterId] = Network.PacketDecoder.IntToFloatCoords(packet->PosX, packet->PosY, packet->PosZ);
+        try
+        {
+            _lastCastPositions[casterId] = Network.PacketDecoder.IntToFloatCoords(packet->PosX, packet->PosY, packet->PosZ);
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessPacketActorCastDetour), ex);
+        }
         _processPacketActorCastHook.Original(casterId, packet);
     }
 
     private unsafe void ProcessPacketEffectResultDetour(uint targetID, byte* packet, byte replaying)
     {
-        var count = packet[0];
-        var p = (Network.ServerIPC.EffectResultEntry*)(packet + 4);
-        for (var i = 0; i < count; ++i)
+        try
         {
-            OnEffectResult(targetID, p->RelatedActionSequence, p->RelatedTargetIndex);
-            ++p;
+            var count = packet[0];
+            var p = (Network.ServerIPC.EffectResultEntry*)(packet + 4);
+            for (var i = 0; i < count; ++i)
+            {
+                OnEffectResult(targetID, p->RelatedActionSequence, p->RelatedTargetIndex);
+                ++p;
+            }
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessPacketEffectResultDetour), ex);
         }
         _processPacketEffectResultHook.Original(targetID, packet, replaying);
     }
 
     private unsafe void ProcessPacketEffectResultBasicDetour(uint targetID, byte* packet, byte replaying)
     {
-        var count = packet[0];
-        var p = (Network.ServerIPC.EffectResultBasicEntry*)(packet + 4);
-        for (var i = 0; i < count; ++i)
+        try
         {
-            OnEffectResult(targetID, p->RelatedActionSequence, p->RelatedTargetIndex);
-            ++p;
+            var count = packet[0];
+            var p = (Network.ServerIPC.EffectResultBasicEntry*)(packet + 4);
+            for (var i = 0; i < count; ++i)
+            {
+                OnEffectResult(targetID, p->RelatedActionSequence, p->RelatedTargetIndex);
+                ++p;
+            }
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessPacketEffectResultBasicDetour), ex);
         }
         _processPacketEffectResultBasicHook.Original(targetID, packet, replaying);
     }
@@ -949,93 +974,163 @@ sealed class WorldStateGameSync : IDisposable
     private void ProcessPacketActorControlDetour(uint actorID, uint category, uint p1, uint p2, uint p3, uint p4, uint p5, uint p6, ulong targetID, byte replaying)
     {
         _processPacketActorControlHook.Original(actorID, category, p1, p2, p3, p4, p5, p6, targetID, replaying);
-        switch ((Network.ServerIPC.ActorControlCategory)category)
+        try
         {
-            case Network.ServerIPC.ActorControlCategory.TargetIcon:
-                _actorOps.GetOrAdd(actorID).Add(new ActorState.OpIcon(actorID, p1 - Network.IDScramble.Delta, p2));
-                break;
-            case Network.ServerIPC.ActorControlCategory.Tether:
-                _actorOps.GetOrAdd(actorID).Add(new ActorState.OpTether(actorID, new(p2, p3)));
-                break;
-            case Network.ServerIPC.ActorControlCategory.TetherCancel:
-                // note: this seems to clear tether only if existing matches p2
-                _actorOps.GetOrAdd(actorID).Add(new ActorState.OpTether(actorID, default));
-                break;
-            case Network.ServerIPC.ActorControlCategory.EObjSetState:
-                // p2 is unused (seems to be director id?), p3==1 means housing (?) item instead of event obj, p4 is housing item id
-                _actorOps.GetOrAdd(actorID).Add(new ActorState.OpEventObjectStateChange(actorID, (ushort)p1));
-                break;
-            case Network.ServerIPC.ActorControlCategory.EObjAnimation:
-                _actorOps.GetOrAdd(actorID).Add(new ActorState.OpEventObjectAnimation(actorID, (ushort)p1, (ushort)p2));
-                break;
-            case Network.ServerIPC.ActorControlCategory.PlayActionTimeline:
-                _actorOps.GetOrAdd(actorID).Add(new ActorState.OpPlayActionTimelineEvent(actorID, (ushort)p1));
-                break;
-            case Network.ServerIPC.ActorControlCategory.ActionRejected:
-                _globalOps.Add(new ClientState.OpActionReject(new(new((ActionType)p2, p3), p6, p4 * 0.01f, p5 * 0.01f, p1)));
-                break;
-            case Network.ServerIPC.ActorControlCategory.DirectorUpdate:
-                _globalOps.Add(new WorldState.OpDirectorUpdate(p1, p2, p3, p4, p5, p6));
-                break;
+            switch ((Network.ServerIPC.ActorControlCategory)category)
+            {
+                case Network.ServerIPC.ActorControlCategory.TargetIcon:
+                    _actorOps.GetOrAdd(actorID).Add(new ActorState.OpIcon(actorID, p1 - Network.IDScramble.Delta, p2));
+                    break;
+                case Network.ServerIPC.ActorControlCategory.Tether:
+                    _actorOps.GetOrAdd(actorID).Add(new ActorState.OpTether(actorID, new(p2, p3)));
+                    break;
+                case Network.ServerIPC.ActorControlCategory.TetherCancel:
+                    // note: this seems to clear tether only if existing matches p2
+                    _actorOps.GetOrAdd(actorID).Add(new ActorState.OpTether(actorID, default));
+                    break;
+                case Network.ServerIPC.ActorControlCategory.EObjSetState:
+                    // p2 is unused (seems to be director id?), p3==1 means housing (?) item instead of event obj, p4 is housing item id
+                    _actorOps.GetOrAdd(actorID).Add(new ActorState.OpEventObjectStateChange(actorID, (ushort)p1));
+                    break;
+                case Network.ServerIPC.ActorControlCategory.EObjAnimation:
+                    _actorOps.GetOrAdd(actorID).Add(new ActorState.OpEventObjectAnimation(actorID, (ushort)p1, (ushort)p2));
+                    break;
+                case Network.ServerIPC.ActorControlCategory.PlayActionTimeline:
+                    _actorOps.GetOrAdd(actorID).Add(new ActorState.OpPlayActionTimelineEvent(actorID, (ushort)p1));
+                    break;
+                case Network.ServerIPC.ActorControlCategory.ActionRejected:
+                    _globalOps.Add(new ClientState.OpActionReject(new(new((ActionType)p2, p3), p6, p4 * 0.01f, p5 * 0.01f, p1)));
+                    break;
+                case Network.ServerIPC.ActorControlCategory.DirectorUpdate:
+                    _globalOps.Add(new WorldState.OpDirectorUpdate(p1, p2, p3, p4, p5, p6));
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessPacketActorControlDetour), ex);
         }
     }
 
     private unsafe void ProcessPacketNpcYellDetour(Network.ServerIPC.NpcYell* packet)
     {
         _processPacketNpcYellHook.Original(packet);
-        _actorOps.GetOrAdd(packet->SourceID).Add(new ActorState.OpEventNpcYell(packet->SourceID, packet->Message));
+        try
+        {
+            _actorOps.GetOrAdd(packet->SourceID).Add(new ActorState.OpEventNpcYell(packet->SourceID, packet->Message));
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessPacketNpcYellDetour), ex);
+        }
     }
 
     private unsafe void ProcessEnvControlDetour(void* self, uint index, ushort s1, ushort s2)
     {
         // note: this function is only executed for incoming packets that pass some checks (validation that currently active director is what is expected) - don't think it's a big deal?
         _processEnvControlHook.Original(self, index, s1, s2);
-        _globalOps.Add(new WorldState.OpEnvControl((byte)index, s1 | ((uint)s2 << 16)));
+        try
+        {
+            _globalOps.Add(new WorldState.OpEnvControl((byte)index, s1 | ((uint)s2 << 16)));
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessEnvControlDetour), ex);
+        }
     }
 
     private unsafe void ProcessPacketRSVDataDetour(byte* packet)
     {
         _processPacketRSVDataHook.Original(packet);
-        _globalOps.Add(new WorldState.OpRSVData(MemoryHelper.ReadStringNullTerminated((nint)(packet + 4)), MemoryHelper.ReadString((nint)(packet + 0x34), *(int*)packet)));
+        try
+        {
+            _globalOps.Add(new WorldState.OpRSVData(MemoryHelper.ReadStringNullTerminated((nint)(packet + 4)), MemoryHelper.ReadString((nint)(packet + 0x34), *(int*)packet)));
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessPacketRSVDataDetour), ex);
+        }
     }
 
     private unsafe void ProcessPacketOpenTreasureDetour(uint playerID, byte* packet)
     {
         _processPacketOpenTreasureHook.Original(playerID, packet);
-        var actorID = *(uint*)(packet + 16);
-        _actorOps.GetOrAdd(actorID).Add(new ActorState.OpEventOpenTreasure(actorID));
+        try
+        {
+            var actorID = *(uint*)(packet + 16);
+            _actorOps.GetOrAdd(actorID).Add(new ActorState.OpEventOpenTreasure(actorID));
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessPacketOpenTreasureDetour), ex);
+        }
     }
 
     private unsafe void* ProcessSystemLogMessageDetour(uint entityId, uint messageId, int* args, byte argCount)
     {
         var res = _processSystemLogMessageHook.Original(entityId, messageId, args, argCount);
-        _globalOps.Add(new WorldState.OpSystemLogMessage(messageId, new Span<int>(args, argCount).ToArray()));
+        try
+        {
+            _globalOps.Add(new WorldState.OpSystemLogMessage(messageId, new Span<int>(args, argCount).ToArray()));
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessSystemLogMessageDetour), ex);
+        }
         return res;
     }
 
     private unsafe void* ProcessPacketFateInfoDetour(ulong fateId, long startTimestamp, ulong durationSecs)
     {
         var res = _processPacketFateInfoHook.Original(fateId, startTimestamp, durationSecs);
-        _globalOps.Add(new ClientState.OpFateInfo((uint)fateId, DateTimeOffset.FromUnixTimeSeconds(startTimestamp).UtcDateTime));
+        try
+        {
+            _globalOps.Add(new ClientState.OpFateInfo((uint)fateId, DateTimeOffset.FromUnixTimeSeconds(startTimestamp).UtcDateTime));
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessPacketFateInfoDetour), ex);
+        }
         return res;
     }
 
     private unsafe void ProcessMapEffect1Detour(byte* data)
     {
         _processMapEffect1Hook.Original(data);
-        ProcessMapEffect(data, 10, 18);
+        try
+        {
+            ProcessMapEffect(data, 10, 18);
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessMapEffect1Detour), ex);
+        }
     }
 
     private unsafe void ProcessMapEffect2Detour(byte* data)
     {
         _processMapEffect2Hook.Original(data);
-        ProcessMapEffect(data, 18, 34);
+        try
+        {
+            ProcessMapEffect(data, 18, 34);
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessMapEffect2Detour), ex);
+        }
     }
 
     private unsafe void ProcessMapEffect3Detour(byte* data)
     {
         _processMapEffect3Hook.Original(data);
-        ProcessMapEffect(data, 26, 50);
+        try
+        {
+            ProcessMapEffect(data, 26, 50);
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessMapEffect3Detour), ex);
+        }
     }
 
     private unsafe void ProcessMapEffect(byte* data, byte offLow, byte offIndex)

@@ -84,25 +84,43 @@ internal sealed class PacketInterceptor : IDisposable
         _sendHook?.Dispose();
     }
 
+    // fail-closed 約定（見 Util/DetourGuard.cs）：自訂邏輯（含訂閱者的回呼）進 try，
+    // **Original 一律照樣呼叫、照樣回傳其結果**。訂閱者擲例外不能把整個遊戲行程帶走。
+    // ⚠️ 這不防 AccessViolationException，防的是受管理例外逸出到原生框架。
+
     private unsafe bool FetchReceivedPacketDetour(void* self, ReceivedPacket* outData)
     {
         var res = _fetchHook!.Original(self, outData);
-        if (outData->IPC != null)
+        try
         {
-            ServerIPCReceived?.Invoke(
-                DateTimeOffset.FromUnixTimeMilliseconds(outData->SendTimestamp).DateTime,
-                outData->IPC->SourceActor,
-                outData->IPC->TargetActor,
-                outData->IPC->PacketData->MessageType,
-                outData->IPC->PacketData->Epoch,
-                new(outData->IPC->PacketData + 1, (int)outData->IPC->PacketSize - sizeof(ServerIPC.IPCHeader)));
+            if (outData->IPC != null)
+            {
+                ServerIPCReceived?.Invoke(
+                    DateTimeOffset.FromUnixTimeMilliseconds(outData->SendTimestamp).DateTime,
+                    outData->IPC->SourceActor,
+                    outData->IPC->TargetActor,
+                    outData->IPC->PacketData->MessageType,
+                    outData->IPC->PacketData->Epoch,
+                    new(outData->IPC->PacketData + 1, (int)outData->IPC->PacketSize - sizeof(ServerIPC.IPCHeader)));
+            }
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(FetchReceivedPacketDetour), ex);
         }
         return res;
     }
 
     private unsafe byte SendPacketDetour(void* self, SentIPCHeader* packet, int* a3, byte a4)
     {
-        ClientIPCSent?.Invoke(packet->Opcode, new((byte*)packet + 0x20, (int)packet->PayloadSize - 0x10));
+        try
+        {
+            ClientIPCSent?.Invoke(packet->Opcode, new((byte*)packet + 0x20, (int)packet->PayloadSize - 0x10));
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(SendPacketDetour), ex);
+        }
         return _sendHook!.Original(self, packet, a3, a4);
     }
 }

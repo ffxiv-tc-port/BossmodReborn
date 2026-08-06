@@ -658,48 +658,73 @@ public sealed unsafe class ActionManagerEx : IDisposable
         _useStoneHook.Original(self, slot);
     }
 
+    // fail-closed 約定（見 Util/DetourGuard.cs）：自訂邏輯全部進 try，
+    // **Original 一律照樣呼叫**；前半段失敗時直接跳過後半段的動畫鎖調整（不拿沒算出來的值去改遊戲狀態）。
+    // ⚠️ 這不防 AccessViolationException，防的是受管理例外逸出到原生框架。
     private void ProcessPacketActionEffectDetour(uint casterID, Character* casterObj, Vector3* targetPos, ActionEffectHandler.Header* header, ActionEffectHandler.TargetEffects* effects, GameObjectId* targets)
     {
-        // notify listeners about the event
-        // note: there's a slight difference with dispatching event from here rather than from packet processing (ActionEffectN) functions
-        // 1. action id is already unscrambled
-        // 2. this function won't be called if caster object doesn't exist
-        // the last point is deemed to be minor enough for us to not care, as it simplifies things (no need to hook 5 functions)
-        var info = new ActorCastEvent(new((ActionType)header->ActionType, header->ActionId), header->AnimationTargetId, header->AnimationLock, header->NumTargets, *targetPos,
-            header->GlobalSequence, header->SourceSequence, Network.PacketDecoder.IntToFloatAngle(header->RotationInt));
-        var rawEffects = (ulong*)effects;
-        for (var i = 0; i < header->NumTargets; ++i)
+        ActorCastEvent? info = null;
+        float packetAnimLock = 0, prevAnimLock = 0;
+        try
         {
-            var targetEffects = new ActionEffects();
-            for (var j = 0; j < ActionEffects.MaxCount; ++j)
-                targetEffects[j] = rawEffects[i * 8 + j];
-            info.Targets.Add(new(targets[i], targetEffects));
+            // notify listeners about the event
+            // note: there's a slight difference with dispatching event from here rather than from packet processing (ActionEffectN) functions
+            // 1. action id is already unscrambled
+            // 2. this function won't be called if caster object doesn't exist
+            // the last point is deemed to be minor enough for us to not care, as it simplifies things (no need to hook 5 functions)
+            info = new ActorCastEvent(new((ActionType)header->ActionType, header->ActionId), header->AnimationTargetId, header->AnimationLock, header->NumTargets, *targetPos,
+                header->GlobalSequence, header->SourceSequence, Network.PacketDecoder.IntToFloatAngle(header->RotationInt));
+            var rawEffects = (ulong*)effects;
+            for (var i = 0; i < header->NumTargets; ++i)
+            {
+                var targetEffects = new ActionEffects();
+                for (var j = 0; j < ActionEffects.MaxCount; ++j)
+                    targetEffects[j] = rawEffects[i * 8 + j];
+                info.Targets.Add(new(targets[i], targetEffects));
+            }
+            ActionEffectReceived.Fire(casterID, info);
+
+            packetAnimLock = header->AnimationLock;
+            prevAnimLock = _inst->AnimationLock;
         }
-        ActionEffectReceived.Fire(casterID, info);
+        catch (Exception ex)
+        {
+            info = null; // 前半段沒跑完 -> 後半段的動畫鎖調整整段跳過
+            DetourGuard.Report(nameof(ProcessPacketActionEffectDetour), ex);
+        }
 
         // call the hooked function and observe the effects
-        var packetAnimLock = header->AnimationLock;
-        var prevAnimLock = _inst->AnimationLock;
         _processPacketActionEffectHook.Original(casterID, casterObj, targetPos, header, effects, targets);
-        var currAnimLock = _inst->AnimationLock;
 
-        if (casterID != UIState.Instance()->PlayerState.EntityId || !ExpectAnimationLockUpdate(header))
-        {
-            // this action is either executed by non-player, or is non-player-initiated
-            // TODO: reconsider the condition:
-            // - do we want to do non-anim-lock related things (eg unblock movement override) when we get action with 'force anim lock' flag?
-            if (currAnimLock != prevAnimLock)
-                Service.Log($"[AMEx] Animation lock updated by non-player-initiated action: #{header->SourceSequence} {casterID:X} {info.Action} {prevAnimLock:f3} -> {currAnimLock:f3}");
+        if (info == null)
             return;
+
+        try
+        {
+            var currAnimLock = _inst->AnimationLock;
+
+            if (casterID != UIState.Instance()->PlayerState.EntityId || !ExpectAnimationLockUpdate(header))
+            {
+                // this action is either executed by non-player, or is non-player-initiated
+                // TODO: reconsider the condition:
+                // - do we want to do non-anim-lock related things (eg unblock movement override) when we get action with 'force anim lock' flag?
+                if (currAnimLock != prevAnimLock)
+                    Service.Log($"[AMEx] Animation lock updated by non-player-initiated action: #{header->SourceSequence} {casterID:X} {info.Action} {prevAnimLock:f3} -> {currAnimLock:f3}");
+                return;
+            }
+
+            MoveMightInterruptCast = false; // slidecast window start
+            _movement.MovementBlocked = false; // unblock input unconditionally on successful cast (I assume there are no instances where we need to immediately start next GCD?)
+
+            // animation lock delay update
+            var animLockReduction = _animLockTweak.Apply(header->SourceSequence, prevAnimLock, _inst->AnimationLock, packetAnimLock, header->AnimationLock, out var animLockDelay);
+            _inst->AnimationLock -= animLockReduction;
+            Service.Log($"[AMEx] AEP #{header->SourceSequence} {prevAnimLock:f3} {info.Action} -> ALock={currAnimLock:f3} (delayed by {animLockDelay:f3}) -> {_inst->AnimationLock:f3}), Flags={header->Flags:X}, CTR={CastTimeRemaining:f3}, GCD={GCD():f3}");
         }
-
-        MoveMightInterruptCast = false; // slidecast window start
-        _movement.MovementBlocked = false; // unblock input unconditionally on successful cast (I assume there are no instances where we need to immediately start next GCD?)
-
-        // animation lock delay update
-        var animLockReduction = _animLockTweak.Apply(header->SourceSequence, prevAnimLock, _inst->AnimationLock, packetAnimLock, header->AnimationLock, out var animLockDelay);
-        _inst->AnimationLock -= animLockReduction;
-        Service.Log($"[AMEx] AEP #{header->SourceSequence} {prevAnimLock:f3} {info.Action} -> ALock={currAnimLock:f3} (delayed by {animLockDelay:f3}) -> {_inst->AnimationLock:f3}), Flags={header->Flags:X}, CTR={CastTimeRemaining:f3}, GCD={GCD():f3}");
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessPacketActionEffectDetour) + "(post)", ex);
+        }
     }
 
     private void HandleActionRequest(ActionID action, uint seq, ulong targetID, Vector3 targetPos, Angle prevRot, Angle currRot)
