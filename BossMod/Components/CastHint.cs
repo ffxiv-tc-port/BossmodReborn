@@ -12,7 +12,7 @@ public class CastHint(BossModule module, uint aid, string hint, bool showCastTim
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (Active && Hint.Length > 0)
-            hints.Add(ShowCastTimeLeft ? $"{Loc.T(Hint)} {Casters[0].CastInfo?.NPCRemainingTime ?? 0:f1}s left" : Loc.T(Hint));
+            hints.Add(ShowCastTimeLeft ? $"{Loc.T(Hint)} {Casters[0].CastInfo?.NPCRemainingTime ?? 0:f1}{Loc.T("CH_SecondsLeft", "s left")}" : Loc.T(Hint));
     }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)

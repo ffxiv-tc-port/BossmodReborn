@@ -100,8 +100,11 @@ public sealed class BossModuleConfig : ConfigNode
     [PropertyDisplay("Show raidwide hints")]
     public bool ShowGlobalHints = true;
 
-    [PropertyDisplay("Show player hints and warnings", separator: true)]
+    [PropertyDisplay("Show player hints and warnings")]
     public bool ShowPlayerHints = true;
+
+    [PropertyDisplay("Translate hint text", tooltip: "Translates hints when displaying them: whole hints that have a translation are replaced outright, otherwise well-known mechanic vocabulary inside the hint is swapped for its localized term. Display only - the hints themselves are not modified", separator: true)]
+    public bool TranslateHints = true;
 
     // misc. settings
     [PropertyDisplay("Show movement hints in world", tooltip: "Not used very much, but can show you arrows in the game world to indicate where to move for certain mechanics")]

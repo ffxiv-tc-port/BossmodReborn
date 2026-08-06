@@ -68,6 +68,7 @@ public sealed class Plugin : IDalamudPlugin
 
         dalamud.Create<Service>();
         Loc.Load("tw");
+        HintText.Load("tw");
         Service.LogHandlerDebug = msg => Service.Logger.Debug(msg);
         Service.LogHandlerVerbose = msg => Service.Logger.Verbose(msg);
         Service.LuminaGameData = dataManager.GameData;

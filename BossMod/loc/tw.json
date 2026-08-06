@@ -461,6 +461,102 @@
   "0 = fully transparent background, same as the old 'Make separate hints window transparent' checkbox; 100 = normal window background": {
     "message": "0 ＝ 背景完全透明，等同舊版的「將獨立提示視窗設為透明」選項；100 ＝ 一般視窗背景"
   },
+  "Translate hint text": {
+    "message": "提示文字中文化"
+  },
+  "Translates hints when displaying them: whole hints that have a translation are replaced outright, otherwise well-known mechanic vocabulary inside the hint is swapped for its localized term. Display only - the hints themselves are not modified": {
+    "message": "顯示提示時進行翻譯：整句有譯文時直接換成譯文，否則把提示裡常見的機制詞彙換成中文術語。\n僅影響顯示，不會修改提示內容本身。"
+  },
+  "SM_Cur": {
+    "message": "目前："
+  },
+  "SM_Then": {
+    "message": "接著："
+  },
+  "SM_Inactive": {
+    "message": "未啟動"
+  },
+  "SM_TimePrefix": {
+    "message": " "
+  },
+  "SM_TimeSuffix": {
+    "message": " 秒後"
+  },
+  "CH_SecondsLeft": {
+    "message": " 秒後結束"
+  },
+  "Raidwide": {
+    "message": "全體傷害"
+  },
+  "Tankbuster": {
+    "message": "坦克死刑"
+  },
+  "Raidwide x2": {
+    "message": "全體傷害 2 連"
+  },
+  "Raidwide x3": {
+    "message": "全體傷害 3 連"
+  },
+  "Raidwide x4": {
+    "message": "全體傷害 4 連"
+  },
+  "Raidwide x5": {
+    "message": "全體傷害 5 連"
+  },
+  "Raidwide + bleed": {
+    "message": "全體傷害＋出血"
+  },
+  "Raidwide + Bleed": {
+    "message": "全體傷害＋出血"
+  },
+  "Raidwide + Fear, Adds need to be dead by now": {
+    "message": "全體傷害＋恐懼，此時小怪應該已經清完"
+  },
+  "Tankbuster + cleansable poison": {
+    "message": "坦克死刑＋可解除的中毒"
+  },
+  "Enrage": {
+    "message": "狂暴"
+  },
+  "Enrage!": {
+    "message": "狂暴！"
+  },
+  "Calls adds": {
+    "message": "召喚小怪"
+  },
+  "Single-target damage": {
+    "message": "單體傷害"
+  },
+  "Bait close!": {
+    "message": "引導至近處！"
+  },
+  "Bait far!": {
+    "message": "引導至遠處！"
+  },
+  "Press invuln!": {
+    "message": "開無敵！"
+  },
+  "Levitate": {
+    "message": "浮空"
+  },
+  "Stay on ground": {
+    "message": "待在地面"
+  },
+  "Move farther!": {
+    "message": "再遠一點！"
+  },
+  "Poison": {
+    "message": "中毒"
+  },
+  "poisoned": {
+    "message": "中毒"
+  },
+  "Prepare to dispel buff": {
+    "message": "準備驅散增益"
+  },
+  "Applies temporary misdirection": {
+    "message": "附加暫時性方向錯亂"
+  },
   "Show mechanic sequence and timer hints": {
     "message": "顯示機制順序與計時提示"
   },

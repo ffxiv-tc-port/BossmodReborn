@@ -108,8 +108,8 @@ public sealed class StateMachine(List<StateMachine.Phase> phases)
 
     public void Draw()
     {
-        (var activeName, var next) = ActiveState != null ? BuildComplexStateNameAndDuration(ActiveState, TimeSinceTransition, true) : ("Inactive", null);
-        ImGui.TextUnformatted($"Cur: {activeName}");
+        (var activeName, var next) = ActiveState != null ? BuildComplexStateNameAndDuration(ActiveState, TimeSinceTransition, true) : (Loc.T("SM_Inactive", "Inactive"), null);
+        ImGui.TextUnformatted($"{Loc.T("SM_Cur", "Cur: ")}{activeName}");
 
         var future = BuildStateChain(next, " ---> ");
         if (future.Length == 0)
@@ -118,7 +118,7 @@ public sealed class StateMachine(List<StateMachine.Phase> phases)
         }
         else
         {
-            ImGui.TextUnformatted($"Then: {future}");
+            ImGui.TextUnformatted($"{Loc.T("SM_Then", "Then: ")}{future}");
         }
     }
 
@@ -155,13 +155,15 @@ public sealed class StateMachine(List<StateMachine.Phase> phases)
         return DateTime.MaxValue;
     }
 
+    // this whole chain (Draw -> BuildStateChain -> BuildComplexStateNameAndDuration) exists purely to render the sequence/timer line,
+    // so it is safe to localize the state names here - nothing else ever sees these strings
     private (string, State?) BuildComplexStateNameAndDuration(State start, float timeActive, bool writeTime)
     {
-        var res = new StringBuilder(start.Name);
+        var res = new StringBuilder(HintText.Translate(start.Name));
         var timeLeft = Math.Max(0, start.Duration - timeActive);
         if (writeTime && res.Length > 0)
         {
-            res.Append($" in {timeLeft:f1}s");
+            AppendTimeLeft(res, timeLeft);
             timeLeft = 0;
         }
 
@@ -173,11 +175,11 @@ public sealed class StateMachine(List<StateMachine.Phase> phases)
             {
                 if (res.Length > 0)
                     res.Append(" + ");
-                res.Append(start.Name);
+                res.Append(HintText.Translate(start.Name));
 
                 if (writeTime && timeLeft > 0)
                 {
-                    res.Append($" in {timeLeft:f1}s");
+                    AppendTimeLeft(res, timeLeft);
                     timeLeft = 0;
                 }
             }
@@ -187,10 +189,18 @@ public sealed class StateMachine(List<StateMachine.Phase> phases)
         {
             if (res.Length == 0)
                 res.Append("???");
-            res.Append($" in {timeLeft:f1}s");
+            AppendTimeLeft(res, timeLeft);
         }
 
         return (res.ToString(), start.NextStates?.Length == 1 ? start.NextStates[0] : null);
+    }
+
+    // english reads "<name> in 3.5s", chinese reads "<name> 3.5 秒後" - hence a prefix + suffix pair rather than a format string
+    private static void AppendTimeLeft(StringBuilder res, float timeLeft)
+    {
+        res.Append(Loc.T("SM_TimePrefix", " in "));
+        res.Append($"{timeLeft:f1}");
+        res.Append(Loc.T("SM_TimeSuffix", "s"));
     }
 
     private void TransitionToPhase(int nextIndex)

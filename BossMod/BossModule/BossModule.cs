@@ -389,7 +389,7 @@ public abstract class BossModule : IDisposable
         var count = hints.Count;
         for (var i = 0; i < count; ++i)
         {
-            ImGui.TextUnformatted(hints[i]);
+            ImGui.TextUnformatted(HintText.Translate(hints[i]));
             ImGui.SameLine();
         }
         ImGui.NewLine();
@@ -402,7 +402,7 @@ public abstract class BossModule : IDisposable
         {
             var hint = hints[i];
             using var color = ImRaii.PushColor(ImGuiCol.Text, hint.Item2 ? Colors.Danger : Colors.Safe);
-            ImGui.TextUnformatted(hint.Item1);
+            ImGui.TextUnformatted(HintText.Translate(hint.Item1));
             ImGui.SameLine();
         }
         ImGui.NewLine();
