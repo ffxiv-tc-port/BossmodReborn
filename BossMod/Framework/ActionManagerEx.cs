@@ -451,6 +451,17 @@ public sealed unsafe class ActionManagerEx : IDisposable
         return avoidGaze ?? restored;
     }
 
+    // fail-closed 約定（見 Util/DetourGuard.cs）：自訂邏輯進 try、**Original 一律留在 try 外**。
+    // ⚠️ 這一支每幀執行 —— DetourGuard.Report 的 60 秒節流在這裡是必要條件，不是裝飾。
+    // 這裡實際存在的受管理例外來源（全部是我們自己的碼，不是遊戲的）：
+    //   ① ExecuteAction 的 General/PetAction 分支呼叫 _useActionHook.Original —— HookAddress<T>.Original
+    //      在位址解析失敗時是**擲 InvalidOperationException**（不是回 null），而 Update 與 UseAction 的
+    //      位址是各自解析的，只壞一個就會變成「每幀擲一次」。
+    //   ② Service.LuminaRow<Action>（CheckActionLoS）與 <LogMessage>（無法執行時的狀態碼訊息）。
+    //   ③ CS 的 [MemberFunction]/[StaticAddress] 在特徵碼失效時擲的 InvalidOperationException。
+    //   ④ 自動循環／smart rotation／手動佇列這些純受管理邏輯。
+    // 🔴 這不防 AccessViolationException（在 .NET Core 是 corrupted-state exception，攔不到）；
+    //    裸指標一律靠判空處理，不靠 try。
     private void UpdateDetour(ActionManager* self)
     {
         var fwk = Framework.Instance();
@@ -462,152 +473,238 @@ public sealed unsafe class ActionManagerEx : IDisposable
             return;
         }
 
-        var dt = fwk->GameSpeedMultiplier * fwk->FrameDeltaTime;
-        var imminentAction = _inst->ActionQueued ? QueuedAction : AutoQueue.Action;
-        var imminentActionAdj = imminentAction.Type == ActionType.Spell ? new(ActionType.Spell, GetAdjustedActionID(imminentAction.ID)) : imminentAction;
-        var imminentRecast = imminentActionAdj ? _inst->GetRecastGroupDetail(GetRecastGroup(imminentActionAdj)) : null;
+        // 前段失敗時這兩個維持 default（falsy）→ 後段的移動封鎖預測整段跳過，等於這一幀沒有滑步輔助
+        ActionID imminentAction = default, imminentActionAdj = default;
+        try
+        {
+            var dt = fwk->GameSpeedMultiplier * fwk->FrameDeltaTime;
+            imminentAction = _inst->ActionQueued ? QueuedAction : AutoQueue.Action;
+            imminentActionAdj = imminentAction.Type == ActionType.Spell ? new(ActionType.Spell, GetAdjustedActionID(imminentAction.ID)) : imminentAction;
+            var imminentRecast = imminentActionAdj ? _inst->GetRecastGroupDetail(GetRecastGroup(imminentActionAdj)) : null;
 
-        _cooldownTweak.StartAdjustment(_inst->AnimationLock, imminentRecast != null && imminentRecast->IsActive ? imminentRecast->Total - imminentRecast->Elapsed : 0, dt);
+            _cooldownTweak.StartAdjustment(_inst->AnimationLock, imminentRecast != null && imminentRecast->IsActive ? imminentRecast->Total - imminentRecast->Elapsed : 0, dt);
+        }
+        catch (Exception ex)
+        {
+            // 補償值算不出來就當作沒有補償（＝ RemoveCooldownDelay 關掉時的行為）——
+            // Adjustment 會被 HandleActionRequest 直接加到冷卻與動畫鎖上，不能拿半套的值去改遊戲狀態
+            _cooldownTweak.StopAdjustment();
+            DetourGuard.Report(nameof(UpdateDetour) + "(pre)", ex);
+        }
         _updateHook.Original(self);
 
-        // check whether movement is safe; block movement if not and if desired
-        MoveMightInterruptCast &= CastTimeRemaining > 0; // previous cast could have ended without action effect
-        // if we're not casting, but will start soon, moving might interrupt future cast
-        if (imminentActionAdj && CastTimeRemaining <= 0 && _inst->AnimationLock < 0.1f && GetAdjustedCastTime(imminentActionAdj) > 0 && !CanMoveWhileCasting(imminentActionAdj) && GCD() < 0.1f)
+        // autoRotateConfig 指向遊戲自己的設定項，我們只是「暫時」改它；還原動作放 finally，因為半路失敗
+        // 而沒還原的話，使用者的「使用技能時自動面向目標」會被永久留在我們改過的值上（且他不會知道）。
+        // 宣告在 try 外才能讓 finally 看得到；維持 null 表示我們還沒碰過它，finally 就不寫入。
+        FFXIVClientStructs.FFXIV.Common.Configuration.ConfigEntry* autoRotateConfig = null;
+        var autoRotateOriginal = 0u;
+        var blockMovement = false;
+        try
         {
-            // check LoS on target; blocking movement can cause AI mode to get stuck behind a wall trying to cast a spell on an unreachable target forever
-            MoveMightInterruptCast |= CheckActionLoS(imminentAction, _inst->ActionQueued ? _inst->QueuedTargetId : (AutoQueue.Target?.InstanceID ?? 0));
-        }
-        bool blockMovement = Config.PreventMovingWhileCasting && MoveMightInterruptCast && _ws.Party.Player()?.MountId == 0;
-        blockMovement |= Config.PyreticThreshold > 0 && _hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Pyretic && _hints.ImminentSpecialMode.activation < _ws.FutureTime(Config.PyreticThreshold);
-
-        // note: if we cancel movement and start casting immediately, it will be canceled some time later - instead prefer to delay for one frame
-        bool actionImminent = EffectiveAnimationLock <= 0 && AutoQueue.Action && !IsRecastTimerActive(AutoQueue.Action) && !(blockMovement && _movement.IsMoving());
-        var desiredRotation = CalculateDesiredOrientation(actionImminent);
-
-        // execute rotation, if needed
-        var autoRotateConfig = fwk->SystemConfig.GetConfigOption((uint)ConfigOption.AutoFaceTargetOnAction);
-        var autoRotateOriginal = autoRotateConfig != null ? autoRotateConfig->Value.UInt : 0u;
-        if (desiredRotation != null)
-        {
-            if (autoRotateConfig != null)
-                autoRotateConfig->Value.UInt = 1;
-            FaceDirection(desiredRotation.Value);
-        }
-
-        if (actionImminent)
-        {
-            var actionAdj = NormalizeActionForQueue(AutoQueue.Action);
-            var targetID = AutoQueue.Target?.InstanceID ?? InvalidEntityId;
-            var status = GetActionStatus(actionAdj, targetID);
-            if (status == 0)
+            // check whether movement is safe; block movement if not and if desired
+            MoveMightInterruptCast &= CastTimeRemaining > 0; // previous cast could have ended without action effect
+            // if we're not casting, but will start soon, moving might interrupt future cast
+            if (imminentActionAdj && CastTimeRemaining <= 0 && _inst->AnimationLock < 0.1f && GetAdjustedCastTime(imminentActionAdj) > 0 && !CanMoveWhileCasting(imminentActionAdj) && GCD() < 0.1f)
             {
-                // disable in-game auto rotation, to prevent fucking up with our logic
+                // check LoS on target; blocking movement can cause AI mode to get stuck behind a wall trying to cast a spell on an unreachable target forever
+                MoveMightInterruptCast |= CheckActionLoS(imminentAction, _inst->ActionQueued ? _inst->QueuedTargetId : (AutoQueue.Target?.InstanceID ?? 0));
+            }
+            blockMovement = Config.PreventMovingWhileCasting && MoveMightInterruptCast && _ws.Party.Player()?.MountId == 0;
+            blockMovement |= Config.PyreticThreshold > 0 && _hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Pyretic && _hints.ImminentSpecialMode.activation < _ws.FutureTime(Config.PyreticThreshold);
+
+            // note: if we cancel movement and start casting immediately, it will be canceled some time later - instead prefer to delay for one frame
+            bool actionImminent = EffectiveAnimationLock <= 0 && AutoQueue.Action && !IsRecastTimerActive(AutoQueue.Action) && !(blockMovement && _movement.IsMoving());
+            var desiredRotation = CalculateDesiredOrientation(actionImminent);
+
+            // execute rotation, if needed
+            autoRotateConfig = fwk->SystemConfig.GetConfigOption((uint)ConfigOption.AutoFaceTargetOnAction);
+            autoRotateOriginal = autoRotateConfig != null ? autoRotateConfig->Value.UInt : 0u;
+            if (desiredRotation != null)
+            {
                 if (autoRotateConfig != null)
-                    autoRotateConfig->Value.UInt = _smartRotationTweak.Enabled || AI.AIManager.Instance?.Beh != null ? 0 : autoRotateOriginal;
-                var res = ExecuteAction(actionAdj, targetID, AutoQueue.TargetPos);
-                //Service.Log($"[AMEx] Auto-execute {AutoQueue.Source} action {AutoQueue.Action} (=> {actionAdj}) @ {targetID:X} {Utils.Vec3String(AutoQueue.TargetPos)} => {res}");
+                    autoRotateConfig->Value.UInt = 1;
+                FaceDirection(desiredRotation.Value);
             }
-            else if (_dismountTweak.IsMountPreventingAction(actionAdj))
+
+            if (actionImminent)
             {
-                Service.Log("[AMEx] Trying to dismount...");
-                _hints.WantDismount |= _dismountTweak.AutoDismountEnabled;
-            }
-            else
-            {
-                Service.Log($"[AMEx] Can't execute prio {AutoQueue.Priority} action {AutoQueue.Action} (=> {actionAdj}) @ {targetID:X}: status {status} '{Service.LuminaRow<Lumina.Excel.Sheets.LogMessage>(status)?.Text}'");
-                blockMovement = false;
+                var actionAdj = NormalizeActionForQueue(AutoQueue.Action);
+                var targetID = AutoQueue.Target?.InstanceID ?? InvalidEntityId;
+                var status = GetActionStatus(actionAdj, targetID);
+                if (status == 0)
+                {
+                    // disable in-game auto rotation, to prevent fucking up with our logic
+                    if (autoRotateConfig != null)
+                        autoRotateConfig->Value.UInt = _smartRotationTweak.Enabled || AI.AIManager.Instance?.Beh != null ? 0 : autoRotateOriginal;
+                    var res = ExecuteAction(actionAdj, targetID, AutoQueue.TargetPos);
+                    //Service.Log($"[AMEx] Auto-execute {AutoQueue.Source} action {AutoQueue.Action} (=> {actionAdj}) @ {targetID:X} {Utils.Vec3String(AutoQueue.TargetPos)} => {res}");
+                }
+                else if (_dismountTweak.IsMountPreventingAction(actionAdj))
+                {
+                    Service.Log("[AMEx] Trying to dismount...");
+                    _hints.WantDismount |= _dismountTweak.AutoDismountEnabled;
+                }
+                else
+                {
+                    Service.Log($"[AMEx] Can't execute prio {AutoQueue.Priority} action {AutoQueue.Action} (=> {actionAdj}) @ {targetID:X}: status {status} '{Service.LuminaRow<Lumina.Excel.Sheets.LogMessage>(status)?.Text}'");
+                    blockMovement = false;
+                }
             }
         }
-
-        if (autoRotateConfig != null)
-            autoRotateConfig->Value.UInt = autoRotateOriginal;
-        _cooldownTweak.StopAdjustment(); // clear any potential adjustments
-        _movement.MovementBlocked = blockMovement;
-
-        // TODO: what's the reason to do it in AM update, rather than plugin's executehints?..
-        var uiState = UIState.Instance();
-        if (uiState != null)
+        catch (Exception ex)
         {
-            if (_ws.Party.Player()?.CastInfo != null && _cancelCastTweak.ShouldCancel(_ws.CurrentTime, _hints.ForceCancelCast))
-                uiState->Hotbar.CancelCast();
-
-            var autosEnabled = uiState->WeaponState.AutoAttackState.IsAutoAttacking;
-            if (_autoAutosTweak.GetDesiredState(autosEnabled, _ws.Party.Player()?.TargetID ?? 0) != autosEnabled)
-                _inst->UseAction(CSActionType.GeneralAction, 1);
+            // 一律不封鎖移動：把玩家卡在原地（WSAD 失效、而且他不會知道為什麼）比少一次滑步輔助嚴重得多
+            blockMovement = false;
+            DetourGuard.Report(nameof(UpdateDetour), ex);
+        }
+        finally
+        {
+            // 這三行都是純欄位寫入，不會擲例外 —— finally 本身絕不能再擲，否則整個防護等於沒有
+            if (autoRotateConfig != null)
+                autoRotateConfig->Value.UInt = autoRotateOriginal;
+            _cooldownTweak.StopAdjustment(); // clear any potential adjustments
+            _movement.MovementBlocked = blockMovement;
         }
 
-        if (_hints.WantDismount && !_movement.FollowPathActive() && _dismountTweak.AllowDismount())
-            _inst->UseAction(CSActionType.Action, 4);
+        try
+        {
+            // TODO: what's the reason to do it in AM update, rather than plugin's executehints?..
+            var uiState = UIState.Instance();
+            if (uiState != null)
+            {
+                if (_ws.Party.Player()?.CastInfo != null && _cancelCastTweak.ShouldCancel(_ws.CurrentTime, _hints.ForceCancelCast))
+                    uiState->Hotbar.CancelCast();
+
+                var autosEnabled = uiState->WeaponState.AutoAttackState.IsAutoAttacking;
+                if (_autoAutosTweak.GetDesiredState(autosEnabled, _ws.Party.Player()?.TargetID ?? 0) != autosEnabled)
+                    _inst->UseAction(CSActionType.GeneralAction, 1);
+            }
+
+            if (_hints.WantDismount && !_movement.FollowPathActive() && _dismountTweak.AllowDismount())
+                _inst->UseAction(CSActionType.Action, 4);
+        }
+        catch (Exception ex)
+        {
+            // 失敗代價：這一幀不取消詠唱、不切自動攻擊、不下馬。下一幀會重算，狀態不會累積
+            DetourGuard.Report(nameof(UpdateDetour) + "(post)", ex);
+        }
     }
 
     // note: targetId is usually your current primary target (or InvalidEntityId if you don't target anyone), unless you do something like /ac XXX <f> etc
+    // fail-closed 約定（見 Util/DetourGuard.cs）：自訂邏輯進 try、**Original 一律留在 try 外**。
+    // 這裡的受管理例外來源是 _manualQueue.Push —— 它會走 LINQ、字典查表，並且呼叫 ActionDefinition 的
+    // SmartTarget/TransformAngle 委派（各職業各自實作的任意程式碼）；NormalizeActionForQueue 與
+    // GetAdjustedCastTime 則會踩到 CS 的 [MemberFunction] 特徵碼失效。
+    // 🔴 self 與 GetConfigOption 的回傳值是裸指標，用判空處理、不包 try（AVE 攔不到）。
     private bool UseActionDetour(ActionManager* self, CSActionType actionType, uint actionId, ulong targetId, uint extraParam, ActionManager.UseActionMode mode, uint comboRouteId, bool* outOptAreaTargeted)
     {
-        var action = new ActionID((ActionType)actionType, actionId);
-        //Service.Log($"[AMEx] UA: {action} @ {targetId:X}: {extraParam} {mode} {comboRouteId}");
-        action = NormalizeActionForQueue(action);
-        var spellId = GetSpellIdForAction(action);
-
-        var targetSystem = TargetSystem.Instance();
-        if (targetSystem == null)
-            return _useActionHook.Original(self, actionType, actionId, targetId, extraParam, mode, comboRouteId, outOptAreaTargeted);
-
-        // if mouseover mode is enabled AND target is a usual primary target AND current mouseover is valid target for action, then we override target to mouseover
-        var primaryTarget = targetSystem->Target;
-        var primaryTargetId = primaryTarget != null ? primaryTarget->GetGameObjectId() : InvalidEntityId;
-        var targetOverridden = targetId != primaryTargetId;
-        var pronounModule = PronounModule.Instance();
-        if (Config.PreferMouseover && !targetOverridden && pronounModule != null)
+        var origTargetId = targetId; // 覆寫可能只做到一半就失敗，Original 要拿完全沒被我們碰過的參數
+        var haveTargetSystem = false; // 維持 false ＝ 走原本「targetSystem == null 就原封不動轉交」那條路
+        var queued = false;
+        try
         {
-            var mouseoverTarget = pronounModule->UiMouseOverTarget;
-            if (mouseoverTarget != null && ActionManager.CanUseActionOnTarget(spellId, mouseoverTarget))
+            var targetSystem = TargetSystem.Instance();
+            haveTargetSystem = targetSystem != null;
+            if (targetSystem != null)
             {
-                targetId = mouseoverTarget->GetGameObjectId();
-                targetOverridden = true;
+                // 註：原本 action/spellId 是算在 targetSystem 判空之前的，這裡搬到之後 ——
+                // NormalizeActionForQueue 與 GetSpellIdForAction 都是純查詢、沒有副作用，行為等價
+                var action = new ActionID((ActionType)actionType, actionId);
+                //Service.Log($"[AMEx] UA: {action} @ {targetId:X}: {extraParam} {mode} {comboRouteId}");
+                action = NormalizeActionForQueue(action);
+                var spellId = GetSpellIdForAction(action);
+
+                // if mouseover mode is enabled AND target is a usual primary target AND current mouseover is valid target for action, then we override target to mouseover
+                var primaryTarget = targetSystem->Target;
+                var primaryTargetId = primaryTarget != null ? primaryTarget->GetGameObjectId() : InvalidEntityId;
+                var targetOverridden = targetId != primaryTargetId;
+                var pronounModule = PronounModule.Instance();
+                if (Config.PreferMouseover && !targetOverridden && pronounModule != null)
+                {
+                    var mouseoverTarget = pronounModule->UiMouseOverTarget;
+                    if (mouseoverTarget != null && ActionManager.CanUseActionOnTarget(spellId, mouseoverTarget))
+                    {
+                        targetId = mouseoverTarget->GetGameObjectId();
+                        targetOverridden = true;
+                    }
+                }
+
+                (ulong, Vector3?) getAreaTarget() => targetOverridden ? (targetId, null) :
+                    (Config.GTMode == ActionTweaksConfig.GroundTargetingMode.AtTarget ? targetId : InvalidEntityId, Config.GTMode == ActionTweaksConfig.GroundTargetingMode.AtCursor ? GetWorldPosUnderCursor() : null);
+
+                ulong findNearestTarget()
+                {
+                    var fwk = Framework.Instance();
+                    // 🔴 GetConfigOption 會回 null（同一支呼叫在 UpdateDetour 就是判空的）；原本這裡直接解參考
+                    var autoNearest = fwk != null ? fwk->SystemConfig.GetConfigOption((uint)ConfigOption.AutoNearestTarget) : null;
+                    if (_autoSelectTarget != null && autoNearest != null && autoNearest->Value.UInt == 1u)
+                    {
+                        _autoSelectTarget(targetSystem);
+                        if (targetSystem->Target != null)
+                            return targetSystem->Target->GetGameObjectId();
+                    }
+
+                    return InvalidEntityId;
+                }
+
+                // note: only standard mode can be filtered
+                // note: current implementation introduces slight input lag (on button press, next autorotation update will pick state updates, which will be executed on next action manager update)
+                queued = mode == ActionManager.UseActionMode.None && action.Type is ActionType.Spell or ActionType.Item && _manualQueue.Push(action, targetId, GetAdjustedCastTime(action) * 0.001f, !targetOverridden, getAreaTarget, findNearestTarget);
             }
         }
-
-        (ulong, Vector3?) getAreaTarget() => targetOverridden ? (targetId, null) :
-            (Config.GTMode == ActionTweaksConfig.GroundTargetingMode.AtTarget ? targetId : InvalidEntityId, Config.GTMode == ActionTweaksConfig.GroundTargetingMode.AtCursor ? GetWorldPosUnderCursor() : null);
-
-        ulong findNearestTarget()
+        catch (Exception ex)
         {
-            if (_autoSelectTarget != null && Framework.Instance() is var fwk && fwk != null && fwk->SystemConfig.GetConfigOption((uint)ConfigOption.AutoNearestTarget)->Value.UInt == 1u)
-            {
-                _autoSelectTarget(targetSystem);
-                if (targetSystem->Target != null)
-                    return targetSystem->Target->GetGameObjectId();
-            }
-
-            return InvalidEntityId;
+            // 退化行為：這一次按鍵不進我們的手動佇列、也不套滑鼠指向目標，直接以原始參數交給遊戲的原生佇列
+            //（等於「手動佇列微調關掉」時的按鍵行為）。技能照樣打得出去。
+            targetId = origTargetId;
+            queued = false;
+            DetourGuard.Report(nameof(UseActionDetour), ex);
         }
 
-        // note: only standard mode can be filtered
-        // note: current implementation introduces slight input lag (on button press, next autorotation update will pick state updates, which will be executed on next action manager update)
-        if (mode == ActionManager.UseActionMode.None && action.Type is ActionType.Spell or ActionType.Item && _manualQueue.Push(action, targetId, GetAdjustedCastTime(action) * 0.001f, !targetOverridden, getAreaTarget, findNearestTarget))
-            return false;
+        if (queued)
+            return false; // 已收進我們自己的佇列，遊戲不會看到這次按鍵
+
+        if (!haveTargetSystem)
+            return _useActionHook.Original(self, actionType, actionId, origTargetId, extraParam, mode, comboRouteId, outOptAreaTargeted);
 
         var areaTargeted = false;
         // note: the transform is applied only here, on the value handed to the game - the manual-queue branch above still sees the original mode
         var res = _useActionHook.Original(self, actionType, actionId, targetId, extraParam, _macroQueueTweak.TransformMode(mode), comboRouteId, &areaTargeted);
         if (outOptAreaTargeted != null)
             *outOptAreaTargeted = areaTargeted;
-        if (areaTargeted && Config.GTMode == ActionTweaksConfig.GroundTargetingMode.AtCursor)
+        // self 是遊戲以 thiscall 傳進來的 this 指標，照理不會是 null；但下面兩行是**我們自己的寫入**，
+        // 判空的成本是一個比較，寫進 null+偏移的成本是 AVE（攔不到、整個遊戲直接沒了）
+        if (self != null && areaTargeted && Config.GTMode == ActionTweaksConfig.GroundTargetingMode.AtCursor)
             self->AreaTargetingExecuteAtCursor = true;
-        if (areaTargeted && Config.GTMode == ActionTweaksConfig.GroundTargetingMode.AtTarget)
+        if (self != null && areaTargeted && Config.GTMode == ActionTweaksConfig.GroundTargetingMode.AtTarget)
             self->AreaTargetingExecuteAtObject = targetId;
         return res;
     }
 
+    // fail-closed 約定（見 Util/DetourGuard.cs）。
+    // 📌 包住 Original 的那個 try 是 try/**finally**、沒有 catch —— 它一個例外都不吞，存在的理由是保證
+    //    EnterGameExecution/LeaveGameExecution 成對（不成對會讓縮短詠唱洩漏到遊戲 UI 與其他外掛）。
+    //    稽核把它標成 ORIG_IN_TRY 是誤判，刻意不動它。
+    // 🔴 location 是裸指標，而且 CS 的宣告本身就是 `Vector3* location = null` —— 任何用預設值呼叫
+    //    UseActionLocation 的人（遊戲內部路徑、其他外掛）都會讓我們在這裡解參考 null。判空，不是包 try。
     private bool UseActionLocationDetour(ActionManager* self, CSActionType actionType, uint actionId, ulong targetId, Vector3* location, uint extraParam, byte a7)
     {
         var targetSystem = TargetSystem.Instance();
         var player = PlayerObject();
-        var prevSeq = _inst->LastUsedActionSequence;
+        var prevSeq = _inst != null ? _inst->LastUsedActionSequence : default;
         var prevRot = player != null ? player->Rotation.Radians() : default;
         var hardTarget = targetSystem != null ? targetSystem->Target : null;
-        var preventAutos = targetSystem != null && _autoAutosTweak.ShouldPreventAutoActivation(ActionManager.GetSpellIdForAction(actionType, actionId));
+        var preventAutos = false;
+        try
+        {
+            // ShouldPreventAutoActivation 會讀 Lumina 的 Action 表 —— 台服表對不上時是擲例外，不是回 null
+            preventAutos = targetSystem != null && _autoAutosTweak.ShouldPreventAutoActivation(ActionManager.GetSpellIdForAction(actionType, actionId));
+        }
+        catch (Exception ex)
+        {
+            // 退化行為：這一發不做「開打前不要誤觸自動攻擊」的抑制，其餘完全照舊
+            DetourGuard.Report(nameof(UseActionLocationDetour) + "(pre)", ex);
+        }
         if (preventAutos)
             targetSystem->Target = null;
         bool ret;
@@ -621,14 +718,27 @@ public sealed unsafe class ActionManagerEx : IDisposable
         finally
         {
             _castTimeTweak.LeaveGameExecution();
+            // 玩家的硬目標是我們暫時清掉的，還原一定要發生（原本寫在 try 之後，中途離開就漏掉了）。
+            // 順序與原本相同：先 LeaveGameExecution 再還原目標。
+            if (preventAutos)
+                targetSystem->Target = hardTarget;
         }
-        if (preventAutos)
-            targetSystem->Target = hardTarget;
-        var currSeq = _inst->LastUsedActionSequence;
+        var currSeq = _inst != null ? _inst->LastUsedActionSequence : default;
         var currRot = player != null ? player->Rotation.Radians() : default;
         if (currSeq != prevSeq)
         {
-            HandleActionRequest(new((ActionType)actionType, actionId), currSeq, targetId, *location, prevRot, currRot);
+            try
+            {
+                // location 判空：null 時退化成原點，等同「這是非範圍技」——註：_inst 為 null 時 prevSeq/currSeq
+                // 都是 0，這裡進不來，所以 HandleActionRequest 裡的 _inst 解參考不需要另外判空
+                HandleActionRequest(new((ActionType)actionType, actionId), currSeq, targetId, location != null ? *location : default, prevRot, currRot);
+            }
+            catch (Exception ex)
+            {
+                // 退化行為：技能遊戲照樣打出去，但 BossMod 的事件流沒收到這一發 —— 這次請求不進 replay、
+                // 動畫鎖延遲估計少一個樣本、手動佇列裡的對應項目不會出列（它會自己到期）。遊戲本身不受影響。
+                DetourGuard.Report(nameof(UseActionLocationDetour), ex);
+            }
         }
         return ret;
     }
@@ -661,49 +771,60 @@ public sealed unsafe class ActionManagerEx : IDisposable
     // fail-closed 約定（見 Util/DetourGuard.cs）：自訂邏輯全部進 try，
     // **Original 一律照樣呼叫**；前半段失敗時直接跳過後半段的動畫鎖調整（不拿沒算出來的值去改遊戲狀態）。
     // ⚠️ 這不防 AccessViolationException，防的是受管理例外逸出到原生框架。
+    // 🔴 裸指標一律判空、不靠 try：header 是整段自訂處理唯一的資料來源；CS 的 Receive 註解寫明
+    //    effects/targets 只保證有 header->NumTargets 個元素，而 targetPos「只有範圍技才有意義」；
+    //    _inst 則是動畫鎖調整的寫入目標。任一不成立就整段不做，把封包原封不動交回遊戲。
     private void ProcessPacketActionEffectDetour(uint casterID, Character* casterObj, Vector3* targetPos, ActionEffectHandler.Header* header, ActionEffectHandler.TargetEffects* effects, GameObjectId* targets)
     {
         ActorCastEvent? info = null;
         float packetAnimLock = 0, prevAnimLock = 0;
-        try
+        // NumTargets == 0 時下面的迴圈不會執行，effects/targets 是不是 null 就無所謂（(ulong*) 轉型不解參考）
+        if (header != null && _inst != null && (header->NumTargets == 0 || (effects != null && targets != null)))
         {
-            // notify listeners about the event
-            // note: there's a slight difference with dispatching event from here rather than from packet processing (ActionEffectN) functions
-            // 1. action id is already unscrambled
-            // 2. this function won't be called if caster object doesn't exist
-            // the last point is deemed to be minor enough for us to not care, as it simplifies things (no need to hook 5 functions)
-            info = new ActorCastEvent(new((ActionType)header->ActionType, header->ActionId), header->AnimationTargetId, header->AnimationLock, header->NumTargets, *targetPos,
-                header->GlobalSequence, header->SourceSequence, Network.PacketDecoder.IntToFloatAngle(header->RotationInt));
-            var rawEffects = (ulong*)effects;
-            for (var i = 0; i < header->NumTargets; ++i)
+            try
             {
-                var targetEffects = new ActionEffects();
-                for (var j = 0; j < ActionEffects.MaxCount; ++j)
-                    targetEffects[j] = rawEffects[i * 8 + j];
-                info.Targets.Add(new(targets[i], targetEffects));
-            }
-            ActionEffectReceived.Fire(casterID, info);
+                // notify listeners about the event
+                // note: there's a slight difference with dispatching event from here rather than from packet processing (ActionEffectN) functions
+                // 1. action id is already unscrambled
+                // 2. this function won't be called if caster object doesn't exist
+                // the last point is deemed to be minor enough for us to not care, as it simplifies things (no need to hook 5 functions)
+                info = new ActorCastEvent(new((ActionType)header->ActionType, header->ActionId), header->AnimationTargetId, header->AnimationLock, header->NumTargets, targetPos != null ? *targetPos : default,
+                    header->GlobalSequence, header->SourceSequence, Network.PacketDecoder.IntToFloatAngle(header->RotationInt));
+                var rawEffects = (ulong*)effects;
+                for (var i = 0; i < header->NumTargets; ++i)
+                {
+                    var targetEffects = new ActionEffects();
+                    for (var j = 0; j < ActionEffects.MaxCount; ++j)
+                        targetEffects[j] = rawEffects[i * 8 + j];
+                    info.Targets.Add(new(targets[i], targetEffects));
+                }
+                ActionEffectReceived.Fire(casterID, info);
 
-            packetAnimLock = header->AnimationLock;
-            prevAnimLock = _inst->AnimationLock;
-        }
-        catch (Exception ex)
-        {
-            info = null; // 前半段沒跑完 -> 後半段的動畫鎖調整整段跳過
-            DetourGuard.Report(nameof(ProcessPacketActionEffectDetour), ex);
+                packetAnimLock = header->AnimationLock;
+                prevAnimLock = _inst->AnimationLock;
+            }
+            catch (Exception ex)
+            {
+                info = null; // 前半段沒跑完 -> 後半段的動畫鎖調整整段跳過
+                DetourGuard.Report(nameof(ProcessPacketActionEffectDetour), ex);
+            }
         }
 
         // call the hooked function and observe the effects
         _processPacketActionEffectHook.Original(casterID, casterObj, targetPos, header, effects, targets);
 
+        // info != null 蘊含 header != null && _inst != null（上面那道閘門），所以下面兩者可以直接解參考
         if (info == null)
             return;
 
         try
         {
             var currAnimLock = _inst->AnimationLock;
+            var uiState = UIState.Instance();
 
-            if (casterID != UIState.Instance()->PlayerState.EntityId || !ExpectAnimationLockUpdate(header))
+            // uiState 為 null（早期登入／換區／標題畫面）時一律當成「非玩家發動」：只記錄、不調整動畫鎖。
+            // 原本這裡是 UIState.Instance()->PlayerState 直接解參考。
+            if (uiState == null || casterID != uiState->PlayerState.EntityId || !ExpectAnimationLockUpdate(header))
             {
                 // this action is either executed by non-player, or is non-player-initiated
                 // TODO: reconsider the condition:
