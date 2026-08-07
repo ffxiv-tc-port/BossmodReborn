@@ -65,33 +65,63 @@ public sealed unsafe class ActionQueueWindowTweak : IDisposable
         }
     }
 
+    // fail-closed 約定（見 Util/DetourGuard.cs）：自訂邏輯進 try、**Original 一律留在 try 外**。
+    // 📌 下半段包住 Original 的那個 try 是 try/**finally**、沒有 catch —— 它一個例外都不吞，存在的理由是保證
+    //    我們暫時位移過的 Elapsed 一定會被還原（不還原＝把玩家的冷卻永久偏移 delta 秒）。
+    //    稽核把它標成 ORIG_IN_TRY 是誤判，刻意不動它。
+    // 受管理例外來源在**上半段**：GetRecastGroup / GetAdditionalRecastGroup / GetRecastGroupDetail 三支都是
+    // CS 的 [MemberFunction]，特徵碼失效時走 ThrowHelper.ThrowNullAddress 擲 InvalidOperationException
+    // （不是回 null）。台服是特徵碼漂移最容易發生的地方，而這支 detour 掛在按鍵路徑上，逸出就是整個遊戲沒了。
+    // 🔴 main/additional 是裸指標，一律判空、不靠 try（AVE 攔不到）—— 原本就是這樣寫的，維持不變。
     private bool IsActionOffCooldownDetour(ActionManager* self, CSActionType actionType, uint actionId)
     {
-        var delta = DesiredWindow - GameWindow;
-        if (self == null || delta == 0)
-            return _hook.Original(self, actionType, actionId);
+        // 只有「真的被我們改過」的指標才會進還原名單：位移與記錄成對寫在一起，所以 finally 絕不會拿
+        // 一個沒讀成功的 0 去覆蓋玩家真正的 Elapsed。
+        RecastDetail* restoreMain = null, restoreAdditional = null;
+        float mainElapsed = 0, additionalElapsed = 0;
+        try
+        {
+            var delta = DesiredWindow - GameWindow;
+            if (self != null && delta != 0)
+            {
+                // resolve exactly the same two recast details the original is about to read; GetRecastGroupDetail returns null for negative/unknown groups
+                var main = self->GetRecastGroupDetail(self->GetRecastGroup((int)actionType, actionId));
+                var additional = self->GetRecastGroupDetail(self->GetAdditionalRecastGroup(actionType, actionId));
+                if (additional == main)
+                    additional = null;
+                // 註：原本是「兩個 Elapsed 都先讀完，才開始寫」，這裡改成逐一「讀→寫」。上面那行保證
+                // main != additional，兩個 RecastDetail 是陣列裡不同的元素、不重疊，所以交錯順序完全等價。
+                if (main != null)
+                {
+                    mainElapsed = main->Elapsed;
+                    main->Elapsed = mainElapsed + delta;
+                    restoreMain = main;
+                }
+                if (additional != null)
+                {
+                    additionalElapsed = additional->Elapsed;
+                    additional->Elapsed = additionalElapsed + delta;
+                    restoreAdditional = additional;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // 退化行為：這一次查詢用遊戲原本的 0.5 秒佇列窗口（＝「自訂技能佇列窗口」關掉時的行為）。
+            // 已經位移過的部分仍然在還原名單裡，下面的 finally 照樣會還原，不會留下偏移的冷卻。
+            DetourGuard.Report(nameof(IsActionOffCooldownDetour), ex);
+        }
 
-        // resolve exactly the same two recast details the original is about to read; GetRecastGroupDetail returns null for negative/unknown groups
-        var main = self->GetRecastGroupDetail(self->GetRecastGroup((int)actionType, actionId));
-        var additional = self->GetRecastGroupDetail(self->GetAdditionalRecastGroup(actionType, actionId));
-        if (additional == main)
-            additional = null;
-        var mainElapsed = main != null ? main->Elapsed : 0;
-        var additionalElapsed = additional != null ? additional->Elapsed : 0;
-        if (main != null)
-            main->Elapsed = mainElapsed + delta;
-        if (additional != null)
-            additional->Elapsed = additionalElapsed + delta;
         try
         {
             return _hook.Original(self, actionType, actionId);
         }
         finally
         {
-            if (main != null)
-                main->Elapsed = mainElapsed;
-            if (additional != null)
-                additional->Elapsed = additionalElapsed;
+            if (restoreMain != null)
+                restoreMain->Elapsed = mainElapsed;
+            if (restoreAdditional != null)
+                restoreAdditional->Elapsed = additionalElapsed;
         }
     }
 }

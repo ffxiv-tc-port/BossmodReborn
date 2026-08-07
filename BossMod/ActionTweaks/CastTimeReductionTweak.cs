@@ -63,26 +63,46 @@ public sealed unsafe class CastTimeReductionTweak : IDisposable
     // still be told it was shortened and would get a slidecast window that is too short by exactly the old reduction
     public float ReductionSeconds(ActionID action) => ReductionMS > 0 && action && action == _lastReducedAction ? _lastReductionSeconds : 0;
 
+    // fail-closed 約定（見 Util/DetourGuard.cs）：自訂邏輯進 try、**Original 一律留在 try 外**（它本來就在最前面）。
+    // 受管理例外來源是 ActionManager.GetAdjustedRecastTime —— CS 的 [MemberFunction]，特徵碼失效時走
+    // ThrowHelper.ThrowNullAddress 擲 InvalidOperationException（不是回 0）。
+    // ⚠️ 這支 hook 是**全域**的：遊戲自己有 7 個呼叫點、BossMod 每幀會呼叫、其他外掛也會呼叫（見上面的 Scoping 段），
+    //    所以受管理例外從這裡逸出的影響面比其他 detour 都廣，不是只有詠唱那一瞬間。
+    // 🔴 outOptProc 是裸指標，我們一次都沒有解參考它，原封不動轉交 Original —— 這裡沒有裸指標問題。
     private int GetAdjustedCastTimeDetour(CSActionType actionType, uint actionId, bool applyProcs, ActionManager.CastTimeProc* outOptProc)
     {
         // note: outOptProc is a native pointer that we never dereference - it is passed straight through to the original
         var castTimeMS = _hook.Original(actionType, actionId, applyProcs, outOptProc);
+        // 純欄位讀取，不會擲例外；留在 try 外，讓「其他消費端一律拿到未改動的值」這件事在語法上就看得出來
         if (_gameExecutionDepth <= 0)
             return castTimeMS; // not the game's action execution path - every other consumer sees the unmodified value
 
-        // past this point we know the game is setting up a cast for this exact action, so this is also the moment the previous cast's record stops
-        // being true: every path that does not reduce has to clear it, otherwise an unreduced cast of a previously reduced action would keep
-        // reporting a stale reduction to ReductionSeconds and shrink its slidecast window for no reason
-        var reduction = ReductionMS;
-        // second condition: recast (GCD) is the bottleneck, not the cast - shortening would gain nothing and could outrun the cooldown
-        if (reduction <= 0 || castTimeMS - reduction < MinResultingCastMS || ActionManager.GetAdjustedRecastTime(actionType, actionId) > castTimeMS)
+        try
         {
+            // past this point we know the game is setting up a cast for this exact action, so this is also the moment the previous cast's record stops
+            // being true: every path that does not reduce has to clear it, otherwise an unreduced cast of a previously reduced action would keep
+            // reporting a stale reduction to ReductionSeconds and shrink its slidecast window for no reason
+            var reduction = ReductionMS;
+            // second condition: recast (GCD) is the bottleneck, not the cast - shortening would gain nothing and could outrun the cooldown
+            if (reduction <= 0 || castTimeMS - reduction < MinResultingCastMS || ActionManager.GetAdjustedRecastTime(actionType, actionId) > castTimeMS)
+            {
+                _lastReducedAction = default;
+                return castTimeMS;
+            }
+
+            _lastReducedAction = new((ActionType)actionType, actionId);
+            _lastReductionSeconds = reduction * 0.001f;
+            return castTimeMS - reduction;
+        }
+        catch (Exception ex)
+        {
+            // 退化行為：這一次詠唱不縮短，遊戲拿到未改動的詠唱時間（＝「縮短長詠唱」關掉時的行為）。
+            // _lastReducedAction 一定要清掉 —— 這是上面那段註解講的不變量：**沒有縮短的路徑都必須清**，
+            // 否則 SlidecastMarkerTweak / CalculateDesiredOrientation 會拿舊的縮短量去算，
+            // 把滑步窗口縮短成一個不存在的值（而且畫面上看不出來）。
             _lastReducedAction = default;
+            DetourGuard.Report(nameof(GetAdjustedCastTimeDetour), ex);
             return castTimeMS;
         }
-
-        _lastReducedAction = new((ActionType)actionType, actionId);
-        _lastReductionSeconds = reduction * 0.001f;
-        return castTimeMS - reduction;
     }
 }

@@ -72,6 +72,12 @@ public sealed unsafe class IgnoreLineOfSightTweak : IDisposable
         _hook.Dispose();
     }
 
+    // 刻意**不**包 try（見 Util/DetourGuard.cs 的 fail-closed 約定）：Original 之後的自訂邏輯只有一個 uint 比較
+    // 加一個 bool 欄位讀取，沒有任何會擲受管理例外的東西 —— _config 是建構時就取好的 readonly 參考
+    // （Service.Config.Get<T>() 若擲例外，這個 tweak 根本不會被建出來、hook 也就不會安裝，這支 detour 走不到），
+    // 而 _hook.Original 這個屬性只在 hook 沒安裝時擲例外，同樣走不到。
+    // 包起來只會得到一個永遠進不去的 catch，反而讓下一輪稽核以為這裡有東西要防。
+    // 🔴 sourceObject/targetObject 是裸指標，我們一次都沒有解參考它們，原封不動轉交 Original（上面 Safety 段已載明）。
     private uint GetActionInRangeOrLoSDetour(uint actionId, GameObject* sourceObject, GameObject* targetObject)
     {
         // always let the game do the whole check, then reinterpret only its verdict; the config is re-read here because a detour can still

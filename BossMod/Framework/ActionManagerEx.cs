@@ -743,21 +743,49 @@ public sealed unsafe class ActionManagerEx : IDisposable
         return ret;
     }
 
+    // fail-closed 約定（見 Util/DetourGuard.cs）：自訂邏輯進 try、**Original 一律留在 try 外**。
+    // 受管理例外來源有兩個：
+    //   ① HandleActionRequest —— 會 Fire ActionRequestExecuted（BossMod 整條事件流：replay 記錄、自動輪替、AI），
+    //      並呼叫 CanMoveWhileCasting（讀 Lumina 的 Action 表）與 GetRecastGroup
+    //      （CS 的 [MemberFunction]，特徵碼失效時是 ThrowHelper.ThrowNullAddress 擲 InvalidOperationException，
+    //      不是回 0）。
+    //   ② HolsterActions 是 Span<byte>（BozjaState._holsterActions 為 FixedSizeArray100<byte>），
+    //      Span 的索引子有邊界檢查 —— holsterIndex 越界會擲 IndexOutOfRangeException
+    //      （(int) 轉型讓 >int.MaxValue 的值變負，同樣落在這裡）。
+    // 🔴 self 與 _inst 是裸指標，用判空處理、不包 try（AVE 攔不到）：
+    //    self->State.HolsterActions 讀的是 self+0x31CC（State@0x3160 + _holsterActions@0x6C），
+    //    而 HandleActionRequest 整支都在解參考 _inst。
     private bool UseBozjaFromHolsterDirectorDetour(PublicContentBozja* self, uint holsterIndex, uint slot)
     {
         var player = PlayerObject();
         var prevRot = player != null ? player->Rotation.Radians() : default;
         var res = _useBozjaFromHolsterDirectorHook.Original(self, holsterIndex, slot);
         var currRot = player != null ? player->Rotation.Radians() : default;
-        if (res)
+        if (res && self != null && _inst != null)
         {
-            var entry = (BozjaHolsterID)self->State.HolsterActions[(int)holsterIndex];
-            HandleActionRequest(ActionID.MakeBozjaHolster(entry, (int)slot), 0, InvalidEntityId, default, prevRot, currRot);
+            try
+            {
+                var entry = (BozjaHolsterID)self->State.HolsterActions[(int)holsterIndex];
+                HandleActionRequest(ActionID.MakeBozjaHolster(entry, (int)slot), 0, InvalidEntityId, default, prevRot, currRot);
+            }
+            catch (Exception ex)
+            {
+                // 退化行為：寶物庫失落技能照樣打得出去（Original 已經跑完、遊戲已經送出請求），
+                // 但這一發不進 BossMod 事件流 —— 不進 replay、手動佇列不會被 Pop、動畫鎖延遲少一個樣本、
+                // 這一次的旋轉還原不生效。遊戲本身完全不受影響。
+                DetourGuard.Report(nameof(UseBozjaFromHolsterDirectorDetour), ex);
+            }
         }
         return res;
     }
 
     // TODO add to manual queue (and also add holsters)
+    // 刻意**不**包 try：這兩支目前是純轉交，detour 本體一行自訂邏輯都沒有，唯一的呼叫就是 Original 本身。
+    // （HookAddress<T>.Original 這個屬性只在 hook 沒安裝時擲 InvalidOperationException，而沒安裝就不會有人
+    //  呼叫這支 detour，所以那條路走不到。）包起來只會得到一個永遠進不去的 catch，
+    // 反而讓下一輪稽核以為這裡有東西要防。
+    // ⚠️ 上面那行 TODO 真的動工時（把深層迷宮的魔石／魔土接進手動佇列），要照 UseBozjaFromHolsterDirectorDetour
+    //    補 fail-closed try，並且記得 self 是裸指標。
     private void UsePomanderDetour(InstanceContentDeepDungeon* self, uint slot)
     {
         _usePomanderHook.Original(self, slot);
@@ -873,10 +901,30 @@ public sealed unsafe class ActionManagerEx : IDisposable
 
     // note: we can't rely on worldstate target id, it might not be updated when this is called
     // TODO: current implementation means that we'll check desired state twice (once before making a decision to start autos, then again in the hook)
+    // fail-closed 約定（見 Util/DetourGuard.cs）：自訂邏輯進 try、**Original 一律留在 try 外**。
+    // 受管理例外來源是 _autoAutosTweak.GetDesiredState —— 它讀 AIHints、對 ws.Actors 查表、走 LINQ
+    // （player.Statuses.Any(...)）、呼叫 hints.FindEnemy，而且它讀的 Enabled 會呼叫
+    // GameMain.IsInPvPInstance()（CS 的 [MemberFunction]，特徵碼失效時擲 InvalidOperationException）。
+    // 🔴 self 從頭到尾只是原封不動轉交給 Original，我們一次都沒有解參考它 —— 這裡沒有裸指標問題。
+    //    targetSystem 則是原本就有判空。
     private bool SetAutoAttackStateDetour(AutoAttackState* self, bool value, bool sendPacket, bool isInstant)
     {
-        var targetSystem = TargetSystem.Instance();
-        if (value && targetSystem != null && !_autoAutosTweak.GetDesiredState(true, targetSystem->GetTargetObjectId()))
+        var prevent = false;
+        try
+        {
+            var targetSystem = TargetSystem.Instance();
+            prevent = value && targetSystem != null && !_autoAutosTweak.GetDesiredState(true, targetSystem->GetTargetObjectId());
+        }
+        catch (Exception ex)
+        {
+            // 退化行為：這一次不抑制自動攻擊，等同「自動攻擊管理」關掉時的樣子。
+            // 方向是刻意選的：算不出來就當 true 會讓玩家按了卻打不出去、而且他不會知道為什麼；
+            // 不抑制最多是提早一拍開打，還在遊戲原本就允許的行為範圍內。
+            prevent = false;
+            DetourGuard.Report(nameof(SetAutoAttackStateDetour), ex);
+        }
+
+        if (prevent)
         {
             Service.Log($"[AMEx] Prevented starting autoattacks");
             return true;
