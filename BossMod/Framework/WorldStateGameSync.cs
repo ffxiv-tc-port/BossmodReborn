@@ -919,12 +919,23 @@ sealed class WorldStateGameSync : IDisposable
     // 以下每一支 detour 都遵守同一個 fail-closed 約定（見 Util/DetourGuard.cs）：
     // 自訂邏輯進 try、catch 受管理例外後節流記一行 Information，**Original 一律照樣呼叫、照樣回傳其結果**。
     // ⚠️ 這不防 AccessViolationException（那攔不到），防的是受管理例外逸出到原生框架。
+    //
+    // 📌 關於封包指標參數的判空（稽核工具會對這一批標 DEREF_PARAM，那是誤判，別再開一輪）：
+    //    這裡除了 ActorCast 以外，每一支都是**先呼叫 Original、再讀封包**。Original 就是遊戲自己的
+    //    處理函式，它已經解參考過同一個指標了 —— 指標若是 null，行程在進到我們的 try 之前就已經死在
+    //    遊戲自己的碼裡。所以在那些位置補判空不會多擋下任何一次崩潰，只會讓下一輪稽核看不出差別。
+    //    唯一有意義的位置是**我們比遊戲先碰到指標**的那支（ActorCast），已補在下面。
+    //    ⚠️ 同理，count/長度欄位（EffectResult 的 packet[0]、MapEffect 的 *data、SystemLogMessage 的
+    //    argCount）也都取自遊戲自己的封包，遊戲的 Original 用同一個值跑同一個迴圈，我們沒有更好的上界。
 
     private unsafe void ProcessPacketActorCastDetour(uint casterId, Network.ServerIPC.ActorCast* packet)
     {
         try
         {
-            _lastCastPositions[casterId] = Network.PacketDecoder.IntToFloatCoords(packet->PosX, packet->PosY, packet->PosZ);
+            // 🔴 這是本檔唯一「我們比 Original 先解參考封包」的地方 —— 判空讓我們不會搶在遊戲之前
+            //    因為 null 而崩掉（且崩在 BMR 的堆疊上）。非 null 時逐行等價。
+            if (packet != null)
+                _lastCastPositions[casterId] = Network.PacketDecoder.IntToFloatCoords(packet->PosX, packet->PosY, packet->PosZ);
         }
         catch (Exception ex)
         {

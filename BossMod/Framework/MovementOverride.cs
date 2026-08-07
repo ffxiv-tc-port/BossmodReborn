@@ -133,6 +133,10 @@ public sealed unsafe class MovementOverride : IDisposable
     //    ① FollowPathActive() 讀 vnavmesh 透過 Dalamud data share 給的 bool[]（長度不是我們控制的 → IndexOutOfRange）
     //    ② ForwardMovementDirection() 的 Camera.Instance!（null-forgiving → NullReference）
     //       與 CS 特徵碼失效時 [StaticAddress]/[MemberFunction] 擲的 InvalidOperationException。
+    //
+    // 📌 稽核工具會對 sumLeft／sumForward／result 標 DEREF_PARAM，那是誤判、不要再開一輪：
+    //    這三個都是遊戲的 out 參數，而**每一支都先呼叫 Original**（那正是負責寫入它們的遊戲函式）。
+    //    指標若是 null，行程在進到我們的碼之前就已經死在遊戲自己的 readInput 裡；補判空擋不到任何事。
     private void RMIWalkDetour(void* self, float* sumLeft, float* sumForward, float* sumTurnLeft, byte* haveBackwardOrStrafe, byte* a6, byte bAdditiveUnk)
     {
         _forcedControlState = null;

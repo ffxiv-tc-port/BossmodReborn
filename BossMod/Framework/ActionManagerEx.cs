@@ -344,6 +344,9 @@ public sealed unsafe class ActionManagerEx : IDisposable
     }
 
     // skips queueing etc
+    // 📌 這**不是** detour（稽核工具會把它列進來，因為它呼叫了 _useActionHook.Original）。
+    //    唯一的呼叫端是 UpdateDetour 裡已經包好 try 的那一段，而 _inst 也已在該處判過空 ——
+    //    在這裡再包一層 try 只會讓 UpdateDetour 的 fail-closed 語意（失敗就不封鎖移動）失效。
     private bool ExecuteAction(ActionID action, ulong targetId, Vector3 targetPos)
     {
         switch (action.Type)
