@@ -125,59 +125,89 @@ public sealed unsafe class MovementOverride : IDisposable
         return _navmeshPathIsRunning != null && _navmeshPathIsRunning[0];
     }
 
+    // 以下三支 detour 遵守與 WorldStateGameSync 相同的 fail-closed 約定（見 Util/DetourGuard.cs）：
+    // **自訂邏輯進 try、Original 一律留在 try 外**。失敗時 *sumLeft/*sumForward 維持 Original 算出來的值，
+    // 也就是「玩家自己的輸入原封不動通過、只是不做覆寫」。
+    // ⚠️ 這不防 AccessViolationException（在 .NET Core 是 corrupted-state exception，攔不到）；
+    //    防的是受管理例外 —— 這裡實際存在的來源有兩個：
+    //    ① FollowPathActive() 讀 vnavmesh 透過 Dalamud data share 給的 bool[]（長度不是我們控制的 → IndexOutOfRange）
+    //    ② ForwardMovementDirection() 的 Camera.Instance!（null-forgiving → NullReference）
+    //       與 CS 特徵碼失效時 [StaticAddress]/[MemberFunction] 擲的 InvalidOperationException。
     private void RMIWalkDetour(void* self, float* sumLeft, float* sumForward, float* sumTurnLeft, byte* haveBackwardOrStrafe, byte* a6, byte bAdditiveUnk)
     {
         _forcedControlState = null;
         _rmiWalkHook.Original(self, sumLeft, sumForward, sumTurnLeft, haveBackwardOrStrafe, a6, bAdditiveUnk);
 
-        // TODO: we really need to introduce some extra checks that PlayerMoveController::readInput does - sometimes it skips reading input, and returning something non-zero breaks stuff...
-        var movementAllowed = bAdditiveUnk == 0 && _rmiWalkIsInputEnabled1 != null && _rmiWalkIsInputEnabled1(self) && _rmiWalkIsInputEnabled2 != null && _rmiWalkIsInputEnabled2(self) && !FollowPathActive();
-        var misdirectionMode = PlayerHasMisdirection();
+        bool movementAllowed, misdirectionMode;
+        try
+        {
+            // TODO: we really need to introduce some extra checks that PlayerMoveController::readInput does - sometimes it skips reading input, and returning something non-zero breaks stuff...
+            movementAllowed = bAdditiveUnk == 0 && _rmiWalkIsInputEnabled1 != null && _rmiWalkIsInputEnabled1(self) && _rmiWalkIsInputEnabled2 != null && _rmiWalkIsInputEnabled2(self) && !FollowPathActive();
+            misdirectionMode = PlayerHasMisdirection();
+        }
+        catch (Exception ex)
+        {
+            // 連「該不該介入」都算不出來 → 完全不介入，Original 的輸出原封不動送回遊戲
+            DetourGuard.Report(nameof(RMIWalkDetour), ex);
+            return;
+        }
+
         if (!movementAllowed && misdirectionMode)
         {
             // in misdirection mode, when we are already moving, the 'original' call will not actually sample input and just return immediately
             // we actually want to know the direction, in case user changes input mid movement - so force sample raw input
+            // 注意：這是第二次呼叫 Original，同樣刻意留在 try 外
             float realTurn = 0;
             byte realStrafe = 0, realUnk = 0;
             _rmiWalkHook.Original(self, sumLeft, sumForward, &realTurn, &realStrafe, &realUnk, 1);
         }
 
-        // at this point, UserMove contains true user input
-        UserMove = new(*sumLeft, *sumForward);
-
-        // apply movement block logic
-        // note: currently movement block is ignored in misdirection mode
-        // the assumption is that, with misdirection active, it's not safe to block movement just because player is casting or doing something else (as arrow will rotate away)
-        ActualMove = !MovementBlocked || misdirectionMode ? UserMove : default;
-
-        // movement override logic
-        // note: currently we follow desired direction, only if user does not have any input _or_ if manual movement is blocked
-        // this allows AI mode to move even if movement is blocked (TODO: is this the right behavior? AI mode should try to avoid moving while casting anyway...)
-        var allowAuto = movementAllowed ? !MovementBlocked : misdirectionMode;
-        if (allowAuto && ActualMove == default && DirectionToDestination(false) is var relDir && relDir != null)
+        try
         {
-            ActualMove = relDir.Value.h.ToDirection();
-        }
+            // at this point, UserMove contains true user input
+            UserMove = new(*sumLeft, *sumForward);
 
-        // misdirection override logic
-        if (misdirectionMode)
-        {
-            var thresholdDeg = UserMove != default ? _tweaksConfig.MisdirectionThreshold : MisdirectionThreshold.Deg;
-            if (thresholdDeg < 180f && ForcedMovementDirection != null)
+            // apply movement block logic
+            // note: currently movement block is ignored in misdirection mode
+            // the assumption is that, with misdirection active, it's not safe to block movement just because player is casting or doing something else (as arrow will rotate away)
+            ActualMove = !MovementBlocked || misdirectionMode ? UserMove : default;
+
+            // movement override logic
+            // note: currently we follow desired direction, only if user does not have any input _or_ if manual movement is blocked
+            // this allows AI mode to move even if movement is blocked (TODO: is this the right behavior? AI mode should try to avoid moving while casting anyway...)
+            var allowAuto = movementAllowed ? !MovementBlocked : misdirectionMode;
+            if (allowAuto && ActualMove == default && DirectionToDestination(false) is var relDir && relDir != null)
             {
-                // note: if we are already moving, it doesn't matter what we do here, only whether 'is input active' function returns true or false
-                _forcedControlState = ActualMove != default && (Angle.FromDirection(ActualMove) + ForwardMovementDirection() - ForcedMovementDirection->Radians()).Normalized().Abs().Deg <= thresholdDeg;
+                ActualMove = relDir.Value.h.ToDirection();
             }
-        }
 
-        // finally, update output
-        var output = !misdirectionMode ? ActualMove // standard mode - just return desired movement
-            : !movementAllowed ? default // misdirection and already moving - always return 0, as game does
-            : _forcedControlState == null ? ActualMove // misdirection mode, but we're not trying to help user
-            : _forcedControlState.Value ? ActualMove // misdirection mode, not moving yet, but want to start - can return anything really
-            : default; // misdirection mode, not moving yet and don't want to
-        *sumLeft = output.X;
-        *sumForward = output.Z;
+            // misdirection override logic
+            if (misdirectionMode)
+            {
+                var thresholdDeg = UserMove != default ? _tweaksConfig.MisdirectionThreshold : MisdirectionThreshold.Deg;
+                if (thresholdDeg < 180f && ForcedMovementDirection != null)
+                {
+                    // note: if we are already moving, it doesn't matter what we do here, only whether 'is input active' function returns true or false
+                    _forcedControlState = ActualMove != default && (Angle.FromDirection(ActualMove) + ForwardMovementDirection() - ForcedMovementDirection->Radians()).Normalized().Abs().Deg <= thresholdDeg;
+                }
+            }
+
+            // finally, update output
+            var output = !misdirectionMode ? ActualMove // standard mode - just return desired movement
+                : !movementAllowed ? default // misdirection and already moving - always return 0, as game does
+                : _forcedControlState == null ? ActualMove // misdirection mode, but we're not trying to help user
+                : _forcedControlState.Value ? ActualMove // misdirection mode, not moving yet, but want to start - can return anything really
+                : default; // misdirection mode, not moving yet and don't want to
+            *sumLeft = output.X;
+            *sumForward = output.Z;
+        }
+        catch (Exception ex)
+        {
+            // 半路失敗：*sumLeft/*sumForward 還沒被我們改過（最後兩行是唯一的寫入點，
+            // 而且是不會擲例外的欄位讀取）⇒ 遊戲拿到的仍是它自己算出來的輸入。
+            // _forcedControlState 維持 null，MCIsInputActiveDetour 也會自動退回 Original。
+            DetourGuard.Report(nameof(RMIWalkDetour), ex);
+        }
     }
 
     private void RMIFlyDetour(void* self, PlayerMoveControllerFlyInput* result)
@@ -185,20 +215,30 @@ public sealed unsafe class MovementOverride : IDisposable
         _forcedControlState = null;
         _rmiFlyHook.Original(self, result);
 
-        // do nothing while followpath is running
-        if (FollowPathActive())
-            return;
-
-        // TODO: we really need to introduce some extra checks that PlayerMoveController::readInput does - sometimes it skips reading input, and returning something non-zero breaks stuff...
-        if (result->Forward == 0 && result->Left == 0 && result->Up == 0 && DirectionToDestination(true) is var relDir && relDir != null)
+        try
         {
-            var dir = relDir.Value.h.ToDirection();
-            result->Forward = dir.Z;
-            result->Left = dir.X;
-            result->Up = relDir.Value.v.Rad;
+            // do nothing while followpath is running
+            if (FollowPathActive())
+                return;
+
+            // TODO: we really need to introduce some extra checks that PlayerMoveController::readInput does - sometimes it skips reading input, and returning something non-zero breaks stuff...
+            if (result->Forward == 0 && result->Left == 0 && result->Up == 0 && DirectionToDestination(true) is var relDir && relDir != null)
+            {
+                var dir = relDir.Value.h.ToDirection();
+                result->Forward = dir.Z;
+                result->Left = dir.X;
+                result->Up = relDir.Value.v.Rad;
+            }
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(RMIFlyDetour), ex);
         }
     }
 
+    // 刻意**不**包 try：這支的自訂邏輯只有讀一個 bool? 欄位，沒有任何會擲受管理例外的東西
+    // （`_forcedControlState != null` 已經保證 `.Value` 安全），唯一的呼叫就是 Original 本身。
+    // 包起來只會得到一個永遠進不去的 catch，反而讓下一輪稽核以為這裡有東西要防。
     private byte MCIsInputActiveDetour(void* self, byte inputSourceFlags)
     {
         return _forcedControlState != null ? (byte)(_forcedControlState.Value ? 1 : 0) : _mcIsInputActiveHook.Original(self, inputSourceFlags);
