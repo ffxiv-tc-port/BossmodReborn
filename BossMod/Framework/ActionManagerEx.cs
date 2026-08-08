@@ -467,7 +467,23 @@ public sealed unsafe class ActionManagerEx : IDisposable
     //    裸指標一律靠判空處理，不靠 try。
     private void UpdateDetour(ActionManager* self)
     {
-        var fwk = Framework.Instance();
+        // 🔴 Framework.Instance() 是 [StaticAddress(isPointer: true)]（BMR 自己的 CS 子模組
+        //    FFXIVClientStructs/FFXIV/Client/System/Framework/Framework.cs:24），而 InteropGenerator 對
+        //    isPointer 產生的是「位址解析失敗就 ThrowHelper.ThrowNullAddress，否則回 *ppInstance」——
+        //    也就是**既會擲 InvalidOperationException、也會回 null**，兩種失效都存在。
+        //    這一行原本寫在所有 try 之外：台服特徵碼一漂移就是「每幀擲一次、直接逸出到原生框架」＝遊戲當場沒了。
+        //    ⚠️ 下面 fwk == null 那個判斷只擋得住第二種，擋不住擲出 —— 兩個都要。
+        Framework* fwk;
+        try
+        {
+            fwk = Framework.Instance();
+        }
+        catch (Exception ex)
+        {
+            // 退化行為：與「遊戲還沒把 Framework 建起來」完全相同的既有路徑 —— 跑 Original、跳過我們整幀的邏輯。
+            fwk = null;
+            DetourGuard.Report(nameof(UpdateDetour) + "(resolve)", ex);
+        }
         // the detour can still fire while/after we're being torn down (plugin unload or hot-update), and singletons can be null in early login / zoning / title states;
         // in either case just run the original update and skip all our per-frame logic instead of throwing out of the framework tick (which kills the game)
         if (_disposed || _updateHook.IsDisposed || fwk == null || _inst == null)
@@ -692,8 +708,29 @@ public sealed unsafe class ActionManagerEx : IDisposable
     //    UseActionLocation 的人（遊戲內部路徑、其他外掛）都會讓我們在這裡解參考 null。判空，不是包 try。
     private bool UseActionLocationDetour(ActionManager* self, CSActionType actionType, uint actionId, ulong targetId, Vector3* location, uint extraParam, byte a7)
     {
-        var targetSystem = TargetSystem.Instance();
-        var player = PlayerObject();
+        // 🔴 TargetSystem.Instance() 與 PlayerObject() 內的 GameObjectManager.Instance() 都是**不帶 isPointer**
+        //    的 [StaticAddress]（CS 子模組 Control/TargetSystem.cs:9、Game/Object/GameObjectManager.cs:7）。
+        //    InteropGenerator 對這一類產生的碼是「解析失敗就 ThrowHelper.ThrowNullAddress，否則回 pInstance」——
+        //    ⚠️ 也就是**只會擲 InvalidOperationException、永遠不會回 null**（與 isPointer 那類相反）。
+        //    這兩行原本在 try 之外：特徵碼漂移一次，就變成每按一次技能擲一次、直接逸出到原生框架。
+        //    📌 附帶：PlayerObject() 裡的 gom != null 因此是死碼（無害，留著當防禦），
+        //       真正會是 null 的是 IndexSorted[0].Value，那個判斷是必要的。
+        TargetSystem* targetSystem;
+        GameObject* player;
+        try
+        {
+            targetSystem = TargetSystem.Instance();
+            player = PlayerObject();
+        }
+        catch (Exception ex)
+        {
+            // 退化行為：兩者都當成拿不到 —— 這正是本函式原本就寫好的那條路（preventAutos 維持 false、
+            // prevRot/currRot 維持 default，而 Preserve(default, default) 因 original == modified 是 no-op）。
+            // 技能照常打出去，只是這一發不做自動攻擊抑制與旋轉還原。
+            targetSystem = null;
+            player = null;
+            DetourGuard.Report(nameof(UseActionLocationDetour) + "(resolve)", ex);
+        }
         var prevSeq = _inst != null ? _inst->LastUsedActionSequence : default;
         var prevRot = player != null ? player->Rotation.Radians() : default;
         var hardTarget = targetSystem != null ? targetSystem->Target : null;
@@ -760,7 +797,21 @@ public sealed unsafe class ActionManagerEx : IDisposable
     //    而 HandleActionRequest 整支都在解參考 _inst。
     private bool UseBozjaFromHolsterDirectorDetour(PublicContentBozja* self, uint holsterIndex, uint slot)
     {
-        var player = PlayerObject();
+        // 🔴 與 UseActionLocationDetour 同一個形狀：PlayerObject() 內的 GameObjectManager.Instance() 是
+        //    不帶 isPointer 的 [StaticAddress]，特徵碼失效時**擲 InvalidOperationException**、不是回 null。
+        //    這一行原本在 try 之外，而它跑在 Original **之前** —— 逸出的話連失落技能都不會送出，遊戲直接沒了。
+        GameObject* player;
+        try
+        {
+            player = PlayerObject();
+        }
+        catch (Exception ex)
+        {
+            // 退化行為：與「拿不到玩家物件」的既有路徑相同 —— prevRot/currRot 維持 default，
+            // 這一發不做旋轉還原（Preserve(default, default) 是 no-op）。失落技能照常送出。
+            player = null;
+            DetourGuard.Report(nameof(UseBozjaFromHolsterDirectorDetour) + "(resolve)", ex);
+        }
         var prevRot = player != null ? player->Rotation.Radians() : default;
         var res = _useBozjaFromHolsterDirectorHook.Original(self, holsterIndex, slot);
         var currRot = player != null ? player->Rotation.Radians() : default;

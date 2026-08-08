@@ -920,6 +920,15 @@ sealed class WorldStateGameSync : IDisposable
     // 自訂邏輯進 try、catch 受管理例外後節流記一行 Information，**Original 一律照樣呼叫、照樣回傳其結果**。
     // ⚠️ 這不防 AccessViolationException（那攔不到），防的是受管理例外逸出到原生框架。
     //
+    // 🔴 這一批用的是 Dalamud 原生的 Hook<T>（不是 Util/Hook.cs 的 HookAddress<T> 包裝），
+    //    所以呼叫的是 **OriginalDisposeSafe 而不是 Original**：
+    //    Dalamud/Hooking/Hook.cs 裡 Original 的文件註解寫明它會擲 ObjectDisposedException
+    //    (Hook is already disposed)，而 OriginalDisposeSafe 在已 dispose 時改用
+    //    Marshal.GetDelegateForFunctionPointer(this.address) 繞過它。
+    //    detour 在外掛卸載、熱更新時仍可能觸發（Util/Hook.cs:13 對 HookAddress 寫的就是這件事），
+    //    那一刻 Original 會擲例外並直接逸出到原生框架，遊戲會被帶走。
+    //    未 dispose 時 OriginalDisposeSafe 逐字回傳 this.Original，行為完全相同、無額外配置。
+    //
     // 📌 關於封包指標參數的判空（稽核工具會對這一批標 DEREF_PARAM，那是誤判，別再開一輪）：
     //    這裡除了 ActorCast 以外，每一支都是**先呼叫 Original、再讀封包**。Original 就是遊戲自己的
     //    處理函式，它已經解參考過同一個指標了 —— 指標若是 null，行程在進到我們的 try 之前就已經死在
@@ -941,7 +950,7 @@ sealed class WorldStateGameSync : IDisposable
         {
             DetourGuard.Report(nameof(ProcessPacketActorCastDetour), ex);
         }
-        _processPacketActorCastHook.Original(casterId, packet);
+        _processPacketActorCastHook.OriginalDisposeSafe(casterId, packet);
     }
 
     private unsafe void ProcessPacketEffectResultDetour(uint targetID, byte* packet, byte replaying)
@@ -960,7 +969,7 @@ sealed class WorldStateGameSync : IDisposable
         {
             DetourGuard.Report(nameof(ProcessPacketEffectResultDetour), ex);
         }
-        _processPacketEffectResultHook.Original(targetID, packet, replaying);
+        _processPacketEffectResultHook.OriginalDisposeSafe(targetID, packet, replaying);
     }
 
     private unsafe void ProcessPacketEffectResultBasicDetour(uint targetID, byte* packet, byte replaying)
@@ -979,12 +988,12 @@ sealed class WorldStateGameSync : IDisposable
         {
             DetourGuard.Report(nameof(ProcessPacketEffectResultBasicDetour), ex);
         }
-        _processPacketEffectResultBasicHook.Original(targetID, packet, replaying);
+        _processPacketEffectResultBasicHook.OriginalDisposeSafe(targetID, packet, replaying);
     }
 
     private void ProcessPacketActorControlDetour(uint actorID, uint category, uint p1, uint p2, uint p3, uint p4, uint p5, uint p6, ulong targetID, byte replaying)
     {
-        _processPacketActorControlHook.Original(actorID, category, p1, p2, p3, p4, p5, p6, targetID, replaying);
+        _processPacketActorControlHook.OriginalDisposeSafe(actorID, category, p1, p2, p3, p4, p5, p6, targetID, replaying);
         try
         {
             switch ((Network.ServerIPC.ActorControlCategory)category)
@@ -1025,7 +1034,7 @@ sealed class WorldStateGameSync : IDisposable
 
     private unsafe void ProcessPacketNpcYellDetour(Network.ServerIPC.NpcYell* packet)
     {
-        _processPacketNpcYellHook.Original(packet);
+        _processPacketNpcYellHook.OriginalDisposeSafe(packet);
         try
         {
             _actorOps.GetOrAdd(packet->SourceID).Add(new ActorState.OpEventNpcYell(packet->SourceID, packet->Message));
@@ -1039,7 +1048,7 @@ sealed class WorldStateGameSync : IDisposable
     private unsafe void ProcessEnvControlDetour(void* self, uint index, ushort s1, ushort s2)
     {
         // note: this function is only executed for incoming packets that pass some checks (validation that currently active director is what is expected) - don't think it's a big deal?
-        _processEnvControlHook.Original(self, index, s1, s2);
+        _processEnvControlHook.OriginalDisposeSafe(self, index, s1, s2);
         try
         {
             _globalOps.Add(new WorldState.OpEnvControl((byte)index, s1 | ((uint)s2 << 16)));
@@ -1052,7 +1061,7 @@ sealed class WorldStateGameSync : IDisposable
 
     private unsafe void ProcessPacketRSVDataDetour(byte* packet)
     {
-        _processPacketRSVDataHook.Original(packet);
+        _processPacketRSVDataHook.OriginalDisposeSafe(packet);
         try
         {
             _globalOps.Add(new WorldState.OpRSVData(MemoryHelper.ReadStringNullTerminated((nint)(packet + 4)), MemoryHelper.ReadString((nint)(packet + 0x34), *(int*)packet)));
@@ -1065,7 +1074,7 @@ sealed class WorldStateGameSync : IDisposable
 
     private unsafe void ProcessPacketOpenTreasureDetour(uint playerID, byte* packet)
     {
-        _processPacketOpenTreasureHook.Original(playerID, packet);
+        _processPacketOpenTreasureHook.OriginalDisposeSafe(playerID, packet);
         try
         {
             var actorID = *(uint*)(packet + 16);
@@ -1079,7 +1088,7 @@ sealed class WorldStateGameSync : IDisposable
 
     private unsafe void* ProcessSystemLogMessageDetour(uint entityId, uint messageId, int* args, byte argCount)
     {
-        var res = _processSystemLogMessageHook.Original(entityId, messageId, args, argCount);
+        var res = _processSystemLogMessageHook.OriginalDisposeSafe(entityId, messageId, args, argCount);
         try
         {
             _globalOps.Add(new WorldState.OpSystemLogMessage(messageId, new Span<int>(args, argCount).ToArray()));
@@ -1093,7 +1102,7 @@ sealed class WorldStateGameSync : IDisposable
 
     private unsafe void* ProcessPacketFateInfoDetour(ulong fateId, long startTimestamp, ulong durationSecs)
     {
-        var res = _processPacketFateInfoHook.Original(fateId, startTimestamp, durationSecs);
+        var res = _processPacketFateInfoHook.OriginalDisposeSafe(fateId, startTimestamp, durationSecs);
         try
         {
             _globalOps.Add(new ClientState.OpFateInfo((uint)fateId, DateTimeOffset.FromUnixTimeSeconds(startTimestamp).UtcDateTime));
@@ -1107,7 +1116,7 @@ sealed class WorldStateGameSync : IDisposable
 
     private unsafe void ProcessMapEffect1Detour(byte* data)
     {
-        _processMapEffect1Hook.Original(data);
+        _processMapEffect1Hook.OriginalDisposeSafe(data);
         try
         {
             ProcessMapEffect(data, 10, 18);
@@ -1120,7 +1129,7 @@ sealed class WorldStateGameSync : IDisposable
 
     private unsafe void ProcessMapEffect2Detour(byte* data)
     {
-        _processMapEffect2Hook.Original(data);
+        _processMapEffect2Hook.OriginalDisposeSafe(data);
         try
         {
             ProcessMapEffect(data, 18, 34);
@@ -1133,7 +1142,7 @@ sealed class WorldStateGameSync : IDisposable
 
     private unsafe void ProcessMapEffect3Detour(byte* data)
     {
-        _processMapEffect3Hook.Original(data);
+        _processMapEffect3Hook.OriginalDisposeSafe(data);
         try
         {
             ProcessMapEffect(data, 26, 50);
