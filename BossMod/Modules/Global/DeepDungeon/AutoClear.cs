@@ -946,7 +946,8 @@ public abstract class AutoClear : ZoneModule
                 oid == (uint)OID.GoldCoffer && OpenGold ||
                 oid == (uint)OID.SilverCoffer && OpenSilver && player.HPMP.CurHP > player.HPMP.MaxHP * 0.7f ||
                 BronzeChestIDs.Contains(a.OID) && OpenBronze ||
-                oid == (uint)OID.BandedCoffer
+                // ⚠️ 埋藏的寶藏以前這裡沒有接任何條件，銅銀金三個框全關也照樣處理
+                oid == (uint)OID.BandedCoffer && Config.BandedCoffer
             ))
             {
                 if ((coffer?.DistanceToHitbox(player) ?? float.MaxValue) > a.DistanceToHitbox(player))
@@ -1031,9 +1032,29 @@ public abstract class AutoClear : ZoneModule
         if (Config.AllowPomander && !isStunned && pomanderToUseHere is PomanderID p2 && player.FindStatus((uint)SID.ItemPenalty) == null)
             hints.ActionsToExecute.Push(new ActionID(ActionType.Pomander, (uint)p2), null, ActionQueue.Priority.VeryHigh);
 
-        Actor? wantCoffer = null;
-        if (coffer is Actor t && !IsPlayerTransformed(player) && (Config.AutoMoveTreasure && canNavigate || player.DistanceToHitbox(t) < 3.5f))
-            wantCoffer = t;
+        // 「走過去」與「開起來」是兩件事，分開判斷。
+        // ⚠️ 拆分前這裡是一條式子：`(AutoMoveTreasure && canNavigate) || 距離 < 3.5f`
+        //    （`&&` 比 `||` 優先），而它同時決定移動目標與互動目標 ——
+        //    於是關掉「自動移動至寶箱」之後，只要人走到寶箱 3.5y 內仍然會自動開箱，
+        //    與那個標籤的字面意思不符。
+        // 🔴 `InteractWithTarget` 本身也會讓 AI 走過去（AIBehaviour 把它當 forceDestination），
+        //    所以「只開不走」不能無條件設它，必須限制在已經走到旁邊的情況，否則等於從後門
+        //    把移動又加回來。
+        // 📌 兩個新開關都預設 true，而且這樣拆**對預設值是逐案等價的**，不是「大致一樣」：
+        //    拆分前唯一會多加 GoalZone 的情況是「已經走到 3.5y 內、但 wantMove 為 false」，
+        //    而 `GoalSingleTarget(pos, 25f)` 是**平台函式**（25y 內一律回傳 weight、外面回 0，
+        //    見 AIHints.GoalSingleTarget），人站在 3.5y 處時整個鄰域都在平台內、權重全部相同，
+        //    對尋路沒有任何方向性影響 ⇒ 少加這一個 GoalZone 不改變行為。
+        Actor? moveToCoffer = null;
+        Actor? openCoffer = null;
+        if (coffer is Actor t && !IsPlayerTransformed(player))
+        {
+            var wantMove = Config.AutoMoveTreasure && canNavigate;
+            if (wantMove)
+                moveToCoffer = t;
+            if (Config.AutoOpenTreasure && (wantMove || player.DistanceToHitbox(t) < 3.5f))
+                openCoffer = t;
+        }
 
         if (!player.InCombat && Config.AutoPassage && Palace.PassageActive)
         {
@@ -1050,22 +1071,28 @@ public abstract class AutoClear : ZoneModule
                 hints.GoalZones.Add(hints.GoalSingleTarget(c.Position, 2f, 0.5f));
                 // give pathfinder a little help lmao
                 hints.GoalZones.Add(hints.GoalSingleTarget(c.Position, 25f, 0.25f));
+                // 通道石比寶箱近就先去通道石——連互動也一起讓開，否則 InteractWithTarget
+                // 還是會把 AI 拉回寶箱那邊，等於這個「先去通道石」完全沒效果
                 if (player.DistanceToHitbox(c) < player.DistanceToHitbox(coffer) && !Config.OpenChestsFirst)
-                    wantCoffer = null;
+                {
+                    moveToCoffer = null;
+                    openCoffer = null;
+                }
             }
         }
 
-        if (wantCoffer is Actor xxx)
-        {
-            wantCoffer = xxx;
-            hints.GoalZones.Add(hints.GoalSingleTarget(xxx.Position, 25f));
-            hints.InteractWithTarget = coffer;
-        }
+        if (moveToCoffer is Actor moveTarget)
+            hints.GoalZones.Add(hints.GoalSingleTarget(moveTarget.Position, 25f));
+
+        if (openCoffer is Actor openTarget)
+            hints.InteractWithTarget = openTarget;
 
         if (revealedTraps.Count > 0)
             hints.AddForbiddenZone(ShapeDistance.Union(revealedTraps));
 
-        if (!IsPlayerTransformed(player) && canNavigate && Config.AutoMoveTreasure && hoardLight is Actor h && Palace.GetPomanderState(PomanderID.Intuition).Active)
+        // 直感魔石照出來的埋藏寶藏光點：純移動，所以歸「自動移動至寶箱」管，
+        // 但埋藏的寶藏整個關掉時也不必再走過去
+        if (!IsPlayerTransformed(player) && canNavigate && Config.AutoMoveTreasure && Config.BandedCoffer && hoardLight is Actor h && Palace.GetPomanderState(PomanderID.Intuition).Active)
             hints.GoalZones.Add(hints.GoalSingleTarget(h.Position, 2f, 10f));
 
         var shouldTargetMobs = Config.AutoClear switch

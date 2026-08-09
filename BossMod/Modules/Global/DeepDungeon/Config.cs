@@ -112,8 +112,17 @@ public sealed class AutoDDConfig : ConfigNode
         tooltip: "Only has any effect in Eureka Orthos: it is the only deep dungeon whose floor module marks casts as line-of-sight-able. In Palace of the Dead and Heaven-on-High this setting does nothing at all.\n\nWhen it does apply, it replaces the simple \"stay out of a circle around the caster\" hint with one computed from the actual terrain, so you can break line of sight instead of just running away. Falls back to the simple circle if no obstacle map is available for the floor.")]
     public bool AutoLOS = false;
 
-    [PropertyDisplay("Automatically navigate to coffers")]
+    [PropertyDisplay("Automatically navigate to coffers",
+        tooltip: "Walking only. Whether a coffer you have reached is actually opened is the separate setting below.")]
     public bool AutoMoveTreasure = true;
+
+    // 🔴 預設 true＝維持既有行為。這個開關是把原本綁在 AutoMoveTreasure 上的「開箱」語意拆出來的，
+    //    不是新功能：拆分前 `AutoMoveTreasure` 關掉之後，只要人走到寶箱 3.5y 內仍然會自動開，
+    //    因為判斷式是 `(AutoMoveTreasure && canNavigate) || 距離 < 3.5f`（&& 比 || 優先），
+    //    與「自動移動至寶箱」這個標籤的字面意思不符。
+    [PropertyDisplay("Automatically open coffers you have reached",
+        tooltip: "Opens a coffer once you are next to it. This is separate from walking to it: with this on and \"automatically navigate to coffers\" off, nothing drags you anywhere, but a coffer you walked up to yourself still gets opened.\n\nNote this needs BMR's AI (or the Normal Movement autorotation module) to be running - it is what actually sends the interact.")]
+    public bool AutoOpenTreasure = true;
     [PropertyDisplay("Prioritize opening coffers over Cairn of Passage")]
     public bool OpenChestsFirst = false;
     [PropertyDisplay("Open gold coffers")]
@@ -126,6 +135,13 @@ public sealed class AutoDDConfig : ConfigNode
     public bool SilverCoffer = true;
     [PropertyDisplay("Open bronze coffers")]
     public bool BronzeCoffer = true;
+
+    // 🔴 預設 true＝維持既有行為。埋藏的寶藏以前完全沒有閘門：候選判斷式裡它是
+    //    `oid == (uint)OID.BandedCoffer`，後面沒有接任何 `&& Config.X`，
+    //    所以銅銀金三個框全部關掉它照樣會去開。
+    [PropertyDisplay("Open Accursed Hoard coffers",
+        tooltip: "The banded coffers dug up from the Accursed Hoard. Until now these had no setting at all and were always handled, even with all three coffer types above unticked.\n\nAlso controls whether the glowing spot revealed by a Pomander of Intuition is walked to.")]
+    public bool BandedCoffer = true;
 
     [PropertyDisplay("Manual \"walk to room\" button on the minimap (requires vnavmesh)",
         tooltip: "Adds a button under the minimap that walks you to the room you picked, in one go. You press it, it walks, and it stops on arrival - it never opens coffers, never uses the Cairn of Passage, and never starts the next leg by itself. The route does not avoid mobs or trap hints. Off by default.")]

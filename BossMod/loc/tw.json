@@ -3544,5 +3544,20 @@
   },
   "Ticking this is necessary but not sufficient - silver coffers can explode for 70% of your max HP, so they are also skipped when:\n- your current HP is at or below 70% of maximum;\n- your weapon + armour levels add up to 198 or more, AND you are in Palace of the Dead (there is nothing left to gain there).\n\nIn Heaven-on-High and Eureka Orthos, once you are at 198 they are only opened from floor 7 onwards, where magicite/demiclones start dropping.": {
     "message": "勾選這個是必要條件但不是充分條件——銀寶箱可能爆炸並造成最大 HP 70% 的傷害，因此下列情況仍會跳過：\n- 目前 HP 低於或等於最大值的 70%；\n- 武器與防具等級合計達到 198 以上，且身處死者宮殿（該處已無可再提升的部分）。\n\n在天之逆焰與厄運迷宮，達到 198 之後則放寬為第 7 層起才會開啟，因為魔石／魔武器碎片從第 7 層開始掉落。"
+  },
+  "Walking only. Whether a coffer you have reached is actually opened is the separate setting below.": {
+    "message": "只管移動。走到寶箱之後要不要真的打開，由下面那個獨立的選項決定。"
+  },
+  "Automatically open coffers you have reached": {
+    "message": "走近寶箱時自動開啟"
+  },
+  "Opens a coffer once you are next to it. This is separate from walking to it: with this on and \"automatically navigate to coffers\" off, nothing drags you anywhere, but a coffer you walked up to yourself still gets opened.\n\nNote this needs BMR's AI (or the Normal Movement autorotation module) to be running - it is what actually sends the interact.": {
+    "message": "走到寶箱旁邊時把它打開。這與「走過去」是分開的：本項開啟、而「自動移動至寶箱」關閉時，不會有任何東西拉著你跑，但你自己走到的寶箱仍然會被打開。\n\n請注意這需要 BMR 的 AI（或自動循環的 Normal Movement 模組）正在運作，實際送出互動的是它。"
+  },
+  "Open Accursed Hoard coffers": {
+    "message": "開啟埋藏的寶藏"
+  },
+  "The banded coffers dug up from the Accursed Hoard. Until now these had no setting at all and were always handled, even with all three coffer types above unticked.\n\nAlso controls whether the glowing spot revealed by a Pomander of Intuition is walked to.": {
+    "message": "從埋藏的寶藏挖出來的綁帶寶箱。在此之前它完全沒有任何設定，即使上面三種寶箱全部取消勾選也照樣會處理。\n\n本項同時決定要不要走向直感魔石照出來的光點。"
   }
 }
