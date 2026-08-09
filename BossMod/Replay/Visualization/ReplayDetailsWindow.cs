@@ -379,7 +379,7 @@ sealed class ReplayDetailsWindow : UIWindow
         ImGui.TableSetupColumn("HP", ImGuiTableColumnFlags.WidthFixed, 200);
         ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.None, 100);
         ImGui.TableSetupColumn("Target", ImGuiTableColumnFlags.None, 100);
-        ImGui.TableSetupColumn("Cast", ImGuiTableColumnFlags.None, 100);
+        ImGui.TableSetupColumn(Loc.T("Cast"), ImGuiTableColumnFlags.None, 100);
         ImGui.TableSetupColumn("Statuses", ImGuiTableColumnFlags.None, 100);
         ImGui.TableSetupColumn("Hints", ImGuiTableColumnFlags.None, 250);
         ImGui.TableHeadersRow();
@@ -454,7 +454,7 @@ sealed class ReplayDetailsWindow : UIWindow
         ImGui.TableSetupColumn("HP", ImGuiTableColumnFlags.WidthFixed, 200);
         ImGui.TableSetupColumn("Name");
         ImGui.TableSetupColumn("Target");
-        ImGui.TableSetupColumn("Cast");
+        ImGui.TableSetupColumn(Loc.T("Cast"));
         ImGui.TableSetupColumn("Statuses");
         ImGui.TableHeadersRow();
         foreach (var enemy in actors)
@@ -479,7 +479,7 @@ sealed class ReplayDetailsWindow : UIWindow
         ImGui.TableSetupColumn("HP", ImGuiTableColumnFlags.WidthFixed, 200);
         ImGui.TableSetupColumn("Name");
         ImGui.TableSetupColumn("Target");
-        ImGui.TableSetupColumn("Cast");
+        ImGui.TableSetupColumn(Loc.T("Cast"));
         ImGui.TableSetupColumn("Statuses");
         ImGui.TableHeadersRow();
         foreach (var actor in _player.WorldState.Actors)

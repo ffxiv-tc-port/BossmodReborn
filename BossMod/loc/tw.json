@@ -4093,5 +4093,605 @@
   },
   "Forced": {
     "message": "強制"
+  },
+  "Automatically use {0} when optimal": {
+    "message": "在最佳時機自動使用 {0}"
+  },
+  "Use {0} when raid buffs are active": {
+    "message": "團隊增益生效時使用 {0}"
+  },
+  "Force use {0} ASAP": {
+    "message": "盡快強制使用 {0}"
+  },
+  "Do NOT use {0}": {
+    "message": "不使用 {0}"
+  },
+  "Force use {0} in next possible weave slot": {
+    "message": "在下一個可行的插招空檔強制使用 {0}"
+  },
+  "Force use {0} in next possible early-weave slot": {
+    "message": "在下一個可行的提前插招空檔強制使用 {0}"
+  },
+  "Force use {0} in next possible late-weave slot": {
+    "message": "在下一個可行的延後插招空檔強制使用 {0}"
+  },
+  "Allow use of {0} when available": {
+    "message": "可用時允許使用 {0}"
+  },
+  "Forbid use of {0} entirely": {
+    "message": "完全禁止使用 {0}"
+  },
+  "Use {0}": {
+    "message": "使用 {0}"
+  },
+  "A.Anchor": {
+    "message": "空氣錨"
+  },
+  "A.Benefic": {
+    "message": "吉星相位"
+  },
+  "A.Snack": {
+    "message": "天使的點心"
+  },
+  "A.Whisper": {
+    "message": "天使低語"
+  },
+  "A.flow": {
+    "message": "乙太超流"
+  },
+  "Adlo.": {
+    "message": "鼓舞激勵之策"
+  },
+  "Amp.": {
+    "message": "詳述"
+  },
+  "Analysis": {
+    "message": "分析"
+  },
+  "Avail": {
+    "message": "防禦指示"
+  },
+  "B.Honor": {
+    "message": "榮耀之劍"
+  },
+  "B.Litany": {
+    "message": "戰鬥連禱"
+  },
+  "B.Shock": {
+    "message": "弓形衝波"
+  },
+  "B.Stab.": {
+    "message": "槍管加熱"
+  },
+  "BTL": {
+    "message": "魔紋步"
+  },
+  "Barrier": {
+    "message": "抗死"
+  },
+  "Bene2": {
+    "message": "福星"
+  },
+  "Bind": {
+    "message": "傷足"
+  },
+  "Bishop Autoturret": {
+    "message": "象型浮游砲塔"
+  },
+  "Blasting Zone": {
+    "message": "爆破領域"
+  },
+  "Bolide": {
+    "message": "超火流星"
+  },
+  "Bristle": {
+    "message": "怒髮衝冠"
+  },
+  "Bul": {
+    "message": "壁壘"
+  },
+  "C.Fog": {
+    "message": "冷霧"
+  },
+  "C.Gate": {
+    "message": "玄結界"
+  },
+  "C.Inter": {
+    "message": "天星交錯"
+  },
+  "C.Oppo": {
+    "message": "天星衝日"
+  },
+  "C.Scorn": {
+    "message": "厄運流轉"
+  },
+  "C.Strat": {
+    "message": "連環計"
+  },
+  "C.Uncon": {
+    "message": "命運之輪"
+  },
+  "C.Waltz": {
+    "message": "治療之華爾滋"
+  },
+  "C.mate": {
+    "message": "將死"
+  },
+  "C.saw": {
+    "message": "迴轉飛鋸"
+  },
+  "CactG.": {
+    "message": "仙人盾"
+  },
+  "Camo": {
+    "message": "偽裝"
+  },
+  "Consol.": {
+    "message": "慰藉"
+  },
+  "Cover": {
+    "message": "保護"
+  },
+  "Crest": {
+    "message": "神秘紋"
+  },
+  "Crimson Cyclone": {
+    "message": "深紅旋風"
+  },
+  "D.Check": {
+    "message": "雙將"
+  },
+  "D.Dive": {
+    "message": "龍炎衝"
+  },
+  "D.Down": {
+    "message": "倍攻"
+  },
+  "D.Force": {
+    "message": "龍之力"
+  },
+  "D.back": {
+    "message": "超硬化"
+  },
+  "D.esteem": {
+    "message": "掠影的蔑視"
+  },
+  "DMind": {
+    "message": "棄明投暗"
+  },
+  "Deli.": {
+    "message": "血亂"
+  },
+  "Dism": {
+    "message": "武裝解除"
+  },
+  "Dispel": {
+    "message": "光陰神的禮讚凱歌"
+  },
+  "Dissi.": {
+    "message": "轉化"
+  },
+  "Druo": {
+    "message": "靈橡清汁"
+  },
+  "E.Dig": {
+    "message": "先天稟賦"
+  },
+  "E.Drain": {
+    "message": "吸取能量"
+  },
+  "Elusive Jump": {
+    "message": "迴避跳躍"
+  },
+  "Emerg.": {
+    "message": "應急戰術"
+  },
+  "Enpi": {
+    "message": "燕飛"
+  },
+  "Equi": {
+    "message": "泰然自若"
+  },
+  "Eukrasia": {
+    "message": "均衡"
+  },
+  "Exalt": {
+    "message": "擢升"
+  },
+  "Excav.": {
+    "message": "掘地飛輪"
+  },
+  "Excog.": {
+    "message": "深謀遠慮之策"
+  },
+  "Exped.": {
+    "message": "疾風怒濤之計"
+  },
+  "Exuvi": {
+    "message": "蛻皮"
+  },
+  "F.Blessing": {
+    "message": "異想的祥光"
+  },
+  "F.Field": {
+    "message": "力場"
+  },
+  "F.Flight": {
+    "message": "戰逃反應"
+  },
+  "F.Illum.": {
+    "message": "異想的幻光"
+  },
+  "F.Legs": {
+    "message": "蛙腿"
+  },
+  "F.thrower": {
+    "message": "火焰噴射器"
+  },
+  "FM.Field": {
+    "message": "全金屬爆發"
+  },
+  "Fated Circle": {
+    "message": "命運之環"
+  },
+  "Fest": {
+    "message": "血壤"
+  },
+  "Full Metal Field": {
+    "message": "全金屬爆發"
+  },
+  "G.Blade": {
+    "message": "瀝血劍"
+  },
+  "G.Round": {
+    "message": "虹吸彈"
+  },
+  "Geirs.": {
+    "message": "武神槍"
+  },
+  "Gnashing Fang": {
+    "message": "烈牙"
+  },
+  "Gobskin": {
+    "message": "哥布防禦"
+  },
+  "H.charge": {
+    "message": "超荷"
+  },
+  "Haima": {
+    "message": "輸血"
+  },
+  "Harpe": {
+    "message": "神秘紋"
+  },
+  "Heart of Corundum": {
+    "message": "剛玉之心"
+  },
+  "Helios": {
+    "message": "陽星"
+  },
+  "Higanbana": {
+    "message": "彼岸花"
+  },
+  "HoL": {
+    "message": "光之心"
+  },
+  "Holmgang": {
+    "message": "死鬥"
+  },
+  "Holos": {
+    "message": "整體論"
+  },
+  "I.Spikes": {
+    "message": "冰棘屏障"
+  },
+  "Improv": {
+    "message": "即興表演"
+  },
+  "Indom.": {
+    "message": "不屈不撓之策"
+  },
+  "Instinct": {
+    "message": "鬥爭本能"
+  },
+  "Intervene": {
+    "message": "調停"
+  },
+  "Inv": {
+    "message": "神聖領域"
+  },
+  "Ixo": {
+    "message": "寄生清汁"
+  },
+  "Kera": {
+    "message": "堅角清汁"
+  },
+  "Krasis": {
+    "message": "混合"
+  },
+  "L. Charge": {
+    "message": "猛槍"
+  },
+  "L. Surge": {
+    "message": "龍劍"
+  },
+  "L.Lines": {
+    "message": "黑魔紋"
+  },
+  "L.Shadow": {
+    "message": "掠影示現"
+  },
+  "L.speed": {
+    "message": "光速"
+  },
+  "LD": {
+    "message": "行屍走肉"
+  },
+  "Lance Charge": {
+    "message": "猛槍"
+  },
+  "Lucid": {
+    "message": "醒夢"
+  },
+  "Lucid D.": {
+    "message": "醒夢"
+  },
+  "Lustrate": {
+    "message": "生命活性法"
+  },
+  "M.Dive": {
+    "message": "幻象衝"
+  },
+  "M.font": {
+    "message": "魔泉"
+  },
+  "Manaward": {
+    "message": "魔法護盾"
+  },
+  "Mantra": {
+    "message": "真言"
+  },
+  "Meditate": {
+    "message": "鐵山鬥氣"
+  },
+  "Meikyo": {
+    "message": "明鏡止水"
+  },
+  "MightyG.": {
+    "message": "強力守護"
+  },
+  "Minne": {
+    "message": "大地神的抒情戀歌"
+  },
+  "Mission": {
+    "message": "暗黑佈道"
+  },
+  "MoonFlute": {
+    "message": "月之笛"
+  },
+  "Mountain Buster": {
+    "message": "山崩"
+  },
+  "N.Mercy": {
+    "message": "無情"
+  },
+  "Nast.": {
+    "message": "死者之岸"
+  },
+  "Nebula": {
+    "message": "星雲"
+  },
+  "Necrotize": {
+    "message": "壞死爆發"
+  },
+  "OffG.": {
+    "message": "破防"
+  },
+  "P.Light": {
+    "message": "驚奇光"
+  },
+  "P.Talon": {
+    "message": "貫穿尖"
+  },
+  "PB": {
+    "message": "震腳"
+  },
+  "Panhaima": {
+    "message": "泛輸血"
+  },
+  "Pepsis": {
+    "message": "消化"
+  },
+  "Philo": {
+    "message": "智慧之愛"
+  },
+  "Pneuma": {
+    "message": "魂靈風息"
+  },
+  "PomCure": {
+    "message": "澎澎療傷"
+  },
+  "Prot.": {
+    "message": "生命回生法"
+  },
+  "Provoke": {
+    "message": "挑釁"
+  },
+  "R.semble": {
+    "message": "整備"
+  },
+  "Radiant Aegis": {
+    "message": "守護之光"
+  },
+  "Rampart": {
+    "message": "鐵壁"
+  },
+  "Rehyd.": {
+    "message": "補水"
+  },
+  "Repose": {
+    "message": "沉靜"
+  },
+  "Rescue": {
+    "message": "營救"
+  },
+  "Retrace": {
+    "message": "魔紋重置"
+  },
+  "Rhizo": {
+    "message": "根素"
+  },
+  "Ricochet": {
+    "message": "跳彈射擊"
+  },
+  "RoE": {
+    "message": "金剛極意"
+  },
+  "RoF": {
+    "message": "紅蓮極意"
+  },
+  "RotD": {
+    "message": "龍炎昇"
+  },
+  "Rough Divide": {
+    "message": "粗分斬"
+  },
+  "Ruin IV": {
+    "message": "毀絕"
+  },
+  "S.Break": {
+    "message": "音速破"
+  },
+  "S.Earth": {
+    "message": "腐穢大地"
+  },
+  "S.Wind": {
+    "message": "內丹"
+  },
+  "S.Within": {
+    "message": "深奧之靈"
+  },
+  "S.bringer": {
+    "message": "暗影使者"
+  },
+  "S.cross": {
+    "message": "渡星衝"
+  },
+  "S.diver": {
+    "message": "墜星衝"
+  },
+  "SIO": {
+    "message": "擺脫"
+  },
+  "Salt & D.": {
+    "message": "腐穢黑暗"
+  },
+  "Scattergun": {
+    "message": "霰彈槍"
+  },
+  "Schilt": {
+    "message": "刺陣"
+  },
+  "SecondWind": {
+    "message": "內丹"
+  },
+  "Sect": {
+    "message": "中間學派"
+  },
+  "Seraph": {
+    "message": "熾天召喚"
+  },
+  "Seraphism": {
+    "message": "熾天附體"
+  },
+  "Shade": {
+    "message": "殘影"
+  },
+  "ShieldBash": {
+    "message": "盾牌猛擊"
+  },
+  "Shirk": {
+    "message": "退避"
+  },
+  "Sleep": {
+    "message": "催眠"
+  },
+  "Slipstream": {
+    "message": "螺旋氣流"
+  },
+  "Slow": {
+    "message": "傷腿"
+  },
+  "Soundwave": {
+    "message": "怪音波"
+  },
+  "Stotram": {
+    "message": "讚歌"
+  },
+  "SunSign": {
+    "message": "太陽星座"
+  },
+  "Synastry": {
+    "message": "星位合圖"
+  },
+  "T.Oil": {
+    "message": "油性分泌物"
+  },
+  "T.cast": {
+    "message": "三連詠唱"
+  },
+  "TC": {
+    "message": "輕身步法"
+  },
+  "Tauro": {
+    "message": "白牛清汁"
+  },
+  "Terminal Trigger": {
+    "message": "終結擊"
+  },
+  "Thrill": {
+    "message": "戰慄"
+  },
+  "Transf.": {
+    "message": "融合"
+  },
+  "V.Whorl": {
+    "message": "水神的面紗"
+  },
+  "Veil": {
+    "message": "聖光幕簾"
+  },
+  "W.Dawn": {
+    "message": "仙光的低語"
+  },
+  "W.Thrust": {
+    "message": "天龍點睛"
+  },
+  "W.Wind": {
+    "message": "白風"
+  },
+  "Whistle": {
+    "message": "口笛"
+  },
+  "WindsReply": {
+    "message": "絕空拳"
+  },
+  "WrithingSnap": {
+    "message": "飛蛇之牙"
+  },
+  "Zone": {
+    "message": "危險帶"
+  },
+  "ArmsL": {
+    "message": "親疏自行"
+  },
+  "Sprint": {
+    "message": "衝刺"
+  },
+  "Surecast": {
+    "message": "沉穩詠唱"
+  },
+  "Dash": {
+    "message": "位移"
   }
 }

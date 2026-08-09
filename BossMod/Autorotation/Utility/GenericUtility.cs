@@ -15,7 +15,7 @@ public abstract class GenericUtility(RotationModuleManager manager, Actor player
         var adata = adefs[action]!;
         def.Define(expectedIndex).As<SimpleOption>(internalName, displayName, uiPriority)
             .AddOption(SimpleOption.None, "Do not use automatically")
-            .AddOption(SimpleOption.Use, $"Use {action.Name()}", cooldown: adata.Cooldown, effect: effect, supportedTargets: adata.AllowedTargets, minLevel: adefs.ActionMinLevel(action), defaultPriority: defaultPriority)
+            .AddOption(SimpleOption.Use, string.Format(Loc.T("Use {0}"), action.Name()), cooldown: adata.Cooldown, effect: effect, supportedTargets: adata.AllowedTargets, minLevel: adefs.ActionMinLevel(action), defaultPriority: defaultPriority)
             .AddAssociatedActions(aid);
     }
 
