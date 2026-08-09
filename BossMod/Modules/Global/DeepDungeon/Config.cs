@@ -19,6 +19,9 @@ public sealed class AutoDDConfig : ConfigNode
     public bool Enable = true;
     [PropertyDisplay("Enable minimap")]
     public bool EnableMinimap = true;
+    [PropertyDisplay("Player marker size", tooltip: "Size of the arrow marking your own position on the minimap, relative to its original size. The arrow is 64px wide inside an 88px cell, which makes it spill over the room you are standing in; shrink it if it hides the coffer icons.")]
+    [PropertySlider(0.4f, 1.5f, Speed = 0.01f)]
+    public float PlayerMarkerScale = 0.7f;
     [PropertyDisplay("Try to avoid traps", tooltip: "Avoid known trap locations sourced from PalacePal data. Does not need PalacePal installed since data is included in BMR. (Traps revealed by a Pomander of Sight will always be avoided regardless of this setting.)")]
     public bool TrapHints = true;
     [PropertyDisplay("Automatically navigate to Cairn of Passage")]

@@ -3391,5 +3391,17 @@
   },
   "By default the game refuses to queue anything executed from a macro, so a macro pressed slightly too early is simply dropped. This makes such actions behave like a normal hotbar press instead: they get queued and fire as soon as they become available.\n\nAn already queued action is still not overwritten, and nothing is sent to the server any earlier.": {
     "message": "遊戲預設拒絕將巨集執行的任何技能放入佇列，所以巨集只要按得稍微早一點就會直接被丟棄。本選項讓這類技能改成表現得像一般按下快捷列一樣：會進入佇列，並在可用的瞬間立即發動。\n\n已經在佇列中的技能不會被覆蓋，也不會提早送出任何封包給伺服器。"
+  },
+  "DD_ClickToSetDestination": {
+    "message": "點擊設為目標房間"
+  },
+  "DD_ClickToClearDestination": {
+    "message": "點擊清除目標房間"
+  },
+  "Player marker size": {
+    "message": "玩家標記大小"
+  },
+  "Size of the arrow marking your own position on the minimap, relative to its original size. The arrow is 64px wide inside an 88px cell, which makes it spill over the room you are standing in; shrink it if it hides the coffer icons.": {
+    "message": "小地圖上標示自己位置的箭頭大小，以原始大小為 1。箭頭原始寬度是 64 像素、格子只有 88 像素，會蓋住自己所在的那一間；覺得它擋到寶箱圖示就調小。"
   }
 }

@@ -4,7 +4,7 @@ using static FFXIVClientStructs.FFXIV.Client.Game.InstanceContent.InstanceConten
 
 namespace BossMod.Global.DeepDungeon;
 
-public sealed record class Minimap(DeepDungeonState State, Actor Player, int CurrentDestination)
+public sealed record class Minimap(DeepDungeonState State, Actor Player, int CurrentDestination, AutoDDConfig Config)
 {
     enum IconID : uint
     {
@@ -138,7 +138,7 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
             if (i == playerCell)
             {
                 ImGui.SetCursorPos(pos + new Vector2(44, 44));
-                DrawPlayer(ImGui.GetCursorScreenPos(), Player.Rotation, mapTex.Handle);
+                DrawPlayer(ImGui.GetCursorScreenPos(), Player.Rotation, mapTex.Handle, Config.PlayerMarkerScale);
             }
 
             ImGui.SetCursorPos(pos);
@@ -148,7 +148,9 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
                 if (ImGui.IsItemHovered())
                 {
                     ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
-                    ImGui.SetTooltip(i == CurrentDestination ? "Click to clear destination" : "Click to set destination");
+                    ImGui.SetTooltip(i == CurrentDestination
+                        ? Loc.T("DD_ClickToClearDestination", "Click to clear destination")
+                        : Loc.T("DD_ClickToSetDestination", "Click to set destination"));
                 }
                 if (ImGui.IsItemClicked())
                     dest = i == CurrentDestination ? 0 : i;
@@ -160,16 +162,29 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
         return dest;
     }
 
-    private static void DrawPlayer(Vector2 center, Angle rotation, ImTextureID texHandle)
+    /// <summary>
+    /// 畫玩家所在位置的方向箭頭。
+    /// </summary>
+    /// <param name="scale">
+    /// 箭頭縮放倍率。四個角一起乘，所以旋轉樞紐（<paramref name="center"/>，也就是格子中心）
+    /// 不動——箭頭是往樞紐收縮，不是往左上角收縮。
+    /// ⚠️ 原始四角是 (-32,-37.5)…(32,26.5)：寬高都是 64，但**垂直方向刻意偏移**了 5.5px
+    /// （樞紐不在圖形的幾何中心）。整組等比例縮放才會保住這個偏移關係。
+    /// </summary>
+    /// <remarks>
+    /// 📌 只縮箭頭。玩家所在房間底下那張 64px 底圖（`mapTex` 那次 <c>ImGui.Image</c>）是
+    /// 「你在這一間」的房間標示，語意不同，不跟著縮。
+    /// </remarks>
+    private static void DrawPlayer(Vector2 center, Angle rotation, ImTextureID texHandle, float scale)
     {
         var cos = -rotation.Cos();
         var sin = rotation.Sin();
         ImGui.GetWindowDrawList().AddImageQuad(
             texHandle,
-            center + Rotate(new(-32, -37.5f), cos, sin),
-            center + Rotate(new(32, -37.5f), cos, sin),
-            center + Rotate(new(32, 26.5f), cos, sin),
-            center + Rotate(new(-32, 26.5f), cos, sin),
+            center + Rotate(new(-32f * scale, -37.5f * scale), cos, sin),
+            center + Rotate(new(32f * scale, -37.5f * scale), cos, sin),
+            center + Rotate(new(32f * scale, 26.5f * scale), cos, sin),
+            center + Rotate(new(-32f * scale, 26.5f * scale), cos, sin),
             new Vector2(0.0000f, 0.4571f),
             new Vector2(0.2424f, 0.4571f),
             new Vector2(0.2424f, 0.6857f),
