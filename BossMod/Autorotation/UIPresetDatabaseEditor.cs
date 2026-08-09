@@ -49,7 +49,7 @@ public sealed class UIPresetDatabaseEditor(PresetDatabase db)
         using var modal = ImRaii.PopupModal("Unsaved modifications", ref modalOpen, ImGuiWindowFlags.AlwaysAutoResize);
         if (!modal)
             return;
-        ImGui.TextUnformatted($"Currently opened preset {_selectedPreset?.Preset.Name} has unsaved modifications.");
+        ImGui.TextUnformatted(string.Format(Loc.T("PRESETDB_UnsavedTitle", "Currently opened preset {0} has unsaved modifications."), _selectedPreset?.Preset.Name));
         ImGui.TextUnformatted(Loc.T("PRESETDB_UnsavedMsg", "To select a new preset, you need to either save or discard them."));
         ImGui.TextUnformatted(Loc.T("PRESETDB_HowToProceed", "How do you want to proceed?"));
         if (DrawSaveCurrentPresetButton())
@@ -58,7 +58,7 @@ public sealed class UIPresetDatabaseEditor(PresetDatabase db)
             CompleteChangeCurrentPreset();
         }
         ImGui.SameLine();
-        if (UIMisc.Button("Save as copy", _selectedPresetIndex < 0, "Can't save new preset as copy"))
+        if (UIMisc.Button(Loc.T("PRESETDB_SaveAsCopy", "Save as copy"), _selectedPresetIndex < 0, Loc.T("PRESETDB_CantSaveAsCopy", "Can't save new preset as copy")))
         {
             SaveCurrentPresetAsCopy();
             CompleteChangeCurrentPreset();
@@ -92,7 +92,7 @@ public sealed class UIPresetDatabaseEditor(PresetDatabase db)
         ImGui.SameLine();
 
         ImGui.SetNextItemWidth(200);
-        using (var combo = ImRaii.Combo("Preset", _selectedPreset == null ? "" : _selectedPresetIndex < 0 ? "<new>" : (_selectedPresetDefault ? db.DefaultPresets : db.UserPresets)[_selectedPresetIndex].Name))
+        using (var combo = ImRaii.Combo(Loc.T("PRESETDB_Preset", "Preset"), _selectedPreset == null ? "" : _selectedPresetIndex < 0 ? "<new>" : (_selectedPresetDefault ? db.DefaultPresets : db.UserPresets)[_selectedPresetIndex].Name))
         {
             if (combo)
             {
@@ -106,25 +106,25 @@ public sealed class UIPresetDatabaseEditor(PresetDatabase db)
         if (DrawSaveCurrentPresetButton())
             SaveCurrentPreset();
         ImGui.SameLine();
-        if (UIMisc.Button("Save as copy", _selectedPresetIndex < 0, "Can't save new preset as copy"))
+        if (UIMisc.Button(Loc.T("PRESETDB_SaveAsCopy", "Save as copy"), _selectedPresetIndex < 0, Loc.T("PRESETDB_CantSaveAsCopy", "Can't save new preset as copy")))
             SaveCurrentPresetAsCopy();
         ImGui.SameLine();
-        if (UIMisc.Button("Revert", 0, (!HaveUnsavedModifications, "Current preset is not modified"), (_selectedPresetIndex < 0, "No preset is selected")))
+        if (UIMisc.Button(Loc.T("PRESETDB_Revert", "Revert"), 0, (!HaveUnsavedModifications, Loc.T("PRESETDB_NotModified", "Current preset is not modified")), (_selectedPresetIndex < 0, Loc.T("PRESETDB_NoneSelected", "No preset is selected"))))
             RevertCurrentPreset();
         ImGui.SameLine();
-        if (UIMisc.Button("New", HaveUnsavedModifications, "Current preset is modified, save or discard changes"))
+        if (UIMisc.Button(Loc.T("PRESETDB_New", "New"), HaveUnsavedModifications, Loc.T("PRESETDB_ModifiedSaveOrDiscard", "Current preset is modified, save or discard changes")))
             CreateNewPreset(-1, false);
         ImGui.SameLine();
-        if (UIMisc.Button("Copy", 0, (HaveUnsavedModifications, "Current preset is modified, save or discard changes"), (_selectedPresetIndex < 0, "No preset is selected")))
+        if (UIMisc.Button(Loc.T("PRESETDB_Copy", "Copy"), 0, (HaveUnsavedModifications, Loc.T("PRESETDB_ModifiedSaveOrDiscard", "Current preset is modified, save or discard changes")), (_selectedPresetIndex < 0, Loc.T("PRESETDB_NoneSelected", "No preset is selected"))))
             CreateNewPreset(_selectedPresetIndex, _selectedPresetDefault);
         ImGui.SameLine();
-        if (UIMisc.Button("Delete", 0, (_selectedPresetDefault, "The default preset can't be deleted. If you would like to hide it, you can do so in Settings -> Autorotation."), (!ImGui.GetIO().KeyShift, "Hold shift to delete"), (_selectedPresetIndex < 0, "No preset is selected")))
+        if (UIMisc.Button(Loc.T("PRESETDB_Delete", "Delete"), 0, (_selectedPresetDefault, Loc.T("PRESETDB_CantDeleteDefault", "The default preset can't be deleted. If you would like to hide it, you can do so in Settings -> Autorotation.")), (!ImGui.GetIO().KeyShift, Loc.T("PRESETDB_HoldShift", "Hold shift to delete")), (_selectedPresetIndex < 0, Loc.T("PRESETDB_NoneSelected", "No preset is selected"))))
             DeleteCurrentPreset();
         ImGui.SameLine();
-        if (UIMisc.Button("Export", _selectedPreset == null, "No preset is selected"))
+        if (UIMisc.Button(Loc.T("PRESETDB_Export", "Export"), _selectedPreset == null, Loc.T("PRESETDB_NoneSelected", "No preset is selected")))
             ExportToClipboard();
         ImGui.SameLine();
-        if (UIMisc.Button("Import", HaveUnsavedModifications, "Current preset is modified, save or discard changes"))
+        if (UIMisc.Button(Loc.T("PRESETDB_Import", "Import"), HaveUnsavedModifications, Loc.T("PRESETDB_ModifiedSaveOrDiscard", "Current preset is modified, save or discard changes")))
             ImportNewPresetFromClipboard();
     }
 
@@ -157,7 +157,7 @@ public sealed class UIPresetDatabaseEditor(PresetDatabase db)
         }
     }
 
-    private bool DrawSaveCurrentPresetButton() => UIMisc.Button("Save", 0, (!HaveUnsavedModifications, "Current preset is not modified"), (_selectedPreset?.NameConflict ?? false, "Current preset name is empty or duplicates name of other existing preset"));
+    private bool DrawSaveCurrentPresetButton() => UIMisc.Button(Loc.T("PRESETDB_Save", "Save"), 0, (!HaveUnsavedModifications, Loc.T("PRESETDB_NotModified", "Current preset is not modified")), (_selectedPreset?.NameConflict ?? false, Loc.T("PRESETDB_NameConflict", "Current preset name is empty or duplicates name of other existing preset")));
 
     private void RevertCurrentPreset() => _selectedPreset = new(db, _selectedPresetIndex, _selectedPresetDefault, _selectedModuleType);
 

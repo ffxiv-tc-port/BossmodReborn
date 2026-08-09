@@ -49,7 +49,18 @@ public record class StrategyConfig(
     public readonly List<StrategyOption> Options = [];
     public readonly List<ActionID> AssociatedActions = []; // these actions will be shown on the track in the planner ui
 
-    public string UIName => DisplayName.Length > 0 ? DisplayName : InternalName;
+    /// <summary>
+    /// 給人看的軌道名稱（已在地化）。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>只有這個屬性可以翻譯，<see cref="InternalName"/> 絕對不行</b> ——
+    /// 後者是 preset／plan 的序列化鍵，也是 IPC 查表的鍵
+    /// （<c>Preset.cs</c>、<c>Plan.cs</c> 的讀寫、<c>IPCProvider</c> 的 FindIndex），
+    /// 翻了就是把使用者的 presets.db.json 弄壞。
+    /// 已逐一核對 <c>UIName</c> 的全部使用點，8 處都是顯示。
+    /// <para>📌 沒有 DisplayName 時退回 InternalName 當翻譯鍵；查不到譯文就照樣顯示英文原文。</para>
+    /// </remarks>
+    public string UIName => Loc.T(DisplayName.Length > 0 ? DisplayName : InternalName);
 }
 
 // each strategy config has a unique set of allowed options; each option has a set of properties describing how it is rendered in planner and what further configuration parameters it supports
@@ -65,7 +76,8 @@ public record class StrategyOption(string InternalName, string DisplayName)
     public int MaxLevel = int.MaxValue; // max character level for this option to be available
     public float DefaultPriority = ActionQueue.Priority.Medium; // default priority that is used if no override is defined
 
-    public string UIName => DisplayName.Length > 0 ? DisplayName : InternalName;
+    /// <summary>給人看的選項名稱（已在地化）。理由與限制同 <see cref="StrategyConfig.UIName"/>。</summary>
+    public string UIName => Loc.T(DisplayName.Length > 0 ? DisplayName : InternalName);
 }
 
 // value represents the concrete option of a config that is selected at a given time; it can be either put on the planner timeline, or configured as part of manual overrides

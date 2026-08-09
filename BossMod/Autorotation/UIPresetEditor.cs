@@ -85,9 +85,9 @@ public sealed class UIPresetEditor
         using var table = ImRaii.Table("preset_details", 3);
         if (!table)
             return;
-        ImGui.TableSetupColumn("Modules");
-        ImGui.TableSetupColumn("Strategies");
-        ImGui.TableSetupColumn("Details");
+        ImGui.TableSetupColumn(Loc.T("PRESET_ColModules", "Modules"));
+        ImGui.TableSetupColumn(Loc.T("PRESET_ColStrategies", "Strategies"));
+        ImGui.TableSetupColumn(Loc.T("PRESET_ColDetails", "Details"));
         ImGui.TableHeadersRow();
         ImGui.TableNextColumn();
         DrawModulesList();
@@ -198,7 +198,7 @@ public sealed class UIPresetEditor
 
     private bool DrawModule(Type type, RotationModuleDefinition definition, bool selected = false)
     {
-        var res = ImGui.Selectable(definition.DisplayName, selected); // note: this assumes display names are unique
+        var res = ImGui.Selectable(Loc.T(definition.DisplayName), selected); // note: this assumes display names are unique
         if (ImGui.IsItemHovered())
         {
             using var tooltip = ImRaii.Tooltip();
@@ -305,7 +305,7 @@ public sealed class UIPresetEditor
 
     private void DrawModulePreview()
     {
-        ImGui.TextUnformatted($"Current modifiers: {Preset.CurrentModifiers()}");
+        ImGui.TextUnformatted(string.Format(Loc.T("PRESET_CurrentModifiers", "Current modifiers: {0}"), Preset.CurrentModifiers()));
         var ms = Preset.Modules[_selectedModuleIndex];
         var values = Preset.ActiveStrategyOverrides(_selectedModuleIndex);
         foreach (var i in _orderedTrackList)
@@ -321,7 +321,7 @@ public sealed class UIPresetEditor
         var ms = Preset.Modules[_selectedModuleIndex];
         ref var s = ref ms.SerializedSettings.Ref(_selectedSettingIndex);
         var cfg = ms.Definition.Configs[s.Track];
-        ImGui.TextUnformatted($"Setting: {cfg.UIName}");
+        ImGui.TextUnformatted(string.Format(Loc.T("PRESET_Setting", "Setting: {0}"), cfg.UIName));
         Modified |= DrawModifier(ref s.Mod, Preset.Modifier.Shift, "Shift");
         Modified |= DrawModifier(ref s.Mod, Preset.Modifier.Ctrl, "Ctrl");
         Modified |= DrawModifier(ref s.Mod, Preset.Modifier.Alt, "Alt");
