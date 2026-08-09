@@ -47,6 +47,10 @@ public sealed class AutoDDConfig : ConfigNode
     [PropertyDisplay("Open bronze coffers")]
     public bool BronzeCoffer = true;
 
+    [PropertyDisplay("Manual \"walk to room\" button on the minimap (requires vnavmesh)",
+        tooltip: "Adds a button under the minimap that walks you to the room you picked, in one go. You press it, it walks, and it stops on arrival - it never opens coffers, never uses the Cairn of Passage, and never starts the next leg by itself. The route does not avoid mobs or trap hints. Off by default.")]
+    public bool ManualRoomWalk = false;
+
     [PropertyDisplay("Reveal all rooms before proceeding to next floor")]
     public bool FullClear = false;
     [PropertyDisplay("Allow automatic pomander use")]

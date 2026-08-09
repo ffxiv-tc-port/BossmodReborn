@@ -165,6 +165,21 @@ public abstract class AutoClear : ZoneModule
 
     protected override void Dispose(bool disposing)
     {
+        // 我們自己叫起來的移動不要留給下一個場景。
+        // 🔴 Dispose 期間的 IPC 要整個包起來：外掛卸載時對方可能已經先走一步，
+        //    這裡擲例外會打斷後面的 Dispose 鏈（全艦隊踩過的形狀）。
+        if (WalkActive)
+        {
+            try
+            {
+                DeepDungeonNav.Stop();
+            }
+            catch (Exception ex)
+            {
+                Service.Log($"[DD nav] Dispose 時停止移動失敗（可忽略）: {ex.Message}");
+            }
+        }
+
         _subscriptions.Dispose();
         _obstacles.Dispose();
         base.Dispose(disposing);
@@ -249,6 +264,14 @@ public abstract class AutoClear : ZoneModule
 
     private void ClearState()
     {
+        // 換層了，上一層算出來的路徑一律作廢；我們發起的移動也停掉
+        // （角色會被傳走，繼續照舊路徑走是沒有意義而且可能有害的）
+        if (WalkActive)
+            RequestWalkStop();
+        _walkMessage = null;
+        _walkTargetRoom = -1;
+        _walkCorridor.Clear();
+
         Donuts.Clear();
         Circles.Clear();
         Gazes.Clear();
@@ -341,6 +364,9 @@ public abstract class AutoClear : ZoneModule
 
         DrawNavigationStatus(player);
 
+        if (Config.ManualRoomWalk)
+            DrawWalkControls(player, coords);
+
         ImGui.Text($"Kills: {Kills}");
 
         var maxPull = Config.MaxPull;
@@ -415,6 +441,350 @@ public abstract class AutoClear : ZoneModule
 
     /// <summary>「不知道／不會動」用的灰字。不用警示色——這些多半不是錯誤，只是沒在動。</summary>
     private static readonly Vector4 ColorUnknownText = new(0.72f, 0.72f, 0.72f, 1f);
+
+    #region 手動「走到目標房間」
+
+    /// <summary>手動導航的狀態。</summary>
+    private enum WalkState
+    {
+        Idle,
+        /// <summary>已經叫 vnavmesh 算路徑，等結果。</summary>
+        Pathfinding,
+        /// <summary>路徑驗過了，交給 vnavmesh 在走。</summary>
+        Moving
+    }
+
+    private WalkState _walkState;
+    private string? _walkMessage;
+    private Task<List<Vector3>>? _walkTask;
+
+    /// <summary>
+    /// 按下停止時遞增，讓還在背景算的那條路徑作廢。
+    /// </summary>
+    /// <remarks>
+    /// 🔑 這就是為什麼刻意不用 <c>SimpleMove.PathfindAndMoveTo</c>：那個端點算完會自己開走，
+    /// 呼叫端攔不到，於是「按了停止、幾秒後角色自己走起來」。改成自己持有那個 Task，
+    /// 停止時只要對不上世代就整條丟掉，問題在結構上消失。
+    /// </remarks>
+    private int _walkGeneration;
+    private int _walkTaskGeneration;
+
+    /// <summary>用活的連通旗標算出來的房間走廊：路徑點只准落在這些房間裡。</summary>
+    private HashSet<int> _walkCorridor = [];
+    private int _walkTargetRoom = -1;
+
+    private DateTime _walkStopEnforceUntil = DateTime.MinValue;
+    private DateTime _walkNextEnforce = DateTime.MinValue;
+
+    private bool WalkActive => _walkState != WalkState.Idle;
+
+    public override void Update()
+    {
+        base.Update();
+
+        UpdateStopWatchdog();
+
+        switch (_walkState)
+        {
+            case WalkState.Pathfinding:
+                PollWalkPathfind();
+                break;
+            case WalkState.Moving:
+                // vnavmesh 沒有「到了」的回呼，路徑點走完就是到了（或被停掉了）
+                if (!DeepDungeonNav.IsPathRunning())
+                {
+                    _walkState = WalkState.Idle;
+                    _walkMessage = null;
+                }
+                break;
+        }
+    }
+
+    /// <summary>
+    /// 使用者按下停止之後，持續補送停止直到真的停了。
+    /// </summary>
+    /// <remarks>
+    /// 送一次就好嗎？我們自己這條路徑是的（見 <see cref="_walkGeneration"/>）。
+    /// 但別的外掛可能也在用 vnavmesh，而使用者按停止的意思就是「現在給我停下來」，
+    /// 所以窗口內只要偵測到還在走就補送。窗口 3 秒，每 100ms 一次，
+    /// 確認既沒在算也沒在走就提早收工，不會空轉滿 3 秒。
+    /// </remarks>
+    private void UpdateStopWatchdog()
+    {
+        if (_walkStopEnforceUntil == DateTime.MinValue)
+            return;
+
+        var now = World.CurrentTime;
+        if (now >= _walkStopEnforceUntil)
+        {
+            _walkStopEnforceUntil = DateTime.MinValue;
+            return;
+        }
+
+        if (now < _walkNextEnforce)
+            return;
+        _walkNextEnforce = now.AddMilliseconds(100);
+
+        var running = DeepDungeonNav.IsPathRunning();
+        if (running)
+            DeepDungeonNav.Stop();
+        else if (!DeepDungeonNav.IsSimpleMovePathfinding())
+            _walkStopEnforceUntil = DateTime.MinValue;
+    }
+
+    private void PollWalkPathfind()
+    {
+        if (_walkTask is not { IsCompleted: true } task)
+            return;
+        _walkTask = null;
+
+        // 這段期間使用者按過停止 ⇒ 整條作廢
+        if (_walkTaskGeneration != _walkGeneration)
+        {
+            _walkState = WalkState.Idle;
+            return;
+        }
+
+        if (task.IsFaulted)
+        {
+            // 讀一次 Exception 把它「觀察掉」，順便留下真正的原因；
+            // 只判 IsFaulted 而不碰 Exception 會留下 unobserved task exception。
+            Service.Log($"[DD nav] vnavmesh 算路徑失敗: {task.Exception?.InnerException?.Message ?? task.Exception?.Message}");
+            SetWalkBlocked(Loc.T("DD_WalkNoRoute", "vnavmesh could not find a route to that room."));
+            return;
+        }
+
+        if (task.IsCanceled || task.Result is not { Count: > 0 } path)
+        {
+            SetWalkBlocked(Loc.T("DD_WalkNoRoute", "vnavmesh could not find a route to that room."));
+            return;
+        }
+
+        // 🔴 路徑點驗證——整個功能的安全核心，不可省略。
+        if (ValidateWalkPath(path) is string reason)
+        {
+            SetWalkBlocked(reason);
+            return;
+        }
+
+        if (!DeepDungeonNav.MoveAlong(path))
+        {
+            SetWalkBlocked(Loc.T("DD_WalkHandoffFailed", "vnavmesh refused the route."));
+            return;
+        }
+
+        _walkState = WalkState.Moving;
+        _walkMessage = null;
+    }
+
+    /// <summary>
+    /// 🔴 檢查 vnavmesh 給的路徑有沒有跑出「房間走廊」。
+    /// </summary>
+    /// <remarks>
+    /// <b>為什麼需要這一步</b>：vnavmesh 的導航網格快取鍵在同一組樓層的 10 層裡是相同的，
+    /// 但門與牆是<b>逐層不同</b>的——也就是它手上那份網格很可能是<b>上一層</b>的。
+    /// 拿那份網格算出來的路會大方地穿過這一層其實關著的門，而且完全不報錯。
+    /// <para>
+    /// 檢查方式：先用<b>活的連通旗標</b>做房間層 BFS 算出「從現在這間走到目標該經過哪些房間」，
+    /// 再逐一驗證每個路徑點最近的房間中心是否落在那個集合裡。跨的房間越多，
+    /// 舊網格繞錯路的機會越大，所以這個檢查在跨房版本比單跳版本更重要。
+    /// </para>
+    /// <para>📌 房間歸屬用「最近的房間中心」而不設距離上限：門口那種夾在兩間中間的點也要有歸屬。</para>
+    /// </remarks>
+    /// <returns>null＝通過；否則是要顯示給使用者看的拒絕原因。</returns>
+    private string? ValidateWalkPath(List<Vector3> path)
+    {
+        var count = path.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var w = path[i];
+            var room = NearestRoom(new WPos(w.X, w.Z), float.MaxValue);
+            if (room < 0 || !_walkCorridor.Contains(room))
+                return string.Format(
+                    Loc.T("DD_WalkPathLeavesCorridor", "Refusing to move: vnavmesh's route leaves the corridor of rooms that are actually connected on this floor (waypoint {0} of {1} lands in room {2}). Its navigation mesh is probably still the one from the previous floor."),
+                    i + 1, count, room);
+        }
+        return null;
+    }
+
+    private void SetWalkBlocked(string message)
+    {
+        _walkState = WalkState.Idle;
+        _walkMessage = message;
+    }
+
+    private void StartWalk(Actor player, int targetRoom)
+    {
+        var playerRoom = FindPlayerRoom(player);
+        if (playerRoom < 0)
+        {
+            SetWalkBlocked(Loc.T("DD_WalkRoomUnknown", "The game has not reported which room you are in yet."));
+            return;
+        }
+
+        // 房間層 BFS，只認活的連通旗標（也就是這一層真的打開的門）
+        var rooms = new FloorPathfind(Palace.Rooms).Pathfind(playerRoom, targetRoom);
+        if (rooms.Count == 0)
+        {
+            SetWalkBlocked(Loc.T("DD_BlockedNoPath", "No route to that room yet - the rooms in between have not been revealed."));
+            return;
+        }
+
+        if (!TryGetRoomDestination(player, targetRoom, out var dest))
+        {
+            SetWalkBlocked(Loc.T("DD_WalkNoDestinationPoint", "The position of that room is unknown on this floor."));
+            return;
+        }
+
+        var task = DeepDungeonNav.Pathfind(player.PosRot.XYZ(), dest);
+        if (task == null)
+        {
+            SetWalkBlocked(Loc.T("DD_WalkNoRoute", "vnavmesh could not find a route to that room."));
+            return;
+        }
+
+        _walkCorridor = [playerRoom, .. rooms];
+        _walkTargetRoom = targetRoom;
+        _walkTask = task;
+        _walkTaskGeneration = _walkGeneration;
+        _walkState = WalkState.Pathfinding;
+        _walkMessage = null;
+        Service.Logger.Information($"[DD] 手動導航：房間 {playerRoom} → {targetRoom}，走廊 [{string.Join(", ", _walkCorridor)}]");
+    }
+
+    /// <summary>
+    /// 目標房間要走到哪一個世界座標。
+    /// </summary>
+    /// <remarks>
+    /// 目標房有通道石而且實體已經在 <c>ObjectTable</c> 裡，就走到實體旁邊——
+    /// 「下層解鎖後點傳送標記那一格」正是這個功能的主要使用情境。
+    /// 🔴 <b>只是走過去，絕不自動互動</b>：要不要下樓由使用者自己點。
+    /// </remarks>
+    private bool TryGetRoomDestination(Actor player, int room, out Vector3 dest)
+    {
+        dest = default;
+
+        if (Palace.Rooms[room].HasFlag(RoomFlags.Passage))
+        {
+            foreach (var a in World.Actors)
+            {
+                if (a.OID is not ((uint)OID.CairnPalace or (uint)OID.BeaconHoH or (uint)OID.PylonEO))
+                    continue;
+                if (_fakeExits.Contains(a.InstanceID))
+                    continue;
+                if (NearestRoom(a.Position, RoomCenterTolerance) != room)
+                    continue;
+                dest = a.PosRot.XYZ();
+                return true;
+            }
+        }
+
+        if (RoomCenters[room] is not WPos c)
+            return false;
+
+        // 房間中心只有 X／Z，高度要問 vnavmesh 的地板查詢。
+        // ⚠️ 探測起點的 Y 要高於地形，否則會從地板底下往下找而落空。
+        // 查不到就退回玩家目前的高度——深牢單層是平的，這個退路夠用，也比猜一個數字誠實。
+        dest = DeepDungeonNav.TryPointOnFloor(new Vector3(c.X, player.PosRot.Y + 2f, c.Z), out var onFloor)
+            ? onFloor
+            : new Vector3(c.X, player.PosRot.Y, c.Z);
+        return true;
+    }
+
+    private void RequestWalkStop()
+    {
+        ++_walkGeneration; // 還在背景算的路徑就此作廢
+        _walkTask = null;
+        _walkState = WalkState.Idle;
+        _walkMessage = null;
+        DeepDungeonNav.Stop();
+        _walkStopEnforceUntil = World.CurrentTime.AddSeconds(3d);
+        _walkNextEnforce = DateTime.MinValue;
+    }
+
+    private DateTime _vnavProbedAt = DateTime.MinValue;
+    private bool _vnavInstalled;
+    private bool _vnavMeshReady;
+
+    /// <summary>
+    /// 探測 vnavmesh 在不在、網格好了沒。
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ 刻意<b>不長期快取</b>——使用者可能中途裝上或停用外掛，沿用舊判定會顯示錯的原因。
+    /// 但也不能每幀直接探：沒安裝時 <c>InvokeFunc</c> 是靠<b>擲例外</b>回報的，
+    /// 每幀丟兩個例外只為了畫一行灰字並不划算。取 0.5 秒重探一次，
+    /// 短到使用者感覺不出延遲，又不會變成每幀成本。
+    /// </remarks>
+    private void ProbeVnav()
+    {
+        var now = World.CurrentTime;
+        if (_vnavProbedAt != DateTime.MinValue && (now - _vnavProbedAt).TotalSeconds < 0.5d)
+            return;
+        _vnavProbedAt = now;
+        _vnavInstalled = DeepDungeonNav.IsInstalled();
+        _vnavMeshReady = _vnavInstalled && DeepDungeonNav.IsMeshReady();
+    }
+
+    /// <summary>按鈕不能按的原因；null＝可以按。</summary>
+    private string? GetWalkBlockedReason(Actor player, RoomCoordState coords)
+    {
+        if (DesiredRoom <= 0)
+            return Loc.T("DD_WalkPickRoomFirst", "Pick a destination room on the map first.");
+
+        // 🔑 三態分開講：要去裝外掛／只要等一下／裝好了但這一層不能信任，處置完全不同
+        ProbeVnav();
+        if (!_vnavInstalled)
+            return Loc.T("DD_WalkNoVnav", "vnavmesh is not installed or not loaded, so walking is unavailable.");
+        if (!_vnavMeshReady)
+            return Loc.T("DD_WalkMeshNotReady", "vnavmesh's navigation mesh is not ready yet (still loading, or there is no mesh for this area).");
+        if (coords != RoomCoordState.Ok)
+            return Loc.T("DD_WalkCoordsUnverified", "The built-in room coordinates do not check out on this floor, so a route cannot be verified. Walking is disabled here.");
+
+        var playerRoom = FindPlayerRoom(player);
+        if (playerRoom < 0)
+            return Loc.T("DD_WalkRoomUnknown", "The game has not reported which room you are in yet.");
+        if (playerRoom == DesiredRoom)
+            return Loc.T("DD_WalkAlreadyThere", "You are already in that room.");
+        return null;
+    }
+
+    private void DrawWalkControls(Actor player, RoomCoordState coords)
+    {
+        // 已經在算／在走的時候不要再給「走過去」——重複按只會把自己的路徑重下一次
+        var blocked = WalkActive ? null : GetWalkBlockedReason(player, coords);
+        if (WalkActive)
+        {
+            // 只留停止鈕，狀態由下面那行說明
+        }
+        else if (blocked != null)
+        {
+            ImGui.TextColored(ColorUnknownText, blocked);
+        }
+        else
+        {
+            if (ImGui.Button(string.Format(Loc.T("DD_WalkToRoom", "Walk to room {0}"), DesiredRoom)))
+                StartWalk(player, DesiredRoom);
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(Loc.T("DD_WalkToRoomTooltip", "Walks there and stops on arrival. It does not open coffers, does not use the Cairn of Passage, and does not start the next leg by itself.\n\nThe route does not avoid mobs and does not avoid trap hints.\nIf you run NecroLens with automatic coffer opening, walking past a coffer will make both plugins reach for it."));
+            ImGui.SameLine();
+        }
+
+        // 停止一律可按：Path.Stop 對「本來就沒在動」是安全的無操作，
+        // 而按鈕變灰的那半秒恰好是最想反悔的半秒。
+        if (ImGui.Button(Loc.T("DD_WalkStop", "Stop moving")))
+            RequestWalkStop();
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(Loc.T("DD_WalkStopTooltip", "Asks vnavmesh to stop. Safe to press at any time. Note this also stops movement started by other plugins."));
+
+        if (_walkMessage != null)
+            ImGui.TextColored(ColorUnknownText, _walkMessage);
+        else if (_walkState == WalkState.Pathfinding)
+            ImGui.TextColored(ColorUnknownText, Loc.T("DD_WalkComputing", "Computing a route..."));
+        else if (_walkState == WalkState.Moving)
+            ImGui.Text(string.Format(Loc.T("DD_WalkMoving", "Walking to room {0}."), _walkTargetRoom));
+    }
+
+    #endregion
 
     /// <summary>
     /// 小地圖下方的狀態列：目標房間是哪一間、由誰決定的、以及<b>為什麼現在沒在動</b>。

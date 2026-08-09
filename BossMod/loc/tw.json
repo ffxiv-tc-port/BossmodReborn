@@ -3454,5 +3454,59 @@
   },
   "DD_BlockedNoPath": {
     "message": "目前還沒有路可以到那一間——中間的房間還沒探索出來。"
+  },
+  "Manual \"walk to room\" button on the minimap (requires vnavmesh)": {
+    "message": "小地圖上顯示手動「走到房間」按鈕（需要 vnavmesh）"
+  },
+  "Adds a button under the minimap that walks you to the room you picked, in one go. You press it, it walks, and it stops on arrival - it never opens coffers, never uses the Cairn of Passage, and never starts the next leg by itself. The route does not avoid mobs or trap hints. Off by default.": {
+    "message": "在小地圖下方加一顆按鈕，一次走到你選定的房間。按一下才會走，到了就停——不會開寶箱、不會使用通道石，也不會自己接續下一段。路線不避怪、也不避陷阱提示。預設關閉。"
+  },
+  "DD_WalkToRoom": {
+    "message": "走到房間 {0}"
+  },
+  "DD_WalkToRoomTooltip": {
+    "message": "走過去，到了就停。不會開寶箱、不會使用通道石，也不會自己接續下一段。\n\n路線不避怪，也不避陷阱提示。\n如果你的 NecroLens 開著自動開寶箱，走過寶箱旁邊時兩個外掛會搶著互動。"
+  },
+  "DD_WalkStop": {
+    "message": "停止移動"
+  },
+  "DD_WalkStopTooltip": {
+    "message": "要求 vnavmesh 停止。任何時候都可以按。注意這也會停掉其他外掛發起的移動。"
+  },
+  "DD_WalkComputing": {
+    "message": "正在計算路徑……"
+  },
+  "DD_WalkMoving": {
+    "message": "正在走往房間 {0}。"
+  },
+  "DD_WalkPickRoomFirst": {
+    "message": "請先在地圖上點選目標房間。"
+  },
+  "DD_WalkNoVnav": {
+    "message": "未偵測到 vnavmesh 外掛，無法自動移動。"
+  },
+  "DD_WalkMeshNotReady": {
+    "message": "vnavmesh 的導航網格尚未就緒（可能正在載入，也可能這個區域沒有網格）。"
+  },
+  "DD_WalkCoordsUnverified": {
+    "message": "這一層的內建房間座標對不上，無法驗證路線是否正確，因此停用自動移動。"
+  },
+  "DD_WalkRoomUnknown": {
+    "message": "遊戲還沒回報你目前在哪一間房。"
+  },
+  "DD_WalkAlreadyThere": {
+    "message": "你已經在那一間房了。"
+  },
+  "DD_WalkNoRoute": {
+    "message": "vnavmesh 找不到通往那一間房的路線。"
+  },
+  "DD_WalkHandoffFailed": {
+    "message": "vnavmesh 拒絕了這條路線。"
+  },
+  "DD_WalkNoDestinationPoint": {
+    "message": "這一層不知道那一間房的位置。"
+  },
+  "DD_WalkPathLeavesCorridor": {
+    "message": "拒絕移動：vnavmesh 給的路線跑出了這一層實際相連的房間範圍（第 {0} 個路徑點共 {1} 個，落在房間 {2}）。它手上的導航網格很可能還是上一層的。"
   }
 }
