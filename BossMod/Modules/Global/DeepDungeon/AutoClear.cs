@@ -870,7 +870,7 @@ public abstract class AutoClear : ZoneModule
             if (ImGui.Button(string.Format(Loc.T("DD_WalkToRoom", "Walk to room {0}"), DesiredRoom)))
                 StartWalk(player, DesiredRoom);
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip(Loc.T("DD_WalkToRoomTooltip", "Walks there and stops on arrival. It does not open coffers, does not use the Cairn of Passage, and does not start the next leg by itself.\n\nThe route does not avoid mobs and does not avoid trap hints.\nIf you run NecroLens with automatic coffer opening, walking past a coffer will make both plugins reach for it."));
+                ImGui.SetTooltip(string.Format(Loc.T("DD_WalkToRoomTooltip", "Walks there and stops on arrival. It does not open coffers, does not use the {0}, and does not start the next leg by itself.\n\nThe route does not avoid mobs and does not avoid trap hints.\nIf you run NecroLens with automatic coffer opening, walking past a coffer will make both plugins reach for it."), PassageName));
             ImGui.SameLine();
         }
 
@@ -911,7 +911,8 @@ public abstract class AutoClear : ZoneModule
         var source = _destinationSource switch
         {
             DestinationSource.FullClear => Loc.T("DD_DestFromFullClear", " (set by \"reveal all rooms\", which overrides your pick)"),
-            DestinationSource.AutoPassage => Loc.T("DD_DestFromAutoPassage", " (set by \"navigate to Cairn of Passage\")"),
+            // 深牢內就用這一座傳送裝置的真名（每座不同），沒看過實體才退回通用詞
+            DestinationSource.AutoPassage => string.Format(Loc.T("DD_DestFromAutoPassage", " (set by \"navigate to {0}\")"), PassageName),
             _ => "",
         };
         ImGui.Text(string.Format(Loc.T("DD_Destination", "Destination: room {0}{1}"), DesiredRoom, source));
@@ -969,6 +970,47 @@ public abstract class AutoClear : ZoneModule
         if (text != null)
             ImGui.TextColored(ColorUnknownText, text);
     }
+
+    #region 傳送裝置的名稱
+
+    /// <summary>
+    /// 目前這座深牢的傳送裝置叫什麼，以及那是哪一座的。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>每一座深牢的傳送裝置官方名稱都不一樣</b>，寫死任何一個都會在別座變成錯的：
+    /// 死者宮殿是「傳送石塚」、天之逆焰是「傳送燈籠」、厄運迷宮是「傳送裝置」
+    /// （已逐一對台服 EObjName 表核對過 OID：0x1EA094／0x1EA9A3／0x1EB867）。
+    /// <para>
+    /// 🔑 名稱直接取自遊戲物件本身（<c>Actor.Name</c> ← <c>GameObject.NameString</c>），
+    /// <b>不查 Lumina</b>：<c>Service.LuminaSheet</c> 寫死 <c>Language.English</c>，
+    /// 在台服客戶端上要不到繁中字串。物件自己的名字就是遊戲當下顯示的那個，最可信。
+    /// </para>
+    /// <para>
+    /// 📌 記住看過的名字（以深牢種類為鍵）：傳送裝置只有靠近時才會串流進 ObjectTable，
+    /// 不快取的話大部分時間都只能顯示通用詞。換一座深牢就重新解析。
+    /// </para>
+    /// </remarks>
+    private (DeepDungeonState.DungeonType Dungeon, string Name)? _passageName;
+
+    private void RememberPassageName(Actor passage)
+    {
+        if (string.IsNullOrEmpty(passage.Name))
+            return;
+        if (_passageName is { } cached && cached.Dungeon == Palace.DungeonId && cached.Name == passage.Name)
+            return;
+        _passageName = (Palace.DungeonId, passage.Name);
+    }
+
+    /// <summary>
+    /// 顯示用的傳送裝置名稱；還沒看過實體時退回通用詞。
+    /// </summary>
+    /// <remarks>⚠️ 通用詞刻意不是任何一座的專名，寧可籠統也不要在別座說錯。</remarks>
+    protected string PassageName =>
+        _passageName is { } n && n.Dungeon == Palace.DungeonId
+            ? n.Name
+            : Loc.T("DD_PassageGeneric", "the exit to the next floor");
+
+    #endregion
 
     #region 保命藥水
 
@@ -1195,7 +1237,10 @@ public abstract class AutoClear : ZoneModule
                 hoardLight = a;
 
             if (a.OID is (uint)OID.CairnPalace or (uint)OID.BeaconHoH or (uint)OID.PylonEO && (passage?.DistanceToHitbox(player) ?? float.MaxValue) > a.DistanceToHitbox(player))
+            {
                 passage = a;
+                RememberPassageName(a);
+            }
 
             if (RevealedTrapOIDs.Contains(a.OID))
                 revealedTraps.Add(ShapeDistance.Circle(a.Position, 2f));
