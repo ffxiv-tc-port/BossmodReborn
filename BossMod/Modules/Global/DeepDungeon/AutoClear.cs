@@ -118,14 +118,11 @@ public abstract class AutoClear : ZoneModule
             }),
             ws.Actors.EventOpenTreasure.Subscribe(OnOpenTreasure),
             ws.Actors.EventObjectAnimation.Subscribe(OnEObjAnim),
-            ws.DeepDungeon.MapDataChanged.Subscribe(op =>
+            ws.DeepDungeon.MapDataChanged.Subscribe(_ =>
             {
                 BetweenFloors = false;
                 if (Walls.Count == 0)
                     LoadWalls();
-                // TEMP DEBUG: dump raw per-room flag bytes to figure out what actually flips as rooms get explored
-                Service.Log($"[DD debug] room flags: {string.Join(' ', op.Rooms.Select((r, i) => $"{i}={(byte)r:X2}"))}");
-                Service.Log($"[DD debug] floor={Palace.Floor} isBossFloor={Palace.IsBossFloor} enableMinimap={Config.EnableMinimap} wantDrawExtra={WantDrawExtra()}");
             })
         );
 
@@ -757,9 +754,34 @@ public abstract class AutoClear : ZoneModule
     private static bool IsPlayerTransformed(Actor player) => player.Statuses.Any(Autorotation.RotationModuleManager.IsTransformStatus);
     private static bool IsDangerousOutOfCombatStatus(uint statusRaw) => statusRaw is (uint)SID.DamageUp or (uint)SID.DreadBeastAura or (uint)SID.PhysicalDamageUp;
 
+    /// <summary>
+    /// 本人目前在第幾間房。
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ <b>不能用 <c>Palace.Party[0]</c>。</b>那個陣列是遊戲的隊伍名單順序，本人不保證在 0 號槽——
+    /// 組隊進深牢時 0 號很可能是別人，於是整個樓層尋路會從<b>別人的房間</b>算起，
+    /// 得到的方向指示是錯的而且完全不報錯（角色只是往奇怪的方向走）。
+    /// 正解是拿 EntityId 比對，小地圖畫玩家標記時本來就是這樣找的。
+    /// </remarks>
+    /// <returns>房號 0..24；找不到本人時回 -1（剛換層、資料尚未同步等）。</returns>
+    protected int FindPlayerRoom(Actor player)
+    {
+        var len = Palace.Party.Length;
+        for (var i = 0; i < len; ++i)
+        {
+            ref readonly var p = ref Palace.Party[i];
+            if (p.EntityId == player.InstanceID)
+                return p.Room < DeepDungeonState.NumRooms ? p.Room : -1;
+        }
+        return -1;
+    }
+
     private void HandleFloorPathfind(Actor player, AIHints hints)
     {
-        var playerRoom = Palace.Party[0].Room;
+        var playerRoom = FindPlayerRoom(player);
+        // 找不到本人就不要瞎猜起點——寧可這一幀不給方向提示，也不要從錯的房間算路線
+        if (playerRoom < 0)
+            return;
 
         if (DesiredRoom == playerRoom || DesiredRoom == 0)
         {

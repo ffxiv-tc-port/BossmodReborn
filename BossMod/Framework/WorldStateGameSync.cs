@@ -27,7 +27,7 @@ sealed class WorldStateGameSync : IDisposable
     private readonly ActionManagerEx _amex;
     private readonly DateTime _startTime;
     private readonly long _startQPC;
-    private bool _loggedDeepDungeonBase; // TEMP DEBUG
+    private bool _loggedDeepDungeonBase;
 
     // list of actors that are present in the user's enemy list
     private readonly List<ulong> _playerEnmity = [];
@@ -777,11 +777,14 @@ sealed class WorldStateGameSync : IDisposable
             var currentId = (DeepDungeonState.DungeonType)dd->DeepDungeonId;
             var fullUpdate = currentId != _ws.DeepDungeon.DungeonId;
 
-            // TEMP DEBUG: print struct base address every time we (re-)enter a deep dungeon, in case it moves between instances
+            // 每次（重新）進入深牢印一次結構基底位址：台服的 InstanceContentDeepDungeon 欄位偏移
+            // 是照國際服 CS 定義推的，對不上時整份深牢資料會是垃圾值而不會拋例外。要使用者回報這行
+            // 才查得出來，所以走 Information（使用者的 LogLevel 是 2，Debug/Verbose 收不到）。
+            // 📌 一次進場只印一行，不是每幀——放心留在正式版。
             if (fullUpdate || !_loggedDeepDungeonBase)
             {
                 _loggedDeepDungeonBase = true;
-                Service.Log($"[DD debug] struct base = 0x{(nint)dd:X}");
+                Service.Logger.Information($"[DD] InstanceContentDeepDungeon 基底位址 = 0x{(nint)dd:X}、DeepDungeonId = {(byte)currentId}、樓層 = {dd->Floor}");
             }
 
             var progress = new DeepDungeonState.DungeonProgress(dd->Floor, dd->ActiveLayoutIndex, dd->WeaponLevel, dd->ArmorLevel, dd->SyncedGearLevel, dd->HoardCount, dd->ReturnProgress, dd->PassageProgress);
