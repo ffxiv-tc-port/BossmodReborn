@@ -95,6 +95,14 @@ public sealed class AutoDDConfig : ConfigNode
     [PropertyDisplay("Player marker size", tooltip: "Size of the arrow marking your own position on the minimap, relative to its original size. The arrow is 64px wide inside an 88px cell, which makes it spill over the room you are standing in; shrink it if it hides the coffer icons.")]
     [PropertySlider(0.4f, 1.5f, Speed = 0.01f)]
     public float PlayerMarkerScale = 0.7f;
+
+    // 📌 預設開：純顯示、零自動化，而且只在「偵測到怪」的格子寫一個數字——
+    //    沒偵測到的格子完全不動，所以不會製造持續性的視覺噪音；
+    //    通道石開啟後還會自動淡化（那時候找剩怪已經沒有價值了）。
+    [PropertyDisplay("Show how many enemies are in each room on the minimap",
+        tooltip: "Writes a small count in the corner of every room where enemies are currently detected. Mainly for finding the last few mobs while the Cairn of Passage has not unlocked yet - the count is highlighted while it is still locked, and fades once it opens.\n\nIMPORTANT: only enemies loaded around you exist as far as any plugin is concerned, so a room with no number is NOT necessarily clear - it may simply be too far away. Rooms are therefore never marked as empty.")]
+    public bool ShowRoomEnemies = true;
+
     [PropertyDisplay("Try to avoid traps", tooltip: "Avoid known trap locations sourced from PalacePal data. Does not need PalacePal installed since data is included in BMR. (Traps revealed by a Pomander of Sight will always be avoided regardless of this setting.)")]
     public bool TrapHints = true;
     [PropertyDisplay("Automatically navigate to Cairn of Passage")]

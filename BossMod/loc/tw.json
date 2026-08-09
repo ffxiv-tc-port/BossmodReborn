@@ -3631,5 +3631,20 @@
   },
   "DD_PresetHint": {
     "message": "切換只在記憶體中進行，不會改寫你已儲存的 AI 循環預設設定，所以即使中途崩潰也不會被卡在深層迷宮的預設上。"
+  },
+  "DD_RoomEnemies": {
+    "message": "此處偵測到 {0} 隻敵人"
+  },
+  "DD_EnemyCountCaveat": {
+    "message": "敵人數只涵蓋你周圍已載入的範圍——沒有數字不代表該房間已清空。"
+  },
+  "DD_EnemyCountUnavailable": {
+    "message": "這一層無法顯示各房間的敵人數（房間座標對不上）。"
+  },
+  "Show how many enemies are in each room on the minimap": {
+    "message": "在小地圖上顯示各房間的敵人數量"
+  },
+  "Writes a small count in the corner of every room where enemies are currently detected. Mainly for finding the last few mobs while the Cairn of Passage has not unlocked yet - the count is highlighted while it is still locked, and fades once it opens.\n\nIMPORTANT: only enemies loaded around you exist as far as any plugin is concerned, so a room with no number is NOT necessarily clear - it may simply be too far away. Rooms are therefore never marked as empty.": {
+    "message": "在每個目前偵測到敵人的房間角落寫上一個小小的數量。主要用途是在通道石尚未解鎖時尋找剩下的幾隻怪——尚未解鎖期間數字會比較醒目，解鎖後則淡化。\n\n請注意：對任何外掛而言，只有你周圍已載入的敵人才存在，所以沒有數字的房間並不代表已經清空，也可能只是距離太遠。因此本功能絕不會把任何房間標示為已清空。"
   }
 }

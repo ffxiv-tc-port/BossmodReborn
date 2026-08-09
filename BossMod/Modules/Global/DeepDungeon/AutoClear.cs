@@ -359,7 +359,16 @@ public abstract class AutoClear : ZoneModule
         var player = World.Party.Player()!;
 
         var coords = CheckRoomCoords(player, out var coordDistance, out _);
-        var targetRoom = new Minimap(Palace, player, DesiredRoom, Config, ComputeChestSpots(coords)).Draw();
+
+        int[]? roomEnemies = null;
+        if (Config.ShowRoomEnemies)
+        {
+            UpdateRoomEnemies(coords, World.CurrentTime);
+            if (_roomEnemiesValid)
+                roomEnemies = _roomEnemies;
+        }
+
+        var targetRoom = new Minimap(Palace, player, DesiredRoom, Config, ComputeChestSpots(coords), roomEnemies).Draw();
         if (targetRoom >= 0)
         {
             DesiredRoom = targetRoom;
@@ -373,6 +382,13 @@ public abstract class AutoClear : ZoneModule
         if (coords == RoomCoordState.Mismatch)
             ImGui.TextColored(ColorUnknownText,
                 string.Format(Loc.T("DD_CoordMismatch", "Coffer positions unavailable on this floor: the built-in room coordinates do not match this map (you are {0:f0}y from the centre of the room the game says you are in)."), coordDistance));
+
+        // 🔴 誠實性：偵測範圍外的房間根本不在 ObjectTable 裡，「沒有數字」不等於「已清空」。
+        //    這一行是常駐的，因為它說的是這個標示的根本限制，不是偶發狀況。
+        if (Config.ShowRoomEnemies)
+            ImGui.TextColored(ColorUnknownText, roomEnemies != null
+                ? Loc.T("DD_EnemyCountCaveat", "Enemy counts only cover what is currently loaded around you - no number does not mean the room is clear.")
+                : Loc.T("DD_EnemyCountUnavailable", "Enemies per room cannot be shown on this floor (room coordinates do not match)."));
 
         DrawNavigationStatus(player);
 
@@ -1505,6 +1521,59 @@ public abstract class AutoClear : ZoneModule
         }
         return res;
     }
+
+    #region 房間內的敵人數
+
+    /// <summary>
+    /// 每個房間目前偵測到幾隻活著的敵人。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>「0」的意思是「現在偵測不到」，不是「已經清空」。</b><c>ObjectTable</c> 只含串流進來的實體，
+    /// 遠處房間的怪根本不在裡面。UI 因此只畫正向標記（有偵測到才寫數字），
+    /// 並常駐一行說明——絕不能讓使用者把空白讀成清完了。
+    /// </remarks>
+    private readonly int[] _roomEnemies = new int[DeepDungeonState.NumRooms];
+
+    /// <summary>上面那份資料現在可不可信（座標校驗過了、而且掃過至少一次）。</summary>
+    private bool _roomEnemiesValid;
+
+    private DateTime _roomEnemiesSweptAt;
+
+    /// <summary>
+    /// 重新統計每個房間的敵人數。
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ 節流到 0.4 秒一次。小地圖是每幀重畫的，但敵人數不需要每幀重算——
+    /// 全表掃描放在每幀路徑上是白花成本（<c>World.Actors</c> 動輒上百個）。
+    /// 📌 判定條件對齊 <c>AIHintsBuilder.FillEnemies</c>（可選取、非友方、沒死），
+    /// 另外限定 <c>ActorType.Enemy</c> 以排掉寵物、陸行鳥、事件物件與寶箱。
+    /// </remarks>
+    private void UpdateRoomEnemies(RoomCoordState coords, DateTime now)
+    {
+        if (coords != RoomCoordState.Ok)
+        {
+            _roomEnemiesValid = false;
+            return;
+        }
+
+        if (_roomEnemiesValid && (now - _roomEnemiesSweptAt).TotalSeconds < 0.4d)
+            return;
+        _roomEnemiesSweptAt = now;
+
+        Array.Clear(_roomEnemies);
+        foreach (var a in World.Actors)
+        {
+            if (a.Type != ActorType.Enemy || a.IsAlly || !a.IsTargetable || a.IsDeadOrDestroyed)
+                continue;
+            var room = NearestRoom(a.Position, RoomCenterTolerance);
+            if (room < 0)
+                continue;
+            ++_roomEnemies[room];
+        }
+        _roomEnemiesValid = true;
+    }
+
+    #endregion
 
     /// <summary>寶箱實體的 OID 對應到哪一個型別槽；不是寶箱回 -1。</summary>
     /// <remarks>

@@ -18,7 +18,12 @@ public readonly record struct ChestSpot(int Room, int Slot, Vector2 CellOffset);
 /// 已找到實體位置的寶箱。<b>null＝這一層的房間座標校驗沒過</b>
 /// （硬編座標對不上，無法把實體歸屬到房間），此時全部寶箱一律畫成「地圖說有、位置不明」。
 /// </param>
-public sealed record class Minimap(DeepDungeonState State, Actor Player, int CurrentDestination, AutoDDConfig Config, IReadOnlyList<ChestSpot>? ChestSpots)
+/// <param name="RoomEnemies">
+/// 每個房間目前偵測到幾隻活著的敵人；null＝功能關閉或本層無法判定。
+/// 🔴 <b>元素是 0 的意思是「現在偵測不到」，不是「已經清空」</b>——遠處房間的怪根本不在
+/// <c>ObjectTable</c> 裡。因此這裡只畫正向標記，沒有數字的格子<b>不做任何宣稱</b>。
+/// </param>
+public sealed record class Minimap(DeepDungeonState State, Actor Player, int CurrentDestination, AutoDDConfig Config, IReadOnlyList<ChestSpot>? ChestSpots, IReadOnlyList<int>? RoomEnemies)
 {
     enum IconID : uint
     {
@@ -53,6 +58,11 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
     private const uint ColorUnknown = 0xFFB4B4B4u;          // 灰＝不知道（不要用警示色，這不是錯誤）
     private const uint ColorCount = 0xFFFFFFFFu;
     private const uint ColorCountShadow = 0xFF000000u;
+
+    // 敵人數。ABGR：淡紅＝通道石還沒開（找剩下的怪最有價值時），灰＝已經開了（淡化避免噪音）。
+    // 只用在文字上，不疊在格子底圖上 —— 維持 NecroLens 的「不疊顏色」語彙。
+    private const uint ColorEnemyCount = 0xFF6E6EFFu;
+    private const uint ColorEnemyCountDim = 0xFF9A9A9Au;
 
     /// <summary>
     /// 把遊戲的 <c>DeepDungeonChestInfo.ChestType</c> 轉成計數陣列的槽位。
@@ -180,6 +190,25 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
             //    把不知道畫成跟知道一樣，比不畫還糟。
             var chestTooltip = DrawChests(i, pos, chestCounts, located, bronzeTex, silverTex, goldTex);
 
+            // ── 房間裡的敵人數 ────────────────────────────────────────────
+            // 🔴 只畫正向標記。沒有數字的格子**不代表清空了**（可能只是不在串流範圍內），
+            //    所以絕不畫「0」，也不畫任何「這裡沒有」的記號 —— 那會是謊話。
+            //    限制本身寫在小地圖下方的常駐說明裡。
+            var enemies = RoomEnemies != null && i < RoomEnemies.Count ? RoomEnemies[i] : 0;
+            if (enemies > 0)
+            {
+                // 左下角：上排是寶箱、中間是玩家箭頭與寶箱點位、(28,44) 是通道石／回歸點，
+                // 左下是唯一還空著的角落
+                ImGui.SetCursorPos(pos + new Vector2(4f, CellPixels - 20f));
+                var at = ImGui.GetCursorScreenPos();
+                // 通道石還沒開的時候找剩下的怪最有價值；開了之後淡化，避免全程視覺噪音
+                var color = State.PassageActive ? ColorEnemyCountDim : ColorEnemyCount;
+                var text = $"x{enemies}";
+                var dl = ImGui.GetWindowDrawList();
+                dl.AddText(at + new Vector2(1f), ColorCountShadow, text);
+                dl.AddText(at, color, text);
+            }
+
             if (i == playerCell)
             {
                 ImGui.SetCursorPos(pos + new Vector2(44, 44));
@@ -193,6 +222,11 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
                 // tooltip 藏的是「為什麼／細節」，不是「有沒有問題」——
                 // 有幾個寶箱、找到沒有，格子上已經看得見了，這裡補的是文字說明。
                 var tip = chestTooltip;
+                if (enemies > 0)
+                {
+                    var line = string.Format(Loc.T("DD_RoomEnemies", "{0} enemies detected here"), enemies);
+                    tip = tip == null ? line : $"{line}\n{tip}";
+                }
                 if (isValidDestination)
                 {
                     ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
