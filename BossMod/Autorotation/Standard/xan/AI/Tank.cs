@@ -20,13 +20,13 @@ public sealed class TankAI(RotationModuleManager manager, Actor player) : AIBase
         def.Define(Track.Stance).As<StanceStrategy>("Stance")
             .AddOption(StanceStrategy.Enabled, "Enabled")
             .AddOption(StanceStrategy.Disabled, "Disabled")
-            .AddOption(StanceStrategy.LeechMode, "Leech", "Leech mode: enable stance only in FATEs");
+            .AddOption(StanceStrategy.LeechMode, "Leech mode: enable stance only in FATEs");
         def.AbilityTrack(Track.Ranged, "Ranged GCD");
 
         def.Define(Track.Interject).As<HintedStrategy>("Interject2", "Interject")
-            .AddOption(HintedStrategy.Disabled, "Disabled", "Don't use")
-            .AddOption(HintedStrategy.HintOnly, "HintOnly", "Interrupt enemies if the current module suggests doing it")
-            .AddOption(HintedStrategy.Enabled, "Enabled", "Interrupt all interruptable enemies")
+            .AddOption(HintedStrategy.Disabled, "Don't use")
+            .AddOption(HintedStrategy.HintOnly, "Interrupt enemies if the current module suggests doing it")
+            .AddOption(HintedStrategy.Enabled, "Interrupt all interruptable enemies")
             .AddAssociatedActions(ClassShared.AID.Interject);
 
         def.AbilityTrack(Track.Stun, "Low Blow").AddAssociatedActions(ClassShared.AID.LowBlow);

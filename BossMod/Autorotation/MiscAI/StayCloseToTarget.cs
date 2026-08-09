@@ -20,7 +20,7 @@ public sealed class StayCloseToTarget(RotationModuleManager manager, Actor playe
 
         var configRef = def.Define(Tracks.Range).As<RangeDefinition>("range");
 
-        configRef.AddOption(RangeDefinition.OnHitbox, "OnHitbox", "Stay on edge of hitbox (+/- 1 unit)");
+        configRef.AddOption(RangeDefinition.OnHitbox, "Stay on edge of hitbox (+/- 1 unit)");
 
         for (var f = 1.1f; f <= 30f; f = MathF.Round(f + 0.1f, 1))
         {
