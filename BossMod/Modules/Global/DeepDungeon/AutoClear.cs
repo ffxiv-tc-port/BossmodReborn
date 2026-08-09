@@ -944,6 +944,13 @@ public abstract class AutoClear : ZoneModule
             ImGui.TextColored(ColorUnknownText, _stuckMessage);
 
         DrawKiteStatus();
+
+        // 🔑 使用者回報過「BMR 鎖住我的設定」。租約持有期間 WrathCombo 側的設定確實會被鎖，
+        //    那是租約機制的正常表現——但在此之前完全看不出來是誰鎖的、怎麼解。
+        //    握著租約就直說，並寫出解除方式。
+        if (_wrathCombo.Active)
+            ImGui.TextColored(ColorUnknownText, Loc.T("DD_WrathLeaseHeld",
+                "Holding WrathCombo's lease - its settings stay locked while this is active. Untick \"pause WrathCombo's auto-rotation\" above to hand control back immediately."));
     }
 
     /// <summary>

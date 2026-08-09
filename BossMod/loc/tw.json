@@ -3661,5 +3661,8 @@
   },
   "DD_PassageGeneric": {
     "message": "下層傳送裝置"
+  },
+  "DD_WrathLeaseHeld": {
+    "message": "目前持有 WrathCombo 的租約——租約期間它的設定會被鎖住。取消勾選上方的「進入深層迷宮時暫停 WrathCombo 的自動循環」即可立即交還控制權。"
   }
 }

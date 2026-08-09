@@ -54,7 +54,9 @@ sealed class WrathComboBridge : IDisposable
     private Guid? _lease;
     private DateTime _nextAttempt = DateTime.MinValue;
     private bool _loggedUnavailable;
+    private bool _releaseFailureLogged;
 
+    /// <summary>我們現在是不是握著 WrathCombo 的租約（＝它的設定正被我們鎖住）。</summary>
     public bool Active => _lease != null;
 
     /// <summary>
@@ -100,6 +102,9 @@ sealed class WrathComboBridge : IDisposable
                 return;
             }
 
+            // 🔴 這一行之後，租約就已經登記在 WrathCombo 那邊了。從這裡開始無論發生什麼
+            //    都**不可以**把 _lease 清掉——清掉等於把一個我們再也還不回去的租約留在對方身上，
+            //    使用者的 WC 設定會一直鎖著，而且沒有任何恢復路徑（只能重載外掛）。
             _lease = id;
             SetAutoRotationState.Value?.InvokeFunc(id, false);
             Service.Logger.Information($"[DD] 已取得 WrathCombo 租約 {id}，深牢期間暫停它的自動循環。");
@@ -111,34 +116,49 @@ sealed class WrathComboBridge : IDisposable
         }
         catch (Exception ex)
         {
-            // WrathCombo 自己的處理常式炸掉不是 IpcError，照樣不能讓它冒到深牢模組
+            // WrathCombo 自己的處理常式炸掉不是 IpcError，照樣不能讓它冒到深牢模組。
+            // ⚠️ 刻意不動 _lease：上面若已經拿到租約，它必須留著才有機會被釋放。
             Service.Logger.Information($"[DD] 與 WrathCombo 交接時發生非預期例外（已忽略）: {ex}");
-            _lease = null;
         }
     }
 
+    /// <summary>
+    /// 把租約還回去。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>只有在確定對方已經收下、或確定對方不在了，才可以放掉本地的 GUID。</b>
+    /// 原本的寫法是「不管成不成功先清掉」，那會在一次暫時性失敗之後就永遠失去這個 handle，
+    /// 租約卻還留在 WrathCombo 那邊 —— 使用者看到的就是「BMR 把我的設定鎖住了」
+    /// 而且關掉開關也解不開。現在失敗就留著，下一幀 <see cref="Update"/> 會再試。
+    /// </remarks>
     private void ReleaseLease()
     {
         if (_lease is not Guid id)
             return;
 
-        // 🔴 不論釋放成功與否都先清掉本地狀態：WrathCombo 可能已經先卸載，
-        //    留著一個永遠釋放不掉的 GUID 會讓我們每次都走進失敗路徑。
-        _lease = null;
-
         try
         {
             // ⚠️ 對面是 RegisterAction ⇒ 必須 InvokeAction
             ReleaseControl.Value?.InvokeAction(id);
+            _lease = null;
+            _releaseFailureLogged = false;
             Service.Logger.Information($"[DD] 已釋放 WrathCombo 租約 {id}，它的自動循環設定會自行還原。");
         }
         catch (IpcError)
         {
-            // WrathCombo 已經不在了。它卸載時本來就會作廢所有租約並還原設定，這裡無事可做。
+            // WrathCombo 已經不在了：它卸載時本來就會作廢所有租約並還原設定，
+            // 對方都沒了，本地放手是安全的（而且必須放手，否則會一直重試）。
+            _lease = null;
+            _releaseFailureLogged = false;
         }
         catch (Exception ex)
         {
-            Service.Logger.Information($"[DD] 釋放 WrathCombo 租約時發生非預期例外（已忽略）: {ex}");
+            // 對方還在、但這次呼叫炸了 ⇒ 租約仍然有效，**不能**放手，下一幀再試。
+            if (!_releaseFailureLogged)
+            {
+                _releaseFailureLogged = true;
+                Service.Logger.Information($"[DD] 釋放 WrathCombo 租約失敗，將持續重試（租約仍在對方手上）: {ex}");
+            }
         }
     }
 
@@ -150,5 +170,19 @@ sealed class WrathComboBridge : IDisposable
         Service.Logger.Information($"[DD] 不與 WrathCombo 交接：{reason}。深牢模組其餘功能不受影響。");
     }
 
-    public void Dispose() => ReleaseLease();
+    /// <summary>
+    /// 最後一次機會把租約還回去。
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ 這裡失敗就沒有下一幀可以重試了，所以要說出來 —— 使用者需要知道
+    /// 「WC 的設定還鎖著」是因為交接沒收乾淨，而不是他自己設錯。
+    /// 📌 WrathCombo 會自行檢查登記者是否還載入著，外掛整個卸載時它會作廢租約，
+    /// 所以最壞情況也只是撐到下次重載。
+    /// </remarks>
+    public void Dispose()
+    {
+        ReleaseLease();
+        if (Active)
+            Service.Logger.Information("[DD] 模組卸載時仍未能釋放 WrathCombo 租約；重載外掛或重啟遊戲後它會自行作廢。");
+    }
 }
