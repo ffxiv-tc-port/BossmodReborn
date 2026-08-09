@@ -3583,5 +3583,26 @@
   },
   "Whenever anything dangerous is telegraphed, the AI normally penalises any spot further from your target than where you stand now, so it does not drift away. That penalty is far stronger than the kiting preference, so without this, kiting silently does nothing while an AOE is up - which in a deep dungeon is most of the time.\n\nTicked, that one penalty is skipped while kiting is actually active. Dodging itself is completely unaffected - no dangerous spot ever becomes acceptable.\n\nUntick for the old behaviour.": {
     "message": "只要地面上有危險預警，AI 平常會對「比你現在更遠離目標」的位置扣分，以免它愈飄愈遠。那個扣分遠比風箏的偏好強，所以沒有這個選項時，只要有範圍攻擊預警風箏就會靜默失效——而在深牢裡那是大部分時間。\n\n勾選後，只有在風箏真正生效的當下才會略過那一項扣分。閃避本身完全不受影響，危險位置永遠不會因此變成可接受。\n\n取消勾選即回到舊行為。"
+  },
+  "DD_BlockedLowHP": {
+    "message": "血量低於 {0}% 時暫停趕路。"
+  },
+  "DD_CombatMovementNote": {
+    "message": "（閃避與戰鬥走位永遠開著，這裡只會暫停前往目標房間。）"
+  },
+  "DD_StuckAbandoned": {
+    "message": "已放棄前往房間 {0}：{1:f0} 秒內沒有任何前進。這一層的障礙物地圖可能與實際地形對不上；重新點一個目標即可再試。"
+  },
+  "Keep travelling until this many mobs have aggro (0 = stop travelling as soon as you are in combat)": {
+    "message": "有這麼多怪咬住之前都繼續趕路（0＝一進入戰鬥就停止趕路）"
+  },
+  "Only controls travelling towards the destination room. Dodging and combat positioning are always active regardless of this value.\n\n0 means you stop heading for the room the moment anything aggros you. Higher values let you keep moving while that many mobs are already on you - useful for pulling several packs at once.": {
+    "message": "只控制「要不要繼續前往目標房間」。閃避與戰鬥走位不受這個數值影響，永遠是開著的。\n\n0 表示只要有東西仇恨你就立刻停止前往房間。數值調高則允許在已經被那麼多隻怪咬住的情況下繼續移動，適合一次拉好幾組怪。"
+  },
+  "Stop travelling below this much HP (%)": {
+    "message": "血量低於這個百分比時停止趕路"
+  },
+  "Pauses travelling to the destination room while your HP is below this percentage, so you do not walk into the next pack at low health. Dodging and combat positioning are unaffected.\n\n0 disables this.": {
+    "message": "血量低於這個百分比時，暫停前往目標房間，避免帶著殘血走進下一組怪。閃避與戰鬥走位不受影響。\n\n設為 0 即停用。"
   }
 }

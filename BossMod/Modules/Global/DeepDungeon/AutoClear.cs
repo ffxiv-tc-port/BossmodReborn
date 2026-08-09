@@ -271,6 +271,8 @@ public abstract class AutoClear : ZoneModule
         _walkMessage = null;
         _walkTargetRoom = -1;
         _walkCorridor.Clear();
+        _stuckMessage = null;
+        _stuckSince = default;
 
         Donuts.Clear();
         Circles.Clear();
@@ -355,6 +357,9 @@ public abstract class AutoClear : ZoneModule
         {
             DesiredRoom = targetRoom;
             _destinationSource = DestinationSource.User;
+            // 使用者重新指定目標＝那次放棄的說明已經沒有意義了
+            _stuckMessage = null;
+            _stuckSince = default;
         }
 
         // 座標對不上時要說出來，否則使用者只會看到「寶箱一直是半透明的」而不知道為什麼
@@ -478,11 +483,76 @@ public abstract class AutoClear : ZoneModule
 
     private bool WalkActive => _walkState != WalkState.Idle;
 
+    #region 卡住偵測
+
+    /// <summary>認定「沒在動」的位移門檻（碼）。</summary>
+    private const float StuckMoveThreshold = 1.5f;
+
+    /// <summary>連續沒動這麼久（秒）就放棄本次目標。</summary>
+    private const float StuckSeconds = 6f;
+
+    private WPos _stuckLastPos;
+    private DateTime _stuckSince;
+    private string? _stuckMessage;
+
+    /// <summary>
+    /// 一直沒走到就放棄，並且說出來。
+    /// </summary>
+    /// <remarks>
+    /// 🔑 這同時是「台服障礙物地圖可能對不上」的緩解措施：那份地圖是上游從國際服產的，
+    /// 對不上時的表現是尋路把角色頂在牆上原地磨，<b>不會有任何錯誤訊息</b>，
+    /// 使用者只看到角色卡住不動。與其猜地圖對不對，不如直接觀測「有沒有真的在前進」。
+    /// <para>
+    /// ⚠️ 只在「AI 開著、不在戰鬥、而且確實有目標房間」時計時：
+    /// AI 沒開時角色本來就不會動，戰鬥中站著打也不是卡住 —— 把那兩種算成卡住是說謊。
+    /// </para>
+    /// </remarks>
+    private void UpdateStuckDetection()
+    {
+        var player = World.Party.Player();
+        var navigating = player != null
+            && Config.Enable
+            && !BetweenFloors
+            && !Palace.IsBossFloor
+            && DesiredRoom > 0
+            && !player.InCombat
+            && AI.AIManager.Instance?.Beh != null;
+
+        if (!navigating)
+        {
+            _stuckSince = default;
+            return;
+        }
+
+        var now = World.CurrentTime;
+        if (_stuckSince == default || (player!.Position - _stuckLastPos).LengthSq() > StuckMoveThreshold * StuckMoveThreshold)
+        {
+            _stuckLastPos = player!.Position;
+            _stuckSince = now;
+            return;
+        }
+
+        if ((now - _stuckSince).TotalSeconds < StuckSeconds)
+            return;
+
+        var abandoned = DesiredRoom;
+        _stuckSince = default;
+        DesiredRoom = 0;
+        _destinationSource = DestinationSource.User;
+        _stuckMessage = string.Format(
+            Loc.T("DD_StuckAbandoned", "Gave up on room {0}: no progress for {1:f0}s. The floor's obstacle map may not match this map; pick a destination again to retry."),
+            abandoned, StuckSeconds);
+        Service.Logger.Information($"[DD] 卡住偵測：{StuckSeconds} 秒內位移不足 {StuckMoveThreshold}y，放棄前往房間 {abandoned}（樓層 {Palace.Floor}、版面 {Palace.Progress.Tileset}）");
+    }
+
+    #endregion
+
     public override void Update()
     {
         base.Update();
 
         UpdateStopWatchdog();
+        UpdateStuckDetection();
 
         switch (_walkState)
         {
@@ -821,11 +891,30 @@ public abstract class AutoClear : ZoneModule
             blocked = Loc.T("DD_BlockedAIOff", "Navigation only happens while BMR's AI is running; it is currently off.");
         else if (player.InCombat && Config.MaxPull == 0)
             blocked = Loc.T("DD_BlockedInCombat", "Navigation is paused during combat (\"max mobs to pull\" is 0).");
+        else if (TravelBlockedByHP(player))
+            blocked = string.Format(Loc.T("DD_BlockedLowHP", "Travelling is paused below {0}% HP."), Config.StopTravelBelowHPPercent);
         else if (_lastPathfindFailed)
             blocked = Loc.T("DD_BlockedNoPath", "No route to that room yet - the rooms in between have not been revealed.");
 
         if (blocked != null)
             ImGui.TextColored(ColorUnknownText, blocked);
+
+        // 🔑 「戰鬥中不趕路」與「戰鬥中不走位」是兩回事，而 MaxPull 的舊文案讀起來像後者。
+        //    這一行是為了讓使用者不必猜：閃避走位永遠開著。
+        if (Config.MaxPull == 0 && player.InCombat)
+            ImGui.TextColored(ColorUnknownText, Loc.T("DD_CombatMovementNote", "(Dodging and combat positioning are always on - this only pauses travelling to the destination room.)"));
+
+        if (_stuckMessage != null)
+            ImGui.TextColored(ColorUnknownText, _stuckMessage);
+    }
+
+    /// <summary>血量低於門檻就不趕路（門檻 0＝停用）。</summary>
+    private bool TravelBlockedByHP(Actor player)
+    {
+        var pct = Config.StopTravelBelowHPPercent;
+        if (pct <= 0 || player.HPMP.MaxHP == 0)
+            return false;
+        return player.HPMP.CurHP * 100f < player.HPMP.MaxHP * pct;
     }
 
     private readonly List<PomanderID> AutoUsable = [
@@ -909,7 +998,8 @@ public abstract class AutoClear : ZoneModule
             hints.AddForbiddenZone(ShapeDistance.Rect(w.Position, (wall.Rotated ? 90f : default).Degrees(), w.Depth, w.Depth, 20f));
         }
 
-        if (canNavigate)
+        // 血量低於門檻就不趕路（只擋趕路，戰鬥走位與閃避不受影響）
+        if (canNavigate && !TravelBlockedByHP(player))
             HandleFloorPathfind(player, hints);
 
         DrawAOEs(playerSlot, player, hints);
@@ -1461,6 +1551,12 @@ public abstract class AutoClear : ZoneModule
             return;
         }
 
+        // 🔑 趕路場的權重原本固定是 10，壓過場上所有戰鬥走位（風箏 0.05、閃避偏好 0.5…）。
+        //    MaxPull > 1 時這會變成「被兩隻怪咬著仍然全速趕路」——使用者設定的是
+        //    「還能再拉幾隻」，不是「戰鬥中也照跑」。戰鬥中把權重降到 0.5，
+        //    讓它退成一個溫和的方向偏好，戰鬥走位重新拿回主導權。
+        //    ⚠️ MaxPull == 0 的人完全不受影響：那種設定下戰鬥中根本不會走到這裡。
+        var travelWeight = player.InCombat ? 0.5f : 10f;
         hints.GoalZones.Add(p =>
         {
             var pp = player.Position;
@@ -1472,7 +1568,7 @@ public abstract class AutoClear : ZoneModule
                 Direction.West => pp.X - p.X,
                 _ => 0,
             };
-            return improvement > 10 ? 10 : 0;
+            return improvement > 10f ? travelWeight : 0f;
         });
     }
 

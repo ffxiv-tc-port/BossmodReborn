@@ -102,9 +102,17 @@ public sealed class AutoDDConfig : ConfigNode
     [PropertyDisplay("Automatic mob targeting behavior")]
     public ClearBehavior AutoClear = ClearBehavior.Leveling;
 
-    [PropertyDisplay("Max number of mobs to pull before pausing navigation (set to 0 to disable navigation while in combat)")]
+    // ⚠️ 舊文案是「暫停導航前可拉取的最大怪物數」，讀起來像是「戰鬥中會不會走位」，
+    //    但它其實只管「要不要繼續趕往目標房間」——閃避與戰鬥走位永遠是開著的。
+    [PropertyDisplay("Keep travelling until this many mobs have aggro (0 = stop travelling as soon as you are in combat)",
+        tooltip: "Only controls travelling towards the destination room. Dodging and combat positioning are always active regardless of this value.\n\n0 means you stop heading for the room the moment anything aggros you. Higher values let you keep moving while that many mobs are already on you - useful for pulling several packs at once.")]
     [PropertySlider(0, 15)]
     public int MaxPull = 0;
+
+    [PropertyDisplay("Stop travelling below this much HP (%)",
+        tooltip: "Pauses travelling to the destination room while your HP is below this percentage, so you do not walk into the next pack at low health. Dodging and combat positioning are unaffected.\n\n0 disables this.")]
+    [PropertySlider(0, 90)]
+    public int StopTravelBelowHPPercent = 0;
     // ⚠️ 標籤上的「僅厄運迷宮」不是保守說法，是實測結果：這個旗標唯一的讀取點是
     //    AutoClear.AddLOS()，而 AddLOS() 全庫只有 EOFloorModule 呼叫（五處）。
     //    PalaceFloorModule 與 HoHFloorModule 零呼叫 ⇒ 在死者宮殿與天之逆焰是死鍵。
