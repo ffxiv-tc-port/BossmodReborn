@@ -4693,5 +4693,380 @@
   },
   "Dash": {
     "message": "位移"
+  },
+  "Atones": {
+    "message": "贖罪劍連段"
+  },
+  "Battery": {
+    "message": "電力槽技"
+  },
+  "Bio": {
+    "message": "持續傷害技"
+  },
+  "Blades": {
+    "message": "審判連段"
+  },
+  "Blitz": {
+    "message": "極意終結技"
+  },
+  "Blood": {
+    "message": "血氣技"
+  },
+  "Carts": {
+    "message": "彈匣技"
+  },
+  "Carve": {
+    "message": "吸血技"
+  },
+  "Cont.": {
+    "message": "續劍技"
+  },
+  "DOT": {
+    "message": "雷屬性持續傷害"
+  },
+  "DOTs": {
+    "message": "持續傷害技"
+  },
+  "Despair": {
+    "message": "耗魔技"
+  },
+  "Dives": {
+    "message": "跳躍技"
+  },
+  "Drill": {
+    "message": "鑽頭系工具技"
+  },
+  "FiresReply": {
+    "message": "型意回饋技"
+  },
+  "G.Fang": {
+    "message": "猛獸連段"
+  },
+  "HS": {
+    "message": "聖靈/贖罪技"
+  },
+  "Heat": {
+    "message": "熱能技"
+  },
+  "High Jump/Mirage Dive": {
+    "message": "跳躍/幻象衝技"
+  },
+  "Holy S/C": {
+    "message": "聖靈/聖環技"
+  },
+  "Interrupt": {
+    "message": "打斷"
+  },
+  "Jump": {
+    "message": "躍擊技"
+  },
+  "L.Shot": {
+    "message": "遠程填充技"
+  },
+  "LB Summon": {
+    "message": "極限技召喚"
+  },
+  "Leylines": {
+    "message": "黑魔紋"
+  },
+  "MP": {
+    "message": "魔力技"
+  },
+  "Motifs": {
+    "message": "藝術心象"
+  },
+  "Polyglot": {
+    "message": "通言技"
+  },
+  "Queen": {
+    "message": "人偶技"
+  },
+  "R.scat": {
+    "message": "安魂技"
+  },
+  "Ranged": {
+    "message": "遠程填充技"
+  },
+  "Reign": {
+    "message": "崛起連段"
+  },
+  "ST": {
+    "message": "單體法術技"
+  },
+  "Scarlet": {
+    "message": "血紅連段"
+  },
+  "TP/US": {
+    "message": "星靈技"
+  },
+  "ThirdEye": {
+    "message": "心眼技"
+  },
+  "Tools": {
+    "message": "工具技"
+  },
+  "Triplecast": {
+    "message": "即效詠唱技"
+  },
+  "W.fire": {
+    "message": "野火技"
+  },
+  "Wildfire": {
+    "message": "野火技"
+  },
+  "Addle": {
+    "message": "昏亂"
+  },
+  "Afflatus Misery": {
+    "message": "苦難之心"
+  },
+  "Arcane Crest": {
+    "message": "神秘紋"
+  },
+  "Assize": {
+    "message": "法令"
+  },
+  "Aurora": {
+    "message": "極光"
+  },
+  "Barrage": {
+    "message": "紛亂箭"
+  },
+  "Druochole": {
+    "message": "靈橡清汁"
+  },
+  "Feint": {
+    "message": "牽制"
+  },
+  "Forked Raiju": {
+    "message": "月影雷獸爪"
+  },
+  "Hide": {
+    "message": "隱遁"
+  },
+  "Holy": {
+    "message": "神聖"
+  },
+  "Hypercharge": {
+    "message": "超荷"
+  },
+  "Icarus": {
+    "message": "神翼"
+  },
+  "Infuriate": {
+    "message": "戰嚎"
+  },
+  "Kardia": {
+    "message": "心關"
+  },
+  "Oblation": {
+    "message": "獻奉"
+  },
+  "Onslaught": {
+    "message": "猛攻"
+  },
+  "Physis": {
+    "message": "自生"
+  },
+  "Reprisal": {
+    "message": "雪仇"
+  },
+  "Scathe": {
+    "message": "崩潰"
+  },
+  "Slither": {
+    "message": "蛇行"
+  },
+  "Succor": {
+    "message": "士氣高揚之策"
+  },
+  "Swiftcast": {
+    "message": "即刻詠唱"
+  },
+  "Tomahawk": {
+    "message": "飛斧"
+  },
+  "Upheaval": {
+    "message": "動亂"
+  },
+  "A.Helios": {
+    "message": "陽星相位"
+  },
+  "A.pact": {
+    "message": "乙太契約"
+  },
+  "Apex": {
+    "message": "絕峰箭"
+  },
+  "Atone": {
+    "message": "贖罪劍"
+  },
+  "BH": {
+    "message": "義結金蘭"
+  },
+  "BL": {
+    "message": "失血箭"
+  },
+  "BW": {
+    "message": "原初的血氣"
+  },
+  "Blast": {
+    "message": "爆破箭"
+  },
+  "Corps-a-Corps": {
+    "message": "短兵相接"
+  },
+  "Cyclone": {
+    "message": "深紅旋風"
+  },
+  "Deploy.": {
+    "message": "展開戰術"
+  },
+  "Diag": {
+    "message": "診斷"
+  },
+  "Dive": {
+    "message": "跳躍技"
+  },
+  "E.Star": {
+    "message": "地星"
+  },
+  "EA": {
+    "message": "九天連箭"
+  },
+  "Edge": {
+    "message": "魔力技"
+  },
+  "Elixir": {
+    "message": "軍用聖靈藥"
+  },
+  "Encore": {
+    "message": "光明神的返場餘音"
+  },
+  "Eye": {
+    "message": "心眼"
+  },
+  "General": {
+    "message": "一般"
+  },
+  "Guard": {
+    "message": "防禦"
+  },
+  "Hammer": {
+    "message": "重錘敲章"
+  },
+  "HoC": {
+    "message": "剛玉之心"
+  },
+  "Hold": {
+    "message": "保留"
+  },
+  "Horo": {
+    "message": "天宮圖"
+  },
+  "IR": {
+    "message": "原初的解放"
+  },
+  "LB": {
+    "message": "極限技"
+  },
+  "Nadi": {
+    "message": "氣脈"
+  },
+  "PR": {
+    "message": "蠻荒崩裂"
+  },
+  "PoA": {
+    "message": "武裝戍衛"
+  },
+  "Pot": {
+    "message": "藥水"
+  },
+  "Prog": {
+    "message": "預後"
+  },
+  "Purify": {
+    "message": "淨化"
+  },
+  "Recit.": {
+    "message": "秘策"
+  },
+  "Recuperate": {
+    "message": "自癒"
+  },
+  "Reso": {
+    "message": "共鳴箭"
+  },
+  "RoW": {
+    "message": "疾風極意"
+  },
+  "S.Samba": {
+    "message": "防守之桑巴"
+  },
+  "S.Soil": {
+    "message": "野戰治療陣"
+  },
+  "S.cast": {
+    "message": "即刻詠唱"
+  },
+  "Sent": {
+    "message": "預警"
+  },
+  "Shel": {
+    "message": "盾陣"
+  },
+  "SixSidedStar": {
+    "message": "六合星導腳"
+  },
+  "Songs": {
+    "message": "樂曲"
+  },
+  "Swift": {
+    "message": "即刻詠唱"
+  },
+  "T.Coat": {
+    "message": "坦培拉塗層"
+  },
+  "TBN": {
+    "message": "至黑之夜"
+  },
+  "Tact": {
+    "message": "策動"
+  },
+  "Thunder": {
+    "message": "雷電"
+  },
+  "Troub": {
+    "message": "行吟"
+  },
+  "Veng": {
+    "message": "復仇"
+  },
+  "W.Glide": {
+    "message": "龍翼滑翔"
+  },
+  "Wall": {
+    "message": "暗影牆"
+  },
+  "Wrath": {
+    "message": "原初的怒震"
+  },
+  "Zoe": {
+    "message": "活化"
+  },
+  "range": {
+    "message": "距離"
+  },
+  "Positional": {
+    "message": "定位"
+  },
+  "SoftTarget": {
+    "message": "軟鎖定"
+  },
+  "Target": {
+    "message": "目標"
+  },
+  "Targeting": {
+    "message": "選標"
   }
 }
