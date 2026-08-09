@@ -4054,5 +4054,11 @@
   },
   "Work in progress - expect it to break a lot (or just be straight broken)": {
     "message": "開發中——預期會經常出問題（或根本就是壞的）"
+  },
+  "CFG_SearchHint": {
+    "message": "搜尋設定……"
+  },
+  "CFG_SearchClear": {
+    "message": "清除"
   }
 }

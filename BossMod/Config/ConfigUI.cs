@@ -15,6 +15,9 @@ public sealed class ConfigUI : IDisposable
         public int Order;
         public UINode? Parent;
         public List<UINode> Children = [];
+
+        /// <summary>從根到本節點的名稱路徑（英文內部名），搜尋比對用。</summary>
+        public List<string> Path = [];
     }
 
     private readonly List<UINode> _roots = [];
@@ -60,6 +63,7 @@ public sealed class ConfigUI : IDisposable
         }
 
         SortByOrder(_roots);
+        ResolvePaths(_roots, []);
     }
 
     public void Dispose()
@@ -158,14 +162,112 @@ public sealed class ConfigUI : IDisposable
         }
     }
 
+    private string _searchText = "";
+    private readonly List<List<string>> _filterNodes = [];
+
     private void DrawSettings()
     {
+        ImGui.SetNextItemWidth(300f);
+        if (ImGui.InputTextWithHint("###configsearch", Loc.T("CFG_SearchHint", "Search for a setting..."), ref _searchText, 128))
+            FilterNodes();
+
+        ImGui.SameLine();
+        using (ImRaii.Disabled(_searchText.Length == 0))
+        {
+            if (ImGui.Button(Loc.T("CFG_SearchClear", "Clear")))
+            {
+                _searchText = "";
+                FilterNodes();
+            }
+        }
+
         using var child = ImRaii.Child("SettingsWindow", new Vector2(0, 0), true);
         if (child)
             DrawNodes(_roots);
     }
 
-    public static void DrawNode(ConfigNode node, ConfigRoot root, UITree tree, WorldState ws)
+    private void ResolvePaths(List<UINode> nodes, IEnumerable<string> parent)
+    {
+        foreach (var n in nodes)
+        {
+            n.Path = [.. parent, n.Name];
+            ResolvePaths(n.Children, n.Path);
+        }
+    }
+
+    /// <summary>
+    /// 比對一段文字是否命中搜尋詞。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>必須同時比對原文與譯文。</b>我們的設定頁標籤是在繪製當下才經
+    /// <c>Loc.T</c> 翻成繁中的，資料結構裡存的仍是英文原文。只比英文的話，
+    /// 使用者看著滿頁繁中、輸入繁中卻永遠零結果——搜尋框等於壞的。
+    /// 反過來只比譯文則會讓缺譯的項目搜不到，所以兩邊都要比。
+    /// </remarks>
+    private bool TextMatches(string text)
+        => text.Length > 0
+        && (text.Contains(_searchText, StringComparison.InvariantCultureIgnoreCase)
+            || Loc.T(text, text).Contains(_searchText, StringComparison.InvariantCultureIgnoreCase));
+
+    private void FilterNodes()
+    {
+        _filterNodes.Clear();
+        if (_searchText.Length == 0)
+            return;
+
+        foreach (var r in _roots)
+            WalkNodes(r, [], _filterNodes);
+    }
+
+    private void WalkNodes(UINode node, List<string> path, List<List<string>> results)
+    {
+        // 整頁命中：用 "*" 當萬用尾綴，代表這一頁底下所有項目都要顯示
+        if (TextMatches(node.Name))
+        {
+            results.Add([.. path, node.Name, "*"]);
+            return;
+        }
+
+        foreach (var field in node.Node.GetType().GetFields())
+        {
+            var props = field.GetCustomAttribute<PropertyDisplayAttribute>();
+            if (props != null && (TextMatches(props.Label) || TextMatches(props.Tooltip)))
+                results.Add([.. path, node.Name, props.Label]);
+        }
+
+        path.Add(node.Name);
+        foreach (var child in node.Children)
+            WalkNodes(child, path, results);
+        path.RemoveAt(path.Count - 1);
+    }
+
+    private bool MatchesFilter(List<string> path)
+    {
+        if (_filterNodes.Count == 0)
+            return true;
+
+        foreach (var filter in _filterNodes)
+        {
+            var i = 0;
+            var ok = true;
+            foreach (var f in filter)
+            {
+                if (f == "*" || i >= path.Count)
+                    break;
+                if (f != path[i])
+                {
+                    ok = false;
+                    break;
+                }
+                ++i;
+            }
+            if (ok)
+                return true;
+        }
+        return false;
+    }
+
+    public static void DrawNode(ConfigNode node, ConfigRoot root, UITree tree, WorldState ws, Func<PropertyDisplayAttribute, bool>? filter = null)
     {
         // draw page-wide preconditions/warnings *before* the options they apply to
         node.DrawHeader(tree, ws);
@@ -175,6 +277,8 @@ public sealed class ConfigUI : IDisposable
         {
             var props = field.GetCustomAttribute<PropertyDisplayAttribute>();
             if (props == null)
+                continue;
+            if (filter != null && !filter(props))
                 continue;
 
             var value = field.GetValue(node);
@@ -204,9 +308,9 @@ public sealed class ConfigUI : IDisposable
 
     private void DrawNodes(List<UINode> nodes)
     {
-        foreach (var n in _tree.Nodes(nodes, n => new(Loc.T(n.Name, n.Name))))
+        foreach (var n in _tree.Nodes(nodes.Where(n => MatchesFilter(n.Path)), n => new(Loc.T(n.Name, n.Name))))
         {
-            DrawNode(n.Node, _root, _tree, _ws);
+            DrawNode(n.Node, _root, _tree, _ws, props => MatchesFilter([.. n.Path, props.Label]));
             DrawNodes(n.Children);
         }
     }
