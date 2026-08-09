@@ -6463,5 +6463,407 @@
   },
   "Move to the point in maxmelee that is closest to specific point": {
     "message": "移動到近戰最大距離內最靠近指定位置的點"
+  },
+  "N/NW": {
+    "message": "北／西北"
+  },
+  "N/NW, keep uptime if <3 hearts": {
+    "message": "北／西北,愛心低於3顆時維持輸出在線"
+  },
+  "NW prefer near (MT spot)": {
+    "message": "西北優先靠近(坦克站位)"
+  },
+  "NW, melee/CW": {
+    "message": "西北,近戰／順時針"
+  },
+  "Never": {
+    "message": "從不"
+  },
+  "Never use Swiftcast to raise": {
+    "message": "從不用即刻詠唱復活"
+  },
+  "No automatic movement": {
+    "message": "不自動移動"
+  },
+  "No use": {
+    "message": "不使用"
+  },
+  "No use.": {
+    "message": "不使用。"
+  },
+  "Normal use Fight or Flight": {
+    "message": "正常使用戰逃反應"
+  },
+  "Normal use of Atonement & its combo chain": {
+    "message": "正常使用贖罪劍及其連段"
+  },
+  "Normal use of Bloodfest": {
+    "message": "正常使用血壤"
+  },
+  "Normal use of Confiteor & Blades combo chain": {
+    "message": "正常使用悔罪及審判連段"
+  },
+  "Normal use of Continuation": {
+    "message": "正常使用續劍"
+  },
+  "Normal use of Double Down": {
+    "message": "正常使用倍攻"
+  },
+  "Normal use of Gnashing Fang": {
+    "message": "正常使用烈牙"
+  },
+  "Normal use of Goring Blade": {
+    "message": "正常使用瀝血劍"
+  },
+  "Normal use of Intervene": {
+    "message": "正常使用調停"
+  },
+  "Normal use of No Mercy": {
+    "message": "正常使用無情"
+  },
+  "Normal use of Reign of Beasts": {
+    "message": "正常使用崛起之心"
+  },
+  "Normal use of Sonic Break": {
+    "message": "正常使用音速破"
+  },
+  "Only cast motifs when they are instant (out of combat)": {
+    "message": "只在即發時詠唱心象(戰鬥外)"
+  },
+  "Only if HP is below 30%": {
+    "message": "只在HP低於30%時"
+  },
+  "Only if MP is below 30%": {
+    "message": "只在MP低於30%時"
+  },
+  "Only use Auto Crossbow, regardless of targets": {
+    "message": "不論目標數,只使用自動連弩"
+  },
+  "Only use Bioblaster, regardless of targets": {
+    "message": "不論目標數,只使用毒化衝擊"
+  },
+  "Only use Drill, regardless of targets": {
+    "message": "不論目標數,只使用鑽頭"
+  },
+  "Only use Heat Blast, regardless of targets": {
+    "message": "不論目標數,只使用高熱衝擊波"
+  },
+  "Only use Holy Circle as optimal Holy action": {
+    "message": "只以聖環作為最佳神聖技能"
+  },
+  "Only use Holy Spirit as optimal Holy action": {
+    "message": "只以聖靈作為最佳神聖技能"
+  },
+  "Only use OGCDs for use while moving; Swiftcast->Triplecast (NOTE: This will most likely cause you to enter UI3 without Transpose if moving frequently)": {
+    "message": "移動中只使用OGCD技能;即刻詠唱→三連詠唱(注意:頻繁移動很可能導致在沒有星靈移位的情況下進入UI3)"
+  },
+  "Only use Scathe for use while moving": {
+    "message": "移動中只使用崩潰"
+  },
+  "Only use Transpose & Umbral Soul combo when fully out of combat": {
+    "message": "只在完全離開戰鬥時使用星靈移位與靈極魂連段"
+  },
+  "Only use if charges are capped": {
+    "message": "只在充能已滿時使用"
+  },
+  "Only use instant cast GCDs for use while moving; Polyglots->Thunder->Scathe if nothing left": {
+    "message": "移動中只使用即發GCD技能;沒有其他選擇時依序使用通言技→雷電→崩潰"
+  },
+  "Only use while close to target": {
+    "message": "只在靠近目標時使用"
+  },
+  "Only use while close to target and not moving": {
+    "message": "只在靠近目標且未移動時使用"
+  },
+  "Only use while not moving": {
+    "message": "只在未移動時使用"
+  },
+  "Optimize rotation around lost blood rage usage (delay IR, use onslaught to proc blood rage)": {
+    "message": "以善用嗜血怒火為優化重點(延後原初的解放,用猛攻觸發嗜血怒火)"
+  },
+  "Out of combat": {
+    "message": "戰鬥外"
+  },
+  "Party members": {
+    "message": "隊伍成員"
+  },
+  "Place Limit Break summon on crystal only; will hold LB until near the crystal (only works for Crystalline Conflict)": {
+    "message": "極限技召喚只放在水晶上;會保留極限技直到靠近水晶(僅適用於水晶衝突)"
+  },
+  "Place Limit Break summon on crystal or target if crystal is unavailable (intended for Crystalline Conflict, but works in others too)": {
+    "message": "極限技召喚放在水晶上,水晶不可用時改放在目標身上(為水晶衝突設計,但其他模式也適用)"
+  },
+  "Place Limit Break summon on current target": {
+    "message": "極限技召喚放在目前目標身上"
+  },
+  "Place Limit Break summon on self": {
+    "message": "極限技召喚放在自己身上"
+  },
+  "Place turret on crystal only; will hold turret until near the crystal (only works for Crystalline Conflict)": {
+    "message": "砲塔只放在水晶上;會保留砲塔直到靠近水晶(僅適用於水晶衝突)"
+  },
+  "Place turret on crystal or target if crystal is unavailable (intended for Crystalline Conflict, but works in others too)": {
+    "message": "砲塔放在水晶上,水晶不可用時改放在目標身上(為水晶衝突設計,但其他模式也適用)"
+  },
+  "Place turret on self": {
+    "message": "砲塔放在自己身上"
+  },
+  "Place turret on target's location": {
+    "message": "砲塔放在目標所在位置"
+  },
+  "Pool for raid buffs, otherwise use freely": {
+    "message": "為團隊增益蓄力,否則自由使用"
+  },
+  "Position boss in center or slightly to the south, then face north": {
+    "message": "把頭目定位在中心或略偏南,並面向北方"
+  },
+  "Position boss in the north, then face center": {
+    "message": "把頭目定位在北方,並面向中心"
+  },
+  "Pre-pull position: as close to the clock-spot as possible": {
+    "message": "拉怪前站位:盡量靠近時鐘位置"
+  },
+  "Precast Demolish from melee range": {
+    "message": "在近戰距離內預先施放破碎拳"
+  },
+  "Precast Dragon Kick from melee range": {
+    "message": "在近戰距離內預先施放雙龍腳"
+  },
+  "Prefer to stay 0.5y away from forbidden zones": {
+    "message": "傾向與禁區保持0.5公尺距離"
+  },
+  "Prefer to stay 1.5y away from forbidden zones": {
+    "message": "傾向與禁區保持1.5公尺距離"
+  },
+  "Prefer to stay 3y away from forbidden zones": {
+    "message": "傾向與禁區保持3公尺距離"
+  },
+  "Prevent Addersgall overcap by using Druochole on lowest-HP ally": {
+    "message": "對HP最低的隊友使用靈橡清汁,以避免蛇之膽溢出"
+  },
+  "Prioritize ALL targetable mobs": {
+    "message": "優先鎖定所有可鎖定的小怪"
+  },
+  "Prioritize mobs in active fate": {
+    "message": "優先鎖定目前戰場任務中的小怪"
+  },
+  "Prohibit the use of ranged attacks": {
+    "message": "禁止使用遠程攻擊"
+  },
+  "Prohibit use of Lightning Shot": {
+    "message": "禁止使用雷電彈"
+  },
+  "Raise using Swiftcast only": {
+    "message": "只用即刻詠唱復活"
+  },
+  "Raise without requiring Swiftcast to be available": {
+    "message": "不需要即刻詠唱可用也能復活"
+  },
+  "Refresh every 60s according to standard rotation": {
+    "message": "依標準循環每60秒重新施放"
+  },
+  "Remove stance if active": {
+    "message": "生效中則解除姿態"
+  },
+  "Require melee combo to be completed - do nothing while target is out of range": {
+    "message": "要求完成近戰連段——目標超出距離時不執行任何動作"
+  },
+  "Reserve 2 charges, trying to prevent overcap": {
+    "message": "保留2層充能,盡量避免溢出"
+  },
+  "Skip if a movement key is held, otherwise use": {
+    "message": "按著移動鍵時略過,否則使用"
+  },
+  "Spend gauge freely (as if inside burst window), ensure ST is properly maintained (useful at the end of the fight)": {
+    "message": "自由消耗量表(視同在爆發期間內),並確保單體增益維持得當(適合戰鬥尾聲使用)"
+  },
+  "Spend gauge under potion, otherwise conserve; ignore raidbuffs (useful for misaligned potions)": {
+    "message": "在藥水期間消耗量表,其餘時候節省;不理會團隊增益(適合藥水時機錯開時使用)"
+  },
+  "Spend gauge under potion/raidbuffs, otherwise conserve": {
+    "message": "在藥水或團隊增益期間消耗量表,其餘時候節省"
+  },
+  "Spend gauge under raidbuffs, otherwise conserve; ignore potion (useful if potion is delayed)": {
+    "message": "在團隊增益期間消耗量表,其餘時候節省;不理會藥水(適合藥水延後使用時)"
+  },
+  "Sprint to melee range": {
+    "message": "衝刺進入近戰距離"
+  },
+  "Standard opener, but use Kasha first for immediate haste buff": {
+    "message": "標準開場,但先用花車以立即取得加速增益"
+  },
+  "Standard opener; Gekko (damage buff), Kasha, Midare, Higanbana, Ogi": {
+    "message": "標準開場;月光(傷害增益)、花車、亂舞、彼岸花、奧義"
+  },
+  "Start moving as soon as cast ends, use instants until destination is reached": {
+    "message": "詠唱結束後立即開始移動,在抵達目的地前使用即發技能"
+  },
+  "Start moving asap, interrupting casts if necessary, use instants until destination is reached": {
+    "message": "盡快開始移動,必要時中斷詠唱,在抵達目的地前使用即發技能"
+  },
+  "Stay on edge of hitbox (+/- 1 unit)": {
+    "message": "停留在受擊框邊緣(±1單位)"
+  },
+  "Stay within effective range as long as possible; try to ensure safety is reached before mechanic resolves": {
+    "message": "盡量停留在有效距離內;盡力確保在機制結算前抵達安全處"
+  },
+  "Stay within effective range until last GCD; ensure destination is reached by the plan entry end": {
+    "message": "停留在有效距離內直到最後一個GCD;確保在計劃項目結束前抵達目的地"
+  },
+  "Stay within effective range until last possible moment; ensure destination is reached by the plan entry end": {
+    "message": "停留在有效距離內直到最後可行時機;確保在計劃項目結束前抵達目的地"
+  },
+  "Stay within maximum effective range of target closest to destination": {
+    "message": "停留在最靠近目的地目標的最大有效距離內"
+  },
+  "Summon at 100 gauge": {
+    "message": "量表滿100時召喚"
+  },
+  "Summon at 50+ gauge": {
+    "message": "量表達50以上時召喚"
+  },
+  "Thunderclap to target": {
+    "message": "對目標使用輕身步法"
+  },
+  "Try to delay uses until raidbuffs, avoiding overcap": {
+    "message": "盡量延後使用直到團隊增益期間,同時避免溢出"
+  },
+  "Use AOE actions if beneficial": {
+    "message": "有利時使用範圍技能"
+  },
+  "Use ASAP (unless already active)": {
+    "message": "盡快使用(除非已生效)"
+  },
+  "Use ASAP - save MP for TBN": {
+    "message": "盡快使用——為至黑之夜保留魔力"
+  },
+  "Use ASAP after next Opo": {
+    "message": "在下次攻幽後盡快使用"
+  },
+  "Use ASAP during next Divine Might proc, regardless of range": {
+    "message": "在下次神聖使命觸發時盡快使用,不論距離"
+  },
+  "Use ASAP regardless of No Mercy buff": {
+    "message": "盡快使用,不論無情增益"
+  },
+  "Use ASAP regardless of No Mercy buff or target HP%": {
+    "message": "盡快使用,不論無情增益或目標HP百分比"
+  },
+  "Use ASAP when under No Mercy buff": {
+    "message": "在無情增益期間盡快使用"
+  },
+  "Use ASAP, but retain late-weave to ensure maximum GCDs covered": {
+    "message": "盡快使用,但保留延後插招以確保涵蓋最多GCD"
+  },
+  "Use ASAP, even if without ST and with IR on cd (0/4:30/9)": {
+    "message": "盡快使用,即使沒有單體增益且原初的解放正在冷卻(0/4:30/9)"
+  },
+  "Use Addle (10s)": {
+    "message": "使用昏亂(10秒)"
+  },
+  "Use Addle (15s)": {
+    "message": "使用昏亂(15秒)"
+  },
+  "Use Aetherpact": {
+    "message": "使用乙太契約"
+  },
+  "Use Analysis to buff Bioblaster and ChainSaw only": {
+    "message": "只用分析強化毒化衝擊與迴轉飛鋸"
+  },
+  "Use Analysis to buff Drill and Air Anchor only": {
+    "message": "只用分析強化鑽頭與空氣錨"
+  },
+  "Use Analysis to buff any tool": {
+    "message": "用分析強化任一工具技"
+  },
+  "Use Aspected Helios": {
+    "message": "使用陽星相位"
+  },
+  "Use Aurora": {
+    "message": "使用極光"
+  },
+  "Use Aurora; Holds 1 charge for manual usage": {
+    "message": "使用極光,保留1層供手動使用"
+  },
+  "Use Battery actions ASAP when 100 Battery Gauge is available": {
+    "message": "電力槽滿100時盡快使用電力槽技"
+  },
+  "Use Battery actions ASAP when 50+ Battery Gauge is available": {
+    "message": "電力槽達50以上時盡快使用電力槽技"
+  },
+  "Use Battery actions ASAP when raid buffs are active": {
+    "message": "團隊增益生效時盡快使用電力槽技"
+  },
+  "Use Battery actions when optimal": {
+    "message": "在最佳時機使用電力槽技"
+  },
+  "Use Battle Litany normally": {
+    "message": "正常使用戰鬥連禱"
+  },
+  "Use Battle Litany only when in alignment with other raid buffs or when other raid buffs are active": {
+    "message": "只在能與其他團隊增益對齊或其他團隊增益生效時使用戰鬥連禱"
+  },
+  "Use Battle Litany only with Lance Charge; will delay in attempt to align itself with Lance Charge": {
+    "message": "只與猛槍一起使用戰鬥連禱;會延後以嘗試與猛槍對齊"
+  },
+  "Use Bio if target does not have DoT effect": {
+    "message": "目標沒有持續傷害效果時使用蠱毒"
+  },
+  "Use Bio if target has 3s or less remaining on DoT effect": {
+    "message": "目標的持續傷害效果剩餘3秒以下時使用蠱毒"
+  },
+  "Use Bio if target has 6s or less remaining on DoT effect": {
+    "message": "目標的持續傷害效果剩餘6秒以下時使用蠱毒"
+  },
+  "Use Bio if target has 9s or less remaining on DoT effect": {
+    "message": "目標的持續傷害效果剩餘9秒以下時使用蠱毒"
+  },
+  "Use Bishop Autoturret on target's location when available": {
+    "message": "可用時將象型浮游砲塔放在目標所在位置"
+  },
+  "Use Bloodwhetting": {
+    "message": "使用原初的血氣"
+  },
+  "Use Bravery when available": {
+    "message": "可用時使用勇氣"
+  },
+  "Use Broil if single target is forced": {
+    "message": "強制單體時使用極炎法"
+  },
+  "Use Chain Saw as first tool in opener": {
+    "message": "開場第一個工具技使用迴轉飛鋸"
+  },
+  "Use Comet when available": {
+    "message": "可用時使用彗星"
+  },
+  "Use Concitation": {
+    "message": "使用意氣軒昂之策"
+  },
+  "Use Continuation procs as early as possible": {
+    "message": "盡早使用續劍觸發效果"
+  },
+  "Use Continuation procs as late as possible": {
+    "message": "盡量延後使用續劍觸發效果"
+  },
+  "Use Crimson Cyclone only within 10 yalms of target": {
+    "message": "只在目標10公尺內使用深紅旋風"
+  },
+  "Use Crimson Cyclone only within 15 yalms of target": {
+    "message": "只在目標15公尺內使用深紅旋風"
+  },
+  "Use Crimson Cyclone only within 20 yalms of target": {
+    "message": "只在目標20公尺內使用深紅旋風"
+  },
+  "Use Crimson Cyclone only within 5 yalms of target": {
+    "message": "只在目標5公尺內使用深紅旋風"
+  },
+  "Use Crimson Cyclone when available at any range": {
+    "message": "可用時在任何距離使用深紅旋風"
+  },
+  "Use Damnation": {
+    "message": "使用戮罪"
+  },
+  "Use Deployment Tactics": {
+    "message": "使用展開戰術"
   }
 }
