@@ -3664,5 +3664,395 @@
   },
   "DD_WrathLeaseHeld": {
     "message": "目前持有 WrathCombo 的租約——租約期間它的設定會被鎖住。取消勾選上方的「進入深層迷宮時暫停 WrathCombo 的自動循環」即可立即交還控制權。"
+  },
+  "CLASS_GLA": {
+    "message": "劍術士"
+  },
+  "CLASS_PGL": {
+    "message": "格鬥士"
+  },
+  "CLASS_MRD": {
+    "message": "斧術士"
+  },
+  "CLASS_LNC": {
+    "message": "槍術士"
+  },
+  "CLASS_ARC": {
+    "message": "弓術士"
+  },
+  "CLASS_CNJ": {
+    "message": "幻術士"
+  },
+  "CLASS_THM": {
+    "message": "咒術士"
+  },
+  "CLASS_CRP": {
+    "message": "木工師"
+  },
+  "CLASS_BSM": {
+    "message": "鍛造師"
+  },
+  "CLASS_ARM": {
+    "message": "甲冑師"
+  },
+  "CLASS_GSM": {
+    "message": "金工師"
+  },
+  "CLASS_LTW": {
+    "message": "皮革師"
+  },
+  "CLASS_WVR": {
+    "message": "裁縫師"
+  },
+  "CLASS_ALC": {
+    "message": "鍊金術師"
+  },
+  "CLASS_CUL": {
+    "message": "烹調師"
+  },
+  "CLASS_MIN": {
+    "message": "採掘師"
+  },
+  "CLASS_BTN": {
+    "message": "園藝師"
+  },
+  "CLASS_FSH": {
+    "message": "漁師"
+  },
+  "CLASS_PLD": {
+    "message": "騎士"
+  },
+  "CLASS_MNK": {
+    "message": "武僧"
+  },
+  "CLASS_WAR": {
+    "message": "戰士"
+  },
+  "CLASS_DRG": {
+    "message": "龍騎士"
+  },
+  "CLASS_BRD": {
+    "message": "吟遊詩人"
+  },
+  "CLASS_WHM": {
+    "message": "白魔道士"
+  },
+  "CLASS_BLM": {
+    "message": "黑魔道士"
+  },
+  "CLASS_ACN": {
+    "message": "巴術士"
+  },
+  "CLASS_SMN": {
+    "message": "召喚士"
+  },
+  "CLASS_SCH": {
+    "message": "學者"
+  },
+  "CLASS_ROG": {
+    "message": "雙劍士"
+  },
+  "CLASS_NIN": {
+    "message": "忍者"
+  },
+  "CLASS_MCH": {
+    "message": "機工士"
+  },
+  "CLASS_DRK": {
+    "message": "暗黑騎士"
+  },
+  "CLASS_AST": {
+    "message": "占星術師"
+  },
+  "CLASS_SAM": {
+    "message": "武士"
+  },
+  "CLASS_RDM": {
+    "message": "赤魔道士"
+  },
+  "CLASS_BLU": {
+    "message": "青魔道士"
+  },
+  "CLASS_GNB": {
+    "message": "絕槍戰士"
+  },
+  "CLASS_DNC": {
+    "message": "舞者"
+  },
+  "CLASS_RPR": {
+    "message": "奪魂者"
+  },
+  "CLASS_SGE": {
+    "message": "賢者"
+  },
+  "CLASS_VPR": {
+    "message": "毒蛇劍士"
+  },
+  "CLASS_PCT": {
+    "message": "繪靈法師"
+  },
+  "PRESETDB_Save": {
+    "message": "儲存"
+  },
+  "PRESETDB_SaveAsCopy": {
+    "message": "另存為副本"
+  },
+  "PRESETDB_Revert": {
+    "message": "還原"
+  },
+  "PRESETDB_New": {
+    "message": "新增"
+  },
+  "PRESETDB_Copy": {
+    "message": "複製"
+  },
+  "PRESETDB_Delete": {
+    "message": "刪除"
+  },
+  "PRESETDB_Export": {
+    "message": "匯出"
+  },
+  "PRESETDB_Import": {
+    "message": "匯入"
+  },
+  "PRESETDB_Preset": {
+    "message": "預設"
+  },
+  "PRESETDB_NotModified": {
+    "message": "目前的預設沒有變更。"
+  },
+  "PRESETDB_NoneSelected": {
+    "message": "尚未選取任何預設。"
+  },
+  "PRESETDB_ModifiedSaveOrDiscard": {
+    "message": "目前的預設已有變更，請先儲存或捨棄。"
+  },
+  "PRESETDB_CantSaveAsCopy": {
+    "message": "新建立的預設無法另存為副本。"
+  },
+  "PRESETDB_CantDeleteDefault": {
+    "message": "內建預設無法刪除。若想隱藏它，可到「設定 → 自動循環」中設定。"
+  },
+  "PRESETDB_HoldShift": {
+    "message": "按住 Shift 才能刪除。"
+  },
+  "PRESETDB_NameConflict": {
+    "message": "目前的預設名稱是空的，或與其他既有預設重複。"
+  },
+  "PRESETDB_UnsavedTitle": {
+    "message": "目前開啟的預設「{0}」有未儲存的變更。"
+  },
+  "PRESET_ColModules": {
+    "message": "模組"
+  },
+  "PRESET_ColStrategies": {
+    "message": "策略"
+  },
+  "PRESET_ColDetails": {
+    "message": "詳細資料"
+  },
+  "PRESET_CurrentModifiers": {
+    "message": "目前的輔助鍵：{0}"
+  },
+  "PRESET_Setting": {
+    "message": "設定項：{0}"
+  },
+  "ROT_LevelsClasses": {
+    "message": "等級 {0}-{1}　{2}"
+  },
+  "ROT_ClassCount": {
+    "message": "{0} 個職業"
+  },
+  "ROT_Authors": {
+    "message": "作者／貢獻者：{0}"
+  },
+  "ROT_Quality": {
+    "message": "成熟度：{0}/{1} {2}"
+  },
+  "ROT_TypeName": {
+    "message": "類別：{0}"
+  },
+  "ROT_OrderGroup": {
+    "message": "順序群組：{0}"
+  },
+  "Healer AI": {
+    "message": "治療 AI"
+  },
+  "Auto-healer": {
+    "message": "自動治療"
+  },
+  "Melee DPS AI": {
+    "message": "近戰 DPS AI"
+  },
+  "Utilities for melee - bloodbath, second wind, stun": {
+    "message": "近戰輔助功能——浴血、內丹、擊暈"
+  },
+  "Phys Ranged AI": {
+    "message": "物理遠程 AI"
+  },
+  "Utilities for physical ranged dps - peloton, interrupt, defensive abilities": {
+    "message": "物理遠程 DPS 輔助功能——速行、打斷、防禦技能"
+  },
+  "Tank AI": {
+    "message": "坦克 AI"
+  },
+  "Utilities for tank AI - stance, provoke, interrupt, ranged attack": {
+    "message": "坦克輔助功能——防禦姿態、挑釁、打斷、遠程攻擊"
+  },
+  "Deep Dungeon AI": {
+    "message": "深層迷宮 AI"
+  },
+  "Utilities for deep dungeon - potion/pomander user": {
+    "message": "深層迷宮輔助功能——自動使用藥水與魔石"
+  },
+  "Automatic movement": {
+    "message": "自動移動"
+  },
+  "Automatically move character based on pathfinding or explicit coordinates.": {
+    "message": "依尋路結果或指定座標自動移動角色。"
+  },
+  "Automatic targeting": {
+    "message": "自動選取目標"
+  },
+  "Collection of utilities to automatically target and pull mobs based on different criteria.": {
+    "message": "依不同條件自動選取並拉怪的輔助功能集合。"
+  },
+  "Auto-pull": {
+    "message": "自動拉怪"
+  },
+  "Automatically attack passive mobs in certain circumstances": {
+    "message": "在特定情況下自動攻擊未主動攻擊的怪物"
+  },
+  "Misc AI: Goes to specified positional": {
+    "message": "雜項 AI：移動到指定方位"
+  },
+  "Module for use with other rotation plugins.": {
+    "message": "供其他循環外掛搭配使用的模組。"
+  },
+  "Misc AI: Stay within range of party role": {
+    "message": "雜項 AI：與指定隊伍職能保持距離"
+  },
+  "Module for use by AutoDuty preset.": {
+    "message": "供 AutoDuty 預設使用的模組。"
+  },
+  "Misc AI: Stay within range of target": {
+    "message": "雜項 AI：與目標保持距離"
+  },
+  "Misc AI: Stay within leylines when active": {
+    "message": "雜項 AI：黑魔紋啟用時留在範圍內"
+  },
+  "Black Mage utility module.": {
+    "message": "黑魔法師輔助模組。"
+  },
+  "Potion": {
+    "message": "藥水"
+  },
+  "Kite enemies": {
+    "message": "風箏敵人"
+  },
+  "Kite: instant casts only": {
+    "message": "風箏：只出瞬發"
+  },
+  "Kite: allow Sprint": {
+    "message": "風箏：允許衝刺"
+  },
+  "Enabled": {
+    "message": "啟用"
+  },
+  "Heal": {
+    "message": "治療"
+  },
+  "Raise": {
+    "message": "復活"
+  },
+  "Raise targets": {
+    "message": "復活對象"
+  },
+  "Esuna": {
+    "message": "復原"
+  },
+  "Stay near party": {
+    "message": "待在隊伍附近"
+  },
+  "Second Wind": {
+    "message": "內丹"
+  },
+  "Bloodbath": {
+    "message": "浴血"
+  },
+  "Stun": {
+    "message": "擊暈"
+  },
+  "Limit Break": {
+    "message": "極限技"
+  },
+  "Head Graze": {
+    "message": "傷頭"
+  },
+  "Stance": {
+    "message": "防禦姿態"
+  },
+  "Ranged GCD": {
+    "message": "遠程 GCD"
+  },
+  "Interject": {
+    "message": "插言"
+  },
+  "Low Blow": {
+    "message": "下踢"
+  },
+  "Arms' Length": {
+    "message": "親疏自行"
+  },
+  "Personal mits": {
+    "message": "自身減傷"
+  },
+  "Invuln": {
+    "message": "無敵技"
+  },
+  "Protect party members": {
+    "message": "保護隊友"
+  },
+  "Destination": {
+    "message": "目的地"
+  },
+  "Range": {
+    "message": "距離"
+  },
+  "Cast": {
+    "message": "詠唱"
+  },
+  "Special": {
+    "message": "特殊狀態"
+  },
+  "Overdodge": {
+    "message": "閃避緩衝"
+  },
+  "Pathfind": {
+    "message": "尋路"
+  },
+  "Explicit": {
+    "message": "指定座標"
+  },
+  "Role": {
+    "message": "職能"
+  },
+  "Role to stay close to": {
+    "message": "要保持接近的職能"
+  },
+  "Use Retrace": {
+    "message": "使用魔紋迴避"
+  },
+  "Use Between The Lines": {
+    "message": "使用魔紋躍動"
+  },
+  "Yes": {
+    "message": "是"
+  },
+  "No": {
+    "message": "否"
+  },
+  "Work in progress - expect it to break a lot (or just be straight broken)": {
+    "message": "開發中——預期會經常出問題（或根本就是壞的）"
   }
 }
