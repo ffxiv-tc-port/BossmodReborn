@@ -257,22 +257,65 @@ public sealed class DeepDungeonAI : AIBase
 
     #endregion
 
+    // ── 風箏診斷 ──────────────────────────────────────────────────────
+    // 🔑 使用者回報「有打但不走位」＝出招層正常、斷點在移動層。風箏要成立得連過六七關
+    //    （職業角色／track／怪的類型／目標讀條／權重場有沒有被碾／誰在寫 ForcedMovement），
+    //    而失敗全是靜默的，光看結果分不出是哪一關。所以每一關都把理由寫進 log。
+    // 節流：只在戰鬥中、狀態字串沒變就 3 秒一次，正常運作時幾乎不出聲。
+    private static string? _lastKiteDiag;
+    private static DateTime _nextKiteDiag;
+
+    private void KiteDiag(string state)
+    {
+        var now = World.CurrentTime;
+        if (state == _lastKiteDiag && now < _nextKiteDiag)
+            return;
+        _lastKiteDiag = state;
+        _nextKiteDiag = now.AddSeconds(3d);
+        Service.Logger.Information($"[DD kite] {state}");
+    }
+
     private void SetupKiteZone(StrategyValues strategy, Actor? primaryTarget)
     {
-        if (!IsRanged || primaryTarget == null || !Player.InCombat || !strategy.Enabled(Track.Kite))
+        if (!Player.InCombat)
             return;
+
+        if (!strategy.Enabled(Track.Kite))
+        {
+            KiteDiag("停用：preset 的「Kite enemies」不是 Enabled");
+            return;
+        }
+        if (!IsRanged)
+        {
+            KiteDiag($"停用：本職業角色是 {Player.Class.GetRole()}，風箏只對遠程與治療生效");
+            return;
+        }
+        if (primaryTarget == null)
+        {
+            KiteDiag("停用：目前沒有主要目標");
+            return;
+        }
 
         // wew
         if (NoMeleeAutos.Contains(primaryTarget.OID))
+        {
+            KiteDiag($"停用：目標 OID {primaryTarget.OID:X} 在寫死的「不用近戰平砍」清單裡");
             return;
+        }
 
         // 執行期觀測到這隻怪不必追上你就能打你 ⇒ 拉開距離換不到任何好處，別白跑
         if (RangedAttackerOIDs.Contains(primaryTarget.OID))
+        {
+            KiteDiag($"停用：目標 OID {primaryTarget.OID:X} 已被觀測為遠距攻擊者");
             return;
+        }
 
         // assume we don't need to kite if mob is busy casting (TODO: some mob spells can be cast while moving, maybe there's a column in sheets for it)
         if (primaryTarget.CastInfo != null)
+        {
+            KiteDiag("暫停：目標正在讀條");
             return;
+        }
 
         var maxKite = Config.KiteMinDistance;
         // 防呆：外圈永遠要比內圈大，否則甜甜圈是空的、風箏靜默失效
@@ -293,7 +336,21 @@ public sealed class DeepDungeonAI : AIBase
             Hints.WantKiting = true;
 
         // 目前還在圈內＝正在往外退（而不是已經站好位）
-        var retreating = Player.DistanceToHitbox(primaryTarget) < maxKite;
+        var dist = Player.DistanceToHitbox(primaryTarget);
+        var retreating = dist < maxKite;
+
+        // 🔑 這一行才是「有打但不走位」的判讀依據：風箏區已經放下去了，
+        //    所以接下來要看的是「誰在決定移動、以及有沒有別的權重把它壓掉」。
+        //    ForcedMovement 非 null＝已經有別的模組（多半是 Automatic movement）在寫移動輸出，
+        //    此時 AIController 不會再補；GoalZones 的數量與 ForbiddenZones 的數量則說明
+        //    這一幀的權重場有多擁擠（閃避方向場的量級是 0.5，風箏只有 0.05）。
+        if (retreating)
+            KiteDiag($"生效：距離 {dist:f1}y < 內圈 {maxKite:f1}y、權重 {goalFactor:f2}"
+                + $"；抑制後退懲罰={Config.KiteAllowRetreatWhileDodging}"
+                + $"；本幀 GoalZones={Hints.GoalZones.Count}、ForbiddenZones={Hints.ForbiddenZones.Count}"
+                + $"；ForcedMovement={(Hints.ForcedMovement == null ? "null（AI 自行決定）" : "已被其他模組寫入")}"
+                + $"；Automatic movement 模組={(MiscAI.NormalMovement.Instance != null ? "在線" : "不在")}");
+
         if (!retreating)
             return;
 

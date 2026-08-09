@@ -155,7 +155,15 @@ public abstract class AutoClear : ZoneModule
             ws.DeepDungeon.MapDataChanged.Subscribe(_ =>
             {
                 BetweenFloors = false;
-                if (Walls.Count == 0)
+                // 🔴 判準是「載入的是不是這一層這個版面」，不是「Walls 是不是空的」。
+                //    舊的 `if (Walls.Count == 0)` 只在第一次載入，之後完全依賴 ClearState() 去清空，
+                //    而 ClearState 是由系統訊息 7248（傳送開始）驅動的 —— 那條在台服沒有觸發，
+                //    於是整輪探索都沿用第一層的房間座標。
+                //    實測後果：19:23 那場天之御柱 31~40，只有第 31 層（版面 1）通過座標校驗，
+                //    32~39 層全部不通過、偏差 300~760 碼 —— 而同一組樓層的兩份鏡像版面
+                //    （RoomsA／RoomsB）中心相距約 845 碼，正好對得上。
+                //    寶箱點位與各房敵人數因此在九層裡有八層完全不顯示。
+                if (_loadedLayout != (Palace.Floor, Palace.Progress.Tileset))
                     LoadWalls();
             })
         );
@@ -1652,10 +1660,26 @@ public abstract class AutoClear : ZoneModule
         });
     }
 
+    /// <summary>
+    /// <see cref="RoomCenters"/>／<see cref="Walls"/> 目前載入的是哪一層、哪個版面。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 沒有這個記號就沒辦法判斷「該不該重載」。同一組樓層的兩份鏡像版面中心相距約 845 碼，
+    /// 沿用上一層的版面會讓所有依賴座標的功能（寶箱點位、各房敵人數、手動導航驗證）
+    /// 全部靜默失效。
+    /// </remarks>
+    private (byte Floor, byte Tileset) _loadedLayout = (255, 255);
+
     private void LoadWalls()
     {
         Service.Log($"loading walls for current floor...");
         Walls.Clear();
+        // 🔴 座標也要一起作廢。半套狀態（新樓層 + 舊座標）比完全沒有資料更糟：
+        //    校驗閘門會拿舊座標去比，得到「不通過」而不是「不知道」。
+        Array.Clear(RoomCenters);
+        _coordGateLogged = false;
+        _loadedLayout = (Palace.Floor, Palace.Progress.Tileset);
+
         var floorset = Palace.Floor / 10;
         var key = $"{(int)Palace.DungeonId}.{floorset + 1}";
         if (!LoadedFloors.Walls.TryGetValue(key, out var floor))
