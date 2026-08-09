@@ -97,6 +97,22 @@ public abstract class AutoClear : ZoneModule
     private bool BetweenFloors;
     private (int from, int to) _lastPathfindFailureLogged = (-1, -1);
 
+    /// <summary>目前的目標房間是誰決定的。</summary>
+    protected enum DestinationSource
+    {
+        /// <summary>使用者自己在小地圖上點的。</summary>
+        User,
+        /// <summary>被「探索所有房間」覆寫掉了。</summary>
+        FullClear,
+        /// <summary>使用者沒指定，由「自動前往通道石」填入。</summary>
+        AutoPassage
+    }
+
+    private DestinationSource _destinationSource;
+
+    /// <summary>上一次樓層尋路是不是找不到路（連通的房間還沒探索到時是正常現象）。</summary>
+    private bool _lastPathfindFailed;
+
     protected struct PlayerImmuneState
     {
         public DateTime RoleBuffExpire; // 0 if not active
@@ -313,12 +329,17 @@ public abstract class AutoClear : ZoneModule
         var coords = CheckRoomCoords(player, out var coordDistance, out _);
         var targetRoom = new Minimap(Palace, player, DesiredRoom, Config, ComputeChestSpots(coords)).Draw();
         if (targetRoom >= 0)
+        {
             DesiredRoom = targetRoom;
+            _destinationSource = DestinationSource.User;
+        }
 
         // 座標對不上時要說出來，否則使用者只會看到「寶箱一直是半透明的」而不知道為什麼
         if (coords == RoomCoordState.Mismatch)
-            ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.85f, 1f),
+            ImGui.TextColored(ColorUnknownText,
                 string.Format(Loc.T("DD_CoordMismatch", "Coffer positions unavailable on this floor: the built-in room coordinates do not match this map (you are {0:f0}y from the centre of the room the game says you are in)."), coordDistance));
+
+        DrawNavigationStatus(player);
 
         ImGui.Text($"Kills: {Kills}");
 
@@ -390,6 +411,51 @@ public abstract class AutoClear : ZoneModule
                 IgnoreTraps.Add(position);
             }
         }
+    }
+
+    /// <summary>「不知道／不會動」用的灰字。不用警示色——這些多半不是錯誤，只是沒在動。</summary>
+    private static readonly Vector4 ColorUnknownText = new(0.72f, 0.72f, 0.72f, 1f);
+
+    /// <summary>
+    /// 小地圖下方的狀態列：目標房間是哪一間、由誰決定的、以及<b>為什麼現在沒在動</b>。
+    /// </summary>
+    /// <remarks>
+    /// 🔑 存在的理由是「不會動」這件事原本完全沒有回饋——使用者點了格子、角色不動，
+    /// 而原因可能是模組沒開、BMR 的 AI 沒開、在戰鬥中、路還沒探到，
+    /// 或者目標剛被「探索所有房間」無條件蓋掉。這幾種的處置完全不同，
+    /// 合併成一句「沒在動」等於沒說。
+    /// </remarks>
+    private void DrawNavigationStatus(Actor player)
+    {
+        if (DesiredRoom <= 0)
+        {
+            ImGui.TextColored(ColorUnknownText, Loc.T("DD_NoDestination", "No destination room set (click a room on the map)."));
+            return;
+        }
+
+        var source = _destinationSource switch
+        {
+            DestinationSource.FullClear => Loc.T("DD_DestFromFullClear", " (set by \"reveal all rooms\", which overrides your pick)"),
+            DestinationSource.AutoPassage => Loc.T("DD_DestFromAutoPassage", " (set by \"navigate to Cairn of Passage\")"),
+            _ => "",
+        };
+        ImGui.Text(string.Format(Loc.T("DD_Destination", "Destination: room {0}{1}"), DesiredRoom, source));
+
+        // 為什麼沒在動。順序＝由外而內，先講最根本的那一個。
+        string? blocked = null;
+        if (!Config.Enable)
+            blocked = Loc.T("DD_BlockedModuleOff", "The Auto-DeepDungeon module is switched off, so nothing will move.");
+        else if (BetweenFloors)
+            blocked = Loc.T("DD_BlockedBetweenFloors", "Changing floors.");
+        else if (AI.AIManager.Instance?.Beh == null)
+            blocked = Loc.T("DD_BlockedAIOff", "Navigation only happens while BMR's AI is running; it is currently off.");
+        else if (player.InCombat && Config.MaxPull == 0)
+            blocked = Loc.T("DD_BlockedInCombat", "Navigation is paused during combat (\"max mobs to pull\" is 0).");
+        else if (_lastPathfindFailed)
+            blocked = Loc.T("DD_BlockedNoPath", "No route to that room yet - the rooms in between have not been revealed.");
+
+        if (blocked != null)
+            ImGui.TextColored(ColorUnknownText, blocked);
     }
 
     private readonly List<PomanderID> AutoUsable = [
@@ -533,6 +599,10 @@ public abstract class AutoClear : ZoneModule
             var unexplored = Array.FindIndex(Palace.Rooms, d => (byte)d > 0 && !d.HasFlag(RoomFlags.Revealed));
             if (unexplored > 0)
             {
+                // ⚠️ 這是**無條件覆寫**，使用者剛剛在小地圖上點的目標會被蓋掉。
+                //    以前這件事完全沒有回饋（點了沒反應），現在記下來由狀態列說明。
+                if (DesiredRoom != unexplored)
+                    _destinationSource = DestinationSource.FullClear;
                 DesiredRoom = unexplored;
                 fullClear = true;
             }
@@ -598,7 +668,12 @@ public abstract class AutoClear : ZoneModule
         if (!player.InCombat && Config.AutoPassage && Palace.PassageActive)
         {
             if (DesiredRoom == 0)
+            {
+                // 📌 這個只在使用者沒指定時才填，不會蓋掉使用者自己點的目標
                 DesiredRoom = Array.FindIndex(Palace.Rooms, d => d.HasFlag(RoomFlags.Passage));
+                if (DesiredRoom > 0)
+                    _destinationSource = DestinationSource.AutoPassage;
+            }
 
             if (passage is Actor c && !fullClear)
             {
@@ -954,10 +1029,13 @@ public abstract class AutoClear : ZoneModule
         if (DesiredRoom == playerRoom || DesiredRoom == 0)
         {
             DesiredRoom = 0;
+            _destinationSource = DestinationSource.User;
+            _lastPathfindFailed = false;
             return;
         }
 
         var path = new FloorPathfind(Palace.Rooms).Pathfind(playerRoom, DesiredRoom);
+        _lastPathfindFailed = path.Count == 0;
         if (path.Count == 0)
         {
             // expected while the connecting rooms haven't been explored/revealed yet - only log once per (from, to) pair to avoid spamming every frame

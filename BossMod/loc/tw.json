@@ -3427,5 +3427,32 @@
   },
   "DD_CoordMismatch": {
     "message": "這一層無法顯示寶箱位置：內建的房間座標與這張地圖對不上（你距離遊戲所回報的所在房間中心 {0:f0} 公尺）。"
+  },
+  "DD_NoDestination": {
+    "message": "尚未設定目標房間（點一下地圖上的房間即可設定）。"
+  },
+  "DD_Destination": {
+    "message": "目標：房間 {0}{1}"
+  },
+  "DD_DestFromFullClear": {
+    "message": "（由「探索所有房間」設定，會蓋掉你自己點的目標）"
+  },
+  "DD_DestFromAutoPassage": {
+    "message": "（由「自動移動至通道石」設定）"
+  },
+  "DD_BlockedModuleOff": {
+    "message": "深牢自動化模組未啟用，不會移動。"
+  },
+  "DD_BlockedBetweenFloors": {
+    "message": "正在換層。"
+  },
+  "DD_BlockedAIOff": {
+    "message": "只有在 BMR 的 AI 運作時才會自動移動；目前是關閉的。"
+  },
+  "DD_BlockedInCombat": {
+    "message": "戰鬥中已暫停導航（「一次最多拉幾隻怪」設為 0）。"
+  },
+  "DD_BlockedNoPath": {
+    "message": "目前還沒有路可以到那一間——中間的房間還沒探索出來。"
   }
 }
