@@ -261,4 +261,12 @@ public sealed class AutoDDConfig : ConfigNode
     public bool FullClear = false;
     [PropertyDisplay("Allow automatic pomander use")]
     public bool AllowPomander = false;
+
+    // 🔴 預設 false，而且這是**刻意回退上游的既有行為**（上游會在 HP 40%／60% 以下自動喝掉）。
+    //    深牢專屬秘藥是特殊商店購入、不可出售的昂貴資源，使用者明確表示要自己決定何時用。
+    //    「替使用者自動花掉他刻意保留的資源」屬於不該預設開啟的那一類。
+    //    ⚠️ 不影響低血量的保命藥水——那條只用一般治療劑（頂級／聖級／上級），買得到、無爭議。
+    [PropertyDisplay("Also drink the deep dungeon's own potions automatically",
+        tooltip: "The deep-dungeon-only potions (Sustaining / Empyrean / Orthos) come from a special vendor, cannot be sold, and are usually saved for a moment you pick yourself - so they are NOT used automatically by default.\n\nTick this to let the module drink them below 40%/60% HP, which is what it used to do.\n\nSeparate from the emergency potion below 30% HP: that one only ever uses ordinary Max / Hyper / Super Potions.")]
+    public bool AutoUseDeepDungeonPotion = false;
 }

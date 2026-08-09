@@ -941,7 +941,107 @@ public abstract class AutoClear : ZoneModule
 
         if (_stuckMessage != null)
             ImGui.TextColored(ColorUnknownText, _stuckMessage);
+
+        DrawKiteStatus();
     }
+
+    /// <summary>
+    /// 風箏對當前目標被停用時說出來。
+    /// </summary>
+    /// <remarks>
+    /// 🔑 使用者的體感是「風箏壞了」，實際上是「這隻怪被判定為遠程平砍所以刻意不風箏」。
+    /// 不寫出來的話兩者長得一模一樣，只能去翻 log。
+    /// ⚠️ 只在資訊夠新時顯示（自動循環模組沒在跑時那個狀態會凍住，顯示過期狀態＝說謊）。
+    /// </remarks>
+    private void DrawKiteStatus()
+    {
+        if ((World.CurrentTime - Autorotation.xan.DeepDungeonAI.SuppressionAt).TotalSeconds > 2d)
+            return;
+
+        var text = Autorotation.xan.DeepDungeonAI.Suppression switch
+        {
+            Autorotation.xan.DeepDungeonAI.KiteSuppression.HardcodedList
+                => Loc.T("DD_KiteOffList", "Kiting: off for this enemy (listed as not using melee autos)."),
+            Autorotation.xan.DeepDungeonAI.KiteSuppression.ObservedRanged
+                => Loc.T("DD_KiteOffObserved", "Kiting: off for this enemy (observed hitting you from out of melee range)."),
+            _ => null,
+        };
+        if (text != null)
+            ImGui.TextColored(ColorUnknownText, text);
+    }
+
+    #region 保命藥水
+
+    /// <summary>
+    /// 保命藥水的候選，<b>依偏好順序</b>。
+    /// </summary>
+    /// <remarks>
+    /// 📌 全部是 <c>ActionDefinitions</c> 已經註冊過的藥水（<c>RegisterPotion</c>），
+    /// 所以冷卻、詠唱時間、動作鎖都有現成定義可查，不必自己算。
+    /// 每個 ActionID 的 <c>ID</c> 若 ≥ 1000000 代表 HQ 版本。
+    /// <para>
+    /// 🔑 之所以要「一串」而不是「該座專屬那一瓶」：原本的寫法是
+    /// <c>DungeonId switch { POTD =&gt; 頂級治療劑, HOH =&gt; 上級治療劑, EO =&gt; 聖級治療劑 }</c>，
+    /// 於是人在天之御柱、包裡有 366 個 HQ 頂級治療劑，卻只會去找上級治療劑 ——
+    /// 沒有就靜默什麼都不做。一般治療劑在深牢內是可以用的，沒有理由排除。
+    /// </para>
+    /// <para>⚠️ 順序是「效果由大到小」：頂級 &gt; 聖級 &gt; 上級，同一階 HQ 優先。</para>
+    /// </remarks>
+    private static readonly ActionID[] EmergencyPotions = [
+        ActionDefinitions.IDPotionMax,     // HQ 頂級治療劑（死者宮殿專屬，但一般場合也能用）
+        new(ActionType.Item, 13637),       // NQ 頂級治療劑
+        ActionDefinitions.IDPotionHyper,   // HQ 聖級治療劑（厄運迷宮）
+        new(ActionType.Item, 38956),
+        ActionDefinitions.IDPotionSuper,   // HQ 上級治療劑（天之逆焰）
+        new(ActionType.Item, 23167),
+    ];
+
+    private bool _loggedNoPotion;
+
+    /// <summary>
+    /// 血量過低時推一瓶藥水。
+    /// </summary>
+    /// <remarks>
+    /// 門檻沿用原本寫死的 30%（與搬移前完全相同，不趁機改行為）。
+    /// 冷卻用 <c>ActionDefinition.ReadyIn</c> 查，不自己記時間——藥品共用冷卻群組，
+    /// 自己記一定會跟遊戲脫節。
+    /// </remarks>
+    private unsafe void UpdateEmergencyPotion(Actor player, AIHints hints)
+    {
+        if (player.HPMP.MaxHP == 0 || player.HPRatio > 0.3f)
+            return;
+        if (player.FindStatus((uint)SID.ItemPenalty) != null)
+            return; // 藥品封印層
+
+        var defs = ActionDefinitions.Instance;
+        foreach (var aid in EmergencyPotions)
+        {
+            var def = defs[aid];
+            if (def == null)
+                continue;
+            if (def.ReadyIn(World.Client.Cooldowns, World.Client.DutyActions) > 0f)
+                continue; // 共用冷卻還沒好
+
+            // ⚠️ 這是唯讀的原生查詢，不保存任何指標；換區途中會回 0，
+            //    那時就當作沒有這瓶（安全退化，不會誤用）。
+            var baseId = aid.ID % 1000000u;
+            var hq = aid.ID >= 1000000u;
+            if (FFXIVClientStructs.FFXIV.Client.Game.InventoryManager.Instance()->GetInventoryItemCount(baseId, hq, false, false) <= 0)
+                continue;
+
+            hints.ActionsToExecute.Push(aid, player, ActionQueue.Priority.VeryHigh);
+            _loggedNoPotion = false;
+            return;
+        }
+
+        if (!_loggedNoPotion)
+        {
+            _loggedNoPotion = true;
+            Service.Logger.Information("[DD] 血量低於 30% 但背包裡沒有任何可用的治療劑（或全部還在冷卻），無法自動補血。");
+        }
+    }
+
+    #endregion
 
     /// <summary>血量低於門檻就不趕路（門檻 0＝停用）。</summary>
     private bool TravelBlockedByHP(Actor player)
@@ -999,7 +1099,19 @@ public abstract class AutoClear : ZoneModule
 
     public override void CalculateAIHints(int playerSlot, Actor player, AIHints hints)
     {
-        if (!Config.Enable || Palace.IsBossFloor || BetweenFloors)
+        if (!Config.Enable)
+            return;
+
+        // 🔴 保命藥水排在其他閘門**之前**。
+        //    它原本掛在 DeepDungeonAI（自動循環模組）上，而那整條管線被
+        //    `AIBehaviour` 的 `Preset = target.Target != null ? … : null` 關掉——沒有目標就不跑。
+        //    踩到陷阱多半正是趕路、沒有目標的時候，也就是說它在最需要的那一刻保證不會觸發。
+        //    實機 log 直證：整場 1091 行風箏診斷裡「沒有主要目標」出現 0 次
+        //    ＝這個模組從來沒有在無目標時執行過。
+        //    Boss 層與換層途中一樣會被打，所以也不受下面兩個條件限制。
+        UpdateEmergencyPotion(player, hints);
+
+        if (Palace.IsBossFloor || BetweenFloors)
             return;
 
         bool canNavigate;

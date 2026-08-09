@@ -3646,5 +3646,17 @@
   },
   "Writes a small count in the corner of every room where enemies are currently detected. Mainly for finding the last few mobs while the Cairn of Passage has not unlocked yet - the count is highlighted while it is still locked, and fades once it opens.\n\nIMPORTANT: only enemies loaded around you exist as far as any plugin is concerned, so a room with no number is NOT necessarily clear - it may simply be too far away. Rooms are therefore never marked as empty.": {
     "message": "在每個目前偵測到敵人的房間角落寫上一個小小的數量。主要用途是在通道石尚未解鎖時尋找剩下的幾隻怪——尚未解鎖期間數字會比較醒目，解鎖後則淡化。\n\n請注意：對任何外掛而言，只有你周圍已載入的敵人才存在，所以沒有數字的房間並不代表已經清空，也可能只是距離太遠。因此本功能絕不會把任何房間標示為已清空。"
+  },
+  "DD_KiteOffList": {
+    "message": "風箏：對此目標停用（清單標記為不使用近戰平砍）。"
+  },
+  "DD_KiteOffObserved": {
+    "message": "風箏：對此目標停用（實測它在近戰距離外仍能打到你）。"
+  },
+  "Also drink the deep dungeon's own potions automatically": {
+    "message": "同時自動使用深牢專屬藥水"
+  },
+  "The deep-dungeon-only potions (Sustaining / Empyrean / Orthos) come from a special vendor, cannot be sold, and are usually saved for a moment you pick yourself - so they are NOT used automatically by default.\n\nTick this to let the module drink them below 40%/60% HP, which is what it used to do.\n\nSeparate from the emergency potion below 30% HP: that one only ever uses ordinary Max / Hyper / Super Potions.": {
+    "message": "深牢專屬藥水（生者秘藥／天之秘藥／正統治療劑）需向特殊商店購入、不可出售，通常會留著由你自己決定何時使用，因此預設不會自動使用。\n\n勾選後，模組會在血量低於 40%／60% 時自動喝掉它們，也就是以前的行為。\n\n這與血量低於 30% 的保命藥水是分開的：那條只會使用一般的頂級／聖級／上級治療劑。"
   }
 }

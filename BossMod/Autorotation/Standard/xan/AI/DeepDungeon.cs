@@ -110,11 +110,23 @@ public sealed class DeepDungeonAI : AIBase
             _ => (default, default)
         };
 
-        if (regenAction != default && ShouldPotion(strategy))
+        // 🔴 regenAction 是**深牢專屬**的秘藥（生者秘藥／天之秘藥／正統治療劑）——
+        //    特殊商店購入、不可出售、對使用者而言是昂貴且刻意保留的資源。
+        //    上游預設會在 HP 低於 40%／60% 時自動喝掉它，這屬於「替使用者做他刻意不想自動化的決定」，
+        //    因此改成預設不用，要用得自己去開。
+        //    ⚠️ 這與下面的保命藥水是兩回事：保命用的是一般治療劑（頂級／聖級／上級），
+        //    那些是消耗品、買得到，自動使用沒有爭議。
+        if (regenAction != default && Config.AutoUseDeepDungeonPotion && ShouldPotion(strategy))
             Hints.ActionsToExecute.Push(regenAction, Player, ActionQueue.Priority.Medium);
 
-        if (potAction != default && Player.HPRatio <= 0.3f)
-            Hints.ActionsToExecute.Push(potAction, Player, ActionQueue.Priority.VeryHigh);
+        // 🔴 保命藥水**不在這裡**推了，改由 AutoClear（區域模組）推。
+        //    原因：這整個模組只有在 AIBehaviour 掛上 preset 時才會跑，而那一行是
+        //    `Preset = target.Target != null ? … : null` —— 沒有目標就整個管線關掉。
+        //    踩到陷阱多半正是趕路、沒有目標的時候，於是保命藥水在最需要的時候必定不會觸發。
+        //    實機 log 直證：整場 1091 行風箏診斷裡，「沒有主要目標」出現 0 次
+        //    ＝這個模組從來沒有在無目標時執行過。
+        //    區域模組的 hints.ActionsToExecute 走的是 ExecuteHints 每幀無條件的那條路。
+        _ = potAction; // 仍保留上面的查表，讓「哪一座用哪瓶」的資料只有一份
     }
 
     private bool IsRanged => Player.Class.GetRole() is Role.Ranged or Role.Healer;
@@ -190,6 +202,34 @@ public sealed class DeepDungeonAI : AIBase
     /// <summary>要幾次觀測才認定。單次可能是延遲造成的假象。</summary>
     private const int RangedAttackSamples = 3;
 
+    /// <summary>
+    /// 寫死的 <see cref="NoMeleeAutos"/> 清單說「不用近戰平砍」，但實測會近身平砍的 OID。
+    /// </summary>
+    /// <remarks>
+    /// 🔑 <b>清單的自校正是雙向的。</b><see cref="RangedAttackerOIDs"/> 修的是「清單沒列到、
+    /// 但其實是遠程」；這一份修的是相反方向——<b>清單列了、但在台服其實是近戰</b>。
+    /// 那份清單是上游從國際服整理的，台服的怪不保證一樣，而且錯誤兩個方向都會靜默生效：
+    /// 錯列成遠程 ⇒ 對一隻該風箏的怪整場不風箏（使用者體感就是「風箏沒作用」）。
+    /// <para>
+    /// 判別軸與 <see cref="RangedAttackerOIDs"/> 完全相同（<c>ActionCategory == 1</c> 的自動攻擊
+    /// ＋造成傷害＋多次採樣），只是距離條件相反。
+    /// </para>
+    /// </remarks>
+    private static readonly HashSet<uint> MeleeAttackerOIDs = [];
+
+    /// <summary>每個 OID 觀測到幾次「在近戰距離內挨打」。</summary>
+    private static readonly Dictionary<uint, int> MeleeAttackObservations = [];
+
+    /// <summary>
+    /// 判定「這一擊來自近戰距離內」的門檻（hitbox 到 hitbox）。
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ 這裡刻意取得比 <see cref="RangedAttackDistance"/> <b>嚴格</b>：要推翻寫死的清單，
+    /// 證據就該硬一點。5y 內幾乎不可能是遠程平砍誤判成近戰的結果
+    /// （伺服器來回的位移只會讓距離看起來變大，不會變小）。
+    /// </remarks>
+    private const float MeleeAttackDistance = 5f;
+
     private void OnIncomingEffect(Actor actor, int index)
     {
         if (actor.InstanceID != Player.InstanceID || World.DeepDungeon.DungeonId == 0)
@@ -210,10 +250,18 @@ public sealed class DeepDungeonAI : AIBase
         if (!DealtDamage(eff.Effects))
             return;
 
-        if (Player.DistanceToHitbox(source) <= RangedAttackDistance)
-            return;
-
         var oid = source.OID;
+        var dist = Player.DistanceToHitbox(source);
+
+        if (dist <= MeleeAttackDistance)
+        {
+            ObserveMeleeAttack(oid);
+            return;
+        }
+
+        if (dist <= RangedAttackDistance)
+            return; // 中間地帶：兩邊都不算，避免把延遲造成的位移當成證據
+
         if (RangedAttackerOIDs.Contains(oid))
             return;
 
@@ -227,6 +275,26 @@ public sealed class DeepDungeonAI : AIBase
         Service.Logger.Information($"[DD kite] OID {oid:X} 在近戰距離外仍以自動攻擊命中玩家 {n} 次，本次探索對它停用風箏。");
     }
 
+    /// <summary>
+    /// 記一次「這隻怪在近戰距離內平砍了我」。只有寫死清單裡的 OID 才有意義——
+    /// 不在清單裡的怪本來就會風箏，不需要證據。
+    /// </summary>
+    private static void ObserveMeleeAttack(uint oid)
+    {
+        if (!NoMeleeAutos.Contains(oid) || MeleeAttackerOIDs.Contains(oid))
+            return;
+
+        var n = MeleeAttackObservations.GetValueOrDefault(oid) + 1;
+        MeleeAttackObservations[oid] = n;
+        if (n < RangedAttackSamples)
+            return;
+
+        MeleeAttackerOIDs.Add(oid);
+        Service.Logger.Information(
+            $"[DD kite] OID {oid:X} 被寫死清單標成遠程平砍，但實測它在 {MeleeAttackDistance:f0}y 內近身平砍了 {n} 次" +
+            $"（台服資料與上游清單有差異），本次探索改為照樣風箏。");
+    }
+
     private void ResetObservationsOnZoneChange()
     {
         if (_observationZone == World.CurrentZone)
@@ -234,6 +302,8 @@ public sealed class DeepDungeonAI : AIBase
         _observationZone = World.CurrentZone;
         RangedAttackerOIDs.Clear();
         RangedAttackObservations.Clear();
+        MeleeAttackerOIDs.Clear();
+        MeleeAttackObservations.Clear();
     }
 
     /// <summary>
@@ -265,15 +335,39 @@ public sealed class DeepDungeonAI : AIBase
     private static string? _lastKiteDiag;
     private static DateTime _nextKiteDiag;
 
-    private void KiteDiag(string state)
+    /// <summary>風箏對<b>當前目標</b>被停用的原因；供深牢狀態列顯示。</summary>
+    public enum KiteSuppression { None, HardcodedList, ObservedRanged }
+
+    /// <summary>最近一幀的停用原因，以及它是什麼時候寫的（過期就不要再顯示，避免說謊）。</summary>
+    public static KiteSuppression Suppression { get; private set; }
+    public static DateTime SuppressionAt { get; private set; }
+
+    private void SetSuppression(KiteSuppression reason)
+    {
+        Suppression = reason;
+        SuppressionAt = World.CurrentTime;
+    }
+
+    /// <summary>
+    /// 低頻診斷。
+    /// </summary>
+    /// <param name="key">
+    /// 變化偵測用的<b>粗鍵</b>——不可含距離之類每幀都在變的數值，
+    /// 否則「狀態沒變才節流」的判斷永遠成立不了。
+    /// ⚠️ 實測教訓：把距離寫進 key 讓「生效」在半秒內印了 26 行、整場 1078 行。
+    /// </param>
+    /// <param name="message">實際要寫進 log 的內容，細節都放這裡。</param>
+    private void KiteDiag(string key, string message)
     {
         var now = World.CurrentTime;
-        if (state == _lastKiteDiag && now < _nextKiteDiag)
+        if (key == _lastKiteDiag && now < _nextKiteDiag)
             return;
-        _lastKiteDiag = state;
+        _lastKiteDiag = key;
         _nextKiteDiag = now.AddSeconds(3d);
-        Service.Logger.Information($"[DD kite] {state}");
+        Service.Logger.Information($"[DD kite] {message}");
     }
+
+    private void KiteDiag(string state) => KiteDiag(state, state);
 
     private void SetupKiteZone(StrategyValues strategy, Actor? primaryTarget)
     {
@@ -296,19 +390,26 @@ public sealed class DeepDungeonAI : AIBase
             return;
         }
 
-        // wew
-        if (NoMeleeAutos.Contains(primaryTarget.OID))
-        {
-            KiteDiag($"停用：目標 OID {primaryTarget.OID:X} 在寫死的「不用近戰平砍」清單裡");
-            return;
-        }
-
-        // 執行期觀測到這隻怪不必追上你就能打你 ⇒ 拉開距離換不到任何好處，別白跑
+        // 執行期觀測到這隻怪不必追上你就能打你 ⇒ 拉開距離換不到任何好處，別白跑。
+        // 📌 排在寫死清單之前：兩者都是「遠程」判定，但這一份是實測證據，優先權較高。
         if (RangedAttackerOIDs.Contains(primaryTarget.OID))
         {
+            SetSuppression(KiteSuppression.ObservedRanged);
             KiteDiag($"停用：目標 OID {primaryTarget.OID:X} 已被觀測為遠距攻擊者");
             return;
         }
+
+        // wew（上游寫死的清單）
+        // 🔑 但清單可以被實測推翻：同一隻怪若被觀測到近身平砍，就照樣風箏。
+        //    清單是上游從國際服整理的，台服不保證一樣，而錯誤是靜默的。
+        if (NoMeleeAutos.Contains(primaryTarget.OID) && !MeleeAttackerOIDs.Contains(primaryTarget.OID))
+        {
+            SetSuppression(KiteSuppression.HardcodedList);
+            KiteDiag($"停用：目標 OID {primaryTarget.OID:X} 在寫死的「不用近戰平砍」清單裡（尚未觀測到它近身平砍）");
+            return;
+        }
+
+        SetSuppression(KiteSuppression.None);
 
         // assume we don't need to kite if mob is busy casting (TODO: some mob spells can be cast while moving, maybe there's a column in sheets for it)
         if (primaryTarget.CastInfo != null)
@@ -345,7 +446,7 @@ public sealed class DeepDungeonAI : AIBase
         //    此時 AIController 不會再補；GoalZones 的數量與 ForbiddenZones 的數量則說明
         //    這一幀的權重場有多擁擠（閃避方向場的量級是 0.5，風箏只有 0.05）。
         if (retreating)
-            KiteDiag($"生效：距離 {dist:f1}y < 內圈 {maxKite:f1}y、權重 {goalFactor:f2}"
+            KiteDiag("active", $"生效：距離 {dist:f1}y < 內圈 {maxKite:f1}y、權重 {goalFactor:f2}"
                 + $"；抑制後退懲罰={Config.KiteAllowRetreatWhileDodging}"
                 + $"；本幀 GoalZones={Hints.GoalZones.Count}、ForbiddenZones={Hints.ForbiddenZones.Count}"
                 + $"；ForcedMovement={(Hints.ForcedMovement == null ? "null（AI 自行決定）" : "已被其他模組寫入")}"
