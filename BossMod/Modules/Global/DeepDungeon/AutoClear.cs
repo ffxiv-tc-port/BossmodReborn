@@ -74,7 +74,22 @@ public abstract class AutoClear : ZoneModule
     private bool _trapsHidden = true;
 
     private readonly List<(Wall Wall, bool Rotated)> Walls = [];
-    private readonly List<WPos> RoomCenters = [];
+
+    /// <summary>
+    /// 每個房間格子的中心世界座標；null＝這一格在本層的版面裡沒有房間，或還沒載入。
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ 這裡以前是 <c>List&lt;WPos&gt;</c>，而且**只在 <c>room &gt; 0</c> 時 Add** ——
+    /// 也就是索引跟房號對不起來（第 0 格沒房間時，清單第 0 筆其實是第 1 間房）。
+    /// 那個欄位從頭到尾沒有任何地方讀取，所以錯位一直沒被發現。改成 25 格對齊陣列。
+    /// <para>
+    /// 🔴 <b>座標來源是上游從國際服 dump 出來的寫死數值</b>（<see cref="LoadedFloors"/>），
+    /// 台服不保證相同。所有用到這份座標的功能都必須先過
+    /// <see cref="CheckRoomCoords"/> 的校驗閘門。
+    /// </para>
+    /// </remarks>
+    private readonly WPos?[] RoomCenters = new WPos?[DeepDungeonState.NumRooms];
+
     private readonly List<WPos> ProblematicTrapLocations = [];
 
     private int Kills;
@@ -227,7 +242,8 @@ public abstract class AutoClear : ZoneModule
         HintDisabled.Clear();
         LOS.Clear();
         Walls.Clear();
-        RoomCenters.Clear();
+        Array.Clear(RoomCenters);
+        _coordGateLogged = false;
         IgnoreTraps.Clear();
         IgnoreTraps.AddRange(ProblematicTrapLocations);
         DesiredRoom = 0;
@@ -293,9 +309,16 @@ public abstract class AutoClear : ZoneModule
     public override void DrawExtra()
     {
         var player = World.Party.Player()!;
-        var targetRoom = new Minimap(Palace, player, DesiredRoom, Config).Draw();
+
+        var coords = CheckRoomCoords(player, out var coordDistance, out _);
+        var targetRoom = new Minimap(Palace, player, DesiredRoom, Config, ComputeConfirmedChests(coords)).Draw();
         if (targetRoom >= 0)
             DesiredRoom = targetRoom;
+
+        // 座標對不上時要說出來，否則使用者只會看到「寶箱一直是半透明的」而不知道為什麼
+        if (coords == RoomCoordState.Mismatch)
+            ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.85f, 1f),
+                string.Format(Loc.T("DD_CoordMismatch", "Coffer positions unavailable on this floor: the built-in room coordinates do not match this map (you are {0:f0}y from the centre of the room the game says you are in)."), coordDistance));
 
         ImGui.Text($"Kills: {Kills}");
 
@@ -776,6 +799,128 @@ public abstract class AutoClear : ZoneModule
         return -1;
     }
 
+    /// <summary>房間座標校驗閘門的結果。</summary>
+    protected enum RoomCoordState
+    {
+        /// <summary>還不知道——版面資料還沒載入，或遊戲還沒回報本人所在的房號。</summary>
+        Unknown,
+        /// <summary>本人的世界座標與遊戲回報的房號對得起來，可以拿座標做房間歸屬。</summary>
+        Ok,
+        /// <summary>對不起來：這一層的寫死座標不適用，任何依賴它的顯示都必須退化。</summary>
+        Mismatch
+    }
+
+    /// <summary>
+    /// 房間中心座標的容許誤差（單位 y）。房間間距實測約 55~58y，
+    /// 半幅約 27.5y，取 35y 留一點餘裕又不至於跨到隔壁房。
+    /// </summary>
+    private const float RoomCenterTolerance = 35f;
+
+    private bool _coordGateLogged;
+
+    /// <summary>
+    /// 🔴 <b>台服座標校驗閘門。</b>
+    /// </summary>
+    /// <remarks>
+    /// <see cref="LoadedFloors"/> 那份房間座標是上游從國際服 dump 出來寫死的，
+    /// <b>台服會不會一樣沒有人驗過</b>。假設不成立時的失敗形式是「寶箱點畫在錯的房間」
+    /// ——看起來像功能正常運作，只是位置不對，比不畫還糟。
+    /// <para>
+    /// 做法：拿遊戲自己回報的「本人在第幾間房」對上那一間的中心座標。兩者對得上，
+    /// 才准用這份座標做房間歸屬。除了距離，還要求<b>離本人最近的房間中心就是遊戲說的那一間</b>
+    /// ——後者才是子格點位映射真正依賴的性質（座標整體平移時距離可能還過得了關，
+    /// 但最近的會變成別間）。
+    /// </para>
+    /// <para>📌 校驗沒過不是錯誤，是「這一層退化成房級標示」，而且必須讓使用者看得見原因。</para>
+    /// </remarks>
+    protected RoomCoordState CheckRoomCoords(Actor player, out float distance, out int reportedRoom)
+    {
+        distance = -1f;
+        reportedRoom = FindPlayerRoom(player);
+        if (reportedRoom < 0 || RoomCenters[reportedRoom] is not WPos center)
+            return RoomCoordState.Unknown;
+
+        distance = (center - player.Position).Length();
+
+        var nearest = NearestRoom(player.Position, float.MaxValue);
+        var ok = distance <= RoomCenterTolerance && nearest == reportedRoom;
+
+        if (!_coordGateLogged)
+        {
+            _coordGateLogged = true;
+            // 要使用者回報才查得出台服座標對不對，所以走 Information（使用者的 LogLevel 是 2）。
+            // 一層只印一次。
+            Service.Logger.Information(
+                $"[DD] 房間座標校驗：樓層 {Palace.Floor}、版面 {Palace.Progress.Tileset}、遊戲回報房號 {reportedRoom}、" +
+                $"與該房中心距離 {distance:f1}y、最近的房間是 {nearest} ⇒ {(ok ? "通過" : "不通過")}");
+        }
+
+        return ok ? RoomCoordState.Ok : RoomCoordState.Mismatch;
+    }
+
+    /// <summary>
+    /// 離某個世界座標最近的房間格子。
+    /// </summary>
+    /// <param name="maxDistance">超過這個距離就當作不屬於任何房間。</param>
+    /// <returns>房號 0..24；沒有任何房間中心資料、或全都太遠時回 -1。</returns>
+    protected int NearestRoom(WPos p, float maxDistance)
+    {
+        var best = -1;
+        var bestSq = maxDistance == float.MaxValue ? float.MaxValue : maxDistance * maxDistance;
+        for (var i = 0; i < RoomCenters.Length; ++i)
+        {
+            if (RoomCenters[i] is not WPos c)
+                continue;
+            var dsq = (c - p).LengthSq();
+            if (dsq < bestSq)
+            {
+                bestSq = dsq;
+                best = i;
+            }
+        }
+        return best;
+    }
+
+    /// <summary>
+    /// 把 <c>ObjectTable</c> 裡看得到的寶箱實體歸屬到房間，數出每間房每種型別各看到幾個。
+    /// </summary>
+    /// <returns>
+    /// 長度 <c>NumRooms * ChestTypeSlots</c> 的計數陣列；
+    /// <b>座標校驗沒過時回 null</b>——寧可整層退化成「地圖說有、位置不明」，
+    /// 也不要把實體歸到錯的房間。
+    /// </returns>
+    private int[]? ComputeConfirmedChests(RoomCoordState coords)
+    {
+        if (coords != RoomCoordState.Ok)
+            return null;
+
+        var res = new int[DeepDungeonState.NumRooms * Minimap.ChestTypeSlots];
+        foreach (var a in World.Actors)
+        {
+            if (_openedChests.Contains(a.InstanceID))
+                continue;
+            var slot = ChestSlotForOID(a.OID);
+            if (slot < 0)
+                continue;
+            var room = NearestRoom(a.Position, RoomCenterTolerance);
+            if (room < 0)
+                continue;
+            ++res[room * Minimap.ChestTypeSlots + slot];
+        }
+        return res;
+    }
+
+    /// <summary>寶箱實體的 OID 對應到哪一個型別槽；不是寶箱回 -1。</summary>
+    /// <remarks>
+    /// 📌 綁帶寶箱（藏寶庫）刻意不算——它不在遊戲的深牢寶箱清單裡，
+    /// 混進來會讓「地圖說有幾個」與「看到幾個」對不起來。
+    /// </remarks>
+    private static int ChestSlotForOID(uint oid) =>
+        BronzeChestIDs.Contains(oid) ? 0
+        : oid == (uint)OID.SilverCoffer ? 1
+        : oid == (uint)OID.GoldCoffer ? 2
+        : -1;
+
     private void HandleFloorPathfind(Actor player, AIHints hints)
     {
         var playerRoom = FindPlayerRoom(player);
@@ -864,10 +1009,13 @@ public abstract class AutoClear : ZoneModule
         for (var i = 0; i < len; ++i)
         {
             ref var room = ref Palace.Rooms[i];
+            var roomdata = tileset[i];
+            // 中心座標不管房間探索了沒都先存下來（索引＝房號）；牆壁仍然只對已知的房間算
+            if (roomdata.Center != default)
+                RoomCenters[i] = roomdata.Center.Position;
+
             if (room > 0)
             {
-                var roomdata = tileset[i];
-                RoomCenters.Add(roomdata.Center.Position);
                 if (roomdata.North != default && !room.HasFlag(RoomFlags.ConnectionN))
                     Walls.Add((roomdata.North, false));
                 if (roomdata.South != default && !room.HasFlag(RoomFlags.ConnectionS))

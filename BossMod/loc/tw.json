@@ -3403,5 +3403,29 @@
   },
   "Size of the arrow marking your own position on the minimap, relative to its original size. The arrow is 64px wide inside an 88px cell, which makes it spill over the room you are standing in; shrink it if it hides the coffer icons.": {
     "message": "小地圖上標示自己位置的箭頭大小，以原始大小為 1。箭頭原始寬度是 64 像素、格子只有 88 像素，會蓋住自己所在的那一間；覺得它擋到寶箱圖示就調小。"
+  },
+  "DD_ChestBronze": {
+    "message": "銅寶箱"
+  },
+  "DD_ChestSilver": {
+    "message": "銀寶箱"
+  },
+  "DD_ChestGold": {
+    "message": "金寶箱"
+  },
+  "DD_ChestUnknownType": {
+    "message": "無法辨識類型的寶箱"
+  },
+  "DD_ChestLocated": {
+    "message": "{0} x{1}：已找到位置"
+  },
+  "DD_ChestPositionUnavailable": {
+    "message": "{0} x{1}：地圖上有，但這一層無法顯示確切位置"
+  },
+  "DD_ChestNotSeenYet": {
+    "message": "{0} x{1}：地圖上有，目前已找到 {2} 個"
+  },
+  "DD_CoordMismatch": {
+    "message": "這一層無法顯示寶箱位置：內建的房間座標與這張地圖對不上（你距離遊戲所回報的所在房間中心 {0:f0} 公尺）。"
   }
 }
