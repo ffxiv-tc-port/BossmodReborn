@@ -5068,5 +5068,140 @@
   },
   "Targeting": {
     "message": "選標"
+  },
+  "AOE": {
+    "message": "範圍技"
+  },
+  "Aegis": {
+    "message": "守護之光"
+  },
+  "Auto-Bloodbath L": {
+    "message": "自動使用遺失浴血"
+  },
+  "Auto-Dispel L": {
+    "message": "自動使用遺失驅散"
+  },
+  "Auto-Feint L": {
+    "message": "自動使用遺失牽制"
+  },
+  "Auto-dispel": {
+    "message": "自動驅散"
+  },
+  "Automatically attack all targets if the Epic Echo status is present (i.e. when unsynced)": {
+    "message": "當擁有「史詩回聲」狀態時(即降階同步)自動攻擊所有目標"
+  },
+  "Automatically attack all targets in unsynced duties": {
+    "message": "在降階同步的任務中自動攻擊所有目標"
+  },
+  "Automatically attack deep dungeon bosses if solo": {
+    "message": "單人時自動攻擊深層迷宮頭目"
+  },
+  "Automatically attack deep dungeon bosses when solo": {
+    "message": "單人時自動攻擊深層迷宮頭目"
+  },
+  "Automatically attack hunt marks once they are below 95% HP": {
+    "message": "討伐對象HP低於95%後自動攻擊"
+  },
+  "Automatically attack hunt marks once they have been pulled": {
+    "message": "討伐對象被拉起後自動攻擊"
+  },
+  "Automatically attack solo duty bosses": {
+    "message": "自動攻擊單人任務頭目"
+  },
+  "Buffs": {
+    "message": "增益技"
+  },
+  "Burst": {
+    "message": "爆發輸出"
+  },
+  "Combo": {
+    "message": "連段"
+  },
+  "D/T": {
+    "message": "點名／塔"
+  },
+  "Drag": {
+    "message": "拖曳頭目"
+  },
+  "DropSplash": {
+    "message": "潑濺"
+  },
+  "EWH": {
+    "message": "電擊女巫獵殺"
+  },
+  "Engage": {
+    "message": "接戰"
+  },
+  "Fairy placement": {
+    "message": "妖精走位"
+  },
+  "FormShift": {
+    "message": "演武"
+  },
+  "GCD": {
+    "message": "全域冷卻"
+  },
+  "Ignore all AOEs while Platebearer is active": {
+    "message": "持有護甲狀態時忽略所有範圍傷害"
+  },
+  "IonPlatform": {
+    "message": "離子群集平台"
+  },
+  "LB Placement": {
+    "message": "極限技部署"
+  },
+  "Macro": {
+    "message": "大宇宙"
+  },
+  "Melee Combo": {
+    "message": "近戰連段"
+  },
+  "Movement": {
+    "message": "移動"
+  },
+  "Moving": {
+    "message": "移動中"
+  },
+  "Opener": {
+    "message": "開場"
+  },
+  "Partner": {
+    "message": "舞伴"
+  },
+  "Phero2": {
+    "message": "費洛蒙2"
+  },
+  "Role Actions": {
+    "message": "職務技能"
+  },
+  "StageCombo": {
+    "message": "階段連段"
+  },
+  "SW": {
+    "message": "側風誘導箭"
+  },
+  "T.North": {
+    "message": "真北"
+  },
+  "TrueNorth": {
+    "message": "真北"
+  },
+  "Turret Placement": {
+    "message": "砲塔部署"
+  },
+  "Variant Cure": {
+    "message": "秘境治療"
+  },
+  "Variant Rampart": {
+    "message": "秘境鐵壁"
+  },
+  "WNWH": {
+    "message": "西北女巫獵殺"
+  },
+  "Allow automatic usage of Leylines while moving": {
+    "message": "移動時允許自動使用黑魔紋"
+  },
+  "Allow generic out-of-combat predictive heals on tank (Excogitation, Divine Benison, etc)": {
+    "message": "允許在戰鬥外對坦克使用預判型治療(深謀遠慮之策、神祝禱等)"
   }
 }
