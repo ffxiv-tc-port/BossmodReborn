@@ -311,7 +311,7 @@ public abstract class AutoClear : ZoneModule
         var player = World.Party.Player()!;
 
         var coords = CheckRoomCoords(player, out var coordDistance, out _);
-        var targetRoom = new Minimap(Palace, player, DesiredRoom, Config, ComputeConfirmedChests(coords)).Draw();
+        var targetRoom = new Minimap(Palace, player, DesiredRoom, Config, ComputeChestSpots(coords)).Draw();
         if (targetRoom >= 0)
             DesiredRoom = targetRoom;
 
@@ -882,19 +882,36 @@ public abstract class AutoClear : ZoneModule
     }
 
     /// <summary>
-    /// 把 <c>ObjectTable</c> 裡看得到的寶箱實體歸屬到房間，數出每間房每種型別各看到幾個。
+    /// 房間格子的像素／碼換算。
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ 房間中心的實測間距在 55~68y 之間跳（<see cref="LoadedFloors"/> 的座標本來就
+    /// <b>不在完美網格上</b>），所以這是個近似值，不是精確換算。間距偏大的房間裡，
+    /// 靠邊的寶箱會被下面的夾邊處理擋在格子內——寧可貼邊也不要溢出到隔壁格，
+    /// 溢出會讓人以為寶箱在別間房。
+    /// </remarks>
+    private const float CellPixelsPerYalm = Minimap.CellPixels / 55f;
+
+    /// <summary>
+    /// 把 <c>ObjectTable</c> 裡看得到的寶箱實體歸屬到房間，並換算成格內的像素位置。
     /// </summary>
     /// <returns>
-    /// 長度 <c>NumRooms * ChestTypeSlots</c> 的計數陣列；
     /// <b>座標校驗沒過時回 null</b>——寧可整層退化成「地圖說有、位置不明」，
-    /// 也不要把實體歸到錯的房間。
+    /// 也不要把寶箱畫在錯的房間。
     /// </returns>
-    private int[]? ComputeConfirmedChests(RoomCoordState coords)
+    /// <remarks>
+    /// 📌 遠處房間還沒串流進 <c>ObjectTable</c> 時這裡自然就數不到，
+    /// 那些寶箱會留在上排的「還沒找到」摘要裡——這是預期行為，不是缺陷。
+    /// </remarks>
+    private List<ChestSpot>? ComputeChestSpots(RoomCoordState coords)
     {
         if (coords != RoomCoordState.Ok)
             return null;
 
-        var res = new int[DeepDungeonState.NumRooms * Minimap.ChestTypeSlots];
+        // 留邊，免得圖示被格子邊緣切掉
+        const float limit = Minimap.CellHalfPixels - 11f;
+
+        List<ChestSpot> res = [];
         foreach (var a in World.Actors)
         {
             if (_openedChests.Contains(a.InstanceID))
@@ -903,9 +920,15 @@ public abstract class AutoClear : ZoneModule
             if (slot < 0)
                 continue;
             var room = NearestRoom(a.Position, RoomCenterTolerance);
-            if (room < 0)
+            if (room < 0 || RoomCenters[room] is not WPos center)
                 continue;
-            ++res[room * Minimap.ChestTypeSlots + slot];
+
+            // 世界座標 +X＝東＝畫面右、+Z＝南＝畫面下（拿 LoadedFloors 的相鄰房中心對照過：
+            // 房號 +1 的中心 X 較大、房號 +5 的中心 Z 較大）
+            var d = a.Position - center;
+            var off = new Vector2(d.X * CellPixelsPerYalm, d.Z * CellPixelsPerYalm);
+            off = Vector2.Clamp(off, new Vector2(-limit), new Vector2(limit));
+            res.Add(new(room, slot, off));
         }
         return res;
     }

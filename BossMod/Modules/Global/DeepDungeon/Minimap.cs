@@ -4,13 +4,21 @@ using static FFXIVClientStructs.FFXIV.Client.Game.InstanceContent.InstanceConten
 
 namespace BossMod.Global.DeepDungeon;
 
-/// <param name="ConfirmedChests">
-/// 每間房、每種寶箱型別「實際在 ObjectTable 裡看到幾個」，長度
-/// <c>NumRooms * ChestTypeSlots</c>，索引 <c>房號 * ChestTypeSlots + 型別槽</c>。
-/// <b>null＝這一層的房間座標校驗沒過</b>（硬編座標對不上，無法把實體歸屬到房間），
-/// 此時全部寶箱一律畫成「地圖說有、位置未知」。
+/// <summary>已經在 <c>ObjectTable</c> 裡看到實體、而且問得出格內位置的一個寶箱。</summary>
+/// <param name="Room">房號 0..24。</param>
+/// <param name="Slot">寶箱型別槽，見 <see cref="Minimap.ChestSlot"/>。</param>
+/// <param name="CellOffset">
+/// 相對於<b>格子中心</b>的像素偏移，已經夾在格子範圍內。
+/// 📌 換算在 <see cref="AutoClear"/> 那邊做完 —— Minimap 不碰世界座標，
+/// 也就不必知道那份座標是哪個服的、有沒有過校驗。
 /// </param>
-public sealed record class Minimap(DeepDungeonState State, Actor Player, int CurrentDestination, AutoDDConfig Config, int[]? ConfirmedChests)
+public readonly record struct ChestSpot(int Room, int Slot, Vector2 CellOffset);
+
+/// <param name="ChestSpots">
+/// 已找到實體位置的寶箱。<b>null＝這一層的房間座標校驗沒過</b>
+/// （硬編座標對不上，無法把實體歸屬到房間），此時全部寶箱一律畫成「地圖說有、位置不明」。
+/// </param>
+public sealed record class Minimap(DeepDungeonState State, Actor Player, int CurrentDestination, AutoDDConfig Config, IReadOnlyList<ChestSpot>? ChestSpots)
 {
     enum IconID : uint
     {
@@ -25,6 +33,15 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
 
     /// <summary>寶箱型別的槽位數：0..2 對應遊戲的 ChestType 1..3（銅／銀／金），3 是未知型別。</summary>
     public const int ChestTypeSlots = 4;
+
+    /// <summary>一個房間格子的邊長（像素）。</summary>
+    public const float CellPixels = 88f;
+
+    /// <summary>格子中心到邊緣的像素距離。</summary>
+    public const float CellHalfPixels = CellPixels * 0.5f;
+
+    /// <summary>格內真實點位用的小圖示邊長。</summary>
+    private const float SpotIconSize = 18f;
 
     /// <summary>未知型別的槽位。</summary>
     public const int UnknownChestSlot = 3;
@@ -67,6 +84,19 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
             ref readonly var c = ref State.Chests[i];
             if (c.Room > 0 && c.Room < DeepDungeonState.NumRooms && c.Type > 0)
                 ++chestCounts[c.Room * ChestTypeSlots + ChestSlot(c.Type)];
+        }
+
+        // 已經找到實體位置的，逐間逐型別數一次；上排的摘要只畫「還沒找到」的那些
+        var located = new int[DeepDungeonState.NumRooms * ChestTypeSlots];
+        if (ChestSpots != null)
+        {
+            var lenS = ChestSpots.Count;
+            for (var i = 0; i < lenS; ++i)
+            {
+                var s = ChestSpots[i];
+                if ((uint)s.Room < DeepDungeonState.NumRooms && (uint)s.Slot < ChestTypeSlots)
+                    ++located[s.Room * ChestTypeSlots + s.Slot];
+            }
         }
 
         var lenP = State.Party.Length;
@@ -148,7 +178,7 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
             //   實心 ＋ 白外框     ＝ ObjectTable 裡真的看到實體了
             // 🔴「不知道」本身必須在格子上看得見，不能只寫進 tooltip——
             //    把不知道畫成跟知道一樣，比不畫還糟。
-            var chestTooltip = DrawChests(i, pos, chestCounts, bronzeTex, silverTex, goldTex);
+            var chestTooltip = DrawChests(i, pos, chestCounts, located, bronzeTex, silverTex, goldTex);
 
             if (i == playerCell)
             {
@@ -186,33 +216,61 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
     /// <summary>
     /// 畫某一格的寶箱標示，回傳要接進該格 tooltip 的說明文字（沒有寶箱時回 null）。
     /// </summary>
-    private string? DrawChests(int room, Vector2 pos, int[] chestCounts, Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap bronzeTex, Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap silverTex, Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap goldTex)
+    private string? DrawChests(int room, Vector2 pos, int[] chestCounts, int[] located, Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap bronzeTex, Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap silverTex, Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap goldTex)
     {
-        Span<(int Slot, int Total, int Confirmed)> entries = stackalloc (int, int, int)[ChestTypeSlots];
+        var dl = ImGui.GetWindowDrawList();
+        List<string>? tips = null;
+
+        // ① 已找到實體位置的：直接畫在格子裡的真實點位上
+        if (ChestSpots != null)
+        {
+            var lenS = ChestSpots.Count;
+            for (var i = 0; i < lenS; ++i)
+            {
+                var s = ChestSpots[i];
+                if (s.Room != room)
+                    continue;
+
+                ImGui.SetCursorPos(pos + new Vector2(CellHalfPixels, CellHalfPixels) + s.CellOffset - new Vector2(SpotIconSize * 0.5f));
+                var screen = ImGui.GetCursorScreenPos();
+                if (s.Slot == UnknownChestSlot)
+                    dl.AddText(screen + new Vector2(SpotIconSize * 0.25f, 0f), ColorUnknown, "?");
+                else
+                    ImGui.Image(SlotTexture(s.Slot, bronzeTex, silverTex, goldTex).Handle, new Vector2(SpotIconSize));
+                // NecroLens 風格：有外框、不疊顏色
+                dl.AddRect(screen - new Vector2(1f), screen + new Vector2(SpotIconSize + 1f), ColorConfirmedOutline, 3f);
+            }
+
+            // tooltip 走「每種型別一行」而不是「每個實體一行」——同房三個銅寶箱不必刷三行。
+            // ⚠️ 也因為這樣，字串仍然是 {0} x{1} 兩個參數：格式字串的參數個數改了而譯文沒跟著改，
+            //    `string.Format` 會在執行期擲 FormatException，而且只有進到深牢才會踩到。
+            for (var s = 0; s < ChestTypeSlots; ++s)
+            {
+                var n = located[room * ChestTypeSlots + s];
+                if (n > 0)
+                    (tips ??= []).Add(string.Format(Loc.T("DD_ChestLocated", "{0} x{1}: located"), SlotName(s), n));
+            }
+        }
+
+        // ② 地圖清單說有、但還沒找到實體的：上排摘要，半透明＋問號＋還沒找到的數量
+        Span<(int Slot, int Total, int Located, int Remaining)> pending = stackalloc (int, int, int, int)[ChestTypeSlots];
         var count = 0;
         for (var s = 0; s < ChestTypeSlots; ++s)
         {
-            var known = chestCounts[room * ChestTypeSlots + s];
-            var confirmed = ConfirmedChests != null ? ConfirmedChests[room * ChestTypeSlots + s] : 0;
-            // 實體看得到但遊戲清單沒列的也照畫：資訊只會多不會少，靜默丟掉才是問題
-            var total = known > confirmed ? known : confirmed;
-            if (total > 0)
-                entries[count++] = (s, total, confirmed);
+            var idx = room * ChestTypeSlots + s;
+            var total = chestCounts[idx];
+            var remaining = total - located[idx];
+            if (remaining > 0)
+                pending[count++] = (s, total, located[idx], remaining);
         }
-
-        if (count == 0)
-            return null;
 
         // 一格 88px。三種以內用 28px 一階（圖示 26px），出現未知型別而變成四種時縮到 21px 一階。
         var step = count > 3 ? 21f : 28f;
         var size = step - 2f;
-        var dl = ImGui.GetWindowDrawList();
-        var tips = new List<string>(count);
 
         for (var e = 0; e < count; ++e)
         {
-            var (slot, total, confirmed) = entries[e];
-            var located = confirmed >= total;
+            var (slot, total, locatedCount, remaining) = pending[e];
 
             ImGui.SetCursorPos(pos + new Vector2(2f + e * step, 2f));
             var screen = ImGui.GetCursorScreenPos();
@@ -225,40 +283,39 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
             }
             else
             {
-                var tex = slot == 0 ? bronzeTex : slot == 1 ? silverTex : goldTex;
-                ImGui.Image(tex.Handle, new Vector2(size), default, new Vector2(1f),
-                    located ? new Vector4(1f) : new Vector4(1f, 1f, 1f, 0.45f));
+                ImGui.Image(SlotTexture(slot, bronzeTex, silverTex, goldTex).Handle, new Vector2(size), default, new Vector2(1f),
+                    new Vector4(1f, 1f, 1f, 0.45f));
             }
 
-            if (located)
-                dl.AddRect(screen - new Vector2(1f), screen + new Vector2(size + 1f), ColorConfirmedOutline, 3f);
-            else
-                dl.AddText(screen + new Vector2(size - 8f, -4f), ColorUnknown, "?");
+            // 🔴 位置不明的角標問號：這是「不知道」本身，一定要留在格子上，不能只寫進 tooltip
+            dl.AddText(screen + new Vector2(size - 8f, -4f), ColorUnknown, "?");
 
-            if (total > 1)
+            if (remaining > 1)
             {
                 // 帶一格陰影，免得白字落在金寶箱圖示上看不見
                 var at = screen + new Vector2(size - 9f, size - 16f);
-                dl.AddText(at + new Vector2(1f), ColorCountShadow, $"{total}");
-                dl.AddText(at, ColorCount, $"{total}");
+                dl.AddText(at + new Vector2(1f), ColorCountShadow, $"{remaining}");
+                dl.AddText(at, ColorCount, $"{remaining}");
             }
 
-            var name = slot switch
-            {
-                0 => Loc.T("DD_ChestBronze", "bronze coffer"),
-                1 => Loc.T("DD_ChestSilver", "silver coffer"),
-                2 => Loc.T("DD_ChestGold", "gold coffer"),
-                _ => Loc.T("DD_ChestUnknownType", "coffer of an unrecognized type"),
-            };
-            tips.Add(located
-                ? string.Format(Loc.T("DD_ChestLocated", "{0} x{1}: located"), name, total)
-                : ConfirmedChests == null
-                    ? string.Format(Loc.T("DD_ChestPositionUnavailable", "{0} x{1}: the map lists it, but the exact spot cannot be shown on this floor"), name, total)
-                    : string.Format(Loc.T("DD_ChestNotSeenYet", "{0} x{1}: the map lists it, {2} located so far"), name, total, confirmed));
+            (tips ??= []).Add(ChestSpots == null
+                ? string.Format(Loc.T("DD_ChestPositionUnavailable", "{0} x{1}: the map lists it, but the exact spot cannot be shown on this floor"), SlotName(slot), total)
+                : string.Format(Loc.T("DD_ChestNotSeenYet", "{0} x{1}: the map lists it, {2} located so far"), SlotName(slot), total, locatedCount));
         }
 
-        return string.Join("\n", tips);
+        return tips == null ? null : string.Join("\n", tips);
     }
+
+    private static Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap SlotTexture(int slot, Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap bronze, Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap silver, Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap gold)
+        => slot == 0 ? bronze : slot == 1 ? silver : gold;
+
+    private static string SlotName(int slot) => slot switch
+    {
+        0 => Loc.T("DD_ChestBronze", "bronze coffer"),
+        1 => Loc.T("DD_ChestSilver", "silver coffer"),
+        2 => Loc.T("DD_ChestGold", "gold coffer"),
+        _ => Loc.T("DD_ChestUnknownType", "coffer of an unrecognized type"),
+    };
 
     /// <summary>
     /// 畫玩家所在位置的方向箭頭。
