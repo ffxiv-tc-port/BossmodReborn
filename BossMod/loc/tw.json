@@ -5203,5 +5203,830 @@
   },
   "Allow generic out-of-combat predictive heals on tank (Excogitation, Divine Benison, etc)": {
     "message": "允許在戰鬥外對坦克使用預判型治療(深謀遠慮之策、神祝禱等)"
+  },
+  "Aggressively pull eligible mobs that are not yet in combat": {
+    "message": "積極拉起尚未進入戰鬥的合適目標"
+  },
+  "Aggressively spend gauge, disregarding ST buff, even if is not up/running out soon (useful before long downtimes)": {
+    "message": "積極消耗量表,不理會單體增益是否即將到期(適合長時間停手前使用)"
+  },
+  "Align with 2-minute raid buffs (0/6, 2/8, etc)": {
+    "message": "配合2分鐘團隊增益循環(0/6、2/8等)"
+  },
+  "Align with IR, allow on odd minutes (0/5/10)": {
+    "message": "配合原初的解放,允許在奇數分鐘使用(0/5/10)"
+  },
+  "Alliance raid members": {
+    "message": "小隊聯盟成員"
+  },
+  "Allow": {
+    "message": "允許"
+  },
+  "Allow Jump, Stardiver, & Dragonfire Dive only at close melee range (within 1y)": {
+    "message": "只在近戰貼身距離內(1y內)使用跳躍、墜星衝與龍炎衝"
+  },
+  "Allow Jump, Stardiver, & Dragonfire Dive only at max melee range (within 3y)": {
+    "message": "只在近戰最大距離內(3y內)使用跳躍、墜星衝與龍炎衝"
+  },
+  "Allow Thunder if an instant cast is needed, but don't try to maintain uptime": {
+    "message": "需要即發技能時允許使用雷電,但不刻意維持持續傷害在線率"
+  },
+  "Allow Transpose & Umbral Soul combo when either out of combat or no targetable enemy is nearby": {
+    "message": "戰鬥外或附近沒有可鎖定的敵人時,允許使用星靈移位與靈極魂連段"
+  },
+  "Allow breaking melee combo if target moves out of range": {
+    "message": "允許在目標移出距離時中斷近戰連段"
+  },
+  "Allow casting while moving": {
+    "message": "允許移動中詠唱"
+  },
+  "Allow raising without Swiftcast (not applicable to RDM)": {
+    "message": "允許在沒有即刻詠唱時復活(不適用於赤魔)"
+  },
+  "Allow the use Thunder if target Has 3s or less remaining on DoT effect": {
+    "message": "目標的持續傷害效果剩餘3秒以下時允許使用雷電"
+  },
+  "Allow the use Thunder if target Has 6s or less remaining on DoT effect": {
+    "message": "目標的持續傷害效果剩餘6秒以下時允許使用雷電"
+  },
+  "Allow the use Thunder if target Has 9s or less remaining on DoT effect": {
+    "message": "目標的持續傷害效果剩餘9秒以下時允許使用雷電"
+  },
+  "Allow the use Thunder only if target does not have DoT effect": {
+    "message": "只在目標沒有持續傷害效果時允許使用雷電"
+  },
+  "Allow the use of Jump, Stardiver, & Dragonfire Dive at any distance": {
+    "message": "允許在任何距離使用跳躍、墜星衝與龍炎衝"
+  },
+  "Allow the use of all appropriate abilities for use while moving": {
+    "message": "允許使用所有適合移動中施放的技能"
+  },
+  "Allow the use of all appropriate abilities for use while moving except for Scathe": {
+    "message": "允許使用所有適合移動中施放的技能,崩潰除外"
+  },
+  "Allow use of Bahamut only for Limit Break when available": {
+    "message": "極限技可用時只允許召喚巴哈姆特"
+  },
+  "Allow use of Lightning Shot when out of melee range": {
+    "message": "超出近戰距離時允許使用雷電彈"
+  },
+  "Allow use of Limit Break (Relentless Rush) automatically when nearby enemies": {
+    "message": "附近有敵人時自動允許使用極限技(無情連擊)"
+  },
+  "Allow use of Phoenix only for Limit Break when available": {
+    "message": "極限技可用時只允許召喚鳳凰"
+  },
+  "Allow use of Piercing Talon if already in combat & outside melee range": {
+    "message": "已在戰鬥中且超出近戰距離時允許使用貫穿尖"
+  },
+  "Allow use of Piercing Talon if already in combat, outside melee range, & is Enhanced": {
+    "message": "已在戰鬥中、超出近戰距離且處於強化狀態時允許使用貫穿尖"
+  },
+  "Allow use of Purify when under any debuff that can be cleansed": {
+    "message": "受到任何可淨化的負面效果時允許使用淨化"
+  },
+  "Allow use of Sprint when no target is nearby within 30 yalms": {
+    "message": "附近30公尺內沒有目標時允許使用衝刺"
+  },
+  "Allow use of Unmend only when out of melee range": {
+    "message": "只在超出近戰距離時允許使用傷殘"
+  },
+  "Allow use of all cooldowns, buffs, or gauge abilities": {
+    "message": "允許使用所有冷卻、增益或量表技能"
+  },
+  "Allow using when primary enemy is targetable, but out of range": {
+    "message": "主要敵人可鎖定但超出距離時允許使用"
+  },
+  "Allows use of Elixir if resources are low and no targets are nearby within 30 yalms": {
+    "message": "資源不足且附近30公尺內沒有目標時允許使用軍用聖靈藥"
+  },
+  "Allows use of Elixir if resources are low and no targets are nearby within 50 yalms": {
+    "message": "資源不足且附近50公尺內沒有目標時允許使用軍用聖靈藥"
+  },
+  "Always": {
+    "message": "總是"
+  },
+  "Always keep one charge reserved, use other charges inside burst or to prevent overcapping": {
+    "message": "總是保留1層充能,其餘充能於爆發期間使用或用於避免溢出"
+  },
+  "Always use AOE actions, even on one target": {
+    "message": "總是使用範圍技能,即使只有一個目標"
+  },
+  "Always use when out of melee range": {
+    "message": "超出近戰距離時總是使用"
+  },
+  "Any dead player": {
+    "message": "任何陣亡的玩家"
+  },
+  "Apply Higanbana immediately": {
+    "message": "立即施放彼岸花"
+  },
+  "Apply dots asap (even if aoe filler is better), extend existing normally with IJ": {
+    "message": "盡快施加持續傷害(即使範圍填補技更划算),用伶牙俐齒照常延長既有效果"
+  },
+  "Apply dots asap (unless aoe filler is better), reapply when either dots about to expire or in buff window": {
+    "message": "盡快施加持續傷害(除非範圍填補技更划算),在效果即將到期或增益期間內重新施加"
+  },
+  "Apply to target ASAP, regardless of remaining duration": {
+    "message": "不論剩餘時間,盡快施放到目標身上"
+  },
+  "Attempts to use Life Surge when under any buffs - this may be wonky to use generally; mainly for rushing use when under raidbuff(s)": {
+    "message": "在有任何增益時嘗試使用龍劍——一般用法可能不太理想,主要用於團隊增益期間搶用"
+  },
+  "Auto-select best target for maximum optimal DPS output": {
+    "message": "自動選擇能帶來最高輸出的最佳目標"
+  },
+  "Automatic (3-6-9)": {
+    "message": "自動(3-6-9分)"
+  },
+  "Automatically choose Kardia target": {
+    "message": "自動選擇心關目標"
+  },
+  "Automatically choose best Holy action under Divine Might based on targets": {
+    "message": "在神聖使命狀態下依目標自動選擇最佳的神聖技能"
+  },
+  "Automatically choose best nadi (double lunar opener, otherwise alternate)": {
+    "message": "自動選擇最佳氣脈(開場雙太陰,其餘則交替)"
+  },
+  "Automatically deal with special conditions (knockbacks, pyretics, etc)": {
+    "message": "自動處理特殊狀況(擊退、灼熱波動等)"
+  },
+  "Automatically decide when to use Ley Lines": {
+    "message": "自動判斷何時使用黑魔紋"
+  },
+  "Automatically decide when to use cartridges; uses them optimally": {
+    "message": "自動判斷何時使用彈匣,以最佳方式消耗"
+  },
+  "Automatically engage eligible mobs that are in combat with player, but don't pull new mobs": {
+    "message": "自動接戰已與玩家交戰的合適目標,但不主動拉新目標"
+  },
+  "Automatically engage eligible mobs that are in combat with player; if player is not in combat, pull new mobs": {
+    "message": "自動接戰已與玩家交戰的合適目標;若玩家不在戰鬥中則主動拉新目標"
+  },
+  "Automatically execute optimal rotation based on targets; breaks combo if necessary": {
+    "message": "依目標數自動執行最佳循環,必要時中斷連段"
+  },
+  "Automatically execute optimal rotation based on targets; finishes combo if possible": {
+    "message": "依目標數自動執行最佳循環,盡可能完成連段"
+  },
+  "Automatically order fairy to follow player when combat ends": {
+    "message": "戰鬥結束時自動命令妖精跟隨玩家"
+  },
+  "Automatically place fairy at arena center (if one exists) - order fairy to follow when out of combat": {
+    "message": "自動將妖精放置於場地中心(如果存在)——戰鬥外則命令妖精跟隨"
+  },
+  "Automatically refresh on main target according to standard rotation": {
+    "message": "依標準循環自動在主要目標上重新施放"
+  },
+  "Automatically select best polyglot based on targets; Spend all Polyglots as soon as possible": {
+    "message": "依目標自動選擇最佳通言技,盡快用盡所有通言"
+  },
+  "Automatically select best polyglot based on targets; holds 1 for manual usage": {
+    "message": "依目標自動選擇最佳通言技,保留1個供手動使用"
+  },
+  "Automatically select best polyglot based on targets; holds 2 for manual usage": {
+    "message": "依目標自動選擇最佳通言技,保留2個供手動使用"
+  },
+  "Automatically select best polyglot based on targets; holds all Polyglots for as long as possible": {
+    "message": "依目標自動選擇最佳通言技,盡量保留所有通言不用"
+  },
+  "Automatically select best target": {
+    "message": "自動選擇最佳目標"
+  },
+  "Automatically select best target (highest number of nearby targets) for AOE actions": {
+    "message": "為範圍技能自動選擇最佳目標(周圍命中數最多者)"
+  },
+  "Automatically select best target for AOE actions - ensure player target is hit": {
+    "message": "為範圍技能自動選擇最佳目標——確保命中玩家的目標"
+  },
+  "Automatically select best target for AOE actions - if player has a target, ensure that target is hit": {
+    "message": "為範圍技能自動選擇最佳目標——若玩家有目標,確保命中該目標"
+  },
+  "Automatically use Abyssal Drain, regardless of targets nearby": {
+    "message": "不論附近目標數,自動使用吸血深淵"
+  },
+  "Automatically use Bloodspiller or Quietus ASAP when 50+ Blood is available": {
+    "message": "血氣達50以上時盡快自動使用血濺或寂滅"
+  },
+  "Automatically use Bloodspiller or Quietus optimally based on targets nearby": {
+    "message": "依附近目標數自動以最佳方式使用血濺或寂滅"
+  },
+  "Automatically use Carve and Spit or Abyssal Drain based on targets nearby": {
+    "message": "依附近目標數自動使用精雕怒斬或吸血深淵"
+  },
+  "Automatically use Carve and Spit, regardless of targets nearby": {
+    "message": "不論附近目標數,自動使用精雕怒斬"
+  },
+  "Automatically use Delirium Combo": {
+    "message": "自動使用血亂連段"
+  },
+  "Automatically use Despair or Flare based on targets nearby": {
+    "message": "依附近目標數自動使用絕望或火光"
+  },
+  "Automatically use Drill or Bioblaster based on targets nearby; holds one charge for manual usage": {
+    "message": "依附近目標數自動使用鑽頭或毒化衝擊,保留1層供手動使用"
+  },
+  "Automatically use Drill or Bioblaster based on targets nearby; uses both charges": {
+    "message": "依附近目標數自動使用鑽頭或毒化衝擊,兩層都用"
+  },
+  "Automatically use Edge or Flood optimally based on targets nearby; 2 for 1m, 4 (or 5 if Dark Arts is active) for 2m": {
+    "message": "依附近目標數自動以最佳方式使用暗黑鋒或暗黑波動;1分鐘用2次,2分鐘用4次(黑暗藝術生效時5次)"
+  },
+  "Automatically use Edge or Flood optimally based on targets nearby; Uses only to refresh Darkside or when almost full on MP": {
+    "message": "依附近目標數自動以最佳方式使用暗黑鋒或暗黑波動;只在需要重新施加闇影期或魔力快滿時使用"
+  },
+  "Automatically use Edge or Flood optimally based on targets nearby; Uses when 3000+ MP is available": {
+    "message": "依附近目標數自動以最佳方式使用暗黑鋒或暗黑波動;魔力達3000以上時使用"
+  },
+  "Automatically use Edge or Flood optimally based on targets nearby; Uses when 6000+ MP is available": {
+    "message": "依附近目標數自動以最佳方式使用暗黑鋒或暗黑波動;魔力達6000以上時使用"
+  },
+  "Automatically use Edge or Flood optimally based on targets nearby; Uses when 9000+ MP is available": {
+    "message": "依附近目標數自動以最佳方式使用暗黑鋒或暗黑波動;魔力達9000以上時使用"
+  },
+  "Automatically use Guard when HP is not full and four or more targets are targeting you": {
+    "message": "HP未滿且有4個以上目標鎖定你時自動使用防禦"
+  },
+  "Automatically use Guard when HP is not full and three or more targets are targeting you": {
+    "message": "HP未滿且有3個以上目標鎖定你時自動使用防禦"
+  },
+  "Automatically use Guard when HP is not full and two or more targets are targeting you": {
+    "message": "HP未滿且有2個以上目標鎖定你時自動使用防禦"
+  },
+  "Automatically use Guard when HP% is under 30%": {
+    "message": "HP百分比低於30%時自動使用防禦"
+  },
+  "Automatically use Guard when HP% is under 50%": {
+    "message": "HP百分比低於50%時自動使用防禦"
+  },
+  "Automatically use Guard when HP% is under 70%": {
+    "message": "HP百分比低於70%時自動使用防禦"
+  },
+  "Automatically use Guard when HP% is under 75% and two or more targets are targeting you, or when HP% is below 33%": {
+    "message": "HP百分比低於75%且有2個以上目標鎖定你,或HP百分比低於33%時自動使用防禦"
+  },
+  "Automatically use Heat Blast or Auto-Crossbow based on targets nearby": {
+    "message": "依附近目標數自動使用高熱衝擊波或自動連弩"
+  },
+  "Automatically use Manafont optimally": {
+    "message": "以最佳方式自動使用魔泉"
+  },
+  "Automatically use Recuperate when HP% is under 30%": {
+    "message": "HP百分比低於30%時自動使用自癒"
+  },
+  "Automatically use Recuperate when HP% is under 50%": {
+    "message": "HP百分比低於50%時自動使用自癒"
+  },
+  "Automatically use Recuperate when HP% is under 70%": {
+    "message": "HP百分比低於70%時自動使用自癒"
+  },
+  "Automatically use RoF during burst window": {
+    "message": "在爆發期間自動使用紅蓮極意"
+  },
+  "Automatically use after Opo before or during Riddle of Fire": {
+    "message": "在攻幽後、紅蓮極意之前或期間自動使用"
+  },
+  "Bait first any": {
+    "message": "誘導第一擊(任意)"
+  },
+  "Bait first near (first or second)": {
+    "message": "誘導第一擊(靠近第一或第二個)"
+  },
+  "Break AOE/single-target combo if number of targets changes": {
+    "message": "目標數改變時允許中斷範圍/單體連段"
+  },
+  "Cast motifs in combat if there are no targets nearby": {
+    "message": "戰鬥中若附近沒有目標則詠唱心象"
+  },
+  "Cast motifs in combat, outside of burst window": {
+    "message": "在爆發期間之外的戰鬥中詠唱心象"
+  },
+  "Choose dance partner automatically (based on job aDPS)": {
+    "message": "自動選擇舞伴(依職業平均DPS)"
+  },
+  "Cleanse all eligible party members": {
+    "message": "淨化所有符合條件的隊伍成員"
+  },
+  "Cleanse targets suggested by active module": {
+    "message": "淨化目前啟用模組建議的目標"
+  },
+  "Conserve gauge as much as possible (as if outside burst window)": {
+    "message": "盡量節省量表(視同不在爆發期間)"
+  },
+  "Conserves all Bloodspiller or Quietus as much as possible; only spending when absolutely necessary": {
+    "message": "盡量保留血濺或寂滅,只在絕對必要時才消耗"
+  },
+  "Continue slidecasting as long as there is enough time to get to safety": {
+    "message": "只要來得及移動到安全處,就繼續邊詠唱邊移動"
+  },
+  "Continue slidecasting as long as there is enough time to reach destination by the plan entry end": {
+    "message": "只要能在計劃項目結束前到達目的地,就繼續邊詠唱邊移動"
+  },
+  "Defamations N, towers NW": {
+    "message": "點名北、塔西北"
+  },
+  "Delay Battle Litany usage": {
+    "message": "延後使用戰鬥連禱"
+  },
+  "Delay Dragonfire Dive usage": {
+    "message": "延後使用龍炎衝"
+  },
+  "Delay Fight or Flight usage": {
+    "message": "延後使用戰逃反應"
+  },
+  "Delay Geirskogul usage": {
+    "message": "延後使用武神槍"
+  },
+  "Delay Jump usage": {
+    "message": "延後使用跳躍"
+  },
+  "Delay Lance Charge usage": {
+    "message": "延後使用猛槍"
+  },
+  "Delay Requiescat / Imperator usage": {
+    "message": "延後使用安魂祈禱／絕對統治"
+  },
+  "Delay Stardiver usage": {
+    "message": "延後使用墜星衝"
+  },
+  "Delay True North usage": {
+    "message": "延後使用真北"
+  },
+  "Delay automatic use until player is not holding a movement key - do not overwrite Ifrit with any other summon": {
+    "message": "延後自動使用,直到玩家沒有按著移動鍵——且不用其他召喚覆蓋伊弗利特"
+  },
+  "Delay automatic use, but do not overwrite Ifrit with any other summon": {
+    "message": "延後自動使用,但不用其他召喚覆蓋伊弗利特"
+  },
+  "Delay first GCD until pull (for better raidbuff timings)": {
+    "message": "延後第一個GCD直到拉怪(以配合更好的團隊增益時機)"
+  },
+  "Delay summon until raid buffs, regardless of gauge": {
+    "message": "不論量表多寡,延後召喚直到團隊增益期間"
+  },
+  "Delay the use of Bio for manual or strategic usage": {
+    "message": "延後使用蠱毒,供手動或戰術性使用"
+  },
+  "Delay the use of Bloodspiller or Quietus": {
+    "message": "延後使用血濺或寂滅"
+  },
+  "Delay the use of Carve and Spit": {
+    "message": "延後使用精雕怒斬"
+  },
+  "Delay the use of Edge or Flood of Darkness/Shadow": {
+    "message": "延後使用暗黑鋒或暗黑／暗影波動"
+  },
+  "Delay the use of Ley Lines": {
+    "message": "延後使用黑魔紋"
+  },
+  "Delay the use of Life Surge": {
+    "message": "延後使用龍劍"
+  },
+  "Delay the use of Manafont for strategic reasons": {
+    "message": "基於戰術考量延後使用魔泉"
+  },
+  "Delay the use of Polyglot abilities for manual or strategic usage": {
+    "message": "延後使用通言技,供手動或戰術性使用"
+  },
+  "Delay the use of Swiftcast for strategic reasons": {
+    "message": "基於戰術考量延後使用即刻詠唱"
+  },
+  "Delay the use of Triplecast": {
+    "message": "延後使用三連詠唱"
+  },
+  "Delay until Hypercharge window": {
+    "message": "延後至超荷期間"
+  },
+  "Delay until last possible GCD": {
+    "message": "延後至最後可行的GCD"
+  },
+  "Delay until last possible GCD, if potion will be ready by the time ruin expires (useful for smuggling ruin into unaligned pot window)": {
+    "message": "延後至最後可行的GCD,若藥水會在毀滅到期前就緒(適合在未對齊藥水視窗夾帶毀滅)"
+  },
+  "Delay until last possible GCD, if potion will be ready by the time ruin expires and would overlap raidbuffs (useful for smuggling ruin into aligned pot window)": {
+    "message": "延後至最後可行的GCD,若藥水會在毀滅到期前就緒且與團隊增益重疊(適合在對齊藥水視窗夾帶毀滅)"
+  },
+  "Delay use of Atonement & its combo chain": {
+    "message": "延後使用贖罪劍及其連段"
+  },
+  "Delay use of Battery actions": {
+    "message": "延後使用電力槽技"
+  },
+  "Delay use of Bloodfest": {
+    "message": "延後使用血壤"
+  },
+  "Delay use of Confiteor & Blades combo chain": {
+    "message": "延後使用悔罪及審判連段"
+  },
+  "Delay use of Double Down": {
+    "message": "延後使用倍攻"
+  },
+  "Delay use of Drill": {
+    "message": "延後使用鑽頭"
+  },
+  "Delay use of Energy Drain": {
+    "message": "延後使用吸取能量"
+  },
+  "Delay use of Gnashing Fang": {
+    "message": "延後使用烈牙"
+  },
+  "Delay use of Goring Blade": {
+    "message": "延後使用瀝血劍"
+  },
+  "Delay use of Holy actions": {
+    "message": "延後使用神聖系技能"
+  },
+  "Delay use of Hypercharge": {
+    "message": "延後使用超荷"
+  },
+  "Delay use of Intervene": {
+    "message": "延後使用調停"
+  },
+  "Delay use of No Mercy": {
+    "message": "延後使用無情"
+  },
+  "Delay use of Reassemble": {
+    "message": "延後使用整備"
+  },
+  "Delay use of Reign of Beasts": {
+    "message": "延後使用崛起之心"
+  },
+  "Delay use of Scarlet combo": {
+    "message": "延後使用血紅連段"
+  },
+  "Delay use of Sonic Break": {
+    "message": "延後使用音速破"
+  },
+  "Delay use of Wildfire": {
+    "message": "延後使用野火"
+  },
+  "Delay, even if risking overcap": {
+    "message": "延後,即使有溢出風險"
+  },
+  "Disallow dive actions that move you to the target": {
+    "message": "禁止會把你移動到目標身邊的跳躍技"
+  },
+  "Disallow dive actions that prevent you from moving (all except Mirage Dive)": {
+    "message": "禁止會讓你無法移動的跳躍技(幻象衝除外)"
+  },
+  "Do not apply new dots, extend existing normally with IJ": {
+    "message": "不施加新的持續傷害,用伶牙俐齒照常延長既有效果"
+  },
+  "Do not apply new or extend existing dots": {
+    "message": "不施加新的持續傷害,也不延長既有效果"
+  },
+  "Do not auto-select best target, instead executing only on whichever target is currently selected": {
+    "message": "不自動選擇最佳目標,只對目前選取的目標執行"
+  },
+  "Do not automatically move fairy": {
+    "message": "不自動移動妖精"
+  },
+  "Do not automatically summon Queen at all": {
+    "message": "完全不自動召喚人偶"
+  },
+  "Do not automatically use Druochole": {
+    "message": "不自動使用靈橡清汁"
+  },
+  "Do not choose dance partner automatically": {
+    "message": "不自動選擇舞伴"
+  },
+  "Do not reserve charges: use all charges if inside burst, otherwise use as needed to prevent overcapping": {
+    "message": "不保留充能:爆發期間全數使用,平時則視需要使用以避免溢出"
+  },
+  "Do not touch stance": {
+    "message": "不動姿態"
+  },
+  "Do not use Analysis": {
+    "message": "不使用分析"
+  },
+  "Do not use Bishop Autoturret": {
+    "message": "不使用象型浮游砲塔"
+  },
+  "Do not use Crimson Cyclone": {
+    "message": "不使用深紅旋風"
+  },
+  "Do not use Elusive Jump": {
+    "message": "不使用迴避跳躍"
+  },
+  "Do not use Full Metal Field": {
+    "message": "不使用全金屬爆發"
+  },
+  "Do not use Limit Break": {
+    "message": "不使用極限技"
+  },
+  "Do not use Mountain Buster": {
+    "message": "不使用山崩"
+  },
+  "Do not use Necrotize": {
+    "message": "不使用壞死爆發"
+  },
+  "Do not use Radiant Aegis": {
+    "message": "不使用守護之光"
+  },
+  "Do not use Ruin IV": {
+    "message": "不使用毀絕"
+  },
+  "Do not use Scattergun": {
+    "message": "不使用霰彈槍"
+  },
+  "Do not use Slipstream": {
+    "message": "不使用螺旋氣流"
+  },
+  "Do not use Tools": {
+    "message": "不使用工具技"
+  },
+  "Do not use Wildfire": {
+    "message": "不使用野火"
+  },
+  "Do not use any GCDs": {
+    "message": "不使用任何GCD技能"
+  },
+  "Do not use any buffer in pathfinding": {
+    "message": "尋路時不使用任何緩衝距離"
+  },
+  "Do not use any lost actions automatically": {
+    "message": "不自動使用任何遺失技"
+  },
+  "Do not use any role actions": {
+    "message": "不使用任何職務技能"
+  },
+  "Do not use any songs; stay songless if needed": {
+    "message": "不使用任何樂曲;需要的話保持無曲狀態"
+  },
+  "Do not use at all": {
+    "message": "完全不使用"
+  },
+  "Do not use, allowing overcap": {
+    "message": "不使用,允許溢出"
+  },
+  "Do nothing": {
+    "message": "不執行任何動作"
+  },
+  "Don't apply": {
+    "message": "不套用"
+  },
+  "Don't automatically choose Kardia target": {
+    "message": "不自動選擇心關目標"
+  },
+  "Don't automatically raise": {
+    "message": "不自動復活"
+  },
+  "Don't automatically use": {
+    "message": "不自動使用"
+  },
+  "Don't cast, interrupt current cast if needed": {
+    "message": "不詠唱,必要時中斷目前詠唱"
+  },
+  "Don't prioritize any mobs": {
+    "message": "不優先鎖定任何小怪"
+  },
+  "Don't stop casting, even when it risks getting clipped by aoes": {
+    "message": "不中斷詠唱,即使可能被範圍攻擊打斷"
+  },
+  "Don't use any more casts after current cast ends": {
+    "message": "目前詠唱結束後不再施放"
+  },
+  "Don't use at all": {
+    "message": "完全不使用"
+  },
+  "Downtime prep: Lunar": {
+    "message": "停手期準備:太陰"
+  },
+  "Downtime prep: Solar": {
+    "message": "停手期準備:太陽"
+  },
+  "Drag boss to the arena center": {
+    "message": "把頭目拖到場地中心"
+  },
+  "Drag the target to specified spot, but maintain gcd uptime": {
+    "message": "把目標拖到指定位置,但維持GCD在線率"
+  },
+  "End Aetherpact": {
+    "message": "結束乙太契約"
+  },
+  "End Wildfire early with Detonator": {
+    "message": "用起爆提前結束野火"
+  },
+  "Ends Battery action ASAP with Overdrive (assuming it's currently active)": {
+    "message": "盡快用超檔動作結束電力槽技(假設目前正在啟用)"
+  },
+  "Ensure usage at least 2 GCDs before next downtime": {
+    "message": "確保在下次停手期前至少2個GCD使用"
+  },
+  "Extend dots via IJ at last possible moment, even if it might overwrite proc": {
+    "message": "在最後可行的時機用伶牙俐齒延長持續傷害,即使可能覆蓋觸發效果"
+  },
+  "Extend dots via IJ only if they are about to fall off (but don't risk proc overwrites), don't extend early under buffs": {
+    "message": "只在持續傷害即將消失時才用伶牙俐齒延長(但不冒覆蓋觸發效果的風險),增益期間不提前延長"
+  },
+  "Extend until last possible moment": {
+    "message": "延續到最後可行的時機"
+  },
+  "Extend until last tick": {
+    "message": "延續到最後一次跳動"
+  },
+  "Faces the Backward direction relative to the Camera": {
+    "message": "面向相對於鏡頭的後方"
+  },
+  "Faces the Backward direction relative to the Character": {
+    "message": "面向相對於角色的後方"
+  },
+  "Faces the Forward direction relative to the Camera": {
+    "message": "面向相對於鏡頭的前方"
+  },
+  "Faces the Forward direction relative to the Character": {
+    "message": "面向相對於角色的前方"
+  },
+  "Finish AOE combo, even on 1 target, if it would grant Divine Might": {
+    "message": "若能取得神聖使命,即使只有1個目標也完成範圍連段"
+  },
+  "Finish AOE or single target combo if it would grant Divine Might, even if number of targets changes": {
+    "message": "若能取得神聖使命,即使目標數改變也完成範圍或單體連段"
+  },
+  "Forbid": {
+    "message": "禁止"
+  },
+  "Forbid Transpose & Umbral Soul combo": {
+    "message": "禁止使用星靈移位與靈極魂連段"
+  },
+  "Forbid any action that can hit multiple targets": {
+    "message": "禁止任何可命中多個目標的技能"
+  },
+  "Forbid automatic use": {
+    "message": "禁止自動使用"
+  },
+  "Forbid casting while moving": {
+    "message": "禁止移動中詠唱"
+  },
+  "Forbid complete use of ALL actions; rotations included": {
+    "message": "完全禁止使用所有技能,包含循環在內"
+  },
+  "Forbid the use of Jump, Stardiver, & Dragonfire Dive": {
+    "message": "禁止使用跳躍、墜星衝與龍炎衝"
+  },
+  "Forbid the use of Thunder for manual or strategic usage": {
+    "message": "禁止使用雷電,留供手動或戰術性使用"
+  },
+  "Forbid the use of any abilities for use while moving": {
+    "message": "禁止使用所有適合移動中施放的技能"
+  },
+  "Forbid use of Blasting Zone entirely": {
+    "message": "完全禁止使用爆破領域"
+  },
+  "Forbid use of Burst Strike & Fated Circle": {
+    "message": "禁止使用爆發擊與命運之環"
+  },
+  "Forbid use of Elixir": {
+    "message": "禁止使用軍用聖靈藥"
+  },
+  "Forbid use of Fated Circle entirely": {
+    "message": "完全禁止使用命運之環"
+  },
+  "Forbid use of Gnashing Fang entirely": {
+    "message": "完全禁止使用烈牙"
+  },
+  "Forbid use of Guard": {
+    "message": "禁止使用防禦"
+  },
+  "Forbid use of Heart of Corundum entirely": {
+    "message": "完全禁止使用剛玉之心"
+  },
+  "Forbid use of Limit Break (Relentless Rush) entirely": {
+    "message": "完全禁止使用極限技(無情連擊)"
+  },
+  "Forbid use of Limit Break entirely": {
+    "message": "完全禁止使用極限技"
+  },
+  "Forbid use of Piercing Talon": {
+    "message": "禁止使用貫穿尖"
+  },
+  "Forbid use of Purify": {
+    "message": "禁止使用淨化"
+  },
+  "Forbid use of Recuperate": {
+    "message": "禁止使用自癒"
+  },
+  "Forbid use of Rough Divide entirely": {
+    "message": "完全禁止使用粗分斬"
+  },
+  "Forbid use of Sprint": {
+    "message": "禁止使用衝刺"
+  },
+  "Forbid use of Unmend": {
+    "message": "禁止使用傷殘"
+  },
+  "Forbid use of all cooldowns only": {
+    "message": "只禁止使用冷卻技能"
+  },
+  "Forbid use of all cooldowns, buffs, and gauge abilities": {
+    "message": "禁止使用所有冷卻、增益與量表技能"
+  },
+  "Forbid use of all gauge abilities only": {
+    "message": "只禁止使用量表技能"
+  },
+  "Forbid use of all raidbuffs or buff-related abilities only": {
+    "message": "只禁止使用團隊增益或增益相關技能"
+  },
+  "Force AOE rotation execution": {
+    "message": "強制執行範圍循環"
+  },
+  "Force Battle Litany usage": {
+    "message": "強制使用戰鬥連禱"
+  },
+  "Force Battle Litany usage inside the next possible weave window": {
+    "message": "在下一個可行的插招空檔強制使用戰鬥連禱"
+  },
+  "Force Dragonfire Dive (Grants Dragon's Flight)": {
+    "message": "強制使用龍炎衝(取得龍之翔)"
+  },
+  "Force Dragonfire Dive usage": {
+    "message": "強制使用龍炎衝"
+  },
+  "Force Dragonfire Dive usage inside the next possible weave window": {
+    "message": "在下一個可行的插招空檔強制使用龍炎衝"
+  },
+  "Force Dragonfire Dive usage inside the next possible weave window (Grants Dragon's Flight)": {
+    "message": "在下一個可行的插招空檔強制使用龍炎衝(取得龍之翔)"
+  },
+  "Force Fight or Flight usage": {
+    "message": "強制使用戰逃反應"
+  },
+  "Force Fight or Flight usage inside the next possible weave window": {
+    "message": "在下一個可行的插招空檔強制使用戰逃反應"
+  },
+  "Force Geirskogul (Grants Life of the Dragon & Nastrond Ready)": {
+    "message": "強制使用武神槍(取得龍之生命與死者之岸預備)"
+  },
+  "Force Geirskogul usage": {
+    "message": "強制使用武神槍"
+  },
+  "Force Geirskogul usage inside the next possible weave window": {
+    "message": "在下一個可行的插招空檔強制使用武神槍"
+  },
+  "Force Geirskogul usage inside the next possible weave window (Grants Life of the Dragon & Nastrond Ready)": {
+    "message": "在下一個可行的插招空檔強制使用武神槍(取得龍之生命與死者之岸預備)"
+  },
+  "Force Jump usage": {
+    "message": "強制使用跳躍"
+  },
+  "Force Jump usage (Grants Dive Ready buff)": {
+    "message": "強制使用跳躍(取得跳躍預備增益)"
+  },
+  "Force Jump usage inside the next possible weave window": {
+    "message": "在下一個可行的插招空檔強制使用跳躍"
+  },
+  "Force Jump usage inside the next possible weave window (Grants Dive Ready buff)": {
+    "message": "在下一個可行的插招空檔強制使用跳躍(取得跳躍預備增益)"
+  },
+  "Force Lance Charge usage": {
+    "message": "強制使用猛槍"
+  },
+  "Force Lance Charge usage inside the next possible weave window": {
+    "message": "在下一個可行的插招空檔強制使用猛槍"
+  },
+  "Force Life Surge optimally inside the next possible weave window": {
+    "message": "在下一個可行的插招空檔以最佳方式強制使用龍劍"
+  },
+  "Force Life Surge usage": {
+    "message": "強制使用龍劍"
+  },
+  "Force Life Surge usage in next possible optimal window": {
+    "message": "在下一個可行的最佳時機強制使用龍劍"
+  },
+  "Force Life Surge usage inside the next possible weave window": {
+    "message": "在下一個可行的插招空檔強制使用龍劍"
+  },
+  "Force Piercing Talon usage ASAP (even in melee range)": {
+    "message": "盡快強制使用貫穿尖(即使在近戰距離內)"
+  },
+  "Force Piercing Talon usage ASAP when Enhanced": {
+    "message": "強化狀態下盡快強制使用貫穿尖"
+  },
+  "Force Pitch Perfect (assuming WM is up)": {
+    "message": "強制使用完美音調(假設放浪神的小步舞曲生效中)"
+  },
+  "Force Requiescat / Imperator usage": {
+    "message": "強制使用安魂祈禱／絕對統治"
+  },
+  "Force Requiescat / Imperator usage inside the next possible weave window": {
+    "message": "在下一個可行的插招空檔強制使用安魂祈禱／絕對統治"
+  },
+  "Force Single-Target rotation execution": {
+    "message": "強制執行單體循環"
+  },
+  "Force Stardiver (Grants Starcross Ready)": {
+    "message": "強制使用墜星衝(取得渡星衝預備)"
+  },
+  "Force Stardiver usage": {
+    "message": "強制使用墜星衝"
+  },
+  "Force Stardiver usage inside the next possible weave window": {
+    "message": "在下一個可行的插招空檔強制使用墜星衝"
+  },
+  "Force Stardiver usage inside the next possible weave window (Grants Starcross Ready)": {
+    "message": "在下一個可行的插招空檔強制使用墜星衝(取得渡星衝預備)"
+  },
+  "Force True North usage": {
+    "message": "強制使用真北"
   }
 }
