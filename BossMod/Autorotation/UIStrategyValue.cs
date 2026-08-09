@@ -53,7 +53,7 @@ public static class UIStrategyValue
         if (value is StrategyValueTrack tr)
         {
             modified |= DrawEditorTrackOption(tr, cfg, level);
-            modified |= ImGui.InputText("Comment", ref value.Comment, 512);
+            modified |= ImGui.InputText(Loc.T("Comment"), ref value.Comment, 512);
             modified |= DrawEditorPriority(tr);
             modified |= DrawEditorTarget(tr, cfg.Options[tr.Option].SupportedTargets, moduleInfo);
         }

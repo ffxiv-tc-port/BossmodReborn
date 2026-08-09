@@ -275,12 +275,6 @@
   "PRESET_AddOrSelect": {
     "message": "新增或選取循環模組以設定策略"
   },
-  "PRESET_SelectModulePreview": {
-    "message": "選取模組以預覽不同修飾鍵下的策略結果"
-  },
-  "PRESET_SelectStrategyEdit": {
-    "message": "選取策略以編輯其偏好設定"
-  },
   "PRESETDB_SelectOrCreate": {
     "message": "選取預設進行編輯，或建立新的預設。"
   },
@@ -3848,15 +3842,6 @@
   "PRESET_ColStrategies": {
     "message": "策略"
   },
-  "PRESET_ColDetails": {
-    "message": "詳細資料"
-  },
-  "PRESET_CurrentModifiers": {
-    "message": "目前的輔助鍵：{0}"
-  },
-  "PRESET_Setting": {
-    "message": "設定項：{0}"
-  },
   "ROT_LevelsClasses": {
     "message": "等級 {0}-{1}　{2}"
   },
@@ -4060,5 +4045,53 @@
   },
   "CFG_SearchClear": {
     "message": "清除"
+  },
+  "PRESET_ShowHiddenTracks": {
+    "message": "顯示隱藏的策略"
+  },
+  "PRESET_HotkeyOverrides": {
+    "message": "輔助鍵覆寫"
+  },
+  "PRESET_AddNewOverride": {
+    "message": "新增…"
+  },
+  "PRESET_DeleteOverride": {
+    "message": "刪除覆寫"
+  },
+  "PRESET_AutoHealRaise": {
+    "message": "自動治療／自動復活"
+  },
+  "PRESET_HealerAIHint": {
+    "message": "這不屬於標準循環的一部分，請改用「治療 AI」模組。"
+  },
+  "PRESET_AddHealerAI": {
+    "message": "新增治療 AI"
+  },
+  "PRESET_DontSuggestAgain": {
+    "message": "不要再顯示這個建議"
+  },
+  "XAN_Targeting": {
+    "message": "目標選取"
+  },
+  "XAN_TargetingHelp": {
+    "message": "這些設定只會影響循環模組決定要對誰使用技能。無論選擇哪一項，本模組都不會改變你在遊戲裡實際選取的目標（硬目標）。\n\n若需要會自動切換實際目標的模組，請使用「AI」→「自動選取目標」。"
+  },
+  "XAN_UsePlayerTarget": {
+    "message": "使用玩家選取的目標"
+  },
+  "XAN_AutoPickTarget": {
+    "message": "自動挑選最佳目標"
+  },
+  "XAN_EnsurePlayerTargetHit": {
+    "message": "確保命中玩家選取的目標"
+  },
+  "XAN_NoTargetDoNothing": {
+    "message": "玩家沒有選取目標時不做任何事"
+  },
+  "Automatic": {
+    "message": "自動"
+  },
+  "Forced": {
+    "message": "強制"
   }
 }

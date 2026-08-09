@@ -233,7 +233,7 @@ public sealed class UIPresetEditor
         var width = new Vector2(ImGui.GetContentRegionAvail().X, 0);
         var ms = Preset.Modules[_selectedModuleIndex];
 
-        ImGui.Checkbox("Show hidden tracks", ref _showHiddenTracks);
+        ImGui.Checkbox(Loc.T("PRESET_ShowHiddenTracks", "Show hidden tracks"), ref _showHiddenTracks);
 
         using var _ = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(5, 5));
         using var table = ImRaii.Table("preset_options", 2, ImGuiTableFlags.BordersInnerH);
@@ -281,11 +281,11 @@ public sealed class UIPresetEditor
         ImGui.TableNextRow();
         ImGui.TableNextColumn();
         ImGui.Dummy(new(1, 27));
-        ImGui.Text("Hotkey overrides");
+        ImGui.Text(Loc.T("PRESET_HotkeyOverrides", "Hotkey overrides"));
         ImGui.TableNextColumn();
         ImGui.Dummy(new(1, 24));
         ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
-        using (var combo = ImRaii.Combo("###selectover", "Add new..."))
+        using (var combo = ImRaii.Combo("###selectover", Loc.T("PRESET_AddNewOverride", "Add new...")))
         {
             if (combo)
             {
@@ -315,7 +315,7 @@ public sealed class UIPresetEditor
             ImGui.SameLine();
             Modified |= DrawModifier(ref val.Mod, Preset.Modifier.Alt, "Alt");
             ImGui.SameLine();
-            if (ImGui.Button("Delete override"))
+            if (ImGui.Button(Loc.T("PRESET_DeleteOverride", "Delete override")))
                 ms.SerializedSettings.RemoveAt(i);
         }
     }
@@ -326,10 +326,10 @@ public sealed class UIPresetEditor
         {
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
-            ImGui.TextUnformatted("Auto-heal/auto-raise");
+            ImGui.TextUnformatted(Loc.T("PRESET_AutoHealRaise", "Auto-heal/auto-raise"));
             ImGui.TableNextColumn();
-            ImGui.TextUnformatted("Not part of the standard rotation. Use the Healer AI module instead.");
-            if (ImGui.Button("Add Healer AI"))
+            ImGui.TextUnformatted(Loc.T("PRESET_HealerAIHint", "Not part of the standard rotation. Use the Healer AI module instead."));
+            if (ImGui.Button(Loc.T("PRESET_AddHealerAI", "Add Healer AI")))
             {
                 var rot = RotationModuleRegistry.Modules[THealerAI];
                 var index = Preset.AddModule(THealerAI, rot.Definition, rot.Builder);
@@ -339,7 +339,7 @@ public sealed class UIPresetEditor
                 return true;
             }
             ImGui.SameLine();
-            if (ImGui.Button("Don't show this suggestion again"))
+            if (ImGui.Button(Loc.T("PRESET_DontSuggestAgain", "Don't show this suggestion again")))
             {
                 _autorotConfig.SuggestHealerAI = false;
                 _autorotConfig.Modified.Fire();
