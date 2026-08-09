@@ -90,13 +90,32 @@ sealed class IPCProvider : IDisposable
             var iTrack = md.Definition.Configs.FindIndex(td => td.InternalName == trackName);
             if (iTrack < 0)
                 return false;
-            var iOpt = md.Definition.Configs[iTrack].Options.FindIndex(od => od.InternalName == value);
-            if (iOpt < 0)
-                return false;
+            StrategyValue tempValue;
+            switch (md.Definition.Configs[iTrack])
+            {
+                case StrategyConfigTrack tr:
+                    var iOpt = tr.Options.FindIndex(od => od.InternalName == value);
+                    if (iOpt < 0)
+                        return false;
+                    tempValue = new StrategyValueTrack() { Option = iOpt, Target = target, TargetParam = targetParam };
+                    break;
+                case StrategyConfigFloat sc:
+                    if (!float.TryParse(value, out var fv))
+                        return false;
+                    tempValue = new StrategyValueFloat() { Value = Math.Clamp(fv, sc.MinValue, sc.MaxValue) };
+                    break;
+                case StrategyConfigInt si:
+                    if (!long.TryParse(value, out var lv))
+                        return false;
+                    tempValue = new StrategyValueInt() { Value = Math.Clamp(lv, si.MinValue, si.MaxValue) };
+                    break;
+                default:
+                    return false;
+            }
             var ms = autorotation.Database.Presets.FindPresetByName(presetName)?.Modules.Find(m => m.Type == mt);
             if (ms == null)
                 return false;
-            var setting = new Preset.ModuleSetting(default, iTrack, new() { Option = iOpt, Target = target, TargetParam = targetParam });
+            var setting = new Preset.ModuleSetting(default, iTrack, tempValue);
             var index = ms.TransientSettings.FindIndex(s => s.Track == iTrack);
             if (index < 0)
                 ms.TransientSettings.Add(setting);
@@ -145,7 +164,7 @@ sealed class IPCProvider : IDisposable
             return true;
         });
 
-        Register("AI.SetPreset", (string name) => ai.SetAIPreset(autorotation.Database.Presets.VisiblePresets.FirstOrDefault(x => x.Name.Trim().Equals(name.Trim(), StringComparison.OrdinalIgnoreCase))));
+        Register("AI.SetPreset", (string name) => ai.SetAIPreset(autorotation.Database.Presets.AllPresets.FirstOrDefault(x => x.Name.Trim().Equals(name.Trim(), StringComparison.OrdinalIgnoreCase))));
         Register("AI.GetPreset", () => ai.GetAIPreset);
     }
 

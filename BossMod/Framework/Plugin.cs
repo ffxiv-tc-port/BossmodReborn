@@ -468,7 +468,7 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
         var normalizedInput = userInput.ToUpperInvariant();
-        var preset = _rotation.Database.Presets.VisiblePresets
+        var preset = _rotation.Database.Presets.AllPresets
             .FirstOrDefault(p => p.Name.Trim().Equals(normalizedInput, StringComparison.OrdinalIgnoreCase))
             ?? RotationModuleManager.ForceDisable;
         if (preset != null)

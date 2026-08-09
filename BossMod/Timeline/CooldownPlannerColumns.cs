@@ -272,7 +272,10 @@ public sealed class CooldownPlannerColumns : Timeline.ColumnGroup
 
         foreach (var i in uiOrder)
         {
-            var config = m.Definition.Configs[i];
+            var cfgAny = m.Definition.Configs[i];
+            // 非 track 型（float／int）的策略軌目前沒有時間軸欄位可畫，先跳過
+            if (cfgAny is not StrategyConfigTrack config)
+                continue;
             if (config.Options.Count(opt => Plan.Level >= opt.MinLevel && Plan.Level <= opt.MaxLevel) <= 1)
                 continue; // don't bother showing tracks that have no customization options
 

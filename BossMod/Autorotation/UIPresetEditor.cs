@@ -1,5 +1,6 @@
-﻿using Dalamud.Interface.Utility.Raii;
-using Dalamud.Bindings.ImGui;
+﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility;
+using Dalamud.Interface.Utility.Raii;
 
 namespace BossMod.Autorotation;
 
@@ -12,17 +13,27 @@ public sealed class UIPresetEditor
         public List<(Type type, RotationModuleDefinition def, Func<RotationModuleManager, Actor, RotationModule> builder)> Leafs = [];
     }
 
+    private readonly AutorotationConfig _autorotConfig = Service.Config.Get<AutorotationConfig>();
     private readonly PresetDatabase _db;
     private int _sourcePresetIndex;
     private bool _sourcePresetDefault;
     public readonly Preset Preset; // note: this is an edited copy, and as such it never has transient settings
-    public bool Modified { get; private set; }
-    public bool NameConflict { get; private set; }
+    public bool Modified;
+    public bool NameConflict;
     private int _selectedModuleIndex = -1;
-    private int _selectedSettingIndex = -1;
     private readonly List<int> _orderedTrackList = []; // for current module, by UI order
-    private readonly List<int> _settingGuids = []; // a hack to keep track of held item during drag-n-drop
     private readonly ModuleCategory _availableModules;
+    private bool _showHiddenTracks;
+    private bool _currentModuleHasHealerAI;
+
+    private static readonly Type THealerAI = typeof(xan.HealerAI);
+    private static readonly Type[] _misleadingHealerRotations = [
+        typeof(xan.WHM),
+        typeof(xan.AST),
+        typeof(xan.SCH),
+        typeof(xan.SGE),
+        typeof(akechi.AkechiSCH)
+    ];
 
     public Type? SelectedModuleType => Preset.Modules.BoundSafeAt(_selectedModuleIndex)?.Type;
 
@@ -54,13 +65,14 @@ public sealed class UIPresetEditor
         NameConflict = CheckNameConflict();
         Modified = true;
         _availableModules = BuildAvailableModules();
+        _currentModuleHasHealerAI = preset.Modules.Any(m => m.Type == THealerAI);
         SelectModule(FindModuleByType(initiallySelectedModuleType));
     }
 
     public void SelectModule(int index)
     {
         _selectedModuleIndex = index;
-        _selectedSettingIndex = -1;
+        _showHiddenTracks = false;
         _orderedTrackList.Clear();
         if (index >= 0)
         {
@@ -68,7 +80,6 @@ public sealed class UIPresetEditor
             _orderedTrackList.AddRange(Enumerable.Range(0, md.Configs.Count));
             _orderedTrackList.Sort((b, a) => md.Configs[a].UIPriority.CompareTo(md.Configs[b].UIPriority));
         }
-        RebuildSettingGuids();
     }
 
     public void Draw()
@@ -82,19 +93,15 @@ public sealed class UIPresetEditor
             }
         }
 
-        using var table = ImRaii.Table("preset_details", 3);
+        using var table = ImRaii.Table("preset_details", 2);
         if (!table)
             return;
-        ImGui.TableSetupColumn(Loc.T("PRESET_ColModules", "Modules"));
+        ImGui.TableSetupColumn(Loc.T("PRESET_ColModules", "Modules"), ImGuiTableColumnFlags.WidthFixed, 200 * ImGuiHelpers.GlobalScale);
         ImGui.TableSetupColumn(Loc.T("PRESET_ColStrategies", "Strategies"));
-        ImGui.TableSetupColumn(Loc.T("PRESET_ColDetails", "Details"));
-        ImGui.TableHeadersRow();
         ImGui.TableNextColumn();
         DrawModulesList();
         ImGui.TableNextColumn();
         DrawSettingsList();
-        ImGui.TableNextColumn();
-        DrawDetails();
     }
 
     public void DetachFromSource()
@@ -124,8 +131,9 @@ public sealed class UIPresetEditor
                 DrawModuleAddPopup(_availableModules, ref post);
         post?.Invoke();
 
-        var width = new Vector2(ImGui.GetContentRegionAvail().X, 0);
-        using (var list = ImRaii.ListBox("###modules", width))
+        var size = ImGui.GetContentRegionAvail();
+        var width = new Vector2(size.X, 0);
+        using (var list = ImRaii.ListBox("###modules", new(size.X, size.Y - 100)))
         {
             if (list)
             {
@@ -169,6 +177,7 @@ public sealed class UIPresetEditor
             AddAvailableModule(m.Type, m.Definition, m.Builder, _availableModules);
             Preset.Modules.RemoveAt(_selectedModuleIndex);
             Modified = true;
+            _currentModuleHasHealerAI &= m.Type != THealerAI;
             SelectModule(-1);
         }
     }
@@ -191,6 +200,7 @@ public sealed class UIPresetEditor
                 var index = Preset.AddModule(leaf.type, leaf.def, leaf.builder);
                 Modified = true;
                 SelectModule(index);
+                _currentModuleHasHealerAI |= leaf.type == THealerAI;
                 actions += () => RemoveAvailableModule(cat, leaf.type);
             }
         }
@@ -222,115 +232,127 @@ public sealed class UIPresetEditor
 
         var width = new Vector2(ImGui.GetContentRegionAvail().X, 0);
         var ms = Preset.Modules[_selectedModuleIndex];
-        DrawAddSettingPopup(ms, ms.Definition);
 
-        using (var list = ImRaii.ListBox("###settings", width))
+        ImGui.Checkbox("Show hidden tracks", ref _showHiddenTracks);
+
+        using var _ = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(5, 5));
+        using var table = ImRaii.Table("preset_options", 2, ImGuiTableFlags.BordersInnerH);
+        if (!table)
+            return;
+        ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 150 * ImGuiHelpers.GlobalScale);
+        ImGui.TableSetupColumn("");
+
+        if (!_sourcePresetDefault && SuggestHealerAI(ms))
+            return;
+
+        foreach (var track in _orderedTrackList)
         {
-            if (list)
-            {
-                for (var i = 0; i < ms.SerializedSettings.Count; ++i)
-                {
-                    ref var m = ref ms.SerializedSettings.Ref(i);
-                    var cfg = ms.Definition.Configs[m.Track];
-                    if (ImGui.Selectable($"[{i + 1}] {cfg.UIName} [{m.Mod}] = {cfg.Options[m.Value.Option].UIName}###setting{_settingGuids[i]}", i == _selectedSettingIndex))
-                    {
-                        _selectedSettingIndex = i;
-                    }
+            var cfg = ms.Definition.Configs[track];
+            var active = ms.SerializedSettings.FindIndex(s => s.Track == track && s.Mod == default);
+            if (active < 0 && cfg.UIPriority < 0 && !_showHiddenTracks)
+                break;
 
-                    if (ImGui.IsItemActive() && !ImGui.IsItemHovered())
+            using (ImRaii.PushId($"{cfg.InternalName}_default"))
+            {
+                if (active >= 0)
+                {
+                    var v2 = ms.SerializedSettings[active].Value with { }; // make clone
+                    if (RendererFactory.Draw(cfg, ref v2))
                     {
-                        var j = ImGui.GetMouseDragDelta().Y < 0 ? i - 1 : i + 1;
-                        if (j >= 0 && j < ms.SerializedSettings.Count)
-                        {
-                            (ms.SerializedSettings[i], ms.SerializedSettings[j]) = (ms.SerializedSettings[j], ms.SerializedSettings[i]);
-                            (_settingGuids[i], _settingGuids[j]) = (_settingGuids[j], _settingGuids[i]);
-                            Modified = true;
-                            if (_selectedSettingIndex == i)
-                                _selectedSettingIndex = j;
-                            else if (_selectedSettingIndex == j)
-                                _selectedSettingIndex = i;
-                            ImGui.ResetMouseDragDelta();
-                        }
+                        ms.SerializedSettings.RemoveAt(active);
+                        if (!cfg.IsDefault(v2))
+                            ms.SerializedSettings.Insert(active, new(default, track, v2));
+                        Modified = true;
+                    }
+                }
+                else
+                {
+                    var v1 = cfg.CreateEmpty();
+                    if (RendererFactory.Draw(cfg, ref v1))
+                    {
+                        if (!cfg.IsDefault(v1))
+                            ms.SerializedSettings.Add(new(default, track, v1));
+                        Modified = true;
                     }
                 }
             }
         }
-        if (UIMisc.Button("Add##setting", ms.Definition.Configs.Count == 0, "Module does not support configuration", width.X))
-            ImGui.OpenPopup("add_setting");
 
-        if (UIMisc.Button("Remove##setting", width.X, (_selectedSettingIndex < 0, "Select any strategy to remove"), (!ImGui.GetIO().KeyShift, "Hold shift")))
+        ImGui.TableNextRow();
+        ImGui.TableNextColumn();
+        ImGui.Dummy(new(1, 27));
+        ImGui.Text("Hotkey overrides");
+        ImGui.TableNextColumn();
+        ImGui.Dummy(new(1, 24));
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        using (var combo = ImRaii.Combo("###selectover", "Add new..."))
         {
-            ms.SerializedSettings.RemoveAt(_selectedSettingIndex);
-            Modified = true;
-            _selectedSettingIndex = -1;
-            RebuildSettingGuids();
-        }
-    }
-
-    private void DrawAddSettingPopup(Preset.ModuleSettings ms, RotationModuleDefinition def)
-    {
-        using var popup = ImRaii.Popup("add_setting");
-        if (!popup)
-            return;
-
-        foreach (var i in _orderedTrackList)
-        {
-            var cfg = def.Configs[i];
-            if (ImGui.Selectable(cfg.UIName))
+            if (combo)
             {
-                _selectedSettingIndex = ms.SerializedSettings.Count;
-                ms.SerializedSettings.Add(new(Preset.Modifier.None, i, new() { Option = cfg.Options.Count > 1 ? 1 : 0 }));
-                Modified = true;
-                RebuildSettingGuids();
+                for (var i = 0; i < ms.Definition.Configs.Count; i++)
+                    if (ImGui.Selectable(ms.Definition.Configs[i].UIName))
+                    {
+                        ms.SerializedSettings.Add(new(Preset.Modifier.Shift, i, ms.Definition.Configs[i].CreateForEditor()));
+                    }
             }
         }
-    }
 
-    private void DrawDetails()
-    {
-        if (_selectedModuleIndex < 0)
+        for (var i = 0; i < ms.SerializedSettings.Count; i++)
         {
-            ImGui.TextUnformatted(Loc.T("PRESET_SelectModulePreview", "Select module to preview resulting strategies with different modifiers"));
-            ImGui.TextUnformatted(Loc.T("PRESET_SelectStrategyEdit", "Select strategy to edit its preferences"));
-        }
-        else if (_selectedSettingIndex < 0)
-        {
-            DrawModulePreview();
-        }
-        else
-        {
-            DrawSettingDetails();
-        }
-    }
+            ref var val = ref ms.SerializedSettings.Ref(i);
+            if (val.Mod == default)
+                continue;
 
-    private void DrawModulePreview()
-    {
-        ImGui.TextUnformatted(string.Format(Loc.T("PRESET_CurrentModifiers", "Current modifiers: {0}"), Preset.CurrentModifiers()));
-        var ms = Preset.Modules[_selectedModuleIndex];
-        var values = Preset.ActiveStrategyOverrides(_selectedModuleIndex);
-        foreach (var i in _orderedTrackList)
-        {
-            ref var val = ref values.Values[i];
-            ImGui.TextUnformatted($"{ms.Definition.Configs[i].UIName} = {ms.Definition.Configs[i].Options[val.Option].UIName}");
+            var cfg = ms.Definition.Configs[val.Track];
+
+            using var _i2 = ImRaii.PushId($"{cfg.InternalName}_override_{i}");
+
+            Modified |= RendererFactory.Draw(cfg, ref val.Value);
+
+            Modified |= DrawModifier(ref val.Mod, Preset.Modifier.Shift, "Shift");
+            ImGui.SameLine();
+            Modified |= DrawModifier(ref val.Mod, Preset.Modifier.Ctrl, "Ctrl");
+            ImGui.SameLine();
+            Modified |= DrawModifier(ref val.Mod, Preset.Modifier.Alt, "Alt");
+            ImGui.SameLine();
+            if (ImGui.Button("Delete override"))
+                ms.SerializedSettings.RemoveAt(i);
         }
     }
 
-    private void DrawSettingDetails()
+    private bool SuggestHealerAI(Preset.ModuleSettings ms)
     {
-        using var d = ImRaii.Disabled(_sourcePresetDefault);
-        var ms = Preset.Modules[_selectedModuleIndex];
-        ref var s = ref ms.SerializedSettings.Ref(_selectedSettingIndex);
-        var cfg = ms.Definition.Configs[s.Track];
-        ImGui.TextUnformatted(string.Format(Loc.T("PRESET_Setting", "Setting: {0}"), cfg.UIName));
-        Modified |= DrawModifier(ref s.Mod, Preset.Modifier.Shift, "Shift");
-        Modified |= DrawModifier(ref s.Mod, Preset.Modifier.Ctrl, "Ctrl");
-        Modified |= DrawModifier(ref s.Mod, Preset.Modifier.Alt, "Alt");
-        Modified |= UIStrategyValue.DrawEditor(ref s.Value, cfg, null, null);
+        if (!_currentModuleHasHealerAI && _autorotConfig.SuggestHealerAI && _misleadingHealerRotations.Contains(ms.Type))
+        {
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.TextUnformatted("Auto-heal/auto-raise");
+            ImGui.TableNextColumn();
+            ImGui.TextUnformatted("Not part of the standard rotation. Use the Healer AI module instead.");
+            if (ImGui.Button("Add Healer AI"))
+            {
+                var rot = RotationModuleRegistry.Modules[THealerAI];
+                var index = Preset.AddModule(THealerAI, rot.Definition, rot.Builder);
+                Modified = true;
+                SelectModule(index);
+                _currentModuleHasHealerAI = true;
+                return true;
+            }
+            ImGui.SameLine();
+            if (ImGui.Button("Don't show this suggestion again"))
+            {
+                _autorotConfig.SuggestHealerAI = false;
+                _autorotConfig.Modified.Fire();
+            }
+        }
+        return false;
     }
 
     private bool DrawModifier(ref Preset.Modifier mod, Preset.Modifier flag, string label)
     {
         var value = mod.HasFlag(flag);
+        using var _ = ImRaii.Disabled(mod == flag);
+
         if (ImGui.Checkbox(label, ref value))
         {
             if (value)
@@ -344,20 +366,13 @@ public sealed class UIPresetEditor
 
     private bool CheckNameConflict()
     {
-        for (var i = 0; i < _db.DefaultPresets.Count; ++i)
-            if (_db.DefaultPresets[i].Name == Preset.Name)
-                return true;
+        if (_db.DefaultPresets.Any(p => p.Name == Preset.Name))
+            return true;
+
         for (var i = 0; i < _db.UserPresets.Count; ++i)
             if (i != _sourcePresetIndex && _db.UserPresets[i].Name == Preset.Name)
                 return true;
         return false;
-    }
-
-    private void RebuildSettingGuids()
-    {
-        _settingGuids.Clear();
-        if (_selectedModuleIndex >= 0)
-            _settingGuids.AddRange(Enumerable.Range(0, Preset.Modules[_selectedModuleIndex].SerializedSettings.Count));
     }
 
     private int FindModuleByType(Type? type) => type != null ? Preset.Modules.FindIndex(m => m.Type == type) : -1;
@@ -386,7 +401,7 @@ public sealed class UIPresetEditor
             cat = sub;
         }
         cat.Leafs.Add((type, def, builder));
-        cat.Leafs.Sort((a, b) => a.def.DisplayName.CompareTo(b.def.DisplayName));
+        cat.Leafs.Sort(static (a, b) => a.def.DisplayName.CompareTo(b.def.DisplayName));
     }
 
     private void RemoveAvailableModule(ModuleCategory cat, Type type)

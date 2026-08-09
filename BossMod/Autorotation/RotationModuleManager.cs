@@ -119,8 +119,8 @@ public sealed class RotationModuleManager : IDisposable
         // forced target update
         if (Hints.ForcedTarget == null && Preset == null && Planner?.ActiveForcedTarget() is var forced && forced != null)
         {
-            Hints.ForcedTarget = forced.Value.Target != StrategyTarget.Automatic
-                ? ResolveTargetOverride(forced.Value.Target, forced.Value.TargetParam)
+            Hints.ForcedTarget = forced.Target != StrategyTarget.Automatic
+                ? ResolveTargetOverride(forced.Target, forced.TargetParam)
                 : (ResolveTargetOverride(StrategyTarget.EnemyWithHighestPriority, 0) ?? (Bossmods.ActiveModule?.PrimaryActor is var primary && primary != null && !primary.IsDeadOrDestroyed && primary.IsTargetable ? primary : null));
         }
 

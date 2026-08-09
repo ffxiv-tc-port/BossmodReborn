@@ -53,7 +53,7 @@ internal sealed class DTRProvider : IDisposable
     /// </summary>
     private void CyclePreset()
     {
-        var presets = _mgr.Database.Presets.VisiblePresets;
+        var presets = _mgr.Database.Presets.AllPresets;
         if (presets.Count == 0)
         {
             _mgr.Preset = null;

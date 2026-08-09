@@ -97,11 +97,11 @@ sealed class AIManager : IDisposable
     {
         SwitchToIdle();
         MasterSlot = WorldState.Party[masterSlot]?.Name == null ? 0 : masterSlot;
-        var count = Autorot.Database.Presets.VisiblePresets.Count;
+        var count = Autorot.Database.Presets.AllPresets.Count;
         Preset? preset = null;
         for (var i = 0; i < count; ++i)
         {
-            var p = Autorot.Database.Presets.VisiblePresets[i];
+            var p = Autorot.Database.Presets.AllPresets[i];
             if (p.Name == _config.AIAutorotPresetName)
             {
                 preset = p;
@@ -649,7 +649,7 @@ sealed class AIManager : IDisposable
         }
 
         var normalizedInput = userInput.ToUpperInvariant();
-        var preset = Autorot.Database.Presets.VisiblePresets
+        var preset = Autorot.Database.Presets.AllPresets
             .FirstOrDefault(p => p.Name.Trim().Equals(normalizedInput, StringComparison.OrdinalIgnoreCase))
             ?? RotationModuleManager.ForceDisable;
 

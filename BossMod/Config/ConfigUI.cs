@@ -35,7 +35,7 @@ public sealed class ConfigUI : IDisposable
         _ws = ws;
         _about = new(replayDir);
         _mv = new(rotationDB?.Plans, ws);
-        _presets = rotationDB != null ? new(rotationDB.Presets) : null;
+        _presets = rotationDB != null ? new(rotationDB) : null;
 
         _tabs.Add(Loc.T("Tab_Settings", "Settings"), DrawSettings);
         _tabs.Add(Loc.T("Tab_SupportedFights", "Supported bosses"), () => _mv.Draw(_tree, _ws));

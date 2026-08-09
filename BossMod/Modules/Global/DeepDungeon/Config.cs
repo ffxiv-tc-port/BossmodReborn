@@ -216,7 +216,7 @@ public sealed class AutoDDConfig : ConfigNode
     /// </remarks>
     public override void DrawCustom(UITree tree, WorldState ws)
     {
-        var presets = AI.AIManager.Instance?.Autorot.Database.Presets.VisiblePresets;
+        var presets = AI.AIManager.Instance?.Autorot.Database.Presets.AllPresets;
         var current = DeepDungeonPreset;
         var label = string.IsNullOrEmpty(current) ? Loc.T("DD_PresetNone", "(do not switch)") : current;
 

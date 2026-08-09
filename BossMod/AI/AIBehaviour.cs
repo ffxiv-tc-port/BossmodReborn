@@ -44,7 +44,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
     /// 寫設定會製造設定檔 churn，而且遊戲或外掛在深牢裡崩潰時會把使用者永久卡在切換後的狀態。
     /// 覆蓋只活在記憶體裡，離開深牢或重載外掛就自然消失。
     /// <para>
-    /// ⚠️ <b>必須快取</b>：<c>PresetDatabase.VisiblePresets</c> 是屬性，每次存取都會
+    /// ⚠️ <b>必須快取</b>：<c>PresetDatabase.AllPresets</c> 是屬性，每次存取都會
     /// <c>[.. DefaultPresets, .. UserPresets]</c> 配一個新的 List，而這裡是每幀都會走到的路徑。
     /// </para>
     /// <para>
@@ -65,7 +65,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         _ddPresetResolvedFor = name;
         _ddPreset = null;
 
-        var presets = autorot.Database.Presets.VisiblePresets;
+        var presets = autorot.Database.Presets.AllPresets;
         var count = presets.Count;
         for (var i = 0; i < count; ++i)
         {

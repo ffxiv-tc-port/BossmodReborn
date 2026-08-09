@@ -1,5 +1,6 @@
-﻿using Dalamud.Interface.Utility.Raii;
-using Dalamud.Bindings.ImGui;
+﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility;
+using Dalamud.Interface.Utility.Raii;
 
 namespace BossMod.Autorotation;
 
@@ -14,18 +15,24 @@ public static class UIStrategyValue
         ("Very High", ActionQueue.Priority.VeryHigh),
     ];
 
-    public static List<string> Preview(ref StrategyValue value, StrategyConfig cfg, BossModuleRegistry.Info? moduleInfo)
+    public static List<string> Preview(StrategyValue value, StrategyConfigTrack cfg, BossModuleRegistry.Info? moduleInfo)
     {
-        var opt = cfg.Options[value.Option];
-        return [
-            $"Option: {opt.UIName}",
-            $"Comment: {value.Comment}",
-            $"Priority: {(float.IsNaN(value.PriorityOverride) ? $"default ({opt.DefaultPriority:f})" : value.PriorityOverride.ToString("f"))}",
-            $"Target: {PreviewTarget(ref value, moduleInfo)}"
-        ];
+        switch (value)
+        {
+            case StrategyValueTrack t:
+                var opt = cfg.Options[t.Option];
+                return [
+                    $"Option: {opt.UIName}",
+                    $"Comment: {value.Comment}",
+                    $"Priority: {(float.IsNaN(t.PriorityOverride) ? $"default ({opt.DefaultPriority:f})" : t.PriorityOverride.ToString("f"))}",
+                    $"Target: {PreviewTarget(t, moduleInfo)}"
+                ];
+            default:
+                return [];
+        }
     }
 
-    public static string PreviewTarget(ref StrategyValue value, BossModuleRegistry.Info? moduleInfo)
+    public static string PreviewTarget(StrategyValueTrack value, BossModuleRegistry.Info? moduleInfo)
     {
         var targetDetails = value.Target switch
         {
@@ -40,17 +47,20 @@ public static class UIStrategyValue
         return (targetDetails.Length > 0 ? $"{value.Target} ({targetDetails})" : $"{value.Target}") + offsetDetails;
     }
 
-    public static bool DrawEditor(ref StrategyValue value, StrategyConfig cfg, BossModuleRegistry.Info? moduleInfo, int? level)
+    public static bool DrawEditor(StrategyValue value, StrategyConfigTrack cfg, BossModuleRegistry.Info? moduleInfo, int? level)
     {
         var modified = false;
-        modified |= DrawEditorOption(ref value, cfg, level);
-        modified |= ImGui.InputText("Comment", ref value.Comment, 512);
-        modified |= DrawEditorPriority(ref value);
-        modified |= DrawEditorTarget(ref value, cfg.Options[value.Option].SupportedTargets, moduleInfo);
+        if (value is StrategyValueTrack tr)
+        {
+            modified |= DrawEditorTrackOption(tr, cfg, level);
+            modified |= ImGui.InputText("Comment", ref value.Comment, 512);
+            modified |= DrawEditorPriority(tr);
+            modified |= DrawEditorTarget(tr, cfg.Options[tr.Option].SupportedTargets, moduleInfo);
+        }
         return modified;
     }
 
-    public static bool DrawEditorOption(ref StrategyValue value, StrategyConfig cfg, int? level, string label = "Option")
+    public static bool DrawEditorTrackOption(StrategyValueTrack value, StrategyConfigTrack cfg, int? level, string label = "Option")
     {
         var modified = false;
         using (var combo = ImRaii.Combo(label, cfg.Options[value.Option].UIName))
@@ -74,7 +84,7 @@ public static class UIStrategyValue
         return modified;
     }
 
-    public static bool DrawEditorPriority(ref StrategyValue value)
+    public static bool DrawEditorPriority(StrategyValueTrack value)
     {
         var modified = false;
         var overridePriority = !float.IsNaN(value.PriorityOverride);
@@ -136,7 +146,7 @@ public static class UIStrategyValue
         return modified;
     }
 
-    public static bool DrawEditorTarget(ref StrategyValue value, ActionTargets supportedTargets, BossModuleRegistry.Info? moduleInfo)
+    public static bool DrawEditorTarget(StrategyValueTrack value, ActionTargets supportedTargets, BossModuleRegistry.Info? moduleInfo)
     {
         var modified = false;
         using (var combo = ImRaii.Combo("Target", value.Target.ToString()))
@@ -251,5 +261,113 @@ public static class UIStrategyValue
             return false;
         current ^= (int)flag;
         return true;
+    }
+}
+
+[AttributeUsage(AttributeTargets.Enum)]
+public sealed class RendererAttribute(Type type) : Attribute
+{
+    public Type Type => type;
+}
+
+public class RendererFactory
+{
+    private static RendererFactory? _instance;
+    private readonly Dictionary<Type, IStrategyRenderer> _dict = [];
+
+    public static bool Draw(StrategyConfig config, ref StrategyValue value)
+    {
+        var inst = (_instance ??= new()).Get(config.Renderer);
+
+        ImGui.TableNextRow();
+        using var _ = ImRaii.PushId(config.InternalName);
+        ImGui.TableNextColumn();
+        ImGui.AlignTextToFramePadding();
+        inst.DrawLabel(config);
+        ImGui.TableNextColumn();
+        return inst.DrawValue(config, ref value);
+    }
+
+    private IStrategyRenderer Get(Type t) => _dict.TryGetValue(t, out var r) ? r : (_dict[t] = (IStrategyRenderer)Activator.CreateInstance(t)!);
+}
+
+public interface IStrategyRenderer
+{
+    public void DrawLabel(StrategyConfig config);
+    public bool DrawValue(StrategyConfig config, ref StrategyValue value);
+}
+
+public class TrackRenderer : IStrategyRenderer
+{
+    public virtual void DrawLabel(StrategyConfig config) => ImGui.TextWrapped(config.UIName);
+    public bool DrawValue(StrategyConfig config, ref StrategyValue value)
+    {
+        var v = (StrategyValueTrack)value;
+        if (DrawValue((StrategyConfigTrack)config, ref v))
+        {
+            value = v;
+            return true;
+        }
+        return false;
+    }
+
+    public virtual bool DrawValue(StrategyConfigTrack config, ref StrategyValueTrack value) => UICombo.EnumIndex("", config.OptionEnum, ref value.Option, ix => config.Options[ix].DisplayName.Length > 0 ? config.Options[ix].DisplayName : UICombo.EnumString((Enum)config.OptionEnum.GetEnumValues().GetValue(ix)!));
+}
+
+public class FloatRenderer : IStrategyRenderer
+{
+    public void DrawLabel(StrategyConfig config) => ImGui.TextWrapped(config.UIName);
+    public bool DrawValue(StrategyConfig config, ref StrategyValue value)
+    {
+        var cfg = (StrategyConfigFloat)config;
+        var f = ((StrategyValueFloat)value).Value;
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        if (cfg.Drag)
+        {
+            if (ImGui.DragFloat("", ref f, cfg.Speed, cfg.MinValue, cfg.MaxValue))
+            {
+                value = new StrategyValueFloat() { Value = f };
+                return true;
+            }
+        }
+        else
+        {
+            if (ImGui.InputFloat("", ref f, cfg.Speed))
+            {
+                value = new StrategyValueFloat() { Value = f };
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+public class IntRenderer : IStrategyRenderer
+{
+    public void DrawLabel(StrategyConfig config) => ImGui.TextWrapped(config.UIName);
+    public bool DrawValue(StrategyConfig config, ref StrategyValue value)
+    {
+        var cfg = (StrategyConfigInt)config;
+        var f = ((StrategyValueInt)value).Value;
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        if (cfg.Drag)
+        {
+            if (ImGui.DragLong("", ref f, cfg.Speed, cfg.MinValue, cfg.MaxValue))
+            {
+                value = new StrategyValueInt() { Value = f };
+                return true;
+            }
+        }
+        else
+        {
+            if (ImGui.InputLong("", ref f, (long)cfg.Speed))
+            {
+                value = new StrategyValueInt() { Value = f };
+                return true;
+            }
+        }
+
+        return false;
     }
 }
