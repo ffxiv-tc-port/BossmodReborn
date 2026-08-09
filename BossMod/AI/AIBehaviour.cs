@@ -223,7 +223,12 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             forceDestination = master;
         }
 
-        _followMaster = interactTarget == null && (_config.FollowDuringCombat || !master.InCombat || (_masterPrevPos - _masterMovementStart).LengthSq() > 100f) && (_config.FollowDuringActiveBossModule || autorot.Bossmods.ActiveModule?.StateMachine.ActiveState == null) && (_config.FollowOutOfCombat || master.InCombat);
+        // 🔴 `master != player` 這個條件不能漏。初次判定（Execute 裡的 `_followMaster = master != player`）
+        //    有它，但這裡重算時原本沒有 —— 於是 solo 時（master 就是自己）只要在戰鬥中移動超過 10y，
+        //    這裡就會把 _followMaster 重新設成 true，接著下面的分支拿「master」當跟隨目標，
+        //    等於在自己腳下種一個權重 1.0 的目標點（GoalSingleTarget(master, ...)）。
+        //    它會壓過所有小權重的走位提示（例如風箏的 0.05），表現成「AI 一直想站回原地」而不報錯。
+        _followMaster = master != player && interactTarget == null && (_config.FollowDuringCombat || !master.InCombat || (_masterPrevPos - _masterMovementStart).LengthSq() > 100f) && (_config.FollowDuringActiveBossModule || autorot.Bossmods.ActiveModule?.StateMachine.ActiveState == null) && (_config.FollowOutOfCombat || master.InCombat);
 
         var forbiddenZoneCushion = _config.PreferredDistance + (IsCasualContent() ? _config.CasualSafetyMargin : 0f);
 
