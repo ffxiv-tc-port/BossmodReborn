@@ -6028,5 +6028,440 @@
   },
   "Force True North usage": {
     "message": "強制使用真北"
+  },
+  "Delay": {
+    "message": "延後"
+  },
+  "Do not automatically use": {
+    "message": "不自動使用"
+  },
+  "Do not use": {
+    "message": "不使用"
+  },
+  "Do not use automatically": {
+    "message": "不自動使用"
+  },
+  "Don't use": {
+    "message": "不使用"
+  },
+  "Force at 100 gauge (don't delay until raidbuffs)": {
+    "message": "量表滿100時強制使用(不等待團隊增益)"
+  },
+  "Force at 80+ gauge": {
+    "message": "量表達80以上時強制使用"
+  },
+  "Force at any gauge (even if it means no BA)": {
+    "message": "不論量表多寡都強制使用(即使因此錯過死鬥)"
+  },
+  "Force extend ST buff by the end of the window, potentially overcapping gauge and/or ST": {
+    "message": "在視窗結束前強制延長單體增益,可能導致量表及/或增益溢出"
+  },
+  "Force extend dots via IJ ASAP": {
+    "message": "盡快用伶牙俐齒強制延長持續傷害"
+  },
+  "Force full single target combo if 'Force Single-Target' option in is selected": {
+    "message": "若選取「強制單體」選項,強制執行完整單體連段"
+  },
+  "Force normal single target combo if 'Force Single-Target' option is selected": {
+    "message": "若選取「強制單體」選項,強制執行一般單體連段"
+  },
+  "Force refresh ASAP": {
+    "message": "盡快強制重新施放"
+  },
+  "Force single-target buff combo if 'Force Single-Target' option is selected": {
+    "message": "若選取「強制單體」選項,強制執行單體增益連段"
+  },
+  "Force switch to Army's Paeon": {
+    "message": "強制切換為軍神的頌歌"
+  },
+  "Force switch to Mage's Ballad": {
+    "message": "強制切換為賢者的敘事謠"
+  },
+  "Force switch to Wanderer's Minuet": {
+    "message": "強制切換為放浪神的小步舞曲"
+  },
+  "Force the use of Despair if possible": {
+    "message": "可行時強制使用絕望"
+  },
+  "Force the use of Flare if possible": {
+    "message": "可行時強制使用火光"
+  },
+  "Force the use of Ley Lines in any next possible weave slot": {
+    "message": "在下一個可行的插招空檔強制使用黑魔紋"
+  },
+  "Force the use of Ley Lines in any next possible weave slot; holds one charge for manual usage": {
+    "message": "在下一個可行的插招空檔強制使用黑魔紋,保留1層供手動使用"
+  },
+  "Force the use of Ley Lines, regardless of weaving conditions": {
+    "message": "不論插招條件,強制使用黑魔紋"
+  },
+  "Force the use of Ley Lines; holds one charge for manual usage": {
+    "message": "強制使用黑魔紋,保留1層供手動使用"
+  },
+  "Force the use of Manafont (100s cooldown) in any next possible weave slot": {
+    "message": "在下一個可行的插招空檔強制使用魔泉(冷卻100秒)"
+  },
+  "Force the use of Manafont (100s cooldown), regardless of weaving conditions": {
+    "message": "不論插招條件,強制使用魔泉(冷卻100秒)"
+  },
+  "Force the use of Manafont (180s cooldown) in any next possible weave slot": {
+    "message": "在下一個可行的插招空檔強制使用魔泉(冷卻180秒)"
+  },
+  "Force the use of Manafont (180s cooldown), regardless of weaving conditions": {
+    "message": "不論插招條件,強制使用魔泉(冷卻180秒)"
+  },
+  "Force the use of Swiftcast (40s cooldown) in any next possible weave slot": {
+    "message": "在下一個可行的插招空檔強制使用即刻詠唱(冷卻40秒)"
+  },
+  "Force the use of Swiftcast (40s cooldown), regardless of weaving conditions": {
+    "message": "不論插招條件,強制使用即刻詠唱(冷卻40秒)"
+  },
+  "Force the use of Swiftcast (60s cooldown) in any next possible weave slot": {
+    "message": "在下一個可行的插招空檔強制使用即刻詠唱(冷卻60秒)"
+  },
+  "Force the use of Swiftcast (60s cooldown), regardless of weaving conditions": {
+    "message": "不論插招條件,強制使用即刻詠唱(冷卻60秒)"
+  },
+  "Force the use of Triplecast in any next possible weave slot": {
+    "message": "在下一個可行的插招空檔強制使用三連詠唱"
+  },
+  "Force the use of Triplecast in any next possible weave slot; holds one charge for manual usage": {
+    "message": "在下一個可行的插招空檔強制使用三連詠唱,保留1層供手動使用"
+  },
+  "Force the use of Triplecast; holds one charge for manual usage": {
+    "message": "強制使用三連詠唱,保留1層供手動使用"
+  },
+  "Force the use of Triplecast; uses all charges": {
+    "message": "強制使用三連詠唱,用盡所有層數"
+  },
+  "Force unless NC active": {
+    "message": "強制使用,除非處於NC狀態"
+  },
+  "Force use ASAP": {
+    "message": "盡快強制使用"
+  },
+  "Force use ASAP (even during downtime or without ST)": {
+    "message": "盡快強制使用(即使在停手期或沒有單體增益時)"
+  },
+  "Force use ASAP (even in melee range)": {
+    "message": "盡快強制使用(即使在近戰距離內)"
+  },
+  "Force use ASAP (even without ST)": {
+    "message": "盡快強制使用(即使沒有單體增益)"
+  },
+  "Force use Abyssal Drain ASAP when available": {
+    "message": "可用時盡快強制使用吸血深淵"
+  },
+  "Force use Battle Voice ASAP": {
+    "message": "盡快強制使用戰鬥之聲"
+  },
+  "Force use Bloodspiller ASAP when 50+ Blood is available": {
+    "message": "血氣達50以上時盡快強制使用血濺"
+  },
+  "Force use Carve and Spit ASAP when available": {
+    "message": "可用時盡快強制使用精雕怒斬"
+  },
+  "Force use Comeuppance ASAP when available": {
+    "message": "可用時盡快強制使用報應"
+  },
+  "Force use Edge of Darkness/Shadow ASAP if 3000+ MP is available": {
+    "message": "魔力達3000以上時盡快強制使用暗黑鋒"
+  },
+  "Force use Flood of Darkness/Shadow ASAP if 3000+ MP is available": {
+    "message": "魔力達3000以上時盡快強制使用暗黑波動"
+  },
+  "Force use Impalement ASAP when available": {
+    "message": "可用時盡快強制使用刺穿"
+  },
+  "Force use Lightning Shot in any range": {
+    "message": "在任何距離盡快強制使用雷電彈"
+  },
+  "Force use Lightning Shot in pre-pull in any range": {
+    "message": "在拉怪前的任何距離盡快強制使用雷電彈"
+  },
+  "Force use Quietus ASAP when 50+ Blood is available": {
+    "message": "血氣達50以上時盡快強制使用寂滅"
+  },
+  "Force use Radiant Finale ASAP": {
+    "message": "盡快強制使用光明神的最終樂章"
+  },
+  "Force use Raging Strikes ASAP": {
+    "message": "盡快強制使用猛者強擊"
+  },
+  "Force use Scarlet Delirium ASAP when available": {
+    "message": "可用時盡快強制使用血紅亂"
+  },
+  "Force use Torcleaver ASAP when available": {
+    "message": "可用時盡快強制使用戮山"
+  },
+  "Force use Unmend regardless of range": {
+    "message": "不論距離,強制使用傷殘"
+  },
+  "Force use all charges": {
+    "message": "強制用盡所有充能"
+  },
+  "Force use if charges are about to overcap (unless NC is already active), even if it would overcap gauge": {
+    "message": "充能即將溢出時強制使用(除非已處於NC狀態),即使會導致量表溢出"
+  },
+  "Force use of AOE Thunder regardless of DoT effect": {
+    "message": "不論持續傷害狀態,強制使用範圍雷電"
+  },
+  "Force use of Atonement": {
+    "message": "強制使用贖罪劍"
+  },
+  "Force use of Bio regardless of DoT effect": {
+    "message": "不論持續傷害狀態,強制使用蠱毒"
+  },
+  "Force use of Bioblaster": {
+    "message": "強制使用毒化衝擊"
+  },
+  "Force use of Blade of Faith": {
+    "message": "強制使用信念之劍"
+  },
+  "Force use of Blade of Truth": {
+    "message": "強制使用真理之劍"
+  },
+  "Force use of Blade of Valor": {
+    "message": "強制使用英勇之劍"
+  },
+  "Force use of Bloodfest in next possible weave slot, regardless of ammo count": {
+    "message": "不論彈藥數,在下一個可行的插招空檔強制使用血壤"
+  },
+  "Force use of Bloodfest only if empty on cartridges": {
+    "message": "只在彈匣用盡時強制使用血壤"
+  },
+  "Force use of Bloodfest only if empty on cartridges & in next possible weave slot": {
+    "message": "只在彈匣用盡且下一個可行的插招空檔強制使用血壤"
+  },
+  "Force use of Bloodfest, regardless of ammo count & weaving": {
+    "message": "不論彈藥數與插招條件,強制使用血壤"
+  },
+  "Force use of Burst Strike regardless of cartridge count": {
+    "message": "不論彈匣數,強制使用爆發擊"
+  },
+  "Force use of Burst Strike when only 1 cartridge is available": {
+    "message": "只剩1個彈匣時強制使用爆發擊"
+  },
+  "Force use of Burst Strike when only 2 cartridges are available": {
+    "message": "只剩2個彈匣時強制使用爆發擊"
+  },
+  "Force use of Burst Strike when only 3 cartridges are available": {
+    "message": "只剩3個彈匣時強制使用爆發擊"
+  },
+  "Force use of Confiteor": {
+    "message": "強制使用悔罪"
+  },
+  "Force use of Double Down regardless of cartridge count": {
+    "message": "不論彈匣數,強制使用倍攻"
+  },
+  "Force use of Double Down when only 1 cartridge is available": {
+    "message": "只剩1個彈匣時強制使用倍攻"
+  },
+  "Force use of Double Down when only 2 cartridges are available": {
+    "message": "只剩2個彈匣時強制使用倍攻"
+  },
+  "Force use of Double Down when only 3 cartridges are available": {
+    "message": "只剩3個彈匣時強制使用倍攻"
+  },
+  "Force use of Drill": {
+    "message": "強制使用鑽頭"
+  },
+  "Force use of Energy Drain if any Aetherflow is available": {
+    "message": "有乙太超流可用時強制使用吸取能量"
+  },
+  "Force use of Fated Circle when any cartridges are available": {
+    "message": "有彈匣可用時強制使用命運之環"
+  },
+  "Force use of Fated Circle when only 1 cartridge is available": {
+    "message": "只剩1個彈匣時強制使用命運之環"
+  },
+  "Force use of Fated Circle when only 2 cartridges are available": {
+    "message": "只剩2個彈匣時強制使用命運之環"
+  },
+  "Force use of Fated Circle when only 3 cartridges are available": {
+    "message": "只剩3個彈匣時強制使用命運之環"
+  },
+  "Force use of Foul": {
+    "message": "強制使用穢濁"
+  },
+  "Force use of Gnashing Fang": {
+    "message": "強制使用烈牙"
+  },
+  "Force use of Gnashing Fang when only 1 cartridge is available": {
+    "message": "只剩1個彈匣時強制使用烈牙"
+  },
+  "Force use of Gnashing Fang when only 2 cartridges are available": {
+    "message": "只剩2個彈匣時強制使用烈牙"
+  },
+  "Force use of Gnashing Fang when only 3 cartridges are available": {
+    "message": "只剩3個彈匣時強制使用烈牙"
+  },
+  "Force use of Goring Blade": {
+    "message": "強制使用瀝血劍"
+  },
+  "Force use of Holy Circle": {
+    "message": "強制使用聖環"
+  },
+  "Force use of Holy Spirit": {
+    "message": "強制使用聖靈"
+  },
+  "Force use of Intervene": {
+    "message": "強制使用調停"
+  },
+  "Force use of Intervene; Hold one charge for manual usage": {
+    "message": "強制使用調停,保留1層供手動使用"
+  },
+  "Force use of Lion Heart": {
+    "message": "強制使用終結之心"
+  },
+  "Force use of No Mercy in next possible last second weave slot": {
+    "message": "在下一個可行的最後一秒插招空檔強制使用無情"
+  },
+  "Force use of No Mercy in next possible weave slot": {
+    "message": "在下一個可行的插招空檔強制使用無情"
+  },
+  "Force use of No Mercy when only 1 cartridge is available & in next possible last-second weave slot": {
+    "message": "只剩1個彈匣且在下一個可行的最後一秒插招空檔強制使用無情"
+  },
+  "Force use of No Mercy when only 1 cartridge is available & in next weave slot": {
+    "message": "只剩1個彈匣且在下一個插招空檔強制使用無情"
+  },
+  "Force use of No Mercy when only 1 cartridge is available, regardless of weaving": {
+    "message": "只剩1個彈匣時強制使用無情,不論插招條件"
+  },
+  "Force use of No Mercy when only 2 cartridges are available & in next possible last-second weave slot": {
+    "message": "只剩2個彈匣且在下一個可行的最後一秒插招空檔強制使用無情"
+  },
+  "Force use of No Mercy when only 2 cartridges are available & in next possible weave slot": {
+    "message": "只剩2個彈匣且在下一個可行的插招空檔強制使用無情"
+  },
+  "Force use of No Mercy when only 2 cartridges are available, regardless of weaving": {
+    "message": "只剩2個彈匣時強制使用無情,不論插招條件"
+  },
+  "Force use of No Mercy when only 3 cartridges are available & in next possible last-second weave slot": {
+    "message": "只剩3個彈匣且在下一個可行的最後一秒插招空檔強制使用無情"
+  },
+  "Force use of No Mercy when only 3 cartridges are available & in next possible weave slot": {
+    "message": "只剩3個彈匣且在下一個可行的插招空檔強制使用無情"
+  },
+  "Force use of No Mercy when only 3 cartridges are available, regardless of weaving": {
+    "message": "只剩3個彈匣時強制使用無情,不論插招條件"
+  },
+  "Force use of No Mercy, regardless of weaving": {
+    "message": "不論插招條件,強制使用無情"
+  },
+  "Force use of Noble Blood": {
+    "message": "強制使用支配之心"
+  },
+  "Force use of Reassemble in next possible weave window": {
+    "message": "在下一個可行的插招空檔強制使用整備"
+  },
+  "Force use of Reassemble, regardless of weaving": {
+    "message": "不論插招條件,強制使用整備"
+  },
+  "Force use of Reign of Beasts": {
+    "message": "強制使用崛起之心"
+  },
+  "Force use of Savage Claw": {
+    "message": "強制使用猛獸爪"
+  },
+  "Force use of Sepulchre": {
+    "message": "強制使用葬送劍"
+  },
+  "Force use of Shield Lob": {
+    "message": "強制使用投盾"
+  },
+  "Force use of Sonic Break": {
+    "message": "強制使用音速破"
+  },
+  "Force use of Supplication": {
+    "message": "強制使用祈告劍"
+  },
+  "Force use of Wicked Talon": {
+    "message": "強制使用凶禽爪"
+  },
+  "Force use of Wildfire in next possible weave window": {
+    "message": "在下一個可行的插招空檔強制使用野火"
+  },
+  "Force use of Wildfire, regardless of weaving": {
+    "message": "不論插招條件,強制使用野火"
+  },
+  "Force use of Xenoglossy": {
+    "message": "強制使用異言"
+  },
+  "Force use of best Thunder regardless of DoT effect": {
+    "message": "不論持續傷害狀態,強制使用最佳雷電"
+  },
+  "Force use of single-target Thunder regardless of DoT effect": {
+    "message": "不論持續傷害狀態,強制使用單體雷電"
+  },
+  "Go directly to destination": {
+    "message": "直接前往目的地"
+  },
+  "Go to nearest safespot": {
+    "message": "前往最近的安全區"
+  },
+  "Hold blitz until Riddle of Fire and 2+ targets": {
+    "message": "保留極意終結技,直到紅蓮極意生效且目標數達2以上"
+  },
+  "Hold blitz until Riddle of Fire is active": {
+    "message": "保留極意終結技,直到紅蓮極意生效"
+  },
+  "Hold blitz until at least two targets will be hit": {
+    "message": "保留極意終結技,直到至少能命中2個目標"
+  },
+  "If HP or MP is low": {
+    "message": "HP或MP偏低時"
+  },
+  "Ignore any special conditions (knockbacks, pyretics, etc)": {
+    "message": "忽略任何特殊狀況(擊退、灼熱波動等)"
+  },
+  "Interrupt all interruptable enemies": {
+    "message": "打斷所有可被打斷的敵人"
+  },
+  "Interrupt enemies if the current module suggests doing it": {
+    "message": "若目前模組建議打斷則執行"
+  },
+  "Jump into the direction backward of the camera": {
+    "message": "朝鏡頭後方跳躍"
+  },
+  "Jump into the direction backward of the character (default)": {
+    "message": "朝角色後方跳躍(預設)"
+  },
+  "Jump into the direction forward of the camera": {
+    "message": "朝鏡頭前方跳躍"
+  },
+  "Jump into the direction forward of the character": {
+    "message": "朝角色前方跳躍"
+  },
+  "Keep 1 charge, use if 2+ charges available": {
+    "message": "保留1層充能,累積2層以上才使用"
+  },
+  "Keep 2 charges, use if overcap is imminent": {
+    "message": "保留2層充能,即將溢出時才使用"
+  },
+  "Late-weaves True North when out of positional": {
+    "message": "位置不對時延後插招使用真北"
+  },
+  "Leech mode: enable stance only in FATEs": {
+    "message": "蹭經模式:只在戰場任務(FATE)中啟用姿態"
+  },
+  "Let Terminal Trigger happen automatically at the end of its duration": {
+    "message": "讓終結擊在持續時間結束時自動觸發"
+  },
+  "Manually select target": {
+    "message": "手動選擇目標"
+  },
+  "Max uptime": {
+    "message": "最大在線率"
+  },
+  "Melee greed: find closest safespot, then move to maxmelee closest to it": {
+    "message": "近戰貪輸出:找最近的安全區,再移動到最靠近該處的近戰最大距離"
+  },
+  "Move to specific point": {
+    "message": "移動到指定位置"
+  },
+  "Move to the point in maxmelee that is closest to specific point": {
+    "message": "移動到近戰最大距離內最靠近指定位置的點"
   }
 }
