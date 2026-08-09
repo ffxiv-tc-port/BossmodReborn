@@ -3559,5 +3559,29 @@
   },
   "The banded coffers dug up from the Accursed Hoard. Until now these had no setting at all and were always handled, even with all three coffer types above unticked.\n\nAlso controls whether the glowing spot revealed by a Pomander of Intuition is walked to.": {
     "message": "從埋藏的寶藏挖出來的綁帶寶箱。在此之前它完全沒有任何設定，即使上面三種寶箱全部取消勾選也照樣會處理。\n\n本項同時決定要不要走向直感魔石照出來的光點。"
+  },
+  "Kite: stay at least this far from the target": {
+    "message": "風箏：與目標至少保持這個距離"
+  },
+  "The \"Deep Dungeon AI\" autorotation module's \"kite enemies\" option keeps ranged jobs and healers inside a ring around the target; this is the inner edge of that ring.\n\nMeasured hitbox to hitbox, so 0 would be touching.": {
+    "message": "自動循環模組「Deep Dungeon AI」的「風箏敵人」選項會讓遠程職業與治療維持在目標周圍的一個環狀範圍內，這是那個環的內緣。\n\n距離是從碰撞體積算到碰撞體積，所以 0 等於貼身。"
+  },
+  "Kite: but no further away than this": {
+    "message": "風箏：但不要離得比這個更遠"
+  },
+  "Outer edge of the kiting ring. Keep it inside your attack range, or you will kite yourself out of the fight.": {
+    "message": "風箏環的外緣。請保持在自己的攻擊距離之內，否則會把自己風箏到打不到目標。"
+  },
+  "Kite: how strongly to prefer that ring": {
+    "message": "風箏：多想待在那個環上"
+  },
+  "How much weight kiting gets in the AI's positioning. It competes with everything else the AI wants - dodging, positionals, following - and the default is deliberately small so that dodging always wins.\n\nRaise it if the character ignores kiting, but a large value will start fighting AOE avoidance.": {
+    "message": "風箏在 AI 走位判斷中佔的權重。它要和 AI 想做的其他事情競爭——閃避、方位技、跟隨——預設值刻意調得很小，好讓閃避永遠優先。\n\n如果角色都不風箏可以調高，但數值太大會開始與範圍攻擊迴避互相拉扯。"
+  },
+  "Kite: allow backing away while dodging": {
+    "message": "風箏：閃避時允許向後拉開距離"
+  },
+  "Whenever anything dangerous is telegraphed, the AI normally penalises any spot further from your target than where you stand now, so it does not drift away. That penalty is far stronger than the kiting preference, so without this, kiting silently does nothing while an AOE is up - which in a deep dungeon is most of the time.\n\nTicked, that one penalty is skipped while kiting is actually active. Dodging itself is completely unaffected - no dangerous spot ever becomes acceptable.\n\nUntick for the old behaviour.": {
+    "message": "只要地面上有危險預警，AI 平常會對「比你現在更遠離目標」的位置扣分，以免它愈飄愈遠。那個扣分遠比風箏的偏好強，所以沒有這個選項時，只要有範圍攻擊預警風箏就會靜默失效——而在深牢裡那是大部分時間。\n\n勾選後，只有在風箏真正生效的當下才會略過那一項扣分。閃避本身完全不受影響，危險位置永遠不會因此變成可接受。\n\n取消勾選即回到舊行為。"
   }
 }

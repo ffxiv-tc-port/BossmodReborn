@@ -147,6 +147,30 @@ public sealed class AutoDDConfig : ConfigNode
         tooltip: "Adds a button under the minimap that walks you to the room you picked, in one go. You press it, it walks, and it stops on arrival - it never opens coffers, never uses the Cairn of Passage, and never starts the next leg by itself. The route does not avoid mobs or trap hints. Off by default.")]
     public bool ManualRoomWalk = false;
 
+    // ── 風箏 ──────────────────────────────────────────────────────────
+    // 📌 這幾個是「Deep Dungeon AI」自動循環模組的風箏參數。放在這一頁而不是模組的 track 選項，
+    //    是因為 track 選項只吃列舉、給不了數值滑桿，而使用者要調的正是數值。
+    //    預設值就是拆出來之前寫死的 9 / 25 / 0.05，拆分前後行為完全相同。
+    [PropertyDisplay("Kite: stay at least this far from the target",
+        tooltip: "The \"Deep Dungeon AI\" autorotation module's \"kite enemies\" option keeps ranged jobs and healers inside a ring around the target; this is the inner edge of that ring.\n\nMeasured hitbox to hitbox, so 0 would be touching.")]
+    [PropertySlider(3f, 20f, Speed = 0.1f)]
+    public float KiteMinDistance = 9f;
+
+    [PropertyDisplay("Kite: but no further away than this",
+        tooltip: "Outer edge of the kiting ring. Keep it inside your attack range, or you will kite yourself out of the fight.")]
+    [PropertySlider(10f, 30f, Speed = 0.1f)]
+    public float KiteMaxDistance = 25f;
+
+    [PropertyDisplay("Kite: how strongly to prefer that ring",
+        tooltip: "How much weight kiting gets in the AI's positioning. It competes with everything else the AI wants - dodging, positionals, following - and the default is deliberately small so that dodging always wins.\n\nRaise it if the character ignores kiting, but a large value will start fighting AOE avoidance.")]
+    [PropertySlider(0.01f, 1f, Speed = 0.01f)]
+    public float KiteWeight = 0.05f;
+
+    // 🔴 預設 true。這個開關修的是一個靜默失效，完整說明見 AIHints.WantKiting。
+    [PropertyDisplay("Kite: allow backing away while dodging",
+        tooltip: "Whenever anything dangerous is telegraphed, the AI normally penalises any spot further from your target than where you stand now, so it does not drift away. That penalty is far stronger than the kiting preference, so without this, kiting silently does nothing while an AOE is up - which in a deep dungeon is most of the time.\n\nTicked, that one penalty is skipped while kiting is actually active. Dodging itself is completely unaffected - no dangerous spot ever becomes acceptable.\n\nUntick for the old behaviour.")]
+    public bool KiteAllowRetreatWhileDodging = true;
+
     [PropertyDisplay("Reveal all rooms before proceeding to next floor")]
     public bool FullClear = false;
     [PropertyDisplay("Allow automatic pomander use")]

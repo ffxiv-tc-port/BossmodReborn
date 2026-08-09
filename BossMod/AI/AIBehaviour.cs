@@ -234,8 +234,12 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
 
         // while actually dodging something, prefer moving behind the target over its front/flanks, and avoid simply backing away from it;
         // this is only a tie-breaker among otherwise equally-safe cells, so it never overrides actual AOE safety
+        // 🔑 有模組正在風箏時不要加「別後退」的懲罰：那一項每遠離 1y 約 −0.5，
+        //    而風箏的目標區只有 0.05，兩者放在同一個權重場裡風箏必然被碾平，
+        //    而且是靜默的（使用者只看到「開了風箏但角色不退」）。
+        //    只拿掉這個偏好項，「躲到目標背後」與所有實際閃避判定都不受影響。
         if (autorot.Hints.ForbiddenZones.Count != 0 && targeting.Target != null)
-            autorot.Hints.GoalZones.Add(autorot.Hints.GoalDodgeDirection(targeting.Target.Actor, player.Position));
+            autorot.Hints.GoalZones.Add(autorot.Hints.GoalDodgeDirection(targeting.Target.Actor, player.Position, penalizeRetreat: !autorot.Hints.WantKiting));
 
         if (_followMaster)
         {

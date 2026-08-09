@@ -123,6 +123,21 @@ public sealed class AIHints
     public bool WantJump;
     public bool WantDismount;
 
+    /// <summary>
+    /// 本幀有模組真的放下了「拉開距離」的目標區（風箏）。
+    /// </summary>
+    /// <remarks>
+    /// 🔑 存在的理由是<b>權重場會互相碾壓，而且是靜默的</b>：風箏的目標區權重只有 0.05，
+    /// 但只要場上有任何 AOE 預警，AI 就會加一個 <see cref="GoalDodgeDirection"/>，
+    /// 其中的「不要往後退」懲罰項約 −1.0 —— 風箏當場失效，沒有任何錯誤訊息。
+    /// <para>
+    /// 由設定風箏的模組設定、由 AI 讀取，讓 AI 知道「這一幀往後退是刻意的」。
+    /// ⚠️ 這是<b>純提示</b>：AI 只用它決定要不要加那個後退懲罰，不會因此改變閃避判定，
+    /// 也不會讓任何原本禁止進入的區域變成可進入。
+    /// </para>
+    /// </remarks>
+    public bool WantKiting;
+
     // clear all stored data
     public void Clear()
     {
@@ -148,6 +163,7 @@ public sealed class AIHints
         StatusesToCancel.Clear();
         WantJump = false;
         WantDismount = false;
+        WantKiting = false;
     }
 
     public void PrioritizeTargetsByOID(uint oid, int priority = default)
@@ -474,7 +490,14 @@ public sealed class AIHints
 
     // goal zone used as a tie-breaker while dodging: prefers positions behind the target's facing direction over its front/flanks,
     // and penalizes positions that retreat further away from the target than the player's current distance (discourages simply backing away)
-    public Func<WPos, float> GoalDodgeDirection(Actor target, WPos playerPos, float weight = 0.5f)
+    /// <param name="penalizeRetreat">
+    /// 是否懲罰「比現在更遠離目標」的位置。預設 true。
+    /// ⚠️ 這個懲罰項的量級（每遠離 1y 約 −0.5×weight）遠大於風箏之類的小權重提示（0.05），
+    /// 所以刻意要拉開距離時必須關掉它，否則風箏會被靜默碾平 ——
+    /// 見 <see cref="WantKiting"/>。關掉的只是這個「別後退」的偏好，
+    /// 「躲到目標背後」的偏好與所有實際的閃避判定都不受影響。
+    /// </param>
+    public Func<WPos, float> GoalDodgeDirection(Actor target, WPos playerPos, float weight = 0.5f, bool penalizeRetreat = true)
     {
         var origin = target.Position;
         var facing = target.Rotation.ToDirection();
@@ -486,6 +509,8 @@ public sealed class AIHints
             if (dist < 0.01f)
                 return default;
             var behind = -facing.Dot(offset / dist); // 1 = directly behind target, -1 = directly in front
+            if (!penalizeRetreat)
+                return weight * behind;
             var retreat = Math.Max(0f, dist - curDist); // positive if this cell is further from target than our current position
             return weight * (behind - retreat * 0.5f);
         };
