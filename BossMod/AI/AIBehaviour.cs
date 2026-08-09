@@ -98,7 +98,12 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
 
                 if (!forbidTargeting && !cancel)
                 {
-                    autorot.Preset = target.Target != null ? AIPreset : null;
+                    // 🔑 只掛預設，不影響走位/閃避/選目標——那些在這個判斷之外。
+                    //    深牢判定用 DeepDungeon.DungeonId：它直接來自遊戲的深牢 instance content director
+                    //    （不在深牢時是 None），不需要另外維護一份 territory 清單。
+                    var autorotAllowed = !_config.AutorotOnlyInDeepDungeon
+                        || autorot.WorldState.DeepDungeon.DungeonId != DeepDungeonState.DungeonType.None;
+                    autorot.Preset = target.Target != null && autorotAllowed ? AIPreset : null;
                 }
                 UpdateMovement(player, master, target, gazeImminent || pyreticImminent, misdirectionMode ? autorot.Hints.MisdirectionThreshold : default, !forbidTargeting ? autorot.Hints.ActionsToExecute : null);
             }

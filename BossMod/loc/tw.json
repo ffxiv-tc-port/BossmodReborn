@@ -3604,5 +3604,17 @@
   },
   "Pauses travelling to the destination room while your HP is below this percentage, so you do not walk into the next pack at low health. Dodging and combat positioning are unaffected.\n\n0 disables this.": {
     "message": "血量低於這個百分比時，暫停前往目標房間，避免帶著殘血走進下一組怪。閃避與戰鬥走位不受影響。\n\n設為 0 即停用。"
+  },
+  "Only use the autorotation preset inside deep dungeons": {
+    "message": "只在深層迷宮內使用自動循環預設"
+  },
+  "The AI keeps doing movement, dodging and targeting everywhere, but only presses rotation actions while you are inside a deep dungeon.\n\nUse this when another plugin handles your rotation in normal content and you only want BMR to take over in deep dungeons.": {
+    "message": "AI 在任何地方都照常負責移動、閃避與選取目標，但只有在深層迷宮內才會實際發動循環技能。\n\n如果一般副本的循環是交給別的外掛處理，只希望 BMR 在深層迷宮接手，就開啟這個選項。"
+  },
+  "Pause WrathCombo's auto-rotation while in a deep dungeon": {
+    "message": "進入深層迷宮時暫停 WrathCombo 的自動循環"
+  },
+  "Uses WrathCombo's own lease mechanism to ask it to stop auto-rotating while you are inside a deep dungeon, so it does not fight BMR's rotation, and hands control back when you leave.\n\nReleasing the lease makes WrathCombo restore your settings itself, so nothing is left changed if the game or a plugin crashes.\n\nDoes nothing if WrathCombo is not installed.": {
+    "message": "透過 WrathCombo 官方的租約機制，請它在你身處深層迷宮期間停止自動循環，避免與 BMR 的循環互相打架，離開時再把控制權交還。\n\n釋放租約時由 WrathCombo 自己還原設定，所以即使遊戲或外掛中途崩潰，也不會留下被改動的設定。\n\n未安裝 WrathCombo 時本選項不會有任何作用。"
   }
 }

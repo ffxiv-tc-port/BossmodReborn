@@ -126,6 +126,9 @@ public abstract class AutoClear : ZoneModule
 
     private ObstacleMapManager _obstacles;
 
+    /// <summary>進深牢時請 WrathCombo 讓出自動循環的橋接（軟依賴，沒裝就靜默跳過）。</summary>
+    private readonly WrathComboBridge _wrathCombo = new();
+
     protected DeepDungeonState Palace => World.DeepDungeon;
 
     protected AutoClear(WorldState ws, int LevelCap) : base(ws)
@@ -179,6 +182,10 @@ public abstract class AutoClear : ZoneModule
                 Service.Log($"[DD nav] Dispose 時停止移動失敗（可忽略）: {ex.Message}");
             }
         }
+
+        // 🔴 離開深牢／卸載外掛都要把租約還回去。WrathComboBridge 內部已經把
+        //    「WrathCombo 先卸載了」的情況包起來（IpcError 與非 IpcError 都接）。
+        _wrathCombo.Dispose();
 
         _subscriptions.Dispose();
         _obstacles.Dispose();
@@ -553,6 +560,10 @@ public abstract class AutoClear : ZoneModule
 
         UpdateStopWatchdog();
         UpdateStuckDetection();
+
+        // 只有真的在深牢裡才壓住 WrathCombo；模組本身只在深牢區域存在，
+        // 但過場／讀取中 DungeonId 會是 0，那時不該接管
+        _wrathCombo.Update(Config.SuspendWrathCombo && Palace.DungeonId != DeepDungeonState.DungeonType.None, World.CurrentTime);
 
         switch (_walkState)
         {

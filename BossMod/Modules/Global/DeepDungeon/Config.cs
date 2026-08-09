@@ -179,6 +179,12 @@ public sealed class AutoDDConfig : ConfigNode
         tooltip: "Whenever anything dangerous is telegraphed, the AI normally penalises any spot further from your target than where you stand now, so it does not drift away. That penalty is far stronger than the kiting preference, so without this, kiting silently does nothing while an AOE is up - which in a deep dungeon is most of the time.\n\nTicked, that one penalty is skipped while kiting is actually active. Dodging itself is completely unaffected - no dangerous spot ever becomes acceptable.\n\nUntick for the old behaviour.")]
     public bool KiteAllowRetreatWhileDodging = true;
 
+    // 🔴 預設 false（opt-in）。BMR 的新設定欄位預設值會直接生效在既有使用者身上，
+    //    而不是每個人都裝了 WrathCombo、也不是每個人都希望我們去動它。
+    [PropertyDisplay("Pause WrathCombo's auto-rotation while in a deep dungeon",
+        tooltip: "Uses WrathCombo's own lease mechanism to ask it to stop auto-rotating while you are inside a deep dungeon, so it does not fight BMR's rotation, and hands control back when you leave.\n\nReleasing the lease makes WrathCombo restore your settings itself, so nothing is left changed if the game or a plugin crashes.\n\nDoes nothing if WrathCombo is not installed.")]
+    public bool SuspendWrathCombo = false;
+
     [PropertyDisplay("Reveal all rooms before proceeding to next floor")]
     public bool FullClear = false;
     [PropertyDisplay("Allow automatic pomander use")]
