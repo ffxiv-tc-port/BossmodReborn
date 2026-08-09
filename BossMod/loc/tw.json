@@ -7696,5 +7696,17 @@
   },
   "role": {
     "message": "職務"
+  },
+  "Any": {
+    "message": "任意"
+  },
+  "Flank": {
+    "message": "側面"
+  },
+  "Rear": {
+    "message": "背面"
+  },
+  "Front": {
+    "message": "正面"
   }
 }
