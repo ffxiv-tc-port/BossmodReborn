@@ -191,7 +191,7 @@ sealed class ReplayDetailsWindow : UIWindow
 
         if (ImGui.CollapsingHeader($"Events (version: {_player.Replay.GameVersion})"))
             _events.Draw();
-        if (ImGui.CollapsingHeader("Analysis"))
+        if (ImGui.CollapsingHeader(Loc.T("Analysis")))
             _analysis.Draw();
 
         if (resetPF)
@@ -378,7 +378,7 @@ sealed class ReplayDetailsWindow : UIWindow
         ImGui.TableSetupColumn("Rot", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 90);
         ImGui.TableSetupColumn("HP", ImGuiTableColumnFlags.WidthFixed, 200);
         ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.None, 100);
-        ImGui.TableSetupColumn("Target", ImGuiTableColumnFlags.None, 100);
+        ImGui.TableSetupColumn(Loc.T("Target"), ImGuiTableColumnFlags.None, 100);
         ImGui.TableSetupColumn(Loc.T("Cast"), ImGuiTableColumnFlags.None, 100);
         ImGui.TableSetupColumn("Statuses", ImGuiTableColumnFlags.None, 100);
         ImGui.TableSetupColumn("Hints", ImGuiTableColumnFlags.None, 250);
@@ -453,7 +453,7 @@ sealed class ReplayDetailsWindow : UIWindow
         ImGui.TableSetupColumn("Rot", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 90);
         ImGui.TableSetupColumn("HP", ImGuiTableColumnFlags.WidthFixed, 200);
         ImGui.TableSetupColumn("Name");
-        ImGui.TableSetupColumn("Target");
+        ImGui.TableSetupColumn(Loc.T("Target"));
         ImGui.TableSetupColumn(Loc.T("Cast"));
         ImGui.TableSetupColumn("Statuses");
         ImGui.TableHeadersRow();
@@ -478,7 +478,7 @@ sealed class ReplayDetailsWindow : UIWindow
         ImGui.TableSetupColumn("Rot", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 90);
         ImGui.TableSetupColumn("HP", ImGuiTableColumnFlags.WidthFixed, 200);
         ImGui.TableSetupColumn("Name");
-        ImGui.TableSetupColumn("Target");
+        ImGui.TableSetupColumn(Loc.T("Target"));
         ImGui.TableSetupColumn(Loc.T("Cast"));
         ImGui.TableSetupColumn("Statuses");
         ImGui.TableHeadersRow();

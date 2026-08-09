@@ -149,7 +149,7 @@ public static class UIStrategyValue
     public static bool DrawEditorTarget(StrategyValueTrack value, ActionTargets supportedTargets, BossModuleRegistry.Info? moduleInfo)
     {
         var modified = false;
-        using (var combo = ImRaii.Combo("Target", value.Target.ToString()))
+        using (var combo = ImRaii.Combo(Loc.T("Target"), value.Target.ToString()))
         {
             if (combo)
             {
