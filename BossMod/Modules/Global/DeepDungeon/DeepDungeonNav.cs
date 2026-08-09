@@ -26,6 +26,18 @@ namespace BossMod.Global.DeepDungeon;
 /// </remarks>
 static class DeepDungeonNav
 {
+    // ── 例外處理的分工 ────────────────────────────────────────────────
+    // `IpcError`（含 NotReady／TypeMismatch／LengthMismatch／ValueNull，全部繼承自它）
+    // ＝「對方不在或介面對不上」，是預期中的狀況，安靜地回報不可用即可。
+    //
+    // 🔴 但 **vnavmesh 自己的處理常式擲出來的例外不是 IpcError** —— Dalamud 的 CallGate
+    //    是直接呼叫對方註冊的委派，對方內部炸掉會原樣往上冒。這些呼叫點在
+    //    `Update()` 與 ImGui 繪製途中，讓它冒出去會打斷 BMR 整個 frame。
+    //    所以額外接一層 Exception，並用 Information 記下來（使用者跑 LogLevel 2，
+    //    要他回報得到的等級才有意義）。
+    private static void LogUnexpected(string endpoint, Exception ex)
+        => Service.Logger.Information($"[DD nav] vnavmesh.{endpoint} 擲出非 IPC 例外（已忽略，不影響 BMR）: {ex}");
+
     // ICallGateSubscriber 建立時不探測對方在不在（純本地物件、零成本），
     // 真正的探測發生在 InvokeFunc()：對方沒註冊同名端點就丟 IpcNotReadyError。
     private static ICallGateSubscriber<T>? Gate<T>(string name)
@@ -75,6 +87,11 @@ static class DeepDungeonNav
         {
             return false;
         }
+        catch (Exception ex)
+        {
+            LogUnexpected("Nav.BuildProgress", ex);
+            return false;
+        }
     }
 
     /// <summary>導航網格是否已經就緒。</summary>
@@ -86,6 +103,11 @@ static class DeepDungeonNav
         }
         catch (IpcError)
         {
+            return false;
+        }
+        catch (Exception ex)
+        {
+            LogUnexpected("Nav.IsReady", ex);
             return false;
         }
     }
@@ -105,6 +127,11 @@ static class DeepDungeonNav
         {
             return false;
         }
+        catch (Exception ex)
+        {
+            LogUnexpected("Path.IsRunning", ex);
+            return false;
+        }
     }
 
     /// <summary>vnavmesh 的 SimpleMove 是不是正在背景算路徑（別的外掛叫的）。</summary>
@@ -116,6 +143,11 @@ static class DeepDungeonNav
         }
         catch (IpcError)
         {
+            return false;
+        }
+        catch (Exception ex)
+        {
+            LogUnexpected("SimpleMove.PathfindInProgress", ex);
             return false;
         }
     }
@@ -139,6 +171,11 @@ static class DeepDungeonNav
             Service.Log($"[DD nav] vnavmesh.Path.Stop 失敗: {ex.Message}");
             return false;
         }
+        catch (Exception ex)
+        {
+            LogUnexpected("Path.Stop", ex);
+            return false;
+        }
     }
 
     /// <summary>把一條<b>已經驗過</b>的路徑交給 vnavmesh 走。</summary>
@@ -158,6 +195,11 @@ static class DeepDungeonNav
             Service.Log($"[DD nav] vnavmesh.Path.MoveTo 失敗: {ex.Message}");
             return false;
         }
+        catch (Exception ex)
+        {
+            LogUnexpected("Path.MoveTo", ex);
+            return false;
+        }
     }
 
     /// <summary>叫 vnavmesh 算一條路徑；回傳 null＝叫不動（沒安裝／網格沒好）。</summary>
@@ -170,6 +212,11 @@ static class DeepDungeonNav
         catch (IpcError ex)
         {
             Service.Log($"[DD nav] vnavmesh.Nav.Pathfind 失敗: {ex.Message}");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            LogUnexpected("Nav.Pathfind", ex);
             return null;
         }
     }
@@ -194,6 +241,10 @@ static class DeepDungeonNav
         catch (IpcError ex)
         {
             Service.Log($"[DD nav] vnavmesh.Query.Mesh.PointOnFloor 失敗: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            LogUnexpected("Query.Mesh.PointOnFloor", ex);
         }
         point = default;
         return false;
