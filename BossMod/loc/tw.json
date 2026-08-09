@@ -3508,5 +3508,41 @@
   },
   "DD_WalkPathLeavesCorridor": {
     "message": "拒絕移動：vnavmesh 給的路線跑出了這一層實際相連的房間範圍（第 {0} 個路徑點共 {1} 個，落在房間 {2}）。它手上的導航網格很可能還是上一層的。"
+  },
+  "DD_PrereqTitle": {
+    "message": "本頁所有選項的前置條件："
+  },
+  "DD_PrereqMaturityOk": {
+    "message": "1. 區域模組成熟度為「{0}」——深牢模組可以載入。"
+  },
+  "DD_PrereqMaturityBad": {
+    "message": "1. 區域模組成熟度為「{0}」，但深牢模組屬於開發中，因此不會載入。請到「完整副本自動化」分頁調低；在那之前本頁所有選項都不會有任何作用，小地圖也不會出現。"
+  },
+  "DD_PrereqAIOn": {
+    "message": "2. BMR 的 AI 運作中。"
+  },
+  "DD_PrereqAIOff": {
+    "message": "2. BMR 的 AI 未開啟——會移動角色的選項在開啟之前都不會有動作。"
+  },
+  "DD_PrereqNote": {
+    "message": "自動選取怪物目標不需要 AI；迴避陷阱、走向寶箱、走向通道石則都需要。"
+  },
+  "DD_MaturityWIP": {
+    "message": "開發中"
+  },
+  "DD_MaturityContributed": {
+    "message": "社群貢獻"
+  },
+  "DD_MaturityVerified": {
+    "message": "已驗證"
+  },
+  "Try to use terrain to LOS attacks (Eureka Orthos only)": {
+    "message": "嘗試利用地形進行視線遮擋攻擊（僅厄運迷宮）"
+  },
+  "Only has any effect in Eureka Orthos: it is the only deep dungeon whose floor module marks casts as line-of-sight-able. In Palace of the Dead and Heaven-on-High this setting does nothing at all.\n\nWhen it does apply, it replaces the simple \"stay out of a circle around the caster\" hint with one computed from the actual terrain, so you can break line of sight instead of just running away. Falls back to the simple circle if no obstacle map is available for the floor.": {
+    "message": "只在厄運迷宮有作用：它是唯一有把敵人詠唱標記為「可用視線遮擋」的深牢樓層模組。在死者宮殿與天之逆焰，這個選項完全不會有任何效果。\n\n有作用時，它會把單純的「遠離詠唱者周圍一圈」改成依實際地形計算的範圍，讓你能夠躲到障礙物後方遮斷視線，而不是只能往外跑。該層沒有障礙物地圖時會退回單純的圓形範圍。"
+  },
+  "Ticking this is necessary but not sufficient - silver coffers can explode for 70% of your max HP, so they are also skipped when:\n- your current HP is at or below 70% of maximum;\n- your weapon + armour levels add up to 198 or more, AND you are in Palace of the Dead (there is nothing left to gain there).\n\nIn Heaven-on-High and Eureka Orthos, once you are at 198 they are only opened from floor 7 onwards, where magicite/demiclones start dropping.": {
+    "message": "勾選這個是必要條件但不是充分條件——銀寶箱可能爆炸並造成最大 HP 70% 的傷害，因此下列情況仍會跳過：\n- 目前 HP 低於或等於最大值的 70%；\n- 武器與防具等級合計達到 198 以上，且身處死者宮殿（該處已無可再提升的部分）。\n\n在天之逆焰與厄運迷宮，達到 198 之後則放寬為第 7 層起才會開啟，因為魔石／魔武器碎片從第 7 層開始掉落。"
   }
 }

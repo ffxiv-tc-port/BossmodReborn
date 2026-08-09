@@ -1,8 +1,80 @@
-﻿namespace BossMod.Global.DeepDungeon;
+﻿using Dalamud.Bindings.ImGui;
+
+namespace BossMod.Global.DeepDungeon;
 
 [ConfigDisplay(Name = "Auto-DeepDungeon (Experimental)", Parent = typeof(ModuleConfig))]
 public sealed class AutoDDConfig : ConfigNode
 {
+    private static readonly Vector4 PrereqOkColor = new(0.45f, 0.80f, 0.45f, 1f);
+    private static readonly Vector4 PrereqBadColor = new(0.95f, 0.70f, 0.30f, 1f);
+    private static readonly Vector4 PrereqNoteColor = new(0.72f, 0.72f, 0.72f, 1f);
+
+    /// <summary>
+    /// 這一整頁的兩個前置條件，以及它們<b>現在</b>的狀態。
+    /// </summary>
+    /// <remarks>
+    /// 🔑 為什麼需要：兩個閘門都在別的地方，而且失敗形式都是
+    /// 「設定頁看起來一切正常、選項全部勾好，但什麼都不會發生」。
+    /// <list type="number">
+    /// <item>
+    /// <b>模組成熟度</b>：深牢的區域模組全部標成 <c>Maturity.WIP</c>，而
+    /// <c>ZoneModuleConfig.MinMaturity</c> 的預設值是 <c>Contributed</c>。
+    /// <c>ZoneModuleRegistry.CreateModule</c> 的條件是「模組成熟度 &gt;= 要求的最低成熟度」，
+    /// 而 WIP 比 Contributed <b>低</b> ⇒ <b>預設值下整個深牢模組根本不會被建立</b>，
+    /// 連小地圖都不會出現。設定頁卻照樣完整渲染 —— 設定節點與模組的生命週期是分開的。
+    /// </item>
+    /// <item>
+    /// <b>BMR 的 AI</b>：這一頁大部分選項最後都是寫進 <c>AIHints</c> 的
+    /// <c>GoalZones</c>／<c>ForbiddenZones</c>，而那兩者只有 AI 的導航在讀，
+    /// AI 沒開就是把提示算出來丟掉。（例外是自動選怪，它走
+    /// <c>Hints.ForcedTarget</c>，由 <c>Plugin.ExecuteHints</c> 無條件執行。）
+    /// </item>
+    /// </list>
+    /// ⚠️ 這裡讓設定節點去讀 <c>AIManager</c> 的執行期狀態，是刻意接受的分層破壞：
+    /// 前置條件寫成靜態文字沒有用，使用者要知道的是「我現在缺的是哪一個」。
+    /// </remarks>
+    public override void DrawHeader(UITree tree, WorldState ws)
+    {
+        var minMaturity = ZoneModuleManager.Config.MinMaturity;
+        // 深牢模組全是 WIP，而 WIP 是最低的一級 ⇒ 只有把要求也放到 WIP 才載入得起來
+        var maturityOk = minMaturity <= BossModuleInfo.Maturity.WIP;
+        var aiOn = AI.AIManager.Instance?.Beh != null;
+        var (maturityKey, maturityFallback) = MaturityName(minMaturity);
+        var maturityName = Loc.T(maturityKey, maturityFallback);
+
+        ImGui.TextColored(PrereqNoteColor, Loc.T("DD_PrereqTitle", "Preconditions for everything on this page:"));
+
+        ImGui.TextColored(maturityOk ? PrereqOkColor : PrereqBadColor, string.Format(
+            maturityOk
+                ? Loc.T("DD_PrereqMaturityOk", "1. Zone module maturity is set to \"{0}\" - the deep dungeon module can load.")
+                : Loc.T("DD_PrereqMaturityBad", "1. Zone module maturity is set to \"{0}\", but the deep dungeon module is work-in-progress and will NOT load. Lower it in the \"Full duty automation\" tab; until then nothing on this page does anything and the minimap will not appear either."),
+            maturityName));
+
+        ImGui.TextColored(aiOn ? PrereqOkColor : PrereqBadColor,
+            aiOn
+                ? Loc.T("DD_PrereqAIOn", "2. BMR's AI is running.")
+                : Loc.T("DD_PrereqAIOff", "2. BMR's AI is off - options that move your character will not do anything until you turn it on."));
+
+        ImGui.TextColored(PrereqNoteColor, Loc.T("DD_PrereqNote", "Automatic mob targeting works without the AI. Trap avoidance, walking to coffers and walking to the Cairn of Passage all need it."));
+
+        ImGui.Separator();
+    }
+
+    /// <summary>
+    /// 成熟度的短名稱（loc key ＋ 英文 fallback）。
+    /// </summary>
+    /// <remarks>
+    /// 列舉本身的 <c>PropertyDisplay</c> 是整句說明，塞進這一行太長，所以另外給短名稱。
+    /// ⚠️ fallback 必須是真的英文字，<b>不能拿 key 自己當 fallback</b> ——
+    /// 那樣譯文一旦缺漏，使用者看到的會是 <c>DD_MaturityWIP</c> 這種原始鍵名。
+    /// </remarks>
+    private static (string Key, string Fallback) MaturityName(BossModuleInfo.Maturity m) => m switch
+    {
+        BossModuleInfo.Maturity.WIP => ("DD_MaturityWIP", "work in progress"),
+        BossModuleInfo.Maturity.Contributed => ("DD_MaturityContributed", "contributed"),
+        _ => ("DD_MaturityVerified", "verified"),
+    };
+
     public enum ClearBehavior
     {
         [PropertyDisplay("Do not auto target")]
@@ -33,7 +105,11 @@ public sealed class AutoDDConfig : ConfigNode
     [PropertyDisplay("Max number of mobs to pull before pausing navigation (set to 0 to disable navigation while in combat)")]
     [PropertySlider(0, 15)]
     public int MaxPull = 0;
-    [PropertyDisplay("Try to use terrain to LOS attacks")]
+    // ⚠️ 標籤上的「僅厄運迷宮」不是保守說法，是實測結果：這個旗標唯一的讀取點是
+    //    AutoClear.AddLOS()，而 AddLOS() 全庫只有 EOFloorModule 呼叫（五處）。
+    //    PalaceFloorModule 與 HoHFloorModule 零呼叫 ⇒ 在死者宮殿與天之逆焰是死鍵。
+    [PropertyDisplay("Try to use terrain to LOS attacks (Eureka Orthos only)",
+        tooltip: "Only has any effect in Eureka Orthos: it is the only deep dungeon whose floor module marks casts as line-of-sight-able. In Palace of the Dead and Heaven-on-High this setting does nothing at all.\n\nWhen it does apply, it replaces the simple \"stay out of a circle around the caster\" hint with one computed from the actual terrain, so you can break line of sight instead of just running away. Falls back to the simple circle if no obstacle map is available for the floor.")]
     public bool AutoLOS = false;
 
     [PropertyDisplay("Automatically navigate to coffers")]
@@ -42,7 +118,11 @@ public sealed class AutoDDConfig : ConfigNode
     public bool OpenChestsFirst = false;
     [PropertyDisplay("Open gold coffers")]
     public bool GoldCoffer = true;
-    [PropertyDisplay("Open silver coffers")]
+    // ⚠️ tooltip 寫的是 OpenSilver（AutoClear.cs）真正的判斷式，不是概略描述：
+    //    HP <= 70% 直接 false（爆炸銀箱打 70% 最大 HP）；武器+防具 < 198 才無條件 true；
+    //    到 198 之後死者宮殿一律 false，天之逆焰／厄運迷宮則放寬成「樓層 >= 7」。
+    [PropertyDisplay("Open silver coffers",
+        tooltip: "Ticking this is necessary but not sufficient - silver coffers can explode for 70% of your max HP, so they are also skipped when:\n- your current HP is at or below 70% of maximum;\n- your weapon + armour levels add up to 198 or more, AND you are in Palace of the Dead (there is nothing left to gain there).\n\nIn Heaven-on-High and Eureka Orthos, once you are at 198 they are only opened from floor 7 onwards, where magicite/demiclones start dropping.")]
     public bool SilverCoffer = true;
     [PropertyDisplay("Open bronze coffers")]
     public bool BronzeCoffer = true;

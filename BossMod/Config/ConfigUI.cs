@@ -167,6 +167,9 @@ public sealed class ConfigUI : IDisposable
 
     public static void DrawNode(ConfigNode node, ConfigRoot root, UITree tree, WorldState ws)
     {
+        // draw page-wide preconditions/warnings *before* the options they apply to
+        node.DrawHeader(tree, ws);
+
         // draw standard properties
         foreach (var field in node.GetType().GetFields())
         {
