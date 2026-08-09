@@ -6865,5 +6865,836 @@
   },
   "Use Deployment Tactics": {
     "message": "使用展開戰術"
+  },
+  "Use ASAP": {
+    "message": "盡快使用"
+  },
+  "Use Dervish when available": {
+    "message": "可用時使用速度之星"
+  },
+  "Use Despair only, regardless of targets": {
+    "message": "不論目標數,只使用絕望"
+  },
+  "Use Dragonfire Dive normally": {
+    "message": "正常使用龍炎衝"
+  },
+  "Use Drill as first tool in opener": {
+    "message": "開場第一個工具技使用鑽頭"
+  },
+  "Use Eagle Eye Shot when available": {
+    "message": "可用時使用銳眼追擊"
+  },
+  "Use Earthly Star": {
+    "message": "使用地星"
+  },
+  "Use Edge of Darkness/Shadow as Darkside refresher & MP spender regardless of targets nearby; Uses when 3000+ MP is available": {
+    "message": "不論附近目標數,以暗黑鋒作為闇影期補充與魔力消耗手段;魔力達3000以上時使用"
+  },
+  "Use Edge of Darkness/Shadow as Darkside refresher & MP spender regardless of targets nearby; Uses when 6000+ MP is available": {
+    "message": "不論附近目標數,以暗黑鋒作為闇影期補充與魔力消耗手段;魔力達6000以上時使用"
+  },
+  "Use Edge of Darkness/Shadow as Darkside refresher & MP spender regardless of targets nearby; Uses when 9000+ MP is available": {
+    "message": "不論附近目標數,以暗黑鋒作為闇影期補充與魔力消耗手段;魔力達9000以上時使用"
+  },
+  "Use Edge of Darkness/Shadow of Shadow as Darkside refresher & MP spender regardless of targets nearby; Uses only to refresh Darkside or when almost full on MP": {
+    "message": "不論附近目標數,以暗黑鋒作為闇影期補充與魔力消耗手段;只在需要重新施加闇影期或魔力快滿時使用"
+  },
+  "Use Enhanced Deployment Tactics": {
+    "message": "使用強化展開戰術"
+  },
+  "Use Enhanced Horoscope": {
+    "message": "使用強化天宮圖"
+  },
+  "Use Enhanced Recitation": {
+    "message": "使用強化秘策"
+  },
+  "Use Enhanced Sacred Soil": {
+    "message": "使用強化野戰治療陣"
+  },
+  "Use Enhanced Zoe": {
+    "message": "使用強化活化"
+  },
+  "Use Eukrasian Diagnosis": {
+    "message": "使用均衡診斷"
+  },
+  "Use Eukrasian Prognosis": {
+    "message": "使用均衡預後"
+  },
+  "Use Eukrasian Prognosis II": {
+    "message": "使用均衡預後II"
+  },
+  "Use Feint (10s)": {
+    "message": "使用牽制(10秒)"
+  },
+  "Use Feint (15s)": {
+    "message": "使用牽制(15秒)"
+  },
+  "Use Fight or Flight only with Requiescat / Imperator; will delay in attempt to align itself with Requiescat / Imperator if misaligned": {
+    "message": "只與安魂祈禱／絕對統治一起使用戰逃反應;若時機錯開會延後以嘗試對齊"
+  },
+  "Use Fight or Flight only with raid buffs; will delay in attempt to align itself with raid buffs": {
+    "message": "只在團隊增益期間使用戰逃反應;會延後以嘗試對齊團隊增益"
+  },
+  "Use Flare only, regardless of targets": {
+    "message": "不論目標數,只使用火光"
+  },
+  "Use Flood of Darkness/Shadow as Darkside refresher & MP spender regardless of targets nearby; Uses only to refresh Darkside or when almost full on MP": {
+    "message": "不論附近目標數,以暗黑波動作為闇影期補充與魔力消耗手段;只在需要重新施加闇影期或魔力快滿時使用"
+  },
+  "Use Flood of Darkness/Shadow as Darkside refresher & MP spender regardless of targets nearby; Uses when 3000+ MP is available": {
+    "message": "不論附近目標數,以暗黑波動作為闇影期補充與魔力消耗手段;魔力達3000以上時使用"
+  },
+  "Use Flood of Darkness/Shadow as Darkside refresher & MP spender regardless of targets nearby; Uses when 6000+ MP is available": {
+    "message": "不論附近目標數,以暗黑波動作為闇影期補充與魔力消耗手段;魔力達6000以上時使用"
+  },
+  "Use Flood of Darkness/Shadow as Darkside refresher & MP spender regardless of targets nearby; Uses when 9000+ MP is available": {
+    "message": "不論附近目標數,以暗黑波動作為闇影期補充與魔力消耗手段;魔力達9000以上時使用"
+  },
+  "Use Foul as Polyglot spender, regardless of targets nearby": {
+    "message": "不論附近目標數,以穢濁作為通言消耗手段"
+  },
+  "Use Foul as Polyglot spender, regardless of targets nearby; holds 1 Polyglot for manual usage": {
+    "message": "不論附近目標數,以穢濁作為通言消耗手段,保留1個供手動使用"
+  },
+  "Use Foul as Polyglot spender, regardless of targets nearby; holds 2 Polyglots for manual usage": {
+    "message": "不論附近目標數,以穢濁作為通言消耗手段,保留2個供手動使用"
+  },
+  "Use Foul as Polyglot spender; Holds all Polyglots for as long as possible": {
+    "message": "以穢濁作為通言消耗手段,盡量保留所有通言不用"
+  },
+  "Use Full Metal Field when available and not Overheated": {
+    "message": "可用且未過熱時使用全金屬爆發"
+  },
+  "Use Full Swing when available": {
+    "message": "可用時使用全力揮打"
+  },
+  "Use Geirskogul normally": {
+    "message": "正常使用武神槍"
+  },
+  "Use Goring Blade after spending Requiescat stacks": {
+    "message": "用完安魂祈禱層數後使用瀝血劍"
+  },
+  "Use Goring Blade before spending Requiescat stacks": {
+    "message": "使用安魂祈禱層數前先使用瀝血劍"
+  },
+  "Use Guardian": {
+    "message": "使用極致防禦"
+  },
+  "Use HJ ASAP, hold Mirage Dive until buffs are active": {
+    "message": "盡快使用高跳,保留幻象衝直到增益生效"
+  },
+  "Use Heart of Corundum": {
+    "message": "使用剛玉之心"
+  },
+  "Use Heart of Stone": {
+    "message": "使用石之心"
+  },
+  "Use Helios Conjunction": {
+    "message": "使用陽星合相"
+  },
+  "Use Holy Sheltron": {
+    "message": "使用聖盾陣"
+  },
+  "Use Holy Spirit at the start of combat if outside melee range": {
+    "message": "戰鬥開始時若超出近戰距離則使用聖靈"
+  },
+  "Use Holy Spirit at the start of combat regardless of range": {
+    "message": "不論距離,戰鬥開始時使用聖靈"
+  },
+  "Use Holy Spirit for ranged attacks": {
+    "message": "作為遠程攻擊使用聖靈"
+  },
+  "Use Horoscope": {
+    "message": "使用天宮圖"
+  },
+  "Use Hot Shot / Air Anchor as first tool in opener": {
+    "message": "開場第一個工具技使用熱彈／空氣錨"
+  },
+  "Use Hypercharge ASAP (if any Heat Gauge is available)": {
+    "message": "只要熱能槽有存量就盡快使用超荷"
+  },
+  "Use Hypercharge when Heat Gauge is full (or about to be)": {
+    "message": "熱能槽已滿(或即將滿)時使用超荷"
+  },
+  "Use Hypercharge when optimal": {
+    "message": "在最佳時機使用超荷"
+  },
+  "Use Intervention": {
+    "message": "使用干預"
+  },
+  "Use Jump normally": {
+    "message": "正常使用跳躍"
+  },
+  "Use Kardia": {
+    "message": "使用心關"
+  },
+  "Use Kasha, then (unbuffed) Higanbana": {
+    "message": "使用花車,接著(無增益)彼岸花"
+  },
+  "Use LB1 if available, but not LB2+": {
+    "message": "有LB1可用時使用,但不使用LB2以上"
+  },
+  "Use LB1/2 if available, but not LB3": {
+    "message": "有LB1或LB2可用時使用,但不使用LB3"
+  },
+  "Use LB2 if available, but not LB3": {
+    "message": "有LB2可用時使用,但不使用LB3"
+  },
+  "Use LB2/3 if available": {
+    "message": "有LB2或LB3可用時使用"
+  },
+  "Use LB3 if available": {
+    "message": "有LB3可用時使用"
+  },
+  "Use Lance Charge normally": {
+    "message": "正常使用猛槍"
+  },
+  "Use Lance Charge only when in alignment with other raid buffs or when raid buffs are active": {
+    "message": "只在能與其他團隊增益對齊或團隊增益生效時使用猛槍"
+  },
+  "Use Lance Charge only with Battle Litany; will delay in attempt to align itself with Battle Litany (up to 30s)": {
+    "message": "只與戰鬥連禱一起使用猛槍;會延後(最多30秒)以嘗試對齊戰鬥連禱"
+  },
+  "Use Leylines in opener; otherwise do not use automatically": {
+    "message": "開場時使用黑魔紋;其餘時候不自動使用"
+  },
+  "Use Life Surge normally": {
+    "message": "正常使用龍劍"
+  },
+  "Use Lightning Shot in pre-pull & out of melee range": {
+    "message": "在拉怪前且超出近戰距離時使用雷電彈"
+  },
+  "Use Limit Break as soon as it is available": {
+    "message": "可用時盡快使用極限技"
+  },
+  "Use Limit Break when target's HP is less than 40%": {
+    "message": "目標HP低於40%時使用極限技"
+  },
+  "Use Limit Break when target's HP is less than 50%": {
+    "message": "目標HP低於50%時使用極限技"
+  },
+  "Use Limit Break when target's HP is less than 60%": {
+    "message": "目標HP低於60%時使用極限技"
+  },
+  "Use Limit Break when target's HP is less than 70%": {
+    "message": "目標HP低於70%時使用極限技"
+  },
+  "Use Macrocosmos": {
+    "message": "使用大宇宙"
+  },
+  "Use Microcosmos": {
+    "message": "使用小宇宙"
+  },
+  "Use Mountain Buster when available": {
+    "message": "可用時使用山崩"
+  },
+  "Use Nascent Flash": {
+    "message": "使用原初的勇猛"
+  },
+  "Use Necrotize when available": {
+    "message": "可用時使用壞死爆發"
+  },
+  "Use No Mercy only when burst is ready; will delay if necessary": {
+    "message": "只在爆發就緒時使用無情;必要時延後"
+  },
+  "Use Oblation": {
+    "message": "使用獻奉"
+  },
+  "Use Oblation; Holds 1 charge for manual usage": {
+    "message": "使用獻奉,保留1層供手動使用"
+  },
+  "Use Phantom Dart when available": {
+    "message": "可用時使用幻影彈"
+  },
+  "Use Physis": {
+    "message": "使用自生"
+  },
+  "Use Physis II": {
+    "message": "使用自生II"
+  },
+  "Use Radiant Aegis": {
+    "message": "使用守護之光"
+  },
+  "Use Radiant Aegis when HP is less than 100%": {
+    "message": "HP低於100%時使用守護之光"
+  },
+  "Use Radiant Aegis when HP is less than 50%": {
+    "message": "HP低於50%時使用守護之光"
+  },
+  "Use Radiant Aegis when HP is less than 75%": {
+    "message": "HP低於75%時使用守護之光"
+  },
+  "Use Radiant Aegis when HP is less than 75% and two or more targets are targeting you, or when HP is below 33%": {
+    "message": "HP低於75%且有2個以上目標鎖定你,或HP低於33%時使用守護之光"
+  },
+  "Use Radiant Aegis when HP is not full and four or more targets are targeting you": {
+    "message": "HP未滿且有4個以上目標鎖定你時使用守護之光"
+  },
+  "Use Radiant Aegis when HP is not full and three or more targets are targeting you": {
+    "message": "HP未滿且有3個以上目標鎖定你時使用守護之光"
+  },
+  "Use Radiant Aegis when HP is not full and two or more targets are targeting you": {
+    "message": "HP未滿且有2個以上目標鎖定你時使用守護之光"
+  },
+  "Use Rampage when available and targets are nearby": {
+    "message": "可用且附近有目標時使用暴怒"
+  },
+  "Use Rampart when available": {
+    "message": "可用時使用鐵壁"
+  },
+  "Use Raw Intuition": {
+    "message": "使用原初的直覺"
+  },
+  "Use Reassemble when any tool is available; holds one charge for manual usage": {
+    "message": "有任一工具技可用時使用整備,保留1層供手動使用"
+  },
+  "Use Reassemble when any tool is available; uses both charges": {
+    "message": "有任一工具技可用時使用整備,兩層都用"
+  },
+  "Use Reassemble when optimal": {
+    "message": "在最佳時機使用整備"
+  },
+  "Use Recitation": {
+    "message": "使用秘策"
+  },
+  "Use Rend if outside melee range as a gap-closer": {
+    "message": "超出近戰距離時使用蠻荒崩裂作為位移技"
+  },
+  "Use Reprisal (10s)": {
+    "message": "使用雪仇(10秒)"
+  },
+  "Use Reprisal (15s)": {
+    "message": "使用雪仇(15秒)"
+  },
+  "Use Requiescat / Imperator normally": {
+    "message": "正常使用安魂祈禱／絕對統治"
+  },
+  "Use Requiescat / Imperator only with Fight or Flight; will delay in attempt to align itself with Fight or Flight": {
+    "message": "只與戰逃反應一起使用安魂祈禱／絕對統治;會延後以嘗試對齊戰逃反應"
+  },
+  "Use Requiescat / Imperator only with raid buffs; will delay in attempt to align itself with raid buffs": {
+    "message": "只在團隊增益期間使用安魂祈禱／絕對統治;會延後以嘗試對齊團隊增益"
+  },
+  "Use Ruin IV as late as possible": {
+    "message": "盡量延後使用毀絕"
+  },
+  "Use Ruin IV as soon as it is available": {
+    "message": "可用時盡快使用毀絕"
+  },
+  "Use Ruin if single target is forced": {
+    "message": "強制單體時使用毀滅"
+  },
+  "Use Rust when available": {
+    "message": "可用時使用武裝削弱"
+  },
+  "Use Sacred Soil": {
+    "message": "使用野戰治療陣"
+  },
+  "Use Scattergun when available": {
+    "message": "可用時使用霰彈槍"
+  },
+  "Use Sentinel": {
+    "message": "使用預警"
+  },
+  "Use Shadow Wall": {
+    "message": "使用暗影牆"
+  },
+  "Use Shadowed Vigil": {
+    "message": "使用暗影衛"
+  },
+  "Use Sheltron": {
+    "message": "使用盾陣"
+  },
+  "Use Shield Lob at the start of combat if outside melee range": {
+    "message": "戰鬥開始時若超出近戰距離則使用投盾"
+  },
+  "Use Shield Lob at the start of combat regardless of range": {
+    "message": "不論距離,戰鬥開始時使用投盾"
+  },
+  "Use Shield Lob for ranged attacks": {
+    "message": "作為遠程攻擊使用投盾"
+  },
+  "Use Shield Samba  (120s CD), unless equivalent ranged buff is already active": {
+    "message": "使用防守之桑巴(冷卻120秒),除非同等的遠程增益已生效"
+  },
+  "Use Shield Samba  (90s CD), regardless if equivalent ranged buff is already active": {
+    "message": "使用防守之桑巴(冷卻90秒),不論同等的遠程增益是否已生效"
+  },
+  "Use Shield Samba  (90s CD), unless equivalent ranged buff is already active": {
+    "message": "使用防守之桑巴(冷卻90秒),除非同等的遠程增益已生效"
+  },
+  "Use Shield Samba (120s CD), regardless if equivalent ranged buff is already active": {
+    "message": "使用防守之桑巴(冷卻120秒),不論同等的遠程增益是否已生效"
+  },
+  "Use Slipstream when available": {
+    "message": "可用時使用螺旋氣流"
+  },
+  "Use Soteria": {
+    "message": "使用拯救"
+  },
+  "Use Stardiver normally": {
+    "message": "正常使用墜星衝"
+  },
+  "Use Starfall, regardless of HP": {
+    "message": "不論HP,使用渡落星"
+  },
+  "Use Stellar Detonation": {
+    "message": "使用星體爆轟"
+  },
+  "Use Succor": {
+    "message": "使用士氣高揚之策"
+  },
+  "Use Swiftcast (10s)": {
+    "message": "使用即刻詠唱(10秒)"
+  },
+  "Use Swiftcast (15s)": {
+    "message": "使用即刻詠唱(15秒)"
+  },
+  "Use Swiftcast to maintain swift rotation by instant-casting Blizzard III after Fire Phase (e.g. Despair->Transpose->Swiftcast->B3 etc.)": {
+    "message": "用即刻詠唱在冰結期後即發施放冰結三階以維持快速循環(例如絕望→星靈移位→即刻詠唱→冰結三階等)"
+  },
+  "Use Tactician (120s CD), regardless if equivalent ranged buff is already active": {
+    "message": "使用策動(冷卻120秒),不論同等的遠程增益是否已生效"
+  },
+  "Use Tactician (120s CD), unless equivalent ranged buff is already active": {
+    "message": "使用策動(冷卻120秒),除非同等的遠程增益已生效"
+  },
+  "Use Tactician (90s CD), regardless if equivalent ranged buff is already active": {
+    "message": "使用策動(冷卻90秒),不論同等的遠程增益是否已生效"
+  },
+  "Use Tactician (90s CD), unless equivalent ranged buff is already active": {
+    "message": "使用策動(冷卻90秒),除非同等的遠程增益已生效"
+  },
+  "Use Tempera Coat + Tempera Grassa ASAP, regardless of casting & weaving": {
+    "message": "不論詠唱與插招條件,盡快使用坦培拉塗層＋油性坦培拉塗層"
+  },
+  "Use Tempera Coat + Tempera Grassa when weaving or not casting": {
+    "message": "在插招時機或未詠唱時使用坦培拉塗層＋油性坦培拉塗層"
+  },
+  "Use Tempera Coat only; ignores Tempera Grassa (if available)": {
+    "message": "只使用坦培拉塗層;忽略油性坦培拉塗層(即使可用)"
+  },
+  "Use Tengentsu": {
+    "message": "使用天眼通"
+  },
+  "Use The Blackest Night": {
+    "message": "使用至黑之夜"
+  },
+  "Use Third Eye": {
+    "message": "使用心眼"
+  },
+  "Use Third Eye 4s before predicted damage": {
+    "message": "在預測傷害前4秒使用心眼"
+  },
+  "Use Third Eye ~3s before predicted damage": {
+    "message": "在預測傷害前約3秒使用心眼"
+  },
+  "Use Tools as soon as it is available": {
+    "message": "可用時盡快使用工具技"
+  },
+  "Use Tools when buffed by Analysis or about to overcap on charges": {
+    "message": "受分析增益或充能即將溢出時使用工具技"
+  },
+  "Use Troubadour (120s CD), regardless if equivalent ranged buff is already active": {
+    "message": "使用行吟(冷卻120秒),不論同等的遠程增益是否已生效"
+  },
+  "Use Troubadour (120s CD), unless equivalent ranged buff is already active": {
+    "message": "使用行吟(冷卻120秒),除非同等的遠程增益已生效"
+  },
+  "Use Troubadour (90s CD), regardless if equivalent ranged buff is already active": {
+    "message": "使用行吟(冷卻90秒),不論同等的遠程增益是否已生效"
+  },
+  "Use Troubadour (90s CD), unless equivalent ranged buff is already active": {
+    "message": "使用行吟(冷卻90秒),除非同等的遠程增益已生效"
+  },
+  "Use True North as soon as possible when out of positional": {
+    "message": "位置不對時盡快使用真北"
+  },
+  "Use True North for flank positional only": {
+    "message": "只在側面定位需求時使用真北"
+  },
+  "Use True North for rear positional only": {
+    "message": "只在背面定位需求時使用真北"
+  },
+  "Use Unmend only in pre-pull & out of max-melee range": {
+    "message": "只在拉怪前且超出近戰最大距離時使用傷殘"
+  },
+  "Use Unmend only in pre-pull regardless of range": {
+    "message": "只在拉怪前使用傷殘,不論距離"
+  },
+  "Use Vengeance": {
+    "message": "使用復仇"
+  },
+  "Use Wildfire when available": {
+    "message": "可用時使用野火"
+  },
+  "Use Wildfire when optimal": {
+    "message": "在最佳時機使用野火"
+  },
+  "Use Xenoglossy as Polyglot spender, regardless of targets nearby; holds 1 Polyglot for manual usage": {
+    "message": "不論附近目標數,以異言作為通言消耗手段,保留1個供手動使用"
+  },
+  "Use Xenoglossy as Polyglot spender, regardless of targets nearby; holds 2 Polyglots for manual usage": {
+    "message": "不論附近目標數,以異言作為通言消耗手段,保留2個供手動使用"
+  },
+  "Use Xenoglossy as Polyglot spender, regardless of targets nearby; spends all Polyglots": {
+    "message": "不論附近目標數,以異言作為通言消耗手段,用盡所有通言"
+  },
+  "Use Xenoglossy as Polyglot spender; Holds all Polyglots for as long as possible": {
+    "message": "以異言作為通言消耗手段,盡量保留所有通言不用"
+  },
+  "Use Zoe": {
+    "message": "使用活化"
+  },
+  "Use after Opo GCD": {
+    "message": "在攻幽GCD後使用"
+  },
+  "Use all charges ASAP": {
+    "message": "盡快用盡所有充能"
+  },
+  "Use all charges except one ASAP": {
+    "message": "盡快用盡除1層外的所有充能"
+  },
+  "Use any LB if available": {
+    "message": "有任一極限技可用時使用"
+  },
+  "Use any charges available to maintain swift rotation by instant-casting Blizzard III after Fire Phase (e.g. Despair->Transpose->Triplecast->B3 etc.)": {
+    "message": "用任何可用充能在冰結期後即發施放冰結三階以維持快速循環(例如絕望→星靈移位→三連詠唱→冰結三階等)"
+  },
+  "Use aoe actions if profitable, select a target that ensures maximal number of targets are hit": {
+    "message": "划算時使用範圍技能,選擇能命中最多目標的目標"
+  },
+  "Use aoe actions if profitable, select best target that ensures primary target is hit": {
+    "message": "划算時使用範圍技能,選擇能確保命中主要目標的目標"
+  },
+  "Use aoe actions on primary target if profitable": {
+    "message": "划算時對主要目標使用範圍技能"
+  },
+  "Use aoe rotation": {
+    "message": "使用範圍循環"
+  },
+  "Use aoe rotation if 3+ targets would be hit, otherwise use single-target rotation; break combo if necessary": {
+    "message": "能命中3個以上目標時使用範圍循環,否則使用單體循環;必要時中斷連段"
+  },
+  "Use aoe rotation if 3+ targets would be hit, otherwise use single-target rotation; finish combo route before switching": {
+    "message": "能命中3個以上目標時使用範圍循環,否則使用單體循環;切換前先完成連段路線"
+  },
+  "Use aoe rotation on primary target even if it's less total damage than single-target": {
+    "message": "即使總傷害低於單體循環,仍對主要目標使用範圍循環"
+  },
+  "Use as gap closer if outside melee range": {
+    "message": "超出近戰距離時作為位移技使用"
+  },
+  "Use as gap closer if outside melee range; Hold one charge for manual usage": {
+    "message": "超出近戰距離時作為位移技使用,保留1層供手動使用"
+  },
+  "Use as gapcloser if outside melee range": {
+    "message": "超出近戰距離時作為位移技使用"
+  },
+  "Use as gapcloser if outside melee range; conserves 1 charge for manual usage": {
+    "message": "超出近戰距離時作為位移技使用,保留1層供手動使用"
+  },
+  "Use as gapcloser if outside melee range; holds 1 charge for manual usage": {
+    "message": "超出近戰距離時作為位移技使用,保留1層供手動使用"
+  },
+  "Use as gapcloser if outside melee range; holds 2 charges for manual usage": {
+    "message": "超出近戰距離時作為位移技使用,保留2層供手動使用"
+  },
+  "Use as gapcloser if outside melee range; uses all charges if needed": {
+    "message": "超出近戰距離時作為位移技使用,必要時用盡所有層數"
+  },
+  "Use as soon as possible (delay in opener until after Full Metal Field)": {
+    "message": "盡快使用(開場時延後至全金屬爆發之後)"
+  },
+  "Use as very first GCD and only if outside melee range": {
+    "message": "作為第一個GCD使用,且只在超出近戰距離時"
+  },
+  "Use as very first GCD regardless of range": {
+    "message": "不論距離,作為第一個GCD使用"
+  },
+  "Use at 80+ if buffs are about to run off, use at 100 asap unless raid buffs are imminent": {
+    "message": "增益即將結束時在80以上使用,否則除非團隊增益將至,盡快在100時使用"
+  },
+  "Use at half HP or lower": {
+    "message": "HP減半或更低時使用"
+  },
+  "Use automatically when HP is below 80% or two or more enemies are targeting you": {
+    "message": "HP低於80%或有2個以上敵人鎖定你時自動使用"
+  },
+  "Use automatically when No Mercy buff is not active": {
+    "message": "無情增益未生效時自動使用"
+  },
+  "Use best Holy action under Divine Might ASAP": {
+    "message": "在神聖使命狀態下盡快使用最佳神聖技能"
+  },
+  "Use best Holy action under Divine Might after Atonement combo (or if nothing else left)": {
+    "message": "在贖罪劍連段後(或沒有其他選擇時)於神聖使命狀態下使用最佳神聖技能"
+  },
+  "Use both ASAP": {
+    "message": "兩者都盡快使用"
+  },
+  "Use dives according to standard rotation": {
+    "message": "依標準循環使用跳躍技"
+  },
+  "Use during Divine Might only; ASAP in burst, otherwise when out of melee range, or if next GCD will overwrite DM": {
+    "message": "只在神聖使命狀態下使用;爆發期間盡快使用,其餘時候於超出近戰距離或下個GCD會覆蓋神聖使命時使用"
+  },
+  "Use during burst window": {
+    "message": "在爆發期間使用"
+  },
+  "Use during raid buffs": {
+    "message": "在團隊增益期間使用"
+  },
+  "Use even if enemy is in melee range": {
+    "message": "即使敵人在近戰距離內也使用"
+  },
+  "Use every minute or so": {
+    "message": "大約每分鐘使用一次"
+  },
+  "Use first GCD as early as possible, so that it hits boss exactly at countdown end": {
+    "message": "盡量提早使用第一個GCD,使其恰好在倒數結束時命中頭目"
+  },
+  "Use first available damage action that isn't Starfall": {
+    "message": "使用第一個非渡落星的可用傷害技能"
+  },
+  "Use first available damage action; allow Starfall if HP is high enough": {
+    "message": "使用第一個可用傷害技能;HP夠高時允許使用渡落星"
+  },
+  "Use for instant fire/ice swaps, otherwise hold": {
+    "message": "用於即發火冰切換,其餘時候保留"
+  },
+  "Use generic buff lost actions together (right before) inner release": {
+    "message": "在原初的解放前一併使用通用增益類遺失技"
+  },
+  "Use if Enhanced Enpi is active": {
+    "message": "強化燕飛生效時使用"
+  },
+  "Use if buff is about to expire": {
+    "message": "增益即將到期時使用"
+  },
+  "Use if it would hit all priority targets": {
+    "message": "能命中所有優先目標時使用"
+  },
+  "Use if it would hit any priority target": {
+    "message": "能命中任一優先目標時使用"
+  },
+  "Use if outside melee range": {
+    "message": "超出近戰距離時使用"
+  },
+  "Use normal Diagnosis": {
+    "message": "使用一般診斷"
+  },
+  "Use normal Prognosis": {
+    "message": "使用一般預後"
+  },
+  "Use normally": {
+    "message": "正常使用"
+  },
+  "Use normally (ASAP, assuming ST is up)": {
+    "message": "正常使用(盡快,假設單體增益已生效)"
+  },
+  "Use normally (whenever ST is up)": {
+    "message": "正常使用(只要單體增益已生效)"
+  },
+  "Use normally: rend only when already in melee range, delay until raidbuffs if possible": {
+    "message": "正常使用:蠻荒崩裂只在已於近戰距離內時使用,可能的話延後至團隊增益期間"
+  },
+  "Use now, even if in melee range or if DM is not active": {
+    "message": "現在就使用,即使在近戰距離內或神聖使命未生效"
+  },
+  "Use on best target at 3 Blood Lilies": {
+    "message": "血百合達3朵時對最佳目標使用"
+  },
+  "Use on cooldown (for shield)": {
+    "message": "冷卻好就使用(用於護盾)"
+  },
+  "Use on cooldown under buffs, or if Lance Charge is on cooldown": {
+    "message": "在增益期間冷卻好就使用,或猛槍正在冷卻時使用"
+  },
+  "Use on cooldown, once Power Surge is active": {
+    "message": "武力湧現生效後冷卻好就使用"
+  },
+  "Use only for standard refresh, not as a utility instant cast": {
+    "message": "只用於標準重新施放,不作為輔助性即發詠唱使用"
+  },
+  "Use only when in Melee range of target and when No Mercy buff is not active": {
+    "message": "只在目標近戰距離內且無情增益未生效時使用"
+  },
+  "Use only when under No Mercy buff regardless target HP%": {
+    "message": "只在無情增益生效時使用,不論目標HP百分比"
+  },
+  "Use out of combat, during countdown, or if no enemies are targetable": {
+    "message": "戰鬥外、倒數期間,或沒有可鎖定敵人時使用"
+  },
+  "Use out of melee range": {
+    "message": "超出近戰距離時使用"
+  },
+  "Use out of melee range if Enhanced Harpe is active": {
+    "message": "強化勾刃生效時於超出近戰距離時使用"
+  },
+  "Use out of melee range, or if about to expire": {
+    "message": "超出近戰距離時使用,或即將到期時使用"
+  },
+  "Use player's current target for all actions": {
+    "message": "所有技能都使用玩家目前的目標"
+  },
+  "Use potion immediately without restriction": {
+    "message": "不受限制,立即使用藥水"
+  },
+  "Use potion manually": {
+    "message": "手動使用藥水"
+  },
+  "Use potion when party raid buffs are imminent or active": {
+    "message": "隊伍團隊增益即將或已經生效時使用藥水"
+  },
+  "Use potion when personal buffs are imminent or active": {
+    "message": "個人增益即將或已經生效時使用藥水"
+  },
+  "Use right before burst": {
+    "message": "在爆發前使用"
+  },
+  "Use single-target actions": {
+    "message": "使用單體技能"
+  },
+  "Use single-target rotation": {
+    "message": "使用單體循環"
+  },
+  "Use stance if not already active": {
+    "message": "尚未生效時使用姿態"
+  },
+  "Use standard pathfinding to find best position": {
+    "message": "用標準尋路尋找最佳位置"
+  },
+  "Use standard pathfinding to move": {
+    "message": "用標準尋路移動"
+  },
+  "Use to refresh Darkside, or during raid buffs": {
+    "message": "用於重新施加闇影期,或在團隊增益期間使用"
+  },
+  "Use to refresh Darkside, or during raid buffs - save MP for TBN": {
+    "message": "用於重新施加闇影期,或在團隊增益期間使用——為至黑之夜保留魔力"
+  },
+  "Use when 1+ stacks of Relentless Shrapnel is available on target": {
+    "message": "目標身上連續劍傷達1層以上時使用"
+  },
+  "Use when 2+ stacks of Relentless Shrapnel are available on target": {
+    "message": "目標身上連續劍傷達2層以上時使用"
+  },
+  "Use when 3+ stacks of Relentless Shrapnel are available on target": {
+    "message": "目標身上連續劍傷達3層以上時使用"
+  },
+  "Use when 4+ stacks of Relentless Shrapnel are available on target": {
+    "message": "目標身上連續劍傷達4層以上時使用"
+  },
+  "Use when 5 stacks of Relentless Shrapnel are available on target": {
+    "message": "目標身上連續劍傷達5層時使用"
+  },
+  "Use when HP is at or below 30%": {
+    "message": "HP在30%或以下時使用"
+  },
+  "Use when HP is at or below 40%": {
+    "message": "HP在40%或以下時使用"
+  },
+  "Use when HP is at or below 50%": {
+    "message": "HP在50%或以下時使用"
+  },
+  "Use when HP is at or below 60%": {
+    "message": "HP在60%或以下時使用"
+  },
+  "Use when HP is at or below 70%": {
+    "message": "HP在70%或以下時使用"
+  },
+  "Use when HP is at or below 80%": {
+    "message": "HP在80%或以下時使用"
+  },
+  "Use when HP is not full and four or more enemies are targeting you": {
+    "message": "HP未滿且有4個以上敵人鎖定你時使用"
+  },
+  "Use when HP is not full and three or more enemies are targeting you": {
+    "message": "HP未滿且有3個以上敵人鎖定你時使用"
+  },
+  "Use when HP is not full and two or more enemies are targeting you": {
+    "message": "HP未滿且有2個以上敵人鎖定你時使用"
+  },
+  "Use when Ifrit is summoned": {
+    "message": "召喚伊弗利特時使用"
+  },
+  "Use when optimal": {
+    "message": "在最佳時機使用"
+  },
+  "Use when optimal; attempts to keep it aligned with burst windows": {
+    "message": "在最佳時機使用;嘗試與爆發期間對齊"
+  },
+  "Use when out of combat to restore charges": {
+    "message": "戰鬥外使用以恢復充能"
+  },
+  "Use when out of melee range": {
+    "message": "超出近戰距離時使用"
+  },
+  "Use when out of melee range, if out of Coil stacks": {
+    "message": "超出近戰距離且沒有蟠尾層數時使用"
+  },
+  "Use when out of melee range, or if about to expire": {
+    "message": "超出近戰距離時使用,或即將到期時使用"
+  },
+  "Use when out of range": {
+    "message": "超出距離時使用"
+  },
+  "Use when target is less than 50% HP regardless of No Mercy buff": {
+    "message": "目標HP低於50%時使用,不論無情增益"
+  },
+  "Use when under No Mercy buff and target is less than 50% HP": {
+    "message": "無情增益生效且目標HP低於50%時使用"
+  },
+  "Use when under No Mercy buff or target is less than 50% HP": {
+    "message": "無情增益生效或目標HP低於50%時使用"
+  },
+  "Use ~4 GCDs before raid buff window": {
+    "message": "在團隊增益期間前約4個GCD使用"
+  },
+  "Uses 1 stack of Aetherflow for Energy Drain; conserves 2 stacks for manual usage, but consumes any remaining when Aetherflow ability is about to be up": {
+    "message": "用1層乙太超流施放吸取能量;保留2層供手動使用,但乙太超流即將重置時會消耗剩餘層數"
+  },
+  "Uses 2 stacks of Aetherflow for Energy Drain; conserves 1 stack for manual usage, but consumes any remaining when Aetherflow ability is about to be up": {
+    "message": "用2層乙太超流施放吸取能量;保留1層供手動使用,但乙太超流即將重置時會消耗剩餘層數"
+  },
+  "Uses Bloodspiller optimally as Blood spender only, regardless of targets nearby": {
+    "message": "不論附近目標數,以血濺作為血氣消耗手段並以最佳方式使用"
+  },
+  "Uses Burst Strike optimally as cartridge spender only, regardless of targets": {
+    "message": "不論目標數,以爆發擊作為彈匣消耗手段並以最佳方式使用"
+  },
+  "Uses Fated Circle optimally as cartridge spender only, regardless of targets": {
+    "message": "不論目標數,以命運之環作為彈匣消耗手段並以最佳方式使用"
+  },
+  "Uses Holy Spirit when standing still; Uses Shield Lob if moving": {
+    "message": "靜止時使用聖靈;移動中使用投盾"
+  },
+  "Uses Quietus optimally as Blood spender only, regardless of targets nearby": {
+    "message": "不論附近目標數,以寂滅作為血氣消耗手段並以最佳方式使用"
+  },
+  "Uses Sonic Break as the very first GCD when in No Mercy": {
+    "message": "無情狀態下作為第一個GCD使用音速破"
+  },
+  "Uses Sonic Break as the very last GCD when in No Mercy": {
+    "message": "無情狀態下作為最後一個GCD使用音速破"
+  },
+  "Uses all stacks of Aetherflow for Energy Drain; conserves no stacks for manual usage": {
+    "message": "用盡所有乙太超流層數施放吸取能量;不保留供手動使用"
+  },
+  "if 'Force AOE Rotation' is selected, it will not prevent overcapping cartridges": {
+    "message": "若選取「強制範圍循環」,不會避免彈匣溢出"
+  },
+  "if 'Force AOE Rotation' is selected, it will prevent overcapping cartridges with Fated Circle (if available)": {
+    "message": "若選取「強制範圍循環」,會用命運之環避免彈匣溢出(如果可用)"
+  },
+  "if 'Force Single-Target Rotation' is selected, it will not prevent overcapping cartridges": {
+    "message": "若選取「強制單體循環」,不會避免彈匣溢出"
+  },
+  "if 'Force Single-Target Rotation' is selected, it will prevent overcapping cartridges with Burst Strike (if available)": {
+    "message": "若選取「強制單體循環」,會用爆發擊避免彈匣溢出(如果可用)"
+  },
+  "role": {
+    "message": "職務"
   }
 }
