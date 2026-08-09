@@ -28,6 +28,67 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
     private static readonly Random random = new();
     private bool cancel; // used to cancel autorotation AI preset during async
 
+    #region 深牢專用 preset 的執行期覆蓋
+
+    private static readonly Global.DeepDungeon.AutoDDConfig _ddConfig = Service.Config.Get<Global.DeepDungeon.AutoDDConfig>();
+
+    private Preset? _ddPreset;
+    private string? _ddPresetResolvedFor;
+    private bool _ddPresetMissingLogged;
+
+    /// <summary>
+    /// 深牢裡要改用的 preset；null＝沒設定，或設定的名字在 preset 庫裡找不到（照常用原本的）。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 這是<b>執行期覆蓋</b>，刻意不去寫 <c>AIConfig.AIAutorotPresetName</c>：
+    /// 寫設定會製造設定檔 churn，而且遊戲或外掛在深牢裡崩潰時會把使用者永久卡在切換後的狀態。
+    /// 覆蓋只活在記憶體裡，離開深牢或重載外掛就自然消失。
+    /// <para>
+    /// ⚠️ <b>必須快取</b>：<c>PresetDatabase.VisiblePresets</c> 是屬性，每次存取都會
+    /// <c>[.. DefaultPresets, .. UserPresets]</c> 配一個新的 List，而這裡是每幀都會走到的路徑。
+    /// </para>
+    /// <para>
+    /// ⚠️ 快取只在<b>名字改變</b>時失效。preset 物件是不可變的（資料庫註解明講
+    /// "presets in the database are immutable"，編輯會產生新物件），所以「改了 preset 內容但沒改名」
+    /// 時這裡仍會拿著舊物件，直到名字變動或重新載入。為了不在每幀配置記憶體，這個取捨是刻意的。
+    /// </para>
+    /// </remarks>
+    private Preset? ResolveDeepDungeonPreset()
+    {
+        var name = _ddConfig.DeepDungeonPreset;
+        if (string.IsNullOrEmpty(name))
+            return null;
+
+        if (_ddPresetResolvedFor == name)
+            return _ddPreset;
+
+        _ddPresetResolvedFor = name;
+        _ddPreset = null;
+
+        var presets = autorot.Database.Presets.VisiblePresets;
+        var count = presets.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            if (presets[i].Name == name)
+            {
+                _ddPreset = presets[i];
+                _ddPresetMissingLogged = false;
+                Service.Logger.Information($"[DD] 深牢期間改用循環預設「{name}」。");
+                return _ddPreset;
+            }
+        }
+
+        // 找不到＝設定裡的名字被改名或刪掉了。不是錯誤，維持原本的 preset。
+        if (!_ddPresetMissingLogged)
+        {
+            _ddPresetMissingLogged = true;
+            Service.Logger.Information($"[DD] 設定指定的深牢循環預設「{name}」不存在，維持原本的預設、不切換。");
+        }
+        return null;
+    }
+
+    #endregion
+
     public void Dispose()
     {
         cancel = true;
@@ -101,9 +162,13 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
                     // 🔑 只掛預設，不影響走位/閃避/選目標——那些在這個判斷之外。
                     //    深牢判定用 DeepDungeon.DungeonId：它直接來自遊戲的深牢 instance content director
                     //    （不在深牢時是 None），不需要另外維護一份 territory 清單。
-                    var autorotAllowed = !_config.AutorotOnlyInDeepDungeon
-                        || autorot.WorldState.DeepDungeon.DungeonId != DeepDungeonState.DungeonType.None;
-                    autorot.Preset = target.Target != null && autorotAllowed ? AIPreset : null;
+                    var inDeepDungeon = autorot.WorldState.DeepDungeon.DungeonId != DeepDungeonState.DungeonType.None;
+                    var autorotAllowed = !_config.AutorotOnlyInDeepDungeon || inDeepDungeon;
+                    // 深牢裡改用指定的 preset；沒設定或找不到就退回原本的（不是錯誤）。
+                    // 📌 與「只在深牢出招」的互動：深牢外 autorotAllowed 為 false ⇒ Preset 直接是 null，
+                    //    這裡選了哪個 preset 都不影響，兩個開關同時開啟時語意是一致的。
+                    var preset = inDeepDungeon ? ResolveDeepDungeonPreset() ?? AIPreset : AIPreset;
+                    autorot.Preset = target.Target != null && autorotAllowed ? preset : null;
                 }
                 UpdateMovement(player, master, target, gazeImminent || pyreticImminent, misdirectionMode ? autorot.Hints.MisdirectionThreshold : default, !forbidTargeting ? autorot.Hints.ActionsToExecute : null);
             }

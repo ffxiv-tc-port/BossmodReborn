@@ -1,4 +1,5 @@
 ﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility.Raii;
 
 namespace BossMod.Global.DeepDungeon;
 
@@ -184,6 +185,69 @@ public sealed class AutoDDConfig : ConfigNode
     [PropertyDisplay("Pause WrathCombo's auto-rotation while in a deep dungeon",
         tooltip: "Uses WrathCombo's own lease mechanism to ask it to stop auto-rotating while you are inside a deep dungeon, so it does not fight BMR's rotation, and hands control back when you leave.\n\nReleasing the lease makes WrathCombo restore your settings itself, so nothing is left changed if the game or a plugin crashes.\n\nDoes nothing if WrathCombo is not installed.")]
     public bool SuspendWrathCombo = false;
+
+    /// <summary>
+    /// 深牢裡改用的自動循環 preset 名稱；<b>空字串＝不切換</b>（預設）。
+    /// </summary>
+    /// <remarks>
+    /// 📌 刻意<b>沒有</b> <c>[PropertyDisplay]</c>：設定頁的通用繪製對 string 只會給一個文字輸入框，
+    /// 而要使用者手打 preset 名字必然會打錯，打錯的表現又是「靜默不切換」。
+    /// 改由 <see cref="DrawCustom"/> 畫成從 preset 資料庫枚舉出來的下拉選單。
+    /// ⚠️ 少了 <c>PropertyDisplay</c> 不影響存檔：序列化的條件只有「非 static 且沒有 JsonIgnore」。
+    /// </remarks>
+    public string DeepDungeonPreset = "";
+
+    /// <summary>
+    /// 深牢專用 preset 的下拉選單。
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ preset 清單只有執行期才拿得到，而且只能透過 <c>AIManager.Instance</c>
+    /// （與 <see cref="DrawHeader"/> 讀 AI 狀態是同一個已被接受的分層破壞）。
+    /// AI 尚未建立時清單是空的 —— 這時<b>絕對不能</b>把設定值清成空字串，
+    /// 否則使用者只是打開設定頁看一眼就把設定弄丟了。
+    /// </remarks>
+    public override void DrawCustom(UITree tree, WorldState ws)
+    {
+        var presets = AI.AIManager.Instance?.Autorot.Database.Presets.VisiblePresets;
+        var current = DeepDungeonPreset;
+        var label = string.IsNullOrEmpty(current) ? Loc.T("DD_PresetNone", "(do not switch)") : current;
+
+        ImGui.SetNextItemWidth(Math.Min(ImGui.GetWindowWidth() * 0.4f, 260f));
+        using (var combo = ImRaii.Combo(Loc.T("DD_PresetSwitch", "Autorotation preset to use inside deep dungeons"), label))
+        {
+            if (combo)
+            {
+                if (ImGui.Selectable(Loc.T("DD_PresetNone", "(do not switch)"), string.IsNullOrEmpty(current)))
+                {
+                    DeepDungeonPreset = "";
+                    Modified.Fire();
+                }
+
+                if (presets != null)
+                {
+                    var count = presets.Count;
+                    for (var i = 0; i < count; ++i)
+                    {
+                        var name = presets[i].Name;
+                        if (ImGui.Selectable(name, name == current))
+                        {
+                            DeepDungeonPreset = name;
+                            Modified.Fire();
+                        }
+                    }
+                }
+            }
+        }
+
+        // 設定裡有名字、但清單裡找不到（改名或刪除）—— 要看得見，不然表現只是「沒有切換」
+        if (!string.IsNullOrEmpty(current) && presets != null && !presets.Any(p => p.Name == current))
+            ImGui.TextColored(PrereqBadColor, string.Format(
+                Loc.T("DD_PresetMissing", "Preset \"{0}\" no longer exists - nothing will be switched. Pick another one."), current));
+        else if (presets == null)
+            ImGui.TextColored(PrereqNoteColor, Loc.T("DD_PresetListUnavailable", "The preset list is only available once the AI has been initialised; the stored setting is kept as-is."));
+
+        ImGui.TextColored(PrereqNoteColor, Loc.T("DD_PresetHint", "Switching happens in memory only - your saved AI preset setting is never rewritten, so a crash cannot leave you stuck on the deep dungeon preset."));
+    }
 
     [PropertyDisplay("Reveal all rooms before proceeding to next floor")]
     public bool FullClear = false;

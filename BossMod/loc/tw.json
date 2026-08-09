@@ -3616,5 +3616,20 @@
   },
   "Uses WrathCombo's own lease mechanism to ask it to stop auto-rotating while you are inside a deep dungeon, so it does not fight BMR's rotation, and hands control back when you leave.\n\nReleasing the lease makes WrathCombo restore your settings itself, so nothing is left changed if the game or a plugin crashes.\n\nDoes nothing if WrathCombo is not installed.": {
     "message": "透過 WrathCombo 官方的租約機制，請它在你身處深層迷宮期間停止自動循環，避免與 BMR 的循環互相打架，離開時再把控制權交還。\n\n釋放租約時由 WrathCombo 自己還原設定，所以即使遊戲或外掛中途崩潰，也不會留下被改動的設定。\n\n未安裝 WrathCombo 時本選項不會有任何作用。"
+  },
+  "DD_PresetSwitch": {
+    "message": "深層迷宮內使用的循環預設"
+  },
+  "DD_PresetNone": {
+    "message": "（不切換）"
+  },
+  "DD_PresetMissing": {
+    "message": "循環預設「{0}」已不存在，不會進行任何切換。請重新選擇一個。"
+  },
+  "DD_PresetListUnavailable": {
+    "message": "預設清單要等 AI 初始化之後才拿得到；目前保留已儲存的設定值不動。"
+  },
+  "DD_PresetHint": {
+    "message": "切換只在記憶體中進行，不會改寫你已儲存的 AI 循環預設設定，所以即使中途崩潰也不會被卡在深層迷宮的預設上。"
   }
 }
