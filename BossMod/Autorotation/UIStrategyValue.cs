@@ -63,7 +63,7 @@ public static class UIStrategyValue
     public static bool DrawEditorTrackOption(StrategyValueTrack value, StrategyConfigTrack cfg, int? level, string label = "Option")
     {
         var modified = false;
-        using (var combo = ImRaii.Combo(label, cfg.Options[value.Option].UIName))
+        using (var combo = ImRaii.Combo(Loc.T(label), cfg.Options[value.Option].UIName))
         {
             if (combo)
             {
@@ -94,7 +94,7 @@ public static class UIStrategyValue
             value.PriorityOverride = overridePriority ? ActionQueue.Priority.Low : float.NaN;
         }
         ImGui.SameLine();
-        UIMisc.HelpMarker("""
+        UIMisc.HelpMarker(Loc.T("STRAT_PriorityHelp", """
             Define custom priority for the corresponding action.
             Priority is compared against other candidate actions; it is suggested to use a predefined base and add a small offset to disambiguate multiple actions.
             Base priorities are the following:
@@ -103,7 +103,7 @@ public static class UIStrategyValue
             * Medium (3000) - action will be used in next possible ogcd slot, but it won't delay gcd or any extremely important ogcds; you can expect to have at least 1 slot for medium actions per gcd.
             * High (4000) - action will be used in the next possible ogcd slot; it won't delay gcd, but might break the rotation in some cases if not used carefully.
             * Very High (5000) - action will be used asap; will delay gcd if needed.
-            """);
+            """));
 
         if (overridePriority)
         {
@@ -119,13 +119,13 @@ public static class UIStrategyValue
 
             using var indent = ImRaii.PushIndent();
             ImGui.SetNextItemWidth(100);
-            using (var combo = ImRaii.Combo("###baseline", PriorityBaselines[baselineIndex].Name))
+            using (var combo = ImRaii.Combo("###baseline", Loc.T(PriorityBaselines[baselineIndex].Name)))
             {
                 if (combo)
                 {
                     for (var i = 0; i < PriorityBaselines.Length; ++i)
                     {
-                        if (ImGui.Selectable(PriorityBaselines[i].Name, i == baselineIndex))
+                        if (ImGui.Selectable(Loc.T(PriorityBaselines[i].Name), i == baselineIndex))
                         {
                             modified = true;
                             value.PriorityOverride = PriorityBaselines[i].Value + priorityDelta;
@@ -169,25 +169,25 @@ public static class UIStrategyValue
         switch (value.Target)
         {
             case StrategyTarget.PartyByAssignment:
-                modified |= DrawEditorTargetParamCombo<PartyRolesConfig.Assignment>(ref value.TargetParam, "Assignment");
+                modified |= DrawEditorTargetParamCombo<PartyRolesConfig.Assignment>(ref value.TargetParam, Loc.T("Assignment"));
                 break;
             case StrategyTarget.PartyWithLowestHP:
                 if (supportedTargets.HasFlag(ActionTargets.Self))
-                    modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.IncludeSelf, "Allow self", false);
-                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeTanks, "Allow tanks", true);
-                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeHealers, "Allow healers", true);
-                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeMelee, "Allow melee", true);
-                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeRanged, "Allow ranged", true);
-                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeNoPredictedDamage, "Only if more damage is expected", false);
+                    modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.IncludeSelf, Loc.T("Allow self"), false);
+                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeTanks, Loc.T("Allow tanks"), true);
+                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeHealers, Loc.T("Allow healers"), true);
+                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeMelee, Loc.T("Allow melee"), true);
+                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeRanged, Loc.T("Allow ranged"), true);
+                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeNoPredictedDamage, Loc.T("Only if more damage is expected"), false);
                 break;
             case StrategyTarget.EnemyWithHighestPriority:
-                modified |= DrawEditorTargetParamCombo<StrategyEnemySelection>(ref value.TargetParam, "Criterion");
+                modified |= DrawEditorTargetParamCombo<StrategyEnemySelection>(ref value.TargetParam, Loc.T("Criterion"));
                 break;
             case StrategyTarget.EnemyByOID:
                 if (moduleInfo?.ObjectIDType != null)
                 {
                     var v = (Enum)Enum.ToObject(moduleInfo.ObjectIDType, (uint)value.TargetParam);
-                    if (UICombo.Enum("OID", ref v))
+                    if (UICombo.Enum(Loc.T("OID"), ref v))
                     {
                         value.TargetParam = (int)(uint)(object)v;
                         modified = true;
@@ -196,7 +196,7 @@ public static class UIStrategyValue
                 break;
             case StrategyTarget.PointWaymark:
                 var wm = (Waymark)value.TargetParam;
-                if (UICombo.Enum("Waymark", ref wm))
+                if (UICombo.Enum(Loc.T("Waymark"), ref wm))
                 {
                     value.TargetParam = (int)wm;
                     modified = true;
@@ -208,15 +208,15 @@ public static class UIStrategyValue
         {
             if (value.Target == StrategyTarget.PointAbsolute)
             {
-                modified |= ImGui.InputFloat("X", ref value.Offset1);
-                modified |= ImGui.InputFloat("Z", ref value.Offset2);
+                modified |= ImGui.InputFloat(Loc.T("X"), ref value.Offset1);
+                modified |= ImGui.InputFloat(Loc.T("Z"), ref value.Offset2);
             }
             else
             {
-                modified |= ImGui.DragFloat("Offset", ref value.Offset1, 0.1f, 0, 30);
-                modified |= ImGui.DragFloat("Direction", ref value.Offset2, 1, -180, 180);
+                modified |= ImGui.DragFloat(Loc.T("Offset"), ref value.Offset1, 0.1f, 0, 30);
+                modified |= ImGui.DragFloat(Loc.T("Direction"), ref value.Offset2, 1, -180, 180);
                 if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip($"In degrees; 0 is south, increases CCW (so 90 is E, 180 is N, -90 is W)");
+                    ImGui.SetTooltip(Loc.T("STRAT_OffsetDirectionHelp", "In degrees; 0 is south, increases CCW (so 90 is E, 180 is N, -90 is W)"));
             }
         }
 

@@ -86,7 +86,7 @@ public sealed class UIPresetEditor
     {
         using (ImRaii.Disabled(_sourcePresetDefault))
         {
-            if (ImGui.InputText("Name", ref Preset.Name, 256))
+            if (ImGui.InputText(Loc.T("Name"), ref Preset.Name, 256))
             {
                 Modified = true;
                 NameConflict = CheckNameConflict();
@@ -171,7 +171,7 @@ public sealed class UIPresetEditor
         if (ImGui.Button(Loc.T("PRESET_Add", "Add") + "##module", width))
             ImGui.OpenPopup("add_module");
 
-        if (UIMisc.Button("Remove##module", width.X, (_selectedModuleIndex < 0, "Select any module to remove"), (!ImGui.GetIO().KeyShift, "Hold shift")))
+        if (UIMisc.Button(Loc.T("PRESET_Remove", "Remove") + "##module", width.X, (_selectedModuleIndex < 0, Loc.T("Select any module to remove")), (!ImGui.GetIO().KeyShift, Loc.T("Hold shift"))))
         {
             var m = Preset.Modules[_selectedModuleIndex];
             AddAvailableModule(m.Type, m.Definition, m.Builder, _availableModules);
@@ -186,7 +186,10 @@ public sealed class UIPresetEditor
     {
         foreach (var sub in cat.Subcategories)
         {
-            if (ImGui.BeginMenu(sub.Key))
+            // 🔴 key 前綴 MODCAT_ 是刻意的:分類樹片段(如 "Ranged"/"Tank")與其他地方的
+            // 軌道/選項顯示鍵共用同一個扁平字串空間,不加命名空間會撞名
+            // (例如 "Ranged" 已被 AkechiPLD 的填充技策略佔用,譯文是「遠程填充技」)。
+            if (ImGui.BeginMenu(Loc.T($"MODCAT_{sub.Key}", sub.Key)))
             {
                 DrawModuleAddPopup(sub.Value, ref actions);
                 ImGui.EndMenu();
