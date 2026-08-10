@@ -1801,6 +1801,15 @@ public abstract class AutoClear : ZoneModule
     private int _faceSwitchStreak;
 
     /// <summary>
+    /// 上面那個連續計數是針對哪一個「遊戲回報房號」累積的。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 房號一變就把計數歸零。換層途中最危險的組合是「上一層的殘留位置 ＋ 新一層的房號」，
+    /// 而那種組合下房號本來就會跳動；要求整段遲滯期間房號不變，就把那條路徑幾乎堵死了。
+    /// </remarks>
+    private int _faceSwitchRoom = -1;
+
+    /// <summary>
     /// 換面需要連續吻合幾次。
     /// </summary>
     /// <remarks>
@@ -1818,6 +1827,7 @@ public abstract class AutoClear : ZoneModule
         _faceA = _faceB = null;
         _activeFace = -1;
         _faceSwitchStreak = 0;
+        _faceSwitchRoom = -1;
         _coordGateLoggedState = null;
         RoomTolerance = RoomCenterToleranceFloor;
         Array.Clear(_centerFitted);
@@ -1890,6 +1900,11 @@ public abstract class AutoClear : ZoneModule
             var otherScore = ScoreFace(other, pos, reportedRoom);
             if (otherScore is { Ok: true })
             {
+                if (_faceSwitchRoom != reportedRoom)
+                {
+                    _faceSwitchRoom = reportedRoom;
+                    _faceSwitchStreak = 0;
+                }
                 if (++_faceSwitchStreak >= FaceSwitchConfirmFrames)
                 {
                     Service.Logger.Information(
