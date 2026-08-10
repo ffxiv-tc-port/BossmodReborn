@@ -377,6 +377,7 @@ public abstract class AutoClear : ZoneModule
         _chestContentsSilver.Clear();
         _trapsHidden = true;
         _hoardFound = false;
+        _pullLoggedFloor = 255;
         _openedChests.Clear();
         _fakeExits.Clear();
         OnChangeFloors();
@@ -1631,7 +1632,93 @@ public abstract class AutoClear : ZoneModule
             }
         }
         hints.ForcedTarget = bestTarget;
+
+        TryPullTarget(player, hints, bestTarget, canNavigate);
     }
+
+    #region 坦克主動拉怪
+
+    /// <summary>
+    /// 走到目標旁邊的距離（碼，量到 hitbox）。
+    /// </summary>
+    /// <remarks>
+    /// 與 <c>AIBehaviour.SelectPrimaryTarget</c> 給近戰／坦克的 <c>PreferredRange</c> 同值，
+    /// 這樣「拉怪走過去」與「打起來之後 AI 自己維持的距離」不會互相拉扯。
+    /// </remarks>
+    private const float PullRange = 2.6f;
+
+    /// <summary>
+    /// 拉怪目標區的權重。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 必須大於 <see cref="HandleFloorPathfind"/> 非戰鬥時的趕路權重（10），否則整件事會靜默沒有效果：
+    /// 兩者都是<b>平台函式</b>而且 <c>GoalZones</c> 是<b>相加</b>的（見 <c>NavigationDecision.RasterizeGoalZones</c>），
+    /// 權重比趕路小的話，怪在身後時趕路那一片永遠比較高，角色就直接走過去不理它。
+    /// 取 12 而不是更大，是為了讓「怪在前進方向上」時兩者相加（22）仍然明顯優於「只有怪」（12），
+    /// 也就是同樣要拉的話優先拉順路的那一隻。
+    /// </remarks>
+    private const float PullWeight = 12f;
+
+    /// <summary>這一層已經記過一次「開始拉怪」診斷；255＝還沒記過。</summary>
+    private byte _pullLoggedFloor = 255;
+
+    /// <summary>
+    /// 坦克主動走過去把選好的目標拉起來。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 🔑 <b>為什麼非得走這條路</b>：被動怪在 <c>AIHintsBuilder.FillEnemies</c> 拿到的優先度是
+    /// <c>PriorityUndesirable</c>（-3），永遠進不了 <c>AIHints.PriorityTargets</c>；
+    /// 於是 <c>AIBehaviour.SelectPrimaryTarget</c> 選不到它，
+    /// <c>BuildNavigationDecision</c> 尾端那條「沒有人給目標區就走向目標」的退路
+    /// （<c>GoalZones.Count == 0 &amp;&amp; targeting.Target != null</c>）也不會觸發——
+    /// 而且本模組每幀都會加趕路目標區，那個 <c>Count == 0</c> 條件在深牢裡本來就永遠不成立。
+    /// 再加上使用者若開了 <c>ForbidActions</c>，AIBehaviour 的整個選目標分支都被跳過。
+    /// ⇒ 主動接近只能由本模組自己加目標區，不能指望 AI 那邊。
+    /// </para>
+    /// <para>
+    /// 🔴 <b>閘門全部是「不成立就什麼都不做」</b>：關掉、不是坦克、已經在戰鬥、變身中、
+    /// 已經拉滿（<c>canNavigate</c>）、血量低於門檻、目標不在尋路視窗內——任一成立就直接退出，
+    /// 退回今天的行為（只設 <c>ForcedTarget</c>、不移動）。沒有任何一條的失敗方向是「亂走」。
+    /// </para>
+    /// <para>
+    /// 📌 <c>SetPriority(target, 0)</c> 是為了讓這隻怪對「有開自動循環」的使用者變成合法目標
+    /// （-3 同時代表「AOE 禁打」）。對 <c>ForbidActions</c> 的使用者它不改變任何事——
+    /// 那條路徑整段被跳過——移動完全來自下面那個目標區。
+    /// </para>
+    /// </remarks>
+    private void TryPullTarget(Actor player, AIHints hints, Actor? target, bool canNavigate)
+    {
+        if (!Config.TankPull || target == null)
+            return;
+
+        // 🔴 血量閘門要連拉怪一起擋：原本 StopTravelBelowHPPercent 只擋趕路，
+        //    而「低血時不要主動去撿下一隻怪」正是那個設定的字面意思。
+        if (!canNavigate || TravelBlockedByHP(player))
+            return;
+
+        if (player.Role != Role.Tank || player.InCombat || IsPlayerTransformed(player))
+            return;
+
+        // 目標不在尋路視窗（預設 ArenaBoundsSquare(30)）裡時，目標區在整張圖上恆為 0 ＝完全沒有效果。
+        // 明著擋掉是為了連帶不要去動那種怪的優先度——構不到的怪不該被推薦給自動循環。
+        if (!hints.PathfindMapBounds.Contains(target.Position - hints.PathfindMapCenter))
+            return;
+
+        hints.SetPriority(target, 0);
+        hints.GoalZones.Add(hints.GoalSingleTarget(target, PullRange, PullWeight));
+
+        // 每層記一行就好：要的是「這個功能今天真的有動」，不是逐隻怪的流水帳。
+        if (_pullLoggedFloor != Palace.Floor)
+        {
+            _pullLoggedFloor = Palace.Floor;
+            Service.Logger.Information(
+                $"[DD] 坦克拉怪：樓層 {Palace.Floor} 首次主動接近目標「{target.Name}」（OID {target.OID:X}），" +
+                $"距離 {player.DistanceToHitbox(target):f1}y、目標區權重 {PullWeight}、接近距離 {PullRange}y。");
+        }
+    }
+
+    #endregion
 
     private void DrawAOEs(int playerSlot, Actor player, AIHints hints)
     {

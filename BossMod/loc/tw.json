@@ -8422,5 +8422,11 @@
   },
   "Silver coffers in Heaven-on-High and Eureka Orthos can contain magicite / demiclones. If you already hold three, the game refuses the coffer and it used to be skipped forever.\n\nWith this on, one of the stones you are holding is used so the coffer can be opened.\n\nWhich one is picked is not arbitrary: on a boss floor Ifrit / Titan / Garuda only deal damage, while Odin defeats the boss outright, so Odin is kept until it is the only thing left. In Eureka Orthos, Unei and Doga are spent first and the Onion Knight is kept the same way.\n\nOnly ever fires for a coffer the game has already told us contains one (via the \"you cannot carry any more\" message).": {
     "message": "天之逆焰與厄運迷宮的銀寶箱可能裝著魔石／亞靈複製體。已經持有三個時遊戲會拒絕開箱，以前這種箱子就此被永久跳過。\n\n打開這個開關，會用掉身上其中一個以騰出位置，箱子隨即回到可開清單。\n\n用掉哪一個不是隨便挑：BOSS 層伊弗利特／泰坦／迦樓羅只造成傷害，奧汀則是直接打倒當前 BOSS，所以奧汀留到只剩它為止；厄運迷宮同理，先用烏內與多加，洋蔥騎士留到最後。\n\n只對遊戲已經用「無法獲得更多的了」訊息講明內容物的箱子動作。"
+  },
+  "Tanks: also walk up to the mob that was picked, to start the pull": {
+    "message": "坦克：選好目標之後也主動走過去開拉"
+  },
+  "\"Automatic mob targeting\" above only picks a target - it never moves you, so passive mobs are targeted and then ignored. With this on, a tank also walks into melee range of that target to actually start the pull.\n\nTanks only, and only while out of combat: it stops as soon as anything has aggro (see the pull limit below), while transformed, and while your HP is under the \"stop travelling below\" threshold. It never overrides trap avoidance or AOE dodging.\n\nOff by default; with it off nothing about targeting changes.": {
+    "message": "上面的「自動怪物目標選取方式」只會選目標、不會移動你，所以沒有主動攻擊的怪被選起來之後就這樣放著。打開這個之後，坦克會再走進那個目標的近戰距離，真的把它拉起來。\n\n僅限坦克，而且只在非戰鬥狀態下動作：只要有任何東西咬住你就停（見下面的拉怪上限）、變身期間停、血量低於「血量低於這個百分比時停止趕路」的門檻時也停。它永遠不會蓋過陷阱迴避與範圍攻擊閃避。\n\n預設關閉；關著的時候目標選取的行為完全不變。"
   }
 }

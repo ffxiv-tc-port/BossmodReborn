@@ -118,6 +118,13 @@ public sealed class AutoDDConfig : ConfigNode
     [PropertyDisplay("Automatic mob targeting behavior")]
     public ClearBehavior AutoClear = ClearBehavior.Leveling;
 
+    // 🔴 預設 false（opt-in）。這是新行為，不是把既有行為拆開：在此之前「自動選怪」真的就只有
+    //    選怪——被動怪的優先度是 -3，AI 的走向目標那條路徑選不到它，所以角色從不主動靠過去。
+    //    打開之後角色會自己走去撿下一隻，這對非坦克是送死，所以還額外硬性限定坦克。
+    [PropertyDisplay("Tanks: also walk up to the mob that was picked, to start the pull",
+        tooltip: "\"Automatic mob targeting\" above only picks a target - it never moves you, so passive mobs are targeted and then ignored. With this on, a tank also walks into melee range of that target to actually start the pull.\n\nTanks only, and only while out of combat: it stops as soon as anything has aggro (see the pull limit below), while transformed, and while your HP is under the \"stop travelling below\" threshold. It never overrides trap avoidance or AOE dodging.\n\nOff by default; with it off nothing about targeting changes.")]
+    public bool TankPull = false;
+
     // ⚠️ 舊文案是「暫停導航前可拉取的最大怪物數」，讀起來像是「戰鬥中會不會走位」，
     //    但它其實只管「要不要繼續趕往目標房間」——閃避與戰鬥走位永遠是開著的。
     [PropertyDisplay("Keep travelling until this many mobs have aggro (0 = stop travelling as soon as you are in combat)",
