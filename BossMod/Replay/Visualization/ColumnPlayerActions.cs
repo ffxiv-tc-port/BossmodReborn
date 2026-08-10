@@ -147,11 +147,11 @@ public sealed class ColumnPlayerActions : Timeline.ColumnGroup
 
     public void DrawConfig(UITree tree)
     {
-        if (ImGui.Button("Show all"))
+        if (ImGui.Button(Loc.T("Show all")))
             foreach (var col in Columns)
                 col.Width = ColumnGenericHistory.DefaultWidth;
         ImGui.SameLine();
-        if (ImGui.Button("Hide all"))
+        if (ImGui.Button(Loc.T("Hide all")))
             foreach (var col in Columns)
                 col.Width = 0;
 

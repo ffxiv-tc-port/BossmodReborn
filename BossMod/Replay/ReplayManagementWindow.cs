@@ -78,7 +78,7 @@ public sealed class ReplayManagementWindow : UIWindow
 
     public override void Draw()
     {
-        if (ImGui.Button(!IsRecording() ? "Start recording" : "Stop recording"))
+        if (ImGui.Button(!IsRecording() ? Loc.T("Start recording") : Loc.T("Stop recording")))
         {
             if (!IsRecording())
             {
@@ -91,9 +91,9 @@ public sealed class ReplayManagementWindow : UIWindow
             }
         }
         ImGui.SameLine();
-        if (ImGui.Button("Select replay folder"))
+        if (ImGui.Button(Loc.T("Select replay folder")))
         {
-            _folderDialog ??= new FileDialog("select_replay_folder", "Select replay folder", "", _config.ReplayFolder, "", "", 1, false, ImGuiFileDialogFlags.SelectOnly);
+            _folderDialog ??= new FileDialog("select_replay_folder", Loc.T("Select replay folder"), "", _config.ReplayFolder, "", "", 1, false, ImGuiFileDialogFlags.SelectOnly);
             _folderDialog.Show();
         }
 
@@ -111,7 +111,7 @@ public sealed class ReplayManagementWindow : UIWindow
         {
             ImGui.InputText("###msg", ref _message, 1024);
             ImGui.SameLine();
-            if (ImGui.Button("Add log marker") && _message.Length > 0)
+            if (ImGui.Button(Loc.T("Add log marker")) && _message.Length > 0)
             {
                 _ws.Execute(new WorldState.OpUserMarker(_message));
                 _message = "";
@@ -119,7 +119,7 @@ public sealed class ReplayManagementWindow : UIWindow
         }
 
         ImGui.SameLine();
-        if (ImGui.Button("Open replay folder") && _logDir != null)
+        if (ImGui.Button(Loc.T("ABOUT_BtnOpenFolder", "Open replay folder")) && _logDir != null)
             _lastErrorMessage = OpenDirectory(_logDir);
 
         if (_lastErrorMessage.Length > 0)
@@ -140,7 +140,7 @@ public sealed class ReplayManagementWindow : UIWindow
         SetVisible(false);
     }
 
-    private void UpdateTitle() => WindowName = $"Replay recording: {(_recorder != null ? "in progress..." : "idle")}{_windowID}";
+    private void UpdateTitle() => WindowName = string.Format(Loc.T("REPLAY_WindowTitle", "Replay recording: {0}"), _recorder != null ? Loc.T("REPLAY_StateInProgress", "in progress...") : Loc.T("REPLAY_StateIdle", "idle")) + _windowID;
 
     public bool ShouldAutoRecord => _config.AutoRecord && (_config.AutoARR || !Service.Condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.DutyRecorderPlayback]);
 
@@ -416,7 +416,7 @@ public sealed class ReplayManagementWindow : UIWindow
     private string OpenDirectory(DirectoryInfo dir)
     {
         if (!dir.Exists)
-            return $"Directory '{dir}' not found.";
+            return string.Format(Loc.T("ABOUT_ErrDirNotFound", "Directory '{0}' not found."), dir);
 
         try
         {
@@ -426,7 +426,7 @@ public sealed class ReplayManagementWindow : UIWindow
         catch (Exception e)
         {
             Service.Log($"Error opening directory {dir}: {e}");
-            return $"Failed to open folder '{dir}', open it manually.";
+            return string.Format(Loc.T("ABOUT_ErrOpenDir", "Failed to open folder '{0}', open it manually."), dir);
         }
     }
 }

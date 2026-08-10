@@ -72,7 +72,7 @@ public sealed class ReplayManager : IDisposable
         public void Show()
         {
             Analysis ??= new([.. Replays.Where(r => r.Replay.IsCompletedSuccessfully && r.Replay.Result.Ops.Count > 0).Select(r => r.Replay.Result)]);
-            Window ??= new($"Multiple logs: {Identifier}", Analysis.Draw, false, new(1200, 800));
+            Window ??= new(string.Format(Loc.T("REPLAY_MultipleLogsTitle", "Multiple logs: {0}"), Identifier), Analysis.Draw, false, new(1200, 800));
             Window.IsOpen = true;
         }
     }
@@ -177,33 +177,33 @@ public sealed class ReplayManager : IDisposable
             }
             else if (e.Replay.IsFaulted || e.Replay.Result.Ops.Count == 0)
             {
-                ImGui.TextUnformatted("(failed)");
+                ImGui.TextUnformatted(Loc.T("(failed)"));
             }
             else
             {
-                if (ImGui.Button("Actions...", new(100, 0)))
+                if (ImGui.Button(Loc.T("Actions..."), new(100, 0)))
                     ImGui.OpenPopup("ctx");
                 using var popup = ImRaii.Popup("ctx");
                 if (popup)
                 {
-                    if (ImGui.MenuItem("Show"))
+                    if (ImGui.MenuItem(Loc.T("Show")))
                     {
                         e.Show(_rotationDB);
                         SaveHistory();
                     }
-                    if (ImGui.MenuItem("Convert to verbose"))
+                    if (ImGui.MenuItem(Loc.T("Convert to verbose")))
                         ConvertLog(e.Replay.Result, ReplayLogFormat.TextVerbose);
-                    if (ImGui.MenuItem("Convert to short text"))
+                    if (ImGui.MenuItem(Loc.T("Convert to short text")))
                         ConvertLog(e.Replay.Result, ReplayLogFormat.TextCondensed);
-                    if (ImGui.MenuItem("Convert to uncompressed binary"))
+                    if (ImGui.MenuItem(Loc.T("Convert to uncompressed binary")))
                         ConvertLog(e.Replay.Result, ReplayLogFormat.BinaryUncompressed);
-                    if (ImGui.MenuItem("Convert to compressed binary"))
+                    if (ImGui.MenuItem(Loc.T("Convert to compressed binary")))
                         ConvertLog(e.Replay.Result, ReplayLogFormat.BinaryCompressed);
                 }
             }
 
             ImGui.TableNextColumn();
-            if (ImGui.Button(e.Replay.IsCompleted ? "Unload" : "Cancel", new(50, 0)))
+            if (ImGui.Button(e.Replay.IsCompleted ? Loc.T("Unload") : Loc.T("Cancel"), new(50, 0)))
             {
                 e.Dispose();
                 foreach (var a in _analysisEntries.Where(a => !a.Disposed && a.Replays.Contains(e)))
@@ -226,7 +226,7 @@ public sealed class ReplayManager : IDisposable
         var dispose = false;
         var numSelected = _replayEntries.Count(e => e.Selected);
         var shouldSelectAll = _replayEntries.Count == 0 || numSelected < _replayEntries.Count;
-        if (ImGui.Button(shouldSelectAll ? "Select all" : "Unselect all", new(80, 0)))
+        if (ImGui.Button(shouldSelectAll ? Loc.T("Select all") : Loc.T("Unselect all"), new(80, 0)))
         {
             foreach (var e in _replayEntries)
                 e.Selected = shouldSelectAll;
@@ -234,12 +234,12 @@ public sealed class ReplayManager : IDisposable
         using (ImRaii.Disabled(numSelected == 0))
         {
             ImGui.SameLine();
-            if (ImGui.Button("Analyze selected"))
+            if (ImGui.Button(Loc.T("Analyze selected")))
             {
                 _analysisEntries.Add(new((++_nextAnalysisId).ToString(), [.. _replayEntries.Where(e => e.Selected)]));
             }
             ImGui.SameLine();
-            if (ImGui.Button("Unload selected"))
+            if (ImGui.Button(Loc.T("Unload selected")))
             {
                 foreach (var e in _replayEntries.Where(e => e.Selected))
                     e.Dispose();
@@ -249,7 +249,7 @@ public sealed class ReplayManager : IDisposable
             }
         }
         ImGui.SameLine();
-        if (ImGui.Button("Unload all"))
+        if (ImGui.Button(Loc.T("Unload all")))
         {
             foreach (var e in _replayEntries)
                 e.Dispose();
@@ -268,13 +268,13 @@ public sealed class ReplayManager : IDisposable
         ImGui.SameLine();
         if (ImGui.Button("..."))
         {
-            _fileDialog ??= new FileDialog("select_log", "Select file or directory", "Log files{.log},All files{.*}", _logDirectory, "", ".log", 1, false, ImGuiFileDialogFlags.SelectOnly);
+            _fileDialog ??= new FileDialog("select_log", Loc.T("Select file or directory"), Loc.T("REPLAY_LogFileFilter", "Log files{.log},All files{.*}"), _logDirectory, "", ".log", 1, false, ImGuiFileDialogFlags.SelectOnly);
             _fileDialog.Show();
         }
         ImGui.SameLine();
         using (ImRaii.Disabled(_path.Length == 0 || _replayEntries.Any(e => e.Path == _path)))
         {
-            if (ImGui.Button("Open"))
+            if (ImGui.Button(Loc.T("Open")))
             {
                 CleanPath();
                 _replayEntries.Add(new(_path, true));
@@ -284,7 +284,7 @@ public sealed class ReplayManager : IDisposable
         ImGui.SameLine();
         using (ImRaii.Disabled(_path.Length == 0 || _analysisEntries.Any(e => e.Identifier == _path)))
         {
-            if (ImGui.Button("Analyze all"))
+            if (ImGui.Button(Loc.T("Analyze all")))
             {
                 CleanPath();
                 var replays = LoadAll(_path);
@@ -295,7 +295,7 @@ public sealed class ReplayManager : IDisposable
         ImGui.SameLine();
         using (ImRaii.Disabled(_path.Length == 0))
         {
-            if (ImGui.Button("Load all"))
+            if (ImGui.Button(Loc.T("Load all")))
             {
                 CleanPath();
                 LoadAll(_path);

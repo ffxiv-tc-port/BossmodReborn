@@ -268,7 +268,7 @@ sealed class EventList(Replay r, Action<DateTime> scrollTo, PlanDatabase planDB,
 
     private void DrawTimelines(Replay.Encounter enc)
     {
-        if (ImGui.Button("Show timeline"))
+        if (ImGui.Button(Loc.T("Show timeline")))
             OpenTimeline(enc, new());
         ImGui.SameLine();
         for (var i = 0; i < enc.PartyMembers.Count; ++i)
@@ -278,7 +278,7 @@ sealed class EventList(Replay r, Action<DateTime> scrollTo, PlanDatabase planDB,
                 OpenTimeline(enc, new(1u << i));
             ImGui.SameLine();
         }
-        if (ImGui.Button("All"))
+        if (ImGui.Button(Loc.T("All")))
             OpenTimeline(enc, new((1u << enc.PartyMembers.Count) - 1));
     }
 
@@ -287,15 +287,15 @@ sealed class EventList(Replay r, Action<DateTime> scrollTo, PlanDatabase planDB,
         if (list == null)
             return;
 
-        if (ImGui.MenuItem("Clear filters"))
+        if (ImGui.MenuItem(Loc.T("Clear filters")))
         {
             list.ClearFilters();
         }
-        if (ImGui.MenuItem("Show actor-size events", "", list.ShowActorSizeEvents, true))
+        if (ImGui.MenuItem(Loc.T("Show actor-size events"), "", list.ShowActorSizeEvents, true))
         {
             list.ShowActorSizeEvents = !list.ShowActorSizeEvents;
         }
-        if (ImGui.MenuItem("Pop out"))
+        if (ImGui.MenuItem(Loc.T("Pop out")))
         {
             var windowName = $"Raw ops: {r.Path}, {(list.Encounter != null ? $"{list.ModuleInfo?.ModuleType.Name}: {list.Encounter.InstanceID:X} @ {list.Encounter.Time.Start} + {list.Encounter.Time}" : "full")}";
             _ = new UISimpleWindow(windowName, () => list.Draw(new(), list.Encounter?.Time.Start ?? r.Ops[0].Timestamp), true, new(1000, 1000));
@@ -307,11 +307,11 @@ sealed class EventList(Replay r, Action<DateTime> scrollTo, PlanDatabase planDB,
         if (list == null)
             return;
 
-        if (ImGui.MenuItem("Clear filters"))
+        if (ImGui.MenuItem(Loc.T("Clear filters")))
         {
             list.ClearFilters();
         }
-        if (ImGui.MenuItem("Pop out"))
+        if (ImGui.MenuItem(Loc.T("Pop out")))
         {
             var windowName = $"Server IPCs: {r.Path}, {(list.Encounter != null ? $"{moduleInfo?.ModuleType.Name}: {list.Encounter.InstanceID:X} @ {list.Encounter.Time.Start} + {list.Encounter.Time}" : "full")}";
             _ = new UISimpleWindow(windowName, () => list.Draw(new(), list.Encounter?.Time.Start ?? r.Ops[0].Timestamp), true, new(1000, 1000));

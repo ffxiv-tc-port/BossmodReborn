@@ -8137,5 +8137,116 @@
   },
   "No preset is selected": {
     "message": "尚未選取任何預設。"
+  },
+  "(failed)": {
+    "message": "（失敗）"
+  },
+  "Actions...": {
+    "message": "操作…"
+  },
+  "Show": {
+    "message": "顯示"
+  },
+  "Convert to verbose": {
+    "message": "轉換為詳細文字"
+  },
+  "Convert to short text": {
+    "message": "轉換為簡短文字"
+  },
+  "Convert to uncompressed binary": {
+    "message": "轉換為未壓縮二進位"
+  },
+  "Convert to compressed binary": {
+    "message": "轉換為壓縮二進位"
+  },
+  "Unload": {
+    "message": "卸載"
+  },
+  "Cancel": {
+    "message": "取消"
+  },
+  "Select all": {
+    "message": "全選"
+  },
+  "Unselect all": {
+    "message": "取消全選"
+  },
+  "Analyze selected": {
+    "message": "分析所選"
+  },
+  "Unload selected": {
+    "message": "卸載所選"
+  },
+  "Unload all": {
+    "message": "全部卸載"
+  },
+  "Select file or directory": {
+    "message": "選擇檔案或資料夾"
+  },
+  "Open": {
+    "message": "開啟"
+  },
+  "Analyze all": {
+    "message": "全部分析"
+  },
+  "Load all": {
+    "message": "載入全部"
+  },
+  "Start recording": {
+    "message": "開始錄製"
+  },
+  "Stop recording": {
+    "message": "停止錄製"
+  },
+  "Select replay folder": {
+    "message": "選擇重播資料夾"
+  },
+  "Add log marker": {
+    "message": "新增日誌標記"
+  },
+  "Show timeline": {
+    "message": "顯示時間軸"
+  },
+  "All": {
+    "message": "全部"
+  },
+  "Clear filters": {
+    "message": "清除篩選"
+  },
+  "Show actor-size events": {
+    "message": "顯示角色體型變化事件"
+  },
+  "Pop out": {
+    "message": "另開視窗"
+  },
+  "Show all": {
+    "message": "全部顯示"
+  },
+  "Hide all": {
+    "message": "全部隱藏"
+  },
+  "Add new!": {
+    "message": "新增！"
+  },
+  "Show details...": {
+    "message": "顯示詳細資訊…"
+  },
+  "REPLAY_MultipleLogsTitle": {
+    "message": "多筆重播：{0}"
+  },
+  "REPLAY_LogFileFilter": {
+    "message": "日誌檔案{.log},所有檔案{.*}"
+  },
+  "REPLAY_WindowTitle": {
+    "message": "重播錄製：{0}"
+  },
+  "REPLAY_StateInProgress": {
+    "message": "進行中…"
+  },
+  "REPLAY_StateIdle": {
+    "message": "閒置"
+  },
+  "REPLAY_LogsFound": {
+    "message": "找到 {0} 筆重播紀錄"
   }
 }

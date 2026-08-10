@@ -138,7 +138,7 @@ sealed class AnalysisManager : IDisposable
 
     public void Draw()
     {
-        ImGui.TextUnformatted($"{_replays.Count} logs found");
+        ImGui.TextUnformatted(string.Format(Loc.T("REPLAY_LogsFound", "{0} logs found"), _replays.Count));
         foreach (var n in _tree.Node("Global analysis"))
         {
             _global.Draw(_tree);
