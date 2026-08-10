@@ -18,16 +18,22 @@ public readonly record struct ChestSpot(int Room, int Slot, Vector2 CellOffset);
 /// 一個埋藏寶藏標記的把握程度。
 /// </summary>
 /// <remarks>
-/// 📌 三態的畫法照 PalacePal 的慣例走「虛→空心→實心」而不是換顏色，
+/// 📌 兩態的畫法照 PalacePal 的慣例走「空心→實心」而不是換顏色，
 /// 這樣在不看圖例的情況下也讀得出哪一個比較「實」。
-/// 🔴 <see cref="Database"/> 與另外兩態的差別<b>不是程度問題而是種類問題</b>：
-/// 另外兩態的來源是遊戲自己放在那裡的實體，<see cref="Database"/> 的來源是別人玩過的紀錄，
-/// 而且是<b>整個區域十層的聯集</b>——它只代表「這一帶出現過」，不代表這一層現在有。
+/// <para>
+/// 🔴🔴 <b>不要再加回「PalacePal 資料庫記載」那一態。</b>
+/// 2026-08-10 使用者裁決移除，原話：「埋藏寶藏 地圖不用放預測 你這不是每一格都畫了嗎」。
+/// 成因：PalacePal 的寶藏資料庫是<b>整座深牢跨樓層的聯集</b>，套到單一樓層的 25 格小地圖上
+/// 幾乎格格都會命中——那不是資訊而是噪音，還會把真正有實體的那幾格淹掉；
+/// 而且 PalacePal 本身就會畫自己的世界標記，BMR 再畫一份是雙份。
+/// </para>
+/// <para>
+/// 📌 剩下這兩態的來源都是<b>遊戲自己放在那裡的事件物件</b>，是真值不是預測，所以照舊。
+/// PalacePal 的<b>陷阱</b>資料也照舊使用——那一份餵的是迴避決策，有真實價值。
+/// </para>
 /// </remarks>
 public enum HoardKind
 {
-    /// <summary>只有資料庫記載過（PalacePal）。這一層現在有沒有並不知道。</summary>
-    Database,
     /// <summary>遊戲把埋藏處的事件物件放在那裡了（還埋著，遊戲裡看不見）。</summary>
     Buried,
     /// <summary>已現形、可以直接互動的「埋藏的寶藏」。</summary>
@@ -92,15 +98,6 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
     // 埋藏的寶藏。ABGR：R=0x30 G=0xE0 B=0xF0 ＝青色，與 AutoClear 的世界疊加層同一個值，
     // 也與 PalacePal 的埋藏寶藏預設色同一系 —— 三個地方看起來要是同一件事。
     private const uint ColorHoard = 0xFFF0E030u;
-
-    /// <summary>
-    /// 「資料庫記載」那一態的顏色：同一個色相、Alpha 降到約 55%。
-    /// </summary>
-    /// <remarks>
-    /// 🔴 刻意<b>不</b>換色相。換色相會讀成「另一種東西」，而這一態是同一種東西的較弱把握度；
-    /// 三態的主要區別靠形狀（虛細／空心／實心），顏色只是加強。
-    /// </remarks>
-    private const uint ColorHoardFaint = 0x8CF0E030u;
 
     /// <summary>埋藏寶藏菱形標記的半徑（像素）。刻意比寶箱圖示（18px 見方）小一點，避免搶掉寶箱。</summary>
     private const float HoardMarkerRadius = 7f;
@@ -424,11 +421,11 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
     /// 畫某一格裡的埋藏寶藏，回傳要接進該格 tooltip 的說明文字（這一格沒有就回 null）。
     /// </summary>
     /// <remarks>
-    /// 「遊戲說有實體」的兩態畫實心／空心；<b>PalacePal 資料庫記載</b>的第三態畫得更小更細，
-    /// 而且 tooltip 明講它只是「這一帶出現過」。
+    /// 「已現形」畫實心、「還埋著」畫空心，兩者都來自遊戲自己放的事件物件。
     /// <para>
-    /// 🔴 遊戲的深牢地圖資料本身<b>不含</b>埋藏寶藏的位置，所以「這一格到底有沒有」在沒有
-    /// 資料庫也沒有實體時的正確表現就是<b>什麼都不畫</b>——不畫問號去暗示某一格有。
+    /// 🔴 遊戲的深牢地圖資料本身<b>不含</b>埋藏寶藏的位置，所以「這一格到底有沒有」在沒有實體時
+    /// 的正確表現就是<b>什麼都不畫</b>——不畫問號去暗示某一格有，也不拿別人玩過的紀錄去猜
+    /// （為什麼不猜，見 <see cref="HoardKind"/> 上的裁決紀錄）。
     /// 唯一需要說出口的「不知道」是「偵測到了但放不上小地圖」，那一行由 <see cref="AutoClear"/> 印。
     /// </para>
     /// </remarks>
@@ -451,7 +448,7 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
             ImGui.SetCursorPos(pos + new Vector2(CellHalfPixels, CellHalfPixels) + s.CellOffset);
             var center = ImGui.GetCursorScreenPos();
 
-            var r = s.Kind == HoardKind.Database ? HoardMarkerRadius * 0.7f : HoardMarkerRadius;
+            const float r = HoardMarkerRadius;
 
             // 菱形四角
             var top = new Vector2(center.X, center.Y - r);
@@ -460,21 +457,13 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
             var left = new Vector2(center.X - r, center.Y);
 
             // NecroLens 風格：先深色外框再本體，不疊半透明色塊。
-            dl.AddQuad(top, right, bottom, left, ColorCountShadow, s.Kind == HoardKind.Database ? 2.4f : 3f);
-            switch (s.Kind)
-            {
-                case HoardKind.Revealed:
-                    dl.AddQuadFilled(top, right, bottom, left, ColorHoard);
-                    break;
-                case HoardKind.Buried:
-                    dl.AddQuad(top, right, bottom, left, ColorHoard, 1.6f);
-                    break;
-                default:
-                    dl.AddQuad(top, right, bottom, left, ColorHoardFaint, 1f);
-                    break;
-            }
+            dl.AddQuad(top, right, bottom, left, ColorCountShadow, 3f);
+            if (s.Kind == HoardKind.Revealed)
+                dl.AddQuadFilled(top, right, bottom, left, ColorHoard);
+            else
+                dl.AddQuad(top, right, bottom, left, ColorHoard, 1.6f);
 
-            // 🔴 一格裡混著好幾態時，tooltip 要講最有把握的那一個，不是第一個碰到的
+            // 🔴 一格裡混著兩態時，tooltip 要講最有把握的那一個，不是第一個碰到的
             if (best == null || s.Kind > best)
                 best = s.Kind;
         }
@@ -483,7 +472,6 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
         {
             HoardKind.Revealed => Loc.T("DD_HoardRevealed", "Accursed Hoard: uncovered here, ready to be taken"),
             HoardKind.Buried => Loc.T("DD_HoardBuried", "Accursed Hoard: buried here (invisible in game until you dig it up)"),
-            HoardKind.Database => Loc.T("DD_HoardDatabase", "Accursed Hoard: PalacePal has recorded one around here before. That record covers all floors of this deep dungeon, so it does NOT mean there is one in this room now - the game itself has not placed anything here."),
             _ => null,
         };
     }

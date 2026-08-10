@@ -76,7 +76,19 @@ static class PalacePalIpc
     /// <summary>這個區域已知的陷阱座標；null＝拿不到（沒裝／版本不合／對方出錯）。</summary>
     public static List<Vector3>? GetTraps(ushort territory) => Fetch(TrapLocations, "GetTrapLocations", territory);
 
-    /// <summary>這個區域已知的埋藏寶藏座標；null＝拿不到。</summary>
+    /// <summary>這個區域已知的埋藏寶藏座標；null＝拿不到。<b>目前沒有任何呼叫端</b>——這是刻意的。</summary>
+    /// <remarks>
+    /// 🔴🔴 <b>沒有呼叫端不是缺口，不要「順手接回去」。</b>
+    /// 2026-08-10 使用者裁決把「PalacePal 資料庫記載的埋藏寶藏」從小地圖與世界疊加層雙雙移除，
+    /// 原話：「埋藏寶藏 地圖不用放預測 你這不是每一格都畫了嗎」。
+    /// 兩個獨立理由：①這份清單是<b>整座深牢跨樓層的聯集</b>（見本類別上方的座標語意說明），
+    /// 攤到單層 25 格的小地圖上幾乎格格命中，等於零資訊的噪音；
+    /// ②PalacePal 本身就會畫自己的世界標記，BMR 再畫一份是雙份。
+    /// <para>
+    /// 📌 包裝留著只是為了「合約仍然完整、要用時不必重接」，<b>不是</b>待辦。
+    /// 陷阱那一半（<see cref="GetTraps"/>）照舊在用——那份餵的是迴避決策，有真實價值。
+    /// </para>
+    /// </remarks>
     public static List<Vector3>? GetHoards(ushort territory) => Fetch(HoardLocations, "GetHoardLocations", territory);
 
     /// <remarks>

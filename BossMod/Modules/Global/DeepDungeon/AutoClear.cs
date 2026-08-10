@@ -2379,32 +2379,28 @@ public abstract class AutoClear : ZoneModule
     /// <summary>PalacePal 提供、且不與內建表重複的陷阱點。</summary>
     private WPos[] _palTraps = [];
 
-    /// <summary>
-    /// PalacePal 記載的埋藏寶藏點。
-    /// </summary>
-    /// <remarks>
-    /// 保留完整的 <see cref="Vector3"/>（含高度）是為了世界疊加層——把 Y 丟掉之後就得用猜的，
-    /// 而深牢雖然單層是平的，用對方給的真值仍然比猜好。
-    /// </remarks>
-    private Vector3[] _palHoards = [];
-
     private DateTime _palNextRefresh;
     private bool? _palAvailableLogged;
 
     /// <summary>
-    /// 向 PalacePal 重新要一次這個區域的陷阱／寶藏座標。
+    /// 向 PalacePal 重新要一次這個區域的陷阱座標。
     /// </summary>
     /// <remarks>
     /// 🔴 <b>拿不到就整組清空，不留上一次的殘值。</b>使用者停用 PalacePal 之後還照著它的舊資料
     /// 閃躲，是拿一份我們已經無法確認的資料在做決策——失敗形式是安靜地維持一個看不出來源的行為。
     /// 清空之後就退回內建表，也就是今天的行為。
+    /// <para>
+    /// 🔴 <b>刻意只取陷阱，不取埋藏寶藏。</b>2026-08-10 使用者裁決拿掉資料庫記載的寶藏顯示
+    /// （原話：「埋藏寶藏 地圖不用放預測 你這不是每一格都畫了嗎」），既然沒有消費端，
+    /// 就不要每 10 秒對 PalacePal 發一次沒人要的 IPC。
+    /// <see cref="PalacePalIpc.GetHoards"/> 的包裝有刻意留著（目前無呼叫端），理由寫在那裡。
+    /// </para>
     /// </remarks>
     private void UpdatePalacePal()
     {
         if (!Config.UsePalacePal)
         {
             _palTraps = [];
-            _palHoards = [];
             _palAvailableLogged = null;
             return;
         }
@@ -2416,17 +2412,15 @@ public abstract class AutoClear : ZoneModule
 
         var territory = (ushort)World.CurrentZone;
         var traps = PalacePalIpc.GetTraps(territory);
-        var hoards = PalacePalIpc.GetHoards(territory);
-        var available = traps != null || hoards != null;
+        var available = traps != null;
 
         _palTraps = traps != null ? DedupeTraps(traps) : [];
-        _palHoards = hoards != null ? [.. hoards] : [];
 
         if (_palAvailableLogged != available)
         {
             _palAvailableLogged = available;
             Service.Logger.Information(available
-                ? $"[DD pal] PalacePal 資料可用（區域 {territory}）：陷阱 {traps?.Count ?? 0} 筆、與內建表去重後多出 {_palTraps.Length} 筆；埋藏寶藏 {_palHoards.Length} 筆。"
+                ? $"[DD pal] PalacePal 資料可用（區域 {territory}）：陷阱 {traps?.Count ?? 0} 筆、與內建表去重後多出 {_palTraps.Length} 筆。"
                 : $"[DD pal] PalacePal 資料取不到（沒安裝／合約版本不是 {PalacePalIpc.SupportedApiVersion}／對方出錯），退回 BMR 內建的陷阱表。");
         }
     }
@@ -2585,8 +2579,11 @@ public abstract class AutoClear : ZoneModule
         // 留邊，免得圖示被格子邊緣切掉（與寶箱同一個常數）
         const float limit = Minimap.CellHalfPixels - 11f;
 
+        // 🔴🔴 這裡**只**放遊戲自己擺出來的事件物件，不要再加 PalacePal 資料庫記載的「可能有」。
+        //    2026-08-10 使用者裁決移除，原話：「埋藏寶藏 地圖不用放預測 你這不是每一格都畫了嗎」
+        //    ——那份清單是整座深牢跨樓層的聯集，攤到單層的 25 格上幾乎格格命中，
+        //    實測畫面就是每一格都有一個青色菱形。詳細理由寫在 HoardKind 的列舉註解上。
         List<HoardSpot> res = [];
-        Span<bool> roomTaken = stackalloc bool[DeepDungeonState.NumRooms];
 
         for (var i = 0; i < _hoardActors.Count; ++i)
         {
@@ -2598,30 +2595,7 @@ public abstract class AutoClear : ZoneModule
             var d = a.Position - center;
             var off = new Vector2(d.X * CellPixelsPerYalm, d.Z * CellPixelsPerYalm);
             off = Vector2.Clamp(off, new Vector2(-limit), new Vector2(limit));
-            roomTaken[room] = true;
             res.Add(new(room, off, a.OID == (uint)OID.BandedCoffer ? HoardKind.Revealed : HoardKind.Buried));
-        }
-
-        // ── PalacePal 記載過的點 ─────────────────────────────────────────
-        // 🔴 一間房最多畫一個。那份清單是**整個區域十層的聯集**，一格塞進五六個菱形
-        //    只會變成噪音，而且會讓人誤以為那裡有好幾個寶藏。
-        // 🔴 這一層已經挖到過就整個不畫（與 CollectHoardActors 同一個條件）。
-        // 📌 遊戲自己放了實體的房間也不畫資料庫點——已經有更強的證據了。
-        if (Config.UsePalacePal && !_hoardFound)
-        {
-            for (var i = 0; i < _palHoards.Length; ++i)
-            {
-                var p = new WPos(_palHoards[i].X, _palHoards[i].Z);
-                var room = NearestRoom(p, RoomTolerance);
-                if (room < 0 || roomTaken[room] || RoomCenters[room] is not WPos center)
-                    continue;
-
-                roomTaken[room] = true;
-                var d = p - center;
-                var off = new Vector2(d.X * CellPixelsPerYalm, d.Z * CellPixelsPerYalm);
-                off = Vector2.Clamp(off, new Vector2(-limit), new Vector2(limit));
-                res.Add(new(room, off, HoardKind.Database));
-            }
         }
 
         return res;
@@ -2646,13 +2620,6 @@ public abstract class AutoClear : ZoneModule
     // 埋藏寶藏預設色（青色）同一系，讓兩邊看起來是同一件事。
     // ⚠️ ImGui 的 uint 顏色是 ABGR：這個值是 R=0x30 G=0xE0 B=0xF0。
     private const uint ColorHoard = 0xFFF0E030u;
-
-    /// <summary>「資料庫記載」那一態的顏色：同色相、Alpha 約 55%（與小地圖那一版同值）。</summary>
-    private const uint ColorHoardFaint = 0x8CF0E030u;
-
-    /// <summary>資料庫記載點在世界上的繪製距離（碼）。</summary>
-    /// <remarks>取 40y 是為了「走到附近才提醒」——那份清單跨十層，全部畫出來只會變成噪音。</remarks>
-    private const float HoardDatabaseDrawRange = 40f;
 
     /// <summary>
     /// 在世界上畫出埋藏寶藏的位置。
@@ -2686,65 +2653,17 @@ public abstract class AutoClear : ZoneModule
         if (Camera.Instance is not { } camera)
             return;
 
+        // 🔴🔴 這裡**只**畫遊戲自己擺出來的事件物件。
+        //    2026-08-10 使用者裁決拿掉 PalacePal 資料庫記載的「可能有」圈（小地圖與世界疊加層都拿掉），
+        //    原話：「埋藏寶藏 地圖不用放預測 你這不是每一格都畫了嗎」。
+        //    除了噪音之外還有一個獨立理由：**PalacePal 自己就會畫它的世界標記**，BMR 再畫是雙份。
+        //    詳細裁決紀錄寫在 Minimap.cs 的 HoardKind 列舉上。
         CollectHoardActors();
         for (var i = 0; i < _hoardActors.Count; ++i)
         {
             var p = _hoardActors[i].PosRot;
             DrawHoardMarker(camera, new Vector3(p.X, p.Y, p.Z));
         }
-
-        DrawHoardDatabaseOverlay(camera);
-    }
-
-    /// <summary>
-    /// 只在資料庫裡出現過的埋藏寶藏點（PalacePal）。
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// 🔴 <b>限制在玩家附近才畫。</b>那份清單是整個區域十層的聯集，全部畫出來會在畫面上
-    /// 灑滿幾十個圈——那不是資訊，是噪音，而且會讓真正的（有實體的）標記淹沒掉。
-    /// </para>
-    /// <para>
-    /// 🔴 <b>畫法必須比實體那一版弱</b>：沒有立柱、沒有中心叉、線更細。
-    /// 「可能有」與「已確認」用同一種畫法就是在說謊（PalacePal 自己的兩態慣例也是這樣分的）。
-    /// </para>
-    /// </remarks>
-    private void DrawHoardDatabaseOverlay(Camera camera)
-    {
-        if (!Config.UsePalacePal || _hoardFound || _palHoards.Length == 0)
-            return;
-
-        if (World.Party.Player() is not { } player)
-            return;
-
-        var pos = player.Position;
-        for (var i = 0; i < _palHoards.Length; ++i)
-        {
-            var v = _palHoards[i];
-            var p = new WPos(v.X, v.Z);
-            if (!p.InCircle(pos, HoardDatabaseDrawRange))
-                continue;
-
-            // 旁邊已經有實體了就不必再畫一個「可能有」
-            var covered = false;
-            for (var j = 0; j < _hoardActors.Count; ++j)
-            {
-                if ((_hoardActors[j].Position - p).LengthSq() <= HoardDedupeRangeSq)
-                {
-                    covered = true;
-                    break;
-                }
-            }
-            if (!covered)
-                DrawHoardDatabaseMarker(camera, v);
-        }
-    }
-
-    /// <summary>資料庫記載點的世界標記：只有一個細圈，沒有立柱也沒有中心叉。</summary>
-    private static void DrawHoardDatabaseMarker(Camera camera, Vector3 center)
-    {
-        camera.DrawWorldCircle(center, HoardMarkerRadius, Colors.Shadows, HoardMarkerThickness);
-        camera.DrawWorldCircle(center, HoardMarkerRadius, ColorHoardFaint, 1f);
     }
 
     /// <summary>
