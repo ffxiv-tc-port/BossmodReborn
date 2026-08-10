@@ -49,7 +49,11 @@ public sealed record class RotationModuleDefinition(string DisplayName, string D
         {
             if (configs.Count != index)
                 throw new ArgumentException($"Unexpected index for {internalName}: expected {index}, cur size {configs.Count}");
-            var config = new StrategyConfigTrack(typeof(Selector), internalName, displayName, uiPriority, renderer ?? typeof(TrackRenderer));
+            // renderer resolution order mirrors WithStrategies<S>() below: explicit argument wins, then the
+            // [Renderer] attribute on the selector enum, then the plain combo box. Without the attribute step
+            // the custom renderers are only reachable by spelling them out at every Define site, which silently
+            // leaves direct As<T>() callers (e.g. xan DRG/SAM) on a different widget than the DefineSimple ones.
+            var config = new StrategyConfigTrack(typeof(Selector), internalName, displayName, uiPriority, renderer ?? typeof(Selector).GetCustomAttribute<RendererAttribute>()?.Type ?? typeof(TrackRenderer));
             configs.Add(config);
             return new(config);
         }

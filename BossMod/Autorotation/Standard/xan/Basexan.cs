@@ -4,7 +4,10 @@ using static BossMod.AIHints;
 
 namespace BossMod.Autorotation.xan;
 
+[Renderer(typeof(TargetingRenderer))]
 public enum Targeting { Manual, Auto, AutoPrimary, AutoTryPri }
+
+[Renderer(typeof(OffensiveStrategyRenderer))]
 public enum OffensiveStrategy { Automatic, Delay, Force }
 public enum AOEStrategy { AOE, ST, ForceAOE, ForceST }
 
