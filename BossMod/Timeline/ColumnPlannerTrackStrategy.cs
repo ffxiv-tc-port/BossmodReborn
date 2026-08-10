@@ -36,7 +36,7 @@ public sealed class ColumnPlannerTrackStrategy(Timeline timeline, StateMachineTr
 
         if (DefaultOverride != default)
         {
-            Timeline.AddTooltip([config.Options[DefaultOverride.Option].DisplayName]);
+            Timeline.AddTooltip([config.Options[DefaultOverride.Option].UIName]);
             Timeline.AddTooltip([
                 Loc.T("TL_AppliesWholeEncounter", "This value applies to the whole encounter, but will be overridden by entries."),
                 $"{Loc.T("TL_ChangeBySelecting", "It can be changed by selecting")} \"{Name}\" {Loc.T("TL_AtTopOfTimeline", "at the top of the timeline.")}"

@@ -311,7 +311,9 @@ public class TrackRenderer : IStrategyRenderer
         return false;
     }
 
-    public virtual bool DrawValue(StrategyConfigTrack config, ref StrategyValueTrack value) => UICombo.EnumIndex("", config.OptionEnum, ref value.Option, ix => config.Options[ix].DisplayName.Length > 0 ? config.Options[ix].DisplayName : UICombo.EnumString((Enum)config.OptionEnum.GetEnumValues().GetValue(ix)!));
+    // 🔴 選項顯示文字必須經過 UIName(即 Loc.T)——這裡曾直接讀 DisplayName 繞過在地化,
+    // 造成軌道標籤(DrawLabel 用 config.UIName)已是中文、下拉選項卻仍是英文原文。
+    public virtual bool DrawValue(StrategyConfigTrack config, ref StrategyValueTrack value) => UICombo.EnumIndex("", config.OptionEnum, ref value.Option, ix => config.Options[ix].DisplayName.Length > 0 ? config.Options[ix].UIName : UICombo.EnumString((Enum)config.OptionEnum.GetEnumValues().GetValue(ix)!));
 }
 
 public class FloatRenderer : IStrategyRenderer
