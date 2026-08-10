@@ -1,5 +1,6 @@
 ﻿using BossMod.Pathfinding;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Game.ClientState.Conditions;
 
 using static FFXIVClientStructs.FFXIV.Client.Game.InstanceContent.InstanceContentDeepDungeon;
 
@@ -12,7 +13,26 @@ enum OID : uint
     PylonEO = 0x1EB867,
     SilverCoffer = 0x1EA13D,
     GoldCoffer = 0x1EA13E,
+
+    /// <summary>
+    /// 埋藏的寶藏本體（<b>還埋著、看不見的那個點</b>）。
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ 名字取得容易誤導：它<b>不是</b>「魔陶器：感知寶藏照出來的光點」這種衍生特效物件，
+    /// 而是寶藏埋藏處本身的事件物件。台服 <c>EObjName</c> 第 2007542 列的名稱是<b>空的</b>
+    /// （＝沒有互動提示、不可選取），與 <see cref="BandedCoffer"/> 有名字（「埋藏的寶藏」）
+    /// 形成對比；<c>EObj</c> 那一列的 <c>Data</c> 與 <c>EventHighAddition</c> 也都是 0，
+    /// 而銅／銀／金寶箱與 <see cref="BandedCoffer"/> 都是 <c>Data=983600</c>（開箱事件）。
+    /// <para>
+    /// 交叉驗證：NecroLens 把同一個值命名為 <c>AccursedHoard</c>、PalacePal 則把 2007542
+    /// 與 2007543 一起歸為 <c>EType.Hoard</c>。三份來源一致。
+    /// </para>
+    /// </remarks>
     BandedCofferIndicator = 0x1EA1F6,
+
+    /// <summary>
+    /// 已現形、可以互動取得的埋藏寶藏（台服 <c>EObjName</c> 2007543 ＝「埋藏的寶藏」）。
+    /// </summary>
     BandedCoffer = 0x1EA1F7,
 }
 
@@ -72,6 +92,17 @@ public abstract class AutoClear : ZoneModule
     private PomanderID? _lastChestContentsGold;
     private bool _lastChestMagicite;
     private bool _trapsHidden = true;
+
+    /// <summary>
+    /// 這一層的埋藏寶藏已經被挖出來了（系統訊息 7274「發現了埋藏的寶藏！」）。
+    /// </summary>
+    /// <remarks>
+    /// 這只是<b>其中一個</b>停止標示的條件，不是唯一條件——挖出來之後實體通常也會離開
+    /// <c>ObjectTable</c>，而且 <see cref="_openedChests"/> 也會收到 <c>EventOpenTreasure</c>。
+    /// 三者任一成立就不再標，所以就算台服這條系統訊息沒有觸發（同檔 7248 就有前例），
+    /// 失敗形式也只是「多標一下下」，不會標到錯的地方。
+    /// </remarks>
+    private bool _hoardFound;
 
     private readonly List<(Wall Wall, bool Rotated)> Walls = [];
 
@@ -260,6 +291,11 @@ public abstract class AutoClear : ZoneModule
             case 7256: // sight used
                 _trapsHidden = false;
                 break;
+            // 「發現了埋藏的寶藏！」——台服 LogMessage 第 7274 列逐字查表確認。
+            // NecroLens 做同一件事是比對訊息字串結尾，這裡直接用訊息 id，不受語系影響。
+            case 7274:
+                _hoardFound = true;
+                break;
             case 10287: // demiclone overcap
                 _lastChestMagicite = true;
                 break;
@@ -310,6 +346,7 @@ public abstract class AutoClear : ZoneModule
         _chestContentsGold.Clear();
         _chestContentsSilver.Clear();
         _trapsHidden = true;
+        _hoardFound = false;
         _openedChests.Clear();
         _fakeExits.Clear();
         OnChangeFloors();
@@ -376,7 +413,9 @@ public abstract class AutoClear : ZoneModule
                 roomEnemies = _roomEnemies;
         }
 
-        var targetRoom = new Minimap(Palace, player, DesiredRoom, Config, ComputeChestSpots(coords), roomEnemies).Draw();
+        var hoardSpots = ComputeHoardSpots(coords, out var hoardDetected);
+
+        var targetRoom = new Minimap(Palace, player, DesiredRoom, Config, ComputeChestSpots(coords), roomEnemies, hoardSpots).Draw();
         if (targetRoom >= 0)
         {
             DesiredRoom = targetRoom;
@@ -385,6 +424,12 @@ public abstract class AutoClear : ZoneModule
             _stuckMessage = null;
             _stuckSince = default;
         }
+
+        // 🔴 偵測到寶藏但放不上小地圖時要講出來，而且要講清楚「世界標記還在」——
+        //    否則使用者只會看到小地圖上什麼都沒有，而以為整個功能壞了。
+        if (hoardDetected > 0 && hoardSpots == null)
+            ImGui.TextColored(ColorUnknownText,
+                Loc.T("DD_HoardPositionUnavailable", "Accursed Hoard: detected on this floor, but it cannot be placed on the minimap here (the built-in room coordinates do not match this map). The marker in the world is unaffected."));
 
         // 座標對不上時要說出來，否則使用者只會看到「寶箱一直是半透明的」而不知道為什麼
         if (coords == RoomCoordState.Mismatch)
@@ -584,6 +629,12 @@ public abstract class AutoClear : ZoneModule
 
         UpdateStopWatchdog();
         UpdateStuckDetection();
+
+        // 純顯示，不影響任何決策。放在這裡是因為它必須每幀跑，
+        // 而且要早於 Plugin.DrawUI 尾端的 Camera.DrawWorldPrimitives。
+        // 📌 刻意不受 Config.Enable（＝自動化模組總開關）影響，與小地圖同一個立場：
+        //    只想看標示、不想被自動移動的人才是這個功能的主要對象。
+        DrawHoardOverlay();
 
         // 只有真的在深牢裡才壓住 WrathCombo；模組本身只在深牢區域存在，
         // 但過場／讀取中 DungeonId 會是 0，那時不該接管
@@ -1693,6 +1744,209 @@ public abstract class AutoClear : ZoneModule
         }
         return res;
     }
+
+    #region 埋藏的寶藏
+
+    /// <summary>
+    /// 這一幀看得到的埋藏寶藏實體。<b>每次使用前都要先呼叫 <see cref="CollectHoardActors"/> 重填。</b>
+    /// </summary>
+    /// <remarks>
+    /// 用一份重複使用的清單而不是每次配置新的：世界疊加層走的是每幀路徑，
+    /// 而深牢一層最多也只有一個埋藏寶藏，為它每幀配置一個 <c>List</c> 是白花的。
+    /// 📌 裡面放的是 BMR 自己的 <see cref="Actor"/> 鏡像物件（純受管資料），
+    /// <b>不是原生指標</b>，所以「不跨幀保存原生指標」那條紅線在這裡不適用；
+    /// 即使如此也只在同一次呼叫內用完就丟。
+    /// </remarks>
+    private readonly List<Actor> _hoardActors = [];
+
+    /// <summary>
+    /// 隱藏點與已現形寶箱視為「同一個寶藏」的距離（碼）。
+    /// </summary>
+    /// <remarks>
+    /// 兩者並存時只畫一個，否則同一個位置會疊出兩圈——那看起來像是有兩個寶藏。
+    /// 取 5y 是寬鬆值：同一層不會有第二個埋藏寶藏，所以寧可多合併也不要漏合併。
+    /// </remarks>
+    private const float HoardDedupeRangeSq = 5f * 5f;
+
+    /// <summary>
+    /// 重新收集目前該標示的埋藏寶藏實體到 <see cref="_hoardActors"/>。
+    /// </summary>
+    /// <remarks>
+    /// 停止標示的條件有三個，任一成立就不收：
+    /// <list type="number">
+    /// <item>實體已經不在 <c>ObjectTable</c> 裡（挖走之後的常態）；</item>
+    /// <item><see cref="_openedChests"/> 收到過這個實體的 <c>EventOpenTreasure</c>；</item>
+    /// <item>這一層已經跳過「發現了埋藏的寶藏！」系統訊息（<see cref="_hoardFound"/>）。</item>
+    /// </list>
+    /// 🔴 <b>刻意不做「沒用魔陶器：感知寶藏就不標」這種閘門。</b>本函式的唯一資料來源是實體
+    /// 在不在 <c>ObjectTable</c> 裡：在就標、不在就什麼都不畫。因此「沒照出來的時候實體到底
+    /// 會不會出現在 <c>ObjectTable</c>」這個離線證不了的問題，最壞情況只是<b>這個功能不顯示</b>，
+    /// 不會把標記畫到錯的地方。
+    /// </remarks>
+    private void CollectHoardActors()
+    {
+        _hoardActors.Clear();
+        if (_hoardFound)
+            return;
+
+        foreach (var a in World.Actors)
+        {
+            if (a.OID is not ((uint)OID.BandedCofferIndicator or (uint)OID.BandedCoffer))
+                continue;
+            if (_openedChests.Contains(a.InstanceID))
+                continue;
+            _hoardActors.Add(a);
+        }
+
+        // 去重：已現形的寶箱優先，旁邊那個隱藏點就不用再畫了。
+        for (var i = _hoardActors.Count - 1; i >= 0; --i)
+        {
+            if (_hoardActors[i].OID != (uint)OID.BandedCofferIndicator)
+                continue;
+            for (var j = 0; j < _hoardActors.Count; ++j)
+            {
+                if (j == i || _hoardActors[j].OID != (uint)OID.BandedCoffer)
+                    continue;
+                if ((_hoardActors[j].Position - _hoardActors[i].Position).LengthSq() <= HoardDedupeRangeSq)
+                {
+                    _hoardActors.RemoveAt(i);
+                    break;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// 把埋藏寶藏歸屬到房間並換算成格內像素位置，規則與 <see cref="ComputeChestSpots"/> 完全相同。
+    /// </summary>
+    /// <param name="detected">
+    /// 這一幀實際偵測到幾個埋藏寶藏實體，<b>與能不能定位到房間無關</b>。
+    /// 用來區分「這層沒有／還沒走到」與「有，但這層的座標對不上所以放不上小地圖」。
+    /// </param>
+    /// <returns>座標校驗沒過或功能關閉時回 <c>null</c>——寧可不畫，也不要畫在錯的房間。</returns>
+    private List<HoardSpot>? ComputeHoardSpots(RoomCoordState coords, out int detected)
+    {
+        detected = 0;
+        if (!Config.ShowAccursedHoard)
+            return null;
+
+        CollectHoardActors();
+        detected = _hoardActors.Count;
+
+        if (coords != RoomCoordState.Ok)
+            return null;
+
+        // 留邊，免得圖示被格子邊緣切掉（與寶箱同一個常數）
+        const float limit = Minimap.CellHalfPixels - 11f;
+
+        List<HoardSpot> res = [];
+        for (var i = 0; i < _hoardActors.Count; ++i)
+        {
+            var a = _hoardActors[i];
+            var room = NearestRoom(a.Position, RoomCenterTolerance);
+            if (room < 0 || RoomCenters[room] is not WPos center)
+                continue;
+
+            var d = a.Position - center;
+            var off = new Vector2(d.X * CellPixelsPerYalm, d.Z * CellPixelsPerYalm);
+            off = Vector2.Clamp(off, new Vector2(-limit), new Vector2(limit));
+            res.Add(new(room, off, a.OID == (uint)OID.BandedCoffer));
+        }
+        return res;
+    }
+
+    // ── 世界疊加層 ────────────────────────────────────────────────────────
+    // NecroLens 的圈半徑是 2y（它的註解寫「Make Hoards bigger」，一般寶箱是 1y），這裡沿用，
+    // 這樣兩個外掛同時開著也不會出現兩種尺寸的圈。
+    private const float HoardMarkerRadius = 2f;
+    private const float HoardMarkerThickness = 2f;
+    private const float HoardOutlineExtra = 2f;
+
+    /// <summary>地面圈之外再往上拉一小段的立柱高度（碼）。</summary>
+    /// <remarks>
+    /// 埋藏寶藏是隱形的，光有貼地的圈在俯角小的時候會被壓成一條線、遠一點就看不見。
+    /// 立柱給這個標記一個明確的「上」，也讓它在人還沒走近時就找得到。
+    /// </remarks>
+    private const float HoardMarkerStem = 1.6f;
+
+    // 埋藏寶藏的標示色。刻意不用 Colors.* 的語意色（那些是使用者可調的危險／安全色，
+    // 借來當「這裡有東西」會在使用者改色之後變成謊話），也刻意選成與 PalacePal 的
+    // 埋藏寶藏預設色（青色）同一系，讓兩邊看起來是同一件事。
+    // ⚠️ ImGui 的 uint 顏色是 ABGR：這個值是 R=0x30 G=0xE0 B=0xF0。
+    private const uint ColorHoard = 0xFFF0E030u;
+
+    /// <summary>
+    /// 在世界上畫出埋藏寶藏的位置。
+    /// </summary>
+    /// <remarks>
+    /// 從 <see cref="Update"/> 呼叫：<c>Plugin.DrawUI</c> 的順序是
+    /// <c>Camera.Update</c> →（本函式所在的）<c>ZoneModule.Update</c> → … →
+    /// <c>Camera.DrawWorldPrimitives</c>，所以矩陣是當幀的、線也一定會被 flush 出去。
+    /// <para>
+    /// 📌 <c>CalculateAIHints</c> 也在同一個窗口內，但那條路徑在<b>有 boss 模組正在進行中的時候
+    /// 整段被跳過</b>（見 <c>AIHintsBuilder.Update</c>），拿它當顯示用的繪製點會多一個
+    /// 與顯示無關的失效條件。
+    /// </para>
+    /// <para>
+    /// ⚠️ 隱藏 UI／過場時不畫：<c>DrawWorldPrimitives</c> 本身沒有這個閘門，
+    /// 而 BMR 既有的世界繪製都是從 <c>WindowSystem.Draw</c> 底下發出的（那裡有閘門）。
+    /// 不自己擋的話，這會是第一個在過場動畫上畫線的東西。
+    /// </para>
+    /// </remarks>
+    private void DrawHoardOverlay()
+    {
+        if (!Config.ShowAccursedHoard || Palace.IsBossFloor || BetweenFloors)
+            return;
+
+        if (Service.GameGui.GameUiHidden
+            || Service.Condition[ConditionFlag.OccupiedInCutSceneEvent]
+            || Service.Condition[ConditionFlag.WatchingCutscene]
+            || Service.Condition[ConditionFlag.WatchingCutscene78])
+            return;
+
+        if (Camera.Instance is not { } camera)
+            return;
+
+        CollectHoardActors();
+        for (var i = 0; i < _hoardActors.Count; ++i)
+        {
+            var p = _hoardActors[i].PosRot;
+            DrawHoardMarker(camera, new Vector3(p.X, p.Y, p.Z));
+        }
+    }
+
+    /// <summary>
+    /// 一個埋藏寶藏的地面標記：圈 ＋ 中心叉 ＋ 立柱，全部先畫深色外框再畫本體。
+    /// </summary>
+    /// <remarks>
+    /// 外框做法與 <c>UIRotationWindow.DrawPathSegment</c> 相同（先粗深色、再細亮色）——
+    /// 疊加層底下是 3D 場景，沒有外框的細線在亮地板上會整條消失。
+    /// 全部是線，不畫任何半透明色塊，維持與 NecroLens 一致的「不疊顏色」語彙。
+    /// </remarks>
+    private static void DrawHoardMarker(Camera camera, Vector3 center)
+    {
+        const float outline = HoardMarkerThickness + HoardOutlineExtra;
+
+        camera.DrawWorldCircle(center, HoardMarkerRadius, Colors.Shadows, outline);
+        camera.DrawWorldCircle(center, HoardMarkerRadius, ColorHoard, HoardMarkerThickness);
+
+        // 中心的叉：圈只說「這附近」，交叉點才說「就是這裡挖」。
+        const float d = HoardMarkerRadius * 0.5f;
+        var c1 = center + new Vector3(-d, 0f, -d);
+        var c2 = center + new Vector3(d, 0f, d);
+        var c3 = center + new Vector3(-d, 0f, d);
+        var c4 = center + new Vector3(d, 0f, -d);
+        var top = center + new Vector3(0f, HoardMarkerStem, 0f);
+
+        camera.DrawWorldLine(c1, c2, Colors.Shadows, outline);
+        camera.DrawWorldLine(c3, c4, Colors.Shadows, outline);
+        camera.DrawWorldLine(center, top, Colors.Shadows, outline);
+        camera.DrawWorldLine(c1, c2, ColorHoard, HoardMarkerThickness);
+        camera.DrawWorldLine(c3, c4, ColorHoard, HoardMarkerThickness);
+        camera.DrawWorldLine(center, top, ColorHoard, HoardMarkerThickness);
+    }
+
+    #endregion
 
     #region 房間內的敵人數
 

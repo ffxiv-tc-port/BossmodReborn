@@ -3428,6 +3428,15 @@
   "DD_CoordMismatch": {
     "message": "這一層無法顯示寶箱位置：內建的房間座標與這張地圖對不上（你距離遊戲所回報的所在房間中心 {0:f0} 公尺）。"
   },
+  "DD_HoardBuried": {
+    "message": "埋藏的寶藏：埋在這裡（挖出來之前遊戲裡看不見）"
+  },
+  "DD_HoardRevealed": {
+    "message": "埋藏的寶藏：已經現形，可以直接取得"
+  },
+  "DD_HoardPositionUnavailable": {
+    "message": "埋藏的寶藏：這一層偵測到了，但放不上小地圖（內建的房間座標與這張地圖對不上）。世界上的標記不受影響。"
+  },
   "DD_NoDestination": {
     "message": "尚未設定目標房間（點一下地圖上的房間即可設定）。"
   },
@@ -3558,7 +3567,13 @@
     "message": "開啟埋藏的寶藏"
   },
   "The banded coffers dug up from the Accursed Hoard. Until now these had no setting at all and were always handled, even with all three coffer types above unticked.\n\nAlso controls whether the glowing spot revealed by a Pomander of Intuition is walked to.": {
-    "message": "從埋藏的寶藏挖出來的綁帶寶箱。在此之前它完全沒有任何設定，即使上面三種寶箱全部取消勾選也照樣會處理。\n\n本項同時決定要不要走向直感魔石照出來的光點。"
+    "message": "從埋藏的寶藏挖出來的綁帶寶箱。在此之前它完全沒有任何設定，即使上面三種寶箱全部取消勾選也照樣會處理。\n\n本項同時決定要不要走向「魔陶器：感知寶藏」照出來的光點。"
+  },
+  "Show the buried Accursed Hoard": {
+    "message": "顯示埋藏的寶藏"
+  },
+  "Marks the Accursed Hoard on the minimap and on the ground in the world.\n\nThe buried hoard is completely invisible in game until a Pomander of Intuition reveals it, so without this there is nothing to walk to. The marker comes straight from the object the game itself places at the spot - nothing is guessed and no location database is used, so if the game does not place the object, nothing is drawn rather than something wrong.\n\nDisplay only: it never moves you and never opens anything. The marker disappears once the hoard has been dug up.": {
+    "message": "在小地圖與世界地面上標出埋藏的寶藏。\n\n埋著的寶藏在「魔陶器：感知寶藏」把它照出來之前，遊戲裡是完全看不見的，沒有標記就無從走過去。標記的來源是遊戲自己放在該處的事件物件，不做任何推測、也不使用任何位置資料庫；因此遊戲沒有放那個物件時，結果是「什麼都不畫」而不是畫錯地方。\n\n純顯示：不會移動你，也不會開啟任何東西。寶藏被挖出來之後標記就會消失。"
   },
   "Kite: stay at least this far from the target": {
     "message": "風箏：與目標至少保持這個距離"

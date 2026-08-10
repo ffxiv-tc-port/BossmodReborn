@@ -14,6 +14,16 @@ namespace BossMod.Global.DeepDungeon;
 /// </param>
 public readonly record struct ChestSpot(int Room, int Slot, Vector2 CellOffset);
 
+/// <summary>已經在 <c>ObjectTable</c> 裡看到的一個埋藏寶藏。</summary>
+/// <param name="Room">房號 0..24。</param>
+/// <param name="CellOffset">相對於格子中心的像素偏移，換算方式與 <see cref="ChestSpot"/> 完全相同。</param>
+/// <param name="Revealed">
+/// <c>true</c>＝已現形、可以直接互動的「埋藏的寶藏」；<c>false</c>＝還埋著、遊戲裡看不見的隱藏點。
+/// 📌 兩態的畫法照 PalacePal 的慣例走「空心 vs 實心」而不是換顏色，
+/// 這樣在不看圖例的情況下也讀得出哪一個比較「實」。
+/// </param>
+public readonly record struct HoardSpot(int Room, Vector2 CellOffset, bool Revealed);
+
 /// <param name="ChestSpots">
 /// 已找到實體位置的寶箱。<b>null＝這一層的房間座標校驗沒過</b>
 /// （硬編座標對不上，無法把實體歸屬到房間），此時全部寶箱一律畫成「地圖說有、位置不明」。
@@ -23,7 +33,11 @@ public readonly record struct ChestSpot(int Room, int Slot, Vector2 CellOffset);
 /// 🔴 <b>元素是 0 的意思是「現在偵測不到」，不是「已經清空」</b>——遠處房間的怪根本不在
 /// <c>ObjectTable</c> 裡。因此這裡只畫正向標記，沒有數字的格子<b>不做任何宣稱</b>。
 /// </param>
-public sealed record class Minimap(DeepDungeonState State, Actor Player, int CurrentDestination, AutoDDConfig Config, IReadOnlyList<ChestSpot>? ChestSpots, IReadOnlyList<int>? RoomEnemies)
+/// <param name="HoardSpots">
+/// 埋藏的寶藏。<b>null＝功能關閉、或這一層的房間座標校驗沒過</b>（後者由 <see cref="AutoClear"/>
+/// 另外印一行說明，因為那時世界疊加層還是照畫）。
+/// </param>
+public sealed record class Minimap(DeepDungeonState State, Actor Player, int CurrentDestination, AutoDDConfig Config, IReadOnlyList<ChestSpot>? ChestSpots, IReadOnlyList<int>? RoomEnemies, IReadOnlyList<HoardSpot>? HoardSpots)
 {
     enum IconID : uint
     {
@@ -58,6 +72,13 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
     private const uint ColorUnknown = 0xFFB4B4B4u;          // 灰＝不知道（不要用警示色，這不是錯誤）
     private const uint ColorCount = 0xFFFFFFFFu;
     private const uint ColorCountShadow = 0xFF000000u;
+
+    // 埋藏的寶藏。ABGR：R=0x30 G=0xE0 B=0xF0 ＝青色，與 AutoClear 的世界疊加層同一個值，
+    // 也與 PalacePal 的埋藏寶藏預設色同一系 —— 三個地方看起來要是同一件事。
+    private const uint ColorHoard = 0xFFF0E030u;
+
+    /// <summary>埋藏寶藏菱形標記的半徑（像素）。刻意比寶箱圖示（18px 見方）小一點，避免搶掉寶箱。</summary>
+    private const float HoardMarkerRadius = 7f;
 
     // 敵人數。ABGR：淡紅＝通道石還沒開（找剩下的怪最有價值時），灰＝已經開了（淡化避免噪音）。
     // 只用在文字上，不疊在格子底圖上 —— 維持 NecroLens 的「不疊顏色」語彙。
@@ -190,6 +211,12 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
             //    把不知道畫成跟知道一樣，比不畫還糟。
             var chestTooltip = DrawChests(i, pos, chestCounts, located, bronzeTex, silverTex, goldTex);
 
+            // ── 埋藏的寶藏 ────────────────────────────────────────────────
+            // 刻意不走寶箱那條管線：它不在遊戲的深牢寶箱清單裡，混進去會讓
+            // 「地圖說有幾個」與「看到幾個」對不起來（同一個理由寫在 ChestSlotForOID 上）。
+            // 形狀也刻意用菱形而不是另一個方形圖示 —— 銅銀金三個已經都是方的了。
+            var hoardTooltip = DrawHoards(i, pos);
+
             // ── 房間裡的敵人數 ────────────────────────────────────────────
             // 🔴 只畫正向標記。沒有數字的格子**不代表清空了**（可能只是不在串流範圍內），
             //    所以絕不畫「0」，也不畫任何「這裡沒有」的記號 —— 那會是謊話。
@@ -222,6 +249,8 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
                 // tooltip 藏的是「為什麼／細節」，不是「有沒有問題」——
                 // 有幾個寶箱、找到沒有，格子上已經看得見了，這裡補的是文字說明。
                 var tip = chestTooltip;
+                if (hoardTooltip != null)
+                    tip = tip == null ? hoardTooltip : $"{tip}\n{hoardTooltip}";
                 if (enemies > 0)
                 {
                     var line = string.Format(Loc.T("DD_RoomEnemies", "{0} enemies detected here"), enemies);
@@ -338,6 +367,55 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
         }
 
         return tips == null ? null : string.Join("\n", tips);
+    }
+
+    /// <summary>
+    /// 畫某一格裡的埋藏寶藏，回傳要接進該格 tooltip 的說明文字（這一格沒有就回 null）。
+    /// </summary>
+    /// <remarks>
+    /// 這裡<b>只畫真的看到實體的點</b>，沒有「地圖說有但還沒找到」那一態——
+    /// 遊戲的深牢地圖資料根本不含埋藏寶藏的位置，我們也不打算自己維護一份猜測資料庫，
+    /// 所以「不知道」在這裡的正確表現方式就是<b>什麼都不畫</b>，而不是畫一個問號去暗示某一格有。
+    /// 唯一需要說出口的「不知道」是「偵測到了但放不上小地圖」，那一行由 <see cref="AutoClear"/> 印。
+    /// </remarks>
+    private string? DrawHoards(int room, Vector2 pos)
+    {
+        if (HoardSpots == null)
+            return null;
+
+        var dl = ImGui.GetWindowDrawList();
+        string? tip = null;
+        var count = HoardSpots.Count;
+
+        for (var i = 0; i < count; ++i)
+        {
+            var s = HoardSpots[i];
+            if (s.Room != room)
+                continue;
+
+            // 與 DrawChests 同一套換算：先把游標移到格內的目標位置，再問螢幕座標。
+            ImGui.SetCursorPos(pos + new Vector2(CellHalfPixels, CellHalfPixels) + s.CellOffset);
+            var center = ImGui.GetCursorScreenPos();
+
+            // 菱形四角
+            var top = new Vector2(center.X, center.Y - HoardMarkerRadius);
+            var right = new Vector2(center.X + HoardMarkerRadius, center.Y);
+            var bottom = new Vector2(center.X, center.Y + HoardMarkerRadius);
+            var left = new Vector2(center.X - HoardMarkerRadius, center.Y);
+
+            // NecroLens 風格：先深色外框再本體，不疊半透明色塊。
+            dl.AddQuad(top, right, bottom, left, ColorCountShadow, 3f);
+            if (s.Revealed)
+                dl.AddQuadFilled(top, right, bottom, left, ColorHoard);
+            else
+                dl.AddQuad(top, right, bottom, left, ColorHoard, 1.6f);
+
+            tip ??= s.Revealed
+                ? Loc.T("DD_HoardRevealed", "Accursed Hoard: uncovered here, ready to be taken")
+                : Loc.T("DD_HoardBuried", "Accursed Hoard: buried here (invisible in game until you dig it up)");
+        }
+
+        return tip;
     }
 
     private static Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap SlotTexture(int slot, Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap bronze, Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap silver, Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap gold)

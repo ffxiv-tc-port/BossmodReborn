@@ -160,6 +160,15 @@ public sealed class AutoDDConfig : ConfigNode
         tooltip: "The banded coffers dug up from the Accursed Hoard. Until now these had no setting at all and were always handled, even with all three coffer types above unticked.\n\nAlso controls whether the glowing spot revealed by a Pomander of Intuition is walked to.")]
     public bool BandedCoffer = true;
 
+    // 🔴 純顯示，零自動化：這個開關<b>不</b>改變任何走位或開箱行為，只決定畫不畫標記。
+    //    要不要自動走過去仍然是上面 BandedCoffer + AutoMoveTreasure 的事。
+    // 📌 預設 true 是刻意的。這不是回退既有行為 —— 埋藏的寶藏在此之前<b>完全沒有任何顯示</b>，
+    //    小地圖與世界疊加層都沒有，所以預設開不會蓋掉任何人原本看得到的東西。
+    //    （BMR 的設定反序列化是遍歷 JSON 鍵，既有使用者的檔案裡沒有這個鍵就會吃到新預設。）
+    [PropertyDisplay("Show the buried Accursed Hoard",
+        tooltip: "Marks the Accursed Hoard on the minimap and on the ground in the world.\n\nThe buried hoard is completely invisible in game until a Pomander of Intuition reveals it, so without this there is nothing to walk to. The marker comes straight from the object the game itself places at the spot - nothing is guessed and no location database is used, so if the game does not place the object, nothing is drawn rather than something wrong.\n\nDisplay only: it never moves you and never opens anything. The marker disappears once the hoard has been dug up.")]
+    public bool ShowAccursedHoard = true;
+
     [PropertyDisplay("Manual \"walk to room\" button on the minimap (requires vnavmesh)",
         tooltip: "Adds a button under the minimap that walks you to the room you picked, in one go. You press it, it walks, and it stops on arrival - it never opens coffers, never uses the Cairn of Passage, and never starts the next leg by itself. The route does not avoid mobs or trap hints. Off by default.")]
     public bool ManualRoomWalk = false;
