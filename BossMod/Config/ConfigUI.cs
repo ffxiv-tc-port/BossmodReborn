@@ -490,7 +490,7 @@ public sealed class ConfigUI : IDisposable
             foreach (var n in group.Names)
                 ImGui.TableSetupColumn(n);
             ImGui.TableSetupColumn("----");
-            ImGui.TableSetupColumn("Name");
+            ImGui.TableSetupColumn(Loc.T("Name"));
             ImGui.TableHeadersRow();
 
             var assignments = root.Get<PartyRolesConfig>().SlotsPerAssignment(ws.Party);

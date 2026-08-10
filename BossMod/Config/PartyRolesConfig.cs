@@ -71,7 +71,7 @@ public class PartyRolesConfig : ConfigNode
             {
                 foreach (var r in typeof(Assignment).GetEnumValues())
                     ImGui.TableSetupColumn(r.ToString(), ImGuiTableColumnFlags.None, 25);
-                ImGui.TableSetupColumn("Name");
+                ImGui.TableSetupColumn(Loc.T("Name"));
                 ImGui.TableHeadersRow();
 
                 List<(ulong cid, string name, char role, Assignment assignment)> party = [];

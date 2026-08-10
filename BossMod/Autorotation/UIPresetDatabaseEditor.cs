@@ -83,7 +83,7 @@ public sealed class UIPresetDatabaseEditor(RotationDatabase rotationDB)
 
     private void DrawPresetSelector()
     {
-        UIMisc.HelpMarker("""
+        UIMisc.HelpMarker(Loc.T("PRESETDB_IntroHelp", """
             To start using autorotation, create a *preset*.
             Preset configures rotation *modules* and their *strategies*.
             Module is a piece of code that evaluates game state and fills prioritized list of candidate actions.
@@ -92,7 +92,7 @@ public sealed class UIPresetDatabaseEditor(RotationDatabase rotationDB)
             For example, you might want to create a 'single target' and 'aoe' presets, which would use the same modules, but would configure their strategies differently.
             You could optionally assign keyboard modifiers to each strategy value; such value would only be applied if modifier is held.
             This allows you, for example, to set up preset so that it delays 2-minute burst if shift is held.
-            """);
+            """));
         ImGui.SameLine();
 
         ImGui.SetNextItemWidth(200);

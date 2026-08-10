@@ -377,7 +377,7 @@ sealed class ReplayDetailsWindow : UIWindow
         ImGui.TableSetupColumn("Z", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 90);
         ImGui.TableSetupColumn("Rot", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 90);
         ImGui.TableSetupColumn("HP", ImGuiTableColumnFlags.WidthFixed, 200);
-        ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.None, 100);
+        ImGui.TableSetupColumn(Loc.T("Name"), ImGuiTableColumnFlags.None, 100);
         ImGui.TableSetupColumn(Loc.T("Target"), ImGuiTableColumnFlags.None, 100);
         ImGui.TableSetupColumn(Loc.T("Cast"), ImGuiTableColumnFlags.None, 100);
         ImGui.TableSetupColumn("Statuses", ImGuiTableColumnFlags.None, 100);
@@ -452,7 +452,7 @@ sealed class ReplayDetailsWindow : UIWindow
         ImGui.TableSetupColumn("Z", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 90);
         ImGui.TableSetupColumn("Rot", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 90);
         ImGui.TableSetupColumn("HP", ImGuiTableColumnFlags.WidthFixed, 200);
-        ImGui.TableSetupColumn("Name");
+        ImGui.TableSetupColumn(Loc.T("Name"));
         ImGui.TableSetupColumn(Loc.T("Target"));
         ImGui.TableSetupColumn(Loc.T("Cast"));
         ImGui.TableSetupColumn("Statuses");
@@ -477,7 +477,7 @@ sealed class ReplayDetailsWindow : UIWindow
         ImGui.TableSetupColumn("Z", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 90);
         ImGui.TableSetupColumn("Rot", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 90);
         ImGui.TableSetupColumn("HP", ImGuiTableColumnFlags.WidthFixed, 200);
-        ImGui.TableSetupColumn("Name");
+        ImGui.TableSetupColumn(Loc.T("Name"));
         ImGui.TableSetupColumn(Loc.T("Target"));
         ImGui.TableSetupColumn(Loc.T("Cast"));
         ImGui.TableSetupColumn("Statuses");
