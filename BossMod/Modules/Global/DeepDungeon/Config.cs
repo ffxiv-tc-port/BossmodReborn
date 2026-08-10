@@ -58,6 +58,13 @@ public sealed class AutoDDConfig : ConfigNode
 
         ImGui.TextColored(PrereqNoteColor, Loc.T("DD_PrereqNote", "Automatic mob targeting works without the AI. Trap avoidance, walking to coffers and walking to the Cairn of Passage all need it."));
 
+        // 🔑 第三個閘門，而且是最容易讓人以為「設定壞了」的那一個：五個設定其實是被
+        //    autorotation 模組讀走的，模組沒進 preset 就完全不會執行，而設定頁上看不出來。
+        //    （模組本身還有一層：AIBehaviour 的 `Preset = target.Target != null ? … : null`
+        //    ——沒有目標時整條管線是關的。）
+        ImGui.TextColored(PrereqNoteColor, Loc.T("DD_PrereqRotationModule",
+            "Note: the four \"Kite\" settings and \"also drink the deep dungeon's own potions\" are consumed by the \"Deep Dungeon AI\" autorotation module, not by this module. They do nothing unless that module is part of your active preset with the matching track switched on - and that module only runs while you have a target."));
+
         ImGui.Separator();
     }
 
