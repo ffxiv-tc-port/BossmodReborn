@@ -8248,5 +8248,137 @@
   },
   "REPLAY_LogsFound": {
     "message": "找到 {0} 筆重播紀錄"
+  },
+  "[BMR] Replay recording started": {
+    "message": "[BMR] 重播錄製已開始"
+  },
+  "[BMR] Important duty alert disabled": {
+    "message": "[BMR] 已停用重要副本提醒"
+  },
+  "[BMR] This duty does not yet have a complete module. Recording and uploading a replay will help enable module creation. ": {
+    "message": "[BMR] 此副本尚未有完整模組。錄製並上傳重播有助於製作模組。 "
+  },
+  "[Start replay recording]": {
+    "message": "[開始錄製重播]"
+  },
+  "[Permanently disable these alerts]": {
+    "message": "[永久停用這些提醒]"
+  },
+  "REPLAY_ChatReplayPath": {
+    "message": "[BMR] 你的重播路徑：{0}"
+  },
+  "[BMR] You recorded a duty without a complete module. Uploading this replay helps with module development. ": {
+    "message": "[BMR] 你錄製了一場尚未有完整模組的副本。上傳這份重播有助於模組開發。 "
+  },
+  "[Upload the replay]": {
+    "message": "[上傳重播]"
+  },
+  "Camera azimuth": {
+    "message": "鏡頭方位角"
+  },
+  "Override": {
+    "message": "覆寫"
+  },
+  "Plan execution": {
+    "message": "計劃執行"
+  },
+  "Timeline": {
+    "message": "時間軸"
+  },
+  "Plan": {
+    "message": "計劃"
+  },
+  "Edit": {
+    "message": "編輯"
+  },
+  "Show config": {
+    "message": "顯示設定"
+  },
+  "Show debug": {
+    "message": "顯示除錯資訊"
+  },
+  "Split": {
+    "message": "分割"
+  },
+  "Split (encounter)": {
+    "message": "分割（遭遇戰）"
+  },
+  "Party": {
+    "message": "隊伍"
+  },
+  "POV": {
+    "message": "視角"
+  },
+  "Class": {
+    "message": "職業"
+  },
+  "Assign": {
+    "message": "指派"
+  },
+  "HP": {
+    "message": "生命值"
+  },
+  "Statuses": {
+    "message": "狀態"
+  },
+  "Hints": {
+    "message": "提示"
+  },
+  "All actors": {
+    "message": "所有物件"
+  },
+  "AI hints": {
+    "message": "AI 提示"
+  },
+  "Zone cushion": {
+    "message": "禁區緩衝"
+  },
+  "Ability range": {
+    "message": "技能射程"
+  },
+  "Ability positional": {
+    "message": "技能定位"
+  },
+  "Config": {
+    "message": "設定"
+  },
+  "State text": {
+    "message": "狀態文字"
+  },
+  "Enemy casts columns": {
+    "message": "敵人詠唱欄"
+  },
+  "Enemy details": {
+    "message": "敵人詳細資料"
+  },
+  "Player details": {
+    "message": "玩家詳細資料"
+  },
+  "Sync phase durations to replay": {
+    "message": "將階段時長同步至重播"
+  },
+  "Default": {
+    "message": "預設"
+  },
+  "Actions": {
+    "message": "技能"
+  },
+  "Resources": {
+    "message": "資源"
+  },
+  "Planner": {
+    "message": "計劃器"
+  },
+  "Gauge": {
+    "message": "職業量表"
+  },
+  "Planner: not supported for this encounter": {
+    "message": "計劃器：此遭遇戰不支援"
+  },
+  "Save all changes": {
+    "message": "儲存所有變更"
+  },
+  "Save (no changes)": {
+    "message": "儲存（無變更）"
   }
 }

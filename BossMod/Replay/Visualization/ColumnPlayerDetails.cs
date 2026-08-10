@@ -64,16 +64,16 @@ public sealed class ColumnPlayerDetails : Timeline.ColumnGroup
     public void DrawConfig(UITree tree)
     {
         DrawConfigPlanner(tree);
-        foreach (var _1 in tree.Node("Actions"))
+        foreach (var _1 in tree.Node(Loc.T("Actions")))
             _actions.DrawConfig(tree);
-        foreach (var _1 in tree.Node("Statuses"))
+        foreach (var _1 in tree.Node(Loc.T("Statuses")))
             _statuses.DrawConfig(tree);
 
-        foreach (var _1 in tree.Node("Resources"))
+        foreach (var _1 in tree.Node(Loc.T("Resources")))
         {
-            DrawResourceColumnToggle(_hp, "HP");
+            DrawResourceColumnToggle(_hp, Loc.T("HP"));
             if (_gauge != null)
-                DrawResourceColumnToggle(_gauge, "Gauge");
+                DrawResourceColumnToggle(_gauge, Loc.T("Gauge"));
         }
     }
 
@@ -91,11 +91,11 @@ public sealed class ColumnPlayerDetails : Timeline.ColumnGroup
     {
         if (_moduleInfo == null || _moduleInfo.PlanLevel <= 0)
         {
-            tree.LeafNode("Planner: not supported for this encounter");
+            tree.LeafNode(Loc.T("Planner: not supported for this encounter"));
             return;
         }
 
-        foreach (var _1 in tree.Node("Planner"))
+        foreach (var _1 in tree.Node(Loc.T("Planner")))
         {
             var plans = _planDatabase.GetPlans(_moduleInfo.ModuleType, _playerClass);
             UpdateSelectedPlan(plans, DrawPlanSelector(_moduleInfo.ModuleType, plans, _selectedPlan));
@@ -113,7 +113,7 @@ public sealed class ColumnPlayerDetails : Timeline.ColumnGroup
 
                 using (ImRaii.Disabled(!haveDifferentPhaseTimes))
                 {
-                    if (ImGui.Button("Sync phase durations to replay"))
+                    if (ImGui.Button(Loc.T("Sync phase durations to replay")))
                     {
                         for (int i = 0; i < _tree.Phases.Count; ++i)
                             _planner.Plan.PhaseDurations[i] = _tree.Phases[i].Duration;
@@ -131,7 +131,7 @@ public sealed class ColumnPlayerDetails : Timeline.ColumnGroup
 
         var isDefault = selection == list.SelectedIndex;
         ImGui.SameLine();
-        if (ImGui.Checkbox("Default", ref isDefault))
+        if (ImGui.Checkbox(Loc.T("Default"), ref isDefault))
         {
             list.SelectedIndex = isDefault ? selection : -1;
             _planDatabase.ModifyManifest(moduleType, _playerClass);
