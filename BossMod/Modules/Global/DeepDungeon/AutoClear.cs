@@ -380,6 +380,9 @@ public abstract class AutoClear : ZoneModule
         _pullLoggedFloor = 255;
         _openedChests.Clear();
         _fakeExits.Clear();
+        // 換層／重新進場都讓寶箱摘要再印一次。簽章本身含樓層，同一輪往下走本來就會變；
+        // 這裡歸零處理的是「離開再回到同一層、內容剛好一模一樣」那種會被吃掉的情況。
+        _chestDiagSignature = 0;
         OnChangeFloors();
     }
 
@@ -447,6 +450,31 @@ public abstract class AutoClear : ZoneModule
 
     public sealed override string WindowName() => "BMR DD minimap###Zone module";
 
+    /// <summary>上一次印出來的小地圖寶箱摘要簽章；0＝這一層還沒印過。</summary>
+    private ulong _chestDiagSignature;
+
+    /// <summary>
+    /// 把小地圖「算出來要畫什麼」寫進 log。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 這一行是用來把「資料 → 繪製決策」的斷點一刀切開的：
+    /// log 說某一格要畫、使用者卻看不到 ⇒ 斷在<b>渲染側</b>；
+    /// log 根本沒提那一格 ⇒ 斷在<b>資料側</b>。
+    /// （後者理論上不該發生，而這一行的存在正是為了抓這種「不該發生」。）
+    /// <para>
+    /// 🔴 節流靠 <see cref="Minimap.ChestDiagSignature"/>：<see cref="DrawExtra"/> 每幀都跑，
+    /// 沒有節流會每秒刷幾十行。簽章相同時連字串都不會組出來——比對的只是一個 ulong。
+    /// </para>
+    /// 📌 走 <c>Information</c>：使用者的 LogLevel 是 2，Debug/Verbose 收不到。
+    /// </remarks>
+    private void LogChestDiagnostic(Minimap minimap)
+    {
+        if (minimap.ChestDiagSignature == _chestDiagSignature)
+            return;
+        _chestDiagSignature = minimap.ChestDiagSignature;
+        Service.Logger.Information(minimap.FormatChestDiagnostic());
+    }
+
     public override void DrawExtra()
     {
         var player = World.Party.Player()!;
@@ -463,7 +491,12 @@ public abstract class AutoClear : ZoneModule
 
         var hoardSpots = ComputeHoardSpots(coords, out var hoardDetected);
 
-        var targetRoom = new Minimap(Palace, player, DesiredRoom, Config, ComputeChestSpots(coords), roomEnemies, hoardSpots).Draw();
+        // 🔴 Minimap 是 record class、每幀重建，所以「上次印過什麼」這種狀態只能放在呼叫端
+        //    （同款先例：_floorStateFor）。
+        var minimap = new Minimap(Palace, player, DesiredRoom, Config, ComputeChestSpots(coords), roomEnemies, hoardSpots);
+        var targetRoom = minimap.Draw();
+        LogChestDiagnostic(minimap);
+
         if (targetRoom >= 0)
         {
             DesiredRoom = targetRoom;

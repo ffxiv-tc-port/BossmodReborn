@@ -121,8 +121,22 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
     /// </remarks>
     public static int ChestSlot(int type) => type >= 1 && type <= 3 ? type - 1 : UnknownChestSlot;
 
+    /// <summary>最後一次 <see cref="Draw"/> 算出來的「地圖說這一格這一型別有幾個」；null＝還沒畫過。</summary>
+    private int[]? _diagChestCounts;
+
+    /// <summary>最後一次 <see cref="Draw"/> 算出來的「其中已經在 <c>ObjectTable</c> 看到實體的有幾個」。</summary>
+    private int[]? _diagLocated;
+
     /// <summary>
-    /// 
+    /// 寶箱繪製決策的內容簽章，供呼叫端節流用（值變了才值得再印一行 log）。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 刻意<b>不</b>把格內像素位置算進去——那個每幀都在動，混進來會讓節流失效變成每幀刷 log。
+    /// </remarks>
+    public ulong ChestDiagSignature { get; private set; }
+
+    /// <summary>
+    ///
     /// </summary>
     /// <returns>Integer index of the room the user clicked on.</returns>
     public int Draw()
@@ -158,6 +172,14 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
                     ++located[s.Room * ChestTypeSlots + s.Slot];
             }
         }
+
+        // ── 儀器：把「這一幀算出來要畫什麼」留給呼叫端寫進 log ──────────────────
+        // 🔴 這裡交出去的是**下面繪製迴圈真的會讀的那兩個陣列本身**，不是另外重算一份。
+        //    重算一份只能證明「重算的碼跟原碼一樣」，證明不了繪製端看到的是什麼。
+        // 📌 這裡只算簽章、不組字串：Draw() 每幀都跑，字串由呼叫端在簽章變了時才組。
+        _diagChestCounts = chestCounts;
+        _diagLocated = located;
+        ChestDiagSignature = ComputeChestDiagSignature(chestCounts, located);
 
         var lenP = State.Party.Length;
         DeepDungeonState.PartyMember player = default;
@@ -475,6 +497,93 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
         1 => Loc.T("DD_ChestSilver", "silver coffer"),
         2 => Loc.T("DD_ChestGold", "gold coffer"),
         _ => Loc.T("DD_ChestUnknownType", "coffer of an unrecognized type"),
+    };
+
+    /// <summary>
+    /// 把最後一次 <see cref="Draw"/> 的寶箱繪製決策組成一行診斷文字。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 這一行的用途是把「資料 → 繪製決策」的斷點釘死：
+    /// log 說某一格要畫、使用者卻看不到 ⇒ 斷在<b>渲染側</b>（圖示沒載到、位置算歪、被別的東西蓋住…）；
+    /// log 根本沒提到那一格 ⇒ 斷在<b>資料側</b>（房號歸屬、型別過濾…）。
+    /// 兩邊都要列出來：<c>地圖 n 已定位 0</c> 是「上排摘要要畫」，<c>地圖 0 已定位 n</c> 是
+    /// 「遊戲的寶箱清單沒列、但 <c>ObjectTable</c> 看得到實體」——後者今天完全沒有任何顯示能透露。
+    /// <para>📌 診斷字串刻意<b>不</b>進在地化：它是寫給 log 的，不是介面文字。</para>
+    /// </remarks>
+    public string FormatChestDiagnostic()
+    {
+        var sb = new StringBuilder(192);
+        sb.Append("[DD] 小地圖寶箱摘要 樓層 ").Append(State.Floor)
+          .Append(" 版面 ").Append(State.Progress.Tileset)
+          .Append(ChestSpots == null ? " 座標校驗未過（整層只畫摘要）：" : " 座標校驗通過：");
+
+        var counts = _diagChestCounts;
+        var located = _diagLocated;
+        if (counts == null || located == null)
+        {
+            sb.Append("（還沒畫過任何一幀）");
+            return sb.ToString();
+        }
+
+        var any = false;
+        for (var room = 0; room < DeepDungeonState.NumRooms; ++room)
+        {
+            for (var s = 0; s < ChestTypeSlots; ++s)
+            {
+                var idx = room * ChestTypeSlots + s;
+                var total = counts[idx];
+                var loc = located[idx];
+                if (total == 0 && loc == 0)
+                    continue;
+                if (any)
+                    sb.Append('、');
+                any = true;
+                var pending = total - loc;
+                sb.Append("cell").Append(room).Append('=').Append(SlotDiagName(s))
+                  .Append(" 地圖").Append(total)
+                  .Append(" 已定位").Append(loc)
+                  .Append(" 摘要待畫").Append(pending > 0 ? pending : 0);
+            }
+        }
+        if (!any)
+            sb.Append("（遊戲的寶箱清單沒列任何東西，ObjectTable 也沒看到）");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 寶箱繪製決策的內容簽章（FNV-1a 64）。
+    /// </summary>
+    /// <remarks>
+    /// 只涵蓋「哪一格哪一型別各幾個、其中幾個已定位」與樓層／版面／座標閘門狀態。
+    /// 格內像素位置刻意不算進來，理由見 <see cref="ChestDiagSignature"/>。
+    /// </remarks>
+    private ulong ComputeChestDiagSignature(int[] chestCounts, int[] located)
+    {
+        var h = 14695981039346656037ul;
+        h = MixHash(h, State.Floor);
+        h = MixHash(h, State.Progress.Tileset);
+        h = MixHash(h, ChestSpots == null ? 1u : 0u);
+        var len = chestCounts.Length;
+        for (var i = 0; i < len; ++i)
+        {
+            var total = chestCounts[i];
+            var loc = located[i];
+            if (total == 0 && loc == 0)
+                continue;
+            h = MixHash(MixHash(MixHash(h, (uint)i), (uint)total), (uint)loc);
+        }
+        return h;
+    }
+
+    private static ulong MixHash(ulong h, uint v) => (h ^ v) * 1099511628211ul;
+
+    /// <summary>診斷用的型別名。刻意不走 <c>Loc.T</c>——這是 log 文字，不是介面文字。</summary>
+    private static string SlotDiagName(int slot) => slot switch
+    {
+        0 => "銅",
+        1 => "銀",
+        2 => "金",
+        _ => "未知型別",
     };
 
     /// <summary>
