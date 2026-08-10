@@ -143,10 +143,17 @@ public sealed unsafe class MovementOverride : IDisposable
         _rmiWalkHook.Original(self, sumLeft, sumForward, sumTurnLeft, haveBackwardOrStrafe, a6, bAdditiveUnk);
 
         bool movementAllowed, misdirectionMode;
+        // 儀器用：這一幀有沒有真的問過 vnavmesh、問到的答案是什麼。
+        // ⚠️ 拆成兩個變數是為了**保住原本的短路**——inputEnabled 為 false 時原碼根本不會呼叫
+        //    FollowPathActive()，多呼叫一次會多一個擲 IndexOutOfRange 的機會（見下方 detour 約定的註解 ①）。
+        bool inputEnabled = false, followPathActive = false;
         try
         {
             // TODO: we really need to introduce some extra checks that PlayerMoveController::readInput does - sometimes it skips reading input, and returning something non-zero breaks stuff...
-            movementAllowed = bAdditiveUnk == 0 && _rmiWalkIsInputEnabled1 != null && _rmiWalkIsInputEnabled1(self) && _rmiWalkIsInputEnabled2 != null && _rmiWalkIsInputEnabled2(self) && !FollowPathActive();
+            inputEnabled = bAdditiveUnk == 0 && _rmiWalkIsInputEnabled1 != null && _rmiWalkIsInputEnabled1(self) && _rmiWalkIsInputEnabled2 != null && _rmiWalkIsInputEnabled2(self);
+            if (inputEnabled)
+                followPathActive = FollowPathActive();
+            movementAllowed = inputEnabled && !followPathActive;
             misdirectionMode = PlayerHasMisdirection();
         }
         catch (Exception ex)
@@ -155,6 +162,9 @@ public sealed unsafe class MovementOverride : IDisposable
             DetourGuard.Report(nameof(RMIWalkDetour), ex);
             return;
         }
+
+        // 🔴 儀器：擺在 try 外面，因為上面那個 catch 會 return——記 log 失敗不該連帶取消這一幀的移動覆寫。
+        LogFollowPathYield(inputEnabled, followPathActive);
 
         if (!movementAllowed && misdirectionMode)
         {
@@ -211,6 +221,47 @@ public sealed unsafe class MovementOverride : IDisposable
             // 而且是不會擲例外的欄位讀取）⇒ 遊戲拿到的仍是它自己算出來的輸入。
             // _forcedControlState 維持 null，MCIsInputActiveDetour 也會自動退回 Original。
             DetourGuard.Report(nameof(RMIWalkDetour), ex);
+        }
+    }
+
+    /// <summary>目前是不是已經回報過「因為 vnavmesh 而讓路」。</summary>
+    private bool _yieldingToFollowPath;
+
+    /// <summary>
+    /// 把「BMR 想自動走位，但因為 vnavmesh 回報路徑執行中而整段讓路」這件事講出來。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 movementAllowed 為 false 有四個成因（bAdditiveUnk、兩個 IsInputEnabled、FollowPathActive），
+    /// <b>只有最後一個</b>值得報：前三個是遊戲自己正常的「現在不讀移動輸入」，報了全是噪音。
+    /// <para>
+    /// 🔴 解除條件刻意只看 <paramref name="followPathActive"/>，<b>不</b>看「還想不想自動走」——
+    /// DesiredDirection 每幀由 <c>AIHints.ForcedMovement</c> 重算，本來就會頻繁進出，
+    /// 拿它當解除條件會讓同一行 log 每秒刷好幾次。真正的狀態變化是 vnavmesh 放手。
+    /// </para>
+    /// <para>
+    /// ⚠️ <paramref name="evaluated"/> 為 false 代表這一幀連問都沒問（遊戲自己就停用了移動輸入），
+    /// 那就<b>什麼都不宣稱</b>——維持上一次的判斷，不要把「不知道」印成「已恢復」。
+    /// </para>
+    /// 📌 走 <c>Information</c>：使用者的 LogLevel 是 2。這條路徑完全隱形——
+    /// vnavmesh 留了殘路徑時，注入會被永久壓住，而手動輸入與世界標線都正常，看不出任何異狀。
+    /// </remarks>
+    private void LogFollowPathYield(bool evaluated, bool followPathActive)
+    {
+        if (!evaluated)
+            return;
+
+        if (!_yieldingToFollowPath)
+        {
+            // 只有「真的有想走的方向」時才值得報一次：沒人要自動走的時候讓路是無害的
+            if (!followPathActive || DesiredDirection is not { } wanted || wanted == default)
+                return;
+            _yieldingToFollowPath = true;
+            Service.Logger.Information("[MovementOverride] 自動走位讓路中：vnavmesh 回報路徑執行中（Dalamud 共享資料 vnav.PathIsRunning = true），BMR 這一段完全不注入移動輸入。若 vnavmesh 其實沒有在走，代表它留了殘路徑，BMR 的自動移動會一直被壓住——手動輸入與世界標線都不受影響，所以外觀上看不出來。");
+        }
+        else if (!followPathActive)
+        {
+            _yieldingToFollowPath = false;
+            Service.Logger.Information("[MovementOverride] 自動走位讓路結束：vnavmesh 已回報路徑停止，BMR 恢復注入移動輸入。");
         }
     }
 
