@@ -184,7 +184,7 @@ public sealed class AutoDDConfig : ConfigNode
     public bool ShowAccursedHoard = true;
 
     [PropertyDisplay("Manual \"walk to room\" button on the minimap (requires vnavmesh)",
-        tooltip: "Adds a button under the minimap that walks you to the room you picked, in one go. You press it, it walks, and it stops on arrival - it never opens coffers, never uses the Cairn of Passage, and never starts the next leg by itself. The route does not avoid mobs or trap hints. Off by default.")]
+        tooltip: "Adds a button under the minimap that walks you to the room you picked, in one go. You press it, it walks, and it stops on arrival - it never opens coffers, never uses the Cairn of Passage, and never starts the next leg by itself. The route does not avoid mobs.\n\nBefore anything moves, the whole route is checked against known trap locations - every stretch between corners, not just the corners themselves - and refused outright, with the reason shown under the minimap, if any part of it passes too close. It is never re-routed around a trap. Off by default.")]
     public bool ManualRoomWalk = false;
 
     // ── 風箏 ──────────────────────────────────────────────────────────

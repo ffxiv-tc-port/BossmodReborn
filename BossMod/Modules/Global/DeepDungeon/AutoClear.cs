@@ -808,8 +808,166 @@ public abstract class AutoClear : ZoneModule
                     Loc.T("DD_WalkPathLeavesCorridor", "Refusing to move: vnavmesh's route leaves the corridor of rooms that are actually connected on this floor (waypoint {0} of {1} lands in room {2}). Its navigation mesh is probably still the one from the previous floor."),
                     i + 1, count, room);
         }
+        return ValidateWalkPathTraps(path);
+    }
+
+    #region 路徑的線段級陷阱檢查
+
+    /// <summary>
+    /// 陷阱圓的半徑（碼）。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 沿用 AI 迴避那邊的語意，不另訂一個值：<see cref="CalculateAIHints"/> 兩處都是
+    /// <c>ShapeDistance.Circle(位置, 2f)</c>。兩邊用不同半徑的話，
+    /// 「AI 會閃但手動導航說沒問題」（或反過來）都會變成使用者眼中的自相矛盾。
+    /// </remarks>
+    private const float WalkTrapRadius = 2f;
+
+    /// <summary>
+    /// 這一次驗證要比對哪些陷阱點。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 兩個來源，與 AI 迴避完全一致：<b>資料庫陷阱</b>（受 <c>TrapHints</c> 與
+    /// 「本層還沒被全景照出來」<see cref="_trapsHidden"/> 兩個條件管），
+    /// 以及<b>已現形的陷阱實體</b>（<see cref="RevealedTrapOIDs"/>，AI 那邊不看 <c>TrapHints</c>，
+    /// 這裡也不看）。使用者忽略掉的點（<see cref="IgnoreTraps"/>）一律排除。
+    /// </para>
+    /// <para>
+    /// 🔴 <b>人已經站在裡面的陷阱圓要跳過。</b>資料庫有誤報時（那顆「把最近的陷阱設為忽略」
+    /// 按鈕就是為此存在的），人可能正站在一個標記點上——不跳過的話第一段永遠是髒的，
+    /// 這顆按鈕會<b>永久失效</b>而且原因看起來像「這條路有陷阱」。
+    /// 拒絕移動也救不了「已經站在上面」，所以跳過不損失任何安全性。
+    /// </para>
+    /// </remarks>
+    private List<WPos> CollectWalkTrapPoints(WPos? playerPos)
+    {
+        List<WPos> res = [];
+
+        bool StandingOn(WPos t) => playerPos is WPos p && t.InCircle(p, WalkTrapRadius);
+
+        if (Config.TrapHints && _trapsHidden)
+        {
+            var len = _trapsCurrentZone.Length;
+            var ignoreCount = IgnoreTraps.Count;
+            for (var i = 0; i < len; ++i)
+            {
+                var trap = _trapsCurrentZone[i];
+                var ignored = false;
+                for (var j = 0; j < ignoreCount; ++j)
+                {
+                    if (IgnoreTraps[j].AlmostEqual(trap, 1f))
+                    {
+                        ignored = true;
+                        break;
+                    }
+                }
+                if (!ignored && !StandingOn(trap))
+                    res.Add(trap);
+            }
+        }
+
+        foreach (var a in World.Actors)
+        {
+            if (RevealedTrapOIDs.Contains(a.OID) && !StandingOn(a.Position))
+                res.Add(a.Position);
+        }
+
+        return res;
+    }
+
+    /// <summary>點到線段的距離（只算 XZ 平面）。</summary>
+    private static float DistanceToSegment(WPos p, WPos a, WPos b)
+    {
+        var ab = b - a;
+        var lenSq = ab.LengthSq();
+        if (lenSq < 1e-6f)
+            return (p - a).Length();
+        var t = Math.Clamp((p - a).Dot(ab) / lenSq, 0f, 1f);
+        return (p - (a + ab * t)).Length();
+    }
+
+    /// <summary>
+    /// 🔴 路徑<b>線段</b>會不會經過已知陷阱。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>為什麼不能只驗頂點</b>：<see cref="ValidateWalkPath"/> 原本只檢查每個路徑點落在哪一間房，
+    /// 而 vnavmesh 給的是<b>轉折點</b>——兩個轉折點之間可以是幾十碼的直線，
+    /// 中間踩過什麼完全沒有被看過。頂點全部乾淨與「這條路乾淨」是兩回事。
+    /// </para>
+    /// <para>
+    /// 📌 第一段的起點是<b>玩家目前位置</b>，因為 <c>Path.MoveTo</c> 就是從角色現在的位置
+    /// 走向第一個路徑點；vnavmesh 回傳的清單有沒有含起點在這裡不必知道
+    /// （含的話第一段長度接近 0，不影響結論）。
+    /// </para>
+    /// <para>
+    /// 🔴 <b>只拒絕，不繞路。</b>拒絕之後把原因寫給使用者看（不能靜默），
+    /// 由使用者自己決定要走過去、還是把那個點設為忽略。
+    /// </para>
+    /// </remarks>
+    private string? ValidateWalkPathTraps(List<Vector3> path)
+    {
+        var count = path.Count;
+        if (count == 0)
+            return null;
+
+        var player = World.Party.Player();
+        WPos? playerPos = player != null ? player.Position : null;
+
+        var traps = CollectWalkTrapPoints(playerPos);
+        if (traps.Count == 0)
+            return null;
+
+        // 路徑的包圍盒（外擴一個陷阱半徑）先濾一遍。同一個區域的陷阱表有數百筆而且橫跨整組樓層，
+        // 大部分根本不在這條路附近。
+        var minX = float.MaxValue;
+        var maxX = float.MinValue;
+        var minZ = float.MaxValue;
+        var maxZ = float.MinValue;
+        void Extend(WPos q)
+        {
+            minX = Math.Min(minX, q.X);
+            maxX = Math.Max(maxX, q.X);
+            minZ = Math.Min(minZ, q.Z);
+            maxZ = Math.Max(maxZ, q.Z);
+        }
+        if (playerPos is WPos pp0)
+            Extend(pp0);
+        for (var i = 0; i < count; ++i)
+            Extend(new WPos(path[i].X, path[i].Z));
+        minX -= WalkTrapRadius;
+        maxX += WalkTrapRadius;
+        minZ -= WalkTrapRadius;
+        maxZ += WalkTrapRadius;
+
+        var prev = playerPos ?? new WPos(path[0].X, path[0].Z);
+        var trapCount = traps.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var cur = new WPos(path[i].X, path[i].Z);
+            for (var j = 0; j < trapCount; ++j)
+            {
+                var t = traps[j];
+                if (t.X < minX || t.X > maxX || t.Z < minZ || t.Z > maxZ)
+                    continue;
+                var dist = DistanceToSegment(t, prev, cur);
+                if (dist <= WalkTrapRadius)
+                {
+                    Service.Logger.Information(
+                        $"[DD] 手動導航拒絕：第 {i + 1}/{count} 段（{prev.X:f1},{prev.Z:f1} → {cur.X:f1},{cur.Z:f1}）" +
+                        $"距已知陷阱 ({t.X:f1},{t.Z:f1}) 只有 {dist:f1}y（門檻 {WalkTrapRadius}y）。");
+                    return string.Format(
+                        Loc.T("DD_WalkPathNearTrap", "Refusing to move: leg {0} of {1} of vnavmesh's route passes {2:f1}y from a known trap (the threshold is {3:f1}y). Nothing is moved. Walk that stretch yourself, or use \"set closest trap location as ignored\" if you know that marker is wrong."),
+                        i + 1, count, dist, WalkTrapRadius);
+                }
+            }
+            prev = cur;
+        }
         return null;
     }
+
+    #endregion
 
     private void SetWalkBlocked(string message)
     {
@@ -969,7 +1127,7 @@ public abstract class AutoClear : ZoneModule
             if (ImGui.Button(string.Format(Loc.T("DD_WalkToRoom", "Walk to room {0}"), DesiredRoom)))
                 StartWalk(player, DesiredRoom);
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip(string.Format(Loc.T("DD_WalkToRoomTooltip", "Walks there and stops on arrival. It does not open coffers, does not use the {0}, and does not start the next leg by itself.\n\nThe route does not avoid mobs and does not avoid trap hints.\nIf you run NecroLens with automatic coffer opening, walking past a coffer will make both plugins reach for it."), PassageName));
+                ImGui.SetTooltip(string.Format(Loc.T("DD_WalkToRoomTooltip", "Walks there and stops on arrival. It does not open coffers, does not use the {0}, and does not start the next leg by itself.\n\nThe route does not avoid mobs. It is checked against known traps before anything moves - not just the corners, but every stretch in between - and the whole route is refused (with the reason shown here) if any of it passes too close to one. It is never re-routed around them.\nIf you run NecroLens with automatic coffer opening, walking past a coffer will make both plugins reach for it."), PassageName));
             ImGui.SameLine();
         }
 
