@@ -4362,7 +4362,7 @@
     "message": "輸血"
   },
   "Harpe": {
-    "message": "神秘紋"
+    "message": "勾刃"
   },
   "Heart of Corundum": {
     "message": "剛玉之心"
@@ -7708,5 +7708,434 @@
   },
   "Front": {
     "message": "正面"
+  },
+  "Akechi BLM": {
+    "message": "Akechi 黑魔道士"
+  },
+  "Akechi DRG": {
+    "message": "Akechi 龍騎士"
+  },
+  "Akechi DRK": {
+    "message": "Akechi 暗黑騎士"
+  },
+  "Akechi GNB": {
+    "message": "Akechi 絕槍戰士"
+  },
+  "Akechi MCH": {
+    "message": "Akechi 機工士"
+  },
+  "Akechi PLD": {
+    "message": "Akechi 騎士"
+  },
+  "Akechi SCH": {
+    "message": "Akechi 學者"
+  },
+  "Akechi GNB (PvP)": {
+    "message": "Akechi 絕槍戰士 (PvP)"
+  },
+  "Akechi MCH (PvP)": {
+    "message": "Akechi 機工士 (PvP)"
+  },
+  "Akechi SMN (PvP)": {
+    "message": "Akechi 召喚士 (PvP)"
+  },
+  "Veyn BRD": {
+    "message": "Veyn 吟遊詩人"
+  },
+  "Veyn WAR": {
+    "message": "Veyn 戰士"
+  },
+  "xan AST": {
+    "message": "xan 占星術師"
+  },
+  "xan BLM": {
+    "message": "xan 黑魔道士"
+  },
+  "xan BLU": {
+    "message": "xan 青魔道士"
+  },
+  "xan BRD": {
+    "message": "xan 吟遊詩人"
+  },
+  "xan DNC": {
+    "message": "xan 舞者"
+  },
+  "xan DRG": {
+    "message": "xan 龍騎士"
+  },
+  "xan DRK": {
+    "message": "xan 暗黑騎士"
+  },
+  "xan GNB": {
+    "message": "xan 絕槍戰士"
+  },
+  "xan MCH": {
+    "message": "xan 機工士"
+  },
+  "xan MNK": {
+    "message": "xan 武僧"
+  },
+  "xan NIN": {
+    "message": "xan 忍者"
+  },
+  "xan PCT": {
+    "message": "xan 繪靈法師"
+  },
+  "xan PLD": {
+    "message": "xan 騎士"
+  },
+  "xan RDM": {
+    "message": "xan 赤魔道士"
+  },
+  "xan RPR": {
+    "message": "xan 奪魂者"
+  },
+  "xan SAM": {
+    "message": "xan 武士"
+  },
+  "xan SCH": {
+    "message": "xan 學者"
+  },
+  "xan SGE": {
+    "message": "xan 賢者"
+  },
+  "xan SMN": {
+    "message": "xan 召喚士"
+  },
+  "xan VPR": {
+    "message": "xan 毒蛇劍士"
+  },
+  "xan WHM": {
+    "message": "xan 白魔道士"
+  },
+  "Utility: AST": {
+    "message": "輔助：占星術師"
+  },
+  "Utility: BLM": {
+    "message": "輔助：黑魔道士"
+  },
+  "Utility: BLU": {
+    "message": "輔助：青魔道士"
+  },
+  "Utility: BRD": {
+    "message": "輔助：吟遊詩人"
+  },
+  "Utility: DNC": {
+    "message": "輔助：舞者"
+  },
+  "Utility: DRG": {
+    "message": "輔助：龍騎士"
+  },
+  "Utility: DRK": {
+    "message": "輔助：暗黑騎士"
+  },
+  "Utility: GNB": {
+    "message": "輔助：絕槍戰士"
+  },
+  "Utility: MCH": {
+    "message": "輔助：機工士"
+  },
+  "Utility: MNK": {
+    "message": "輔助：武僧"
+  },
+  "Utility: NIN": {
+    "message": "輔助：忍者"
+  },
+  "Utility: PCT": {
+    "message": "輔助：繪靈法師"
+  },
+  "Utility: PLD": {
+    "message": "輔助：騎士"
+  },
+  "Utility: RDM": {
+    "message": "輔助：赤魔道士"
+  },
+  "Utility: RPR": {
+    "message": "輔助：奪魂者"
+  },
+  "Utility: SAM": {
+    "message": "輔助：武士"
+  },
+  "Utility: SCH": {
+    "message": "輔助：學者"
+  },
+  "Utility: SGE": {
+    "message": "輔助：賢者"
+  },
+  "Utility: SMN": {
+    "message": "輔助：召喚士"
+  },
+  "Utility: VPR": {
+    "message": "輔助：毒蛇劍士"
+  },
+  "Utility: WAR": {
+    "message": "輔助：戰士"
+  },
+  "Utility: PvP": {
+    "message": "輔助：PvP"
+  },
+  "AI Experiment": {
+    "message": "AI 實驗"
+  },
+  "Auto-ThirdEye": {
+    "message": "自動心眼"
+  },
+  "Bozja AI": {
+    "message": "博茲雅 AI"
+  },
+  "Caster AI": {
+    "message": "法系 DPS AI"
+  },
+  "Eureka AI": {
+    "message": "優雷卡 AI"
+  },
+  "Variant AI": {
+    "message": "多變迷宮 AI"
+  },
+  "Astrologian": {
+    "message": "占星術師"
+  },
+  "Auto-caster": {
+    "message": "自動施法"
+  },
+  "Bard": {
+    "message": "吟遊詩人"
+  },
+  "Black Mage": {
+    "message": "黑魔道士"
+  },
+  "Blue Mage": {
+    "message": "青魔道士"
+  },
+  "Bozja utilities": {
+    "message": "博茲雅輔助技能"
+  },
+  "Cooldown Planner support for Utility Actions.\nNOTE: This is NOT a rotation preset! All Utility modules are STRICTLY for cooldown-planning usage.": {
+    "message": "冷卻計劃器的輔助技能支援。\n注意：這不是循環預設！所有輔助模組僅供冷卻計劃使用。"
+  },
+  "Dancer": {
+    "message": "舞者"
+  },
+  "Dark Knight": {
+    "message": "暗黑騎士"
+  },
+  "Dragoon": {
+    "message": "龍騎士"
+  },
+  "Eureka utilities": {
+    "message": "優雷卡輔助技能"
+  },
+  "Experimental encounter-specific rotation": {
+    "message": "實驗性、副本專屬循環"
+  },
+  "Gunbreaker": {
+    "message": "絕槍戰士"
+  },
+  "Machinist": {
+    "message": "機工士"
+  },
+  "Monk": {
+    "message": "武僧"
+  },
+  "Ninja": {
+    "message": "忍者"
+  },
+  "Paladin": {
+    "message": "騎士"
+  },
+  "Pictomancer": {
+    "message": "繪靈法師"
+  },
+  "Planner support for utility actions\nNOTE: There are a lot of Utility actions for Blue Mage.\nFor better accessibility:\n  1. Select 'Column Visibility' tab\n  2. Choose which skills you would like to keep visible or invisible": {
+    "message": "計劃器的輔助技能支援\n注意：青魔道士的輔助技能非常多。\n為了方便操作：\n  1. 選擇「欄位顯示」分頁\n  2. 選擇要顯示或隱藏的技能"
+  },
+  "PvP Rotation Module": {
+    "message": "PvP 循環模組"
+  },
+  "Reaper": {
+    "message": "奪魂者"
+  },
+  "Red Mage": {
+    "message": "赤魔道士"
+  },
+  "Sage": {
+    "message": "賢者"
+  },
+  "Samurai": {
+    "message": "武士"
+  },
+  "Scholar": {
+    "message": "學者"
+  },
+  "Standard Rotation Module": {
+    "message": "標準循環模組"
+  },
+  "Standard rotation module": {
+    "message": "標準循環模組"
+  },
+  "Summoner": {
+    "message": "召喚士"
+  },
+  "Third Eye before incoming damage": {
+    "message": "在受到傷害前使用心眼"
+  },
+  "Variant dungeon utilities": {
+    "message": "多變迷宮輔助技能"
+  },
+  "Viper": {
+    "message": "毒蛇劍士"
+  },
+  "White Mage": {
+    "message": "白魔道士"
+  },
+  "MODCAT_Casters": {
+    "message": "法系"
+  },
+  "MODCAT_Encounter AI": {
+    "message": "副本 AI"
+  },
+  "MODCAT_Healer": {
+    "message": "治療"
+  },
+  "MODCAT_Healers": {
+    "message": "治療"
+  },
+  "MODCAT_Melee": {
+    "message": "近戰"
+  },
+  "MODCAT_Standard rotation (Akechi)": {
+    "message": "Akechi 標準循環"
+  },
+  "MODCAT_Standard rotation (veyn)": {
+    "message": "veyn 標準循環"
+  },
+  "MODCAT_Standard rotation (xan)": {
+    "message": "xan 標準循環"
+  },
+  "MODCAT_Tank": {
+    "message": "坦克"
+  },
+  "MODCAT_Tanks": {
+    "message": "坦克"
+  },
+  "MODCAT_Utility (xan)": {
+    "message": "xan 輔助"
+  },
+  "MODCAT_AI (xan)": {
+    "message": "xan AI"
+  },
+  "MODCAT_Utility for planner": {
+    "message": "輔助（計劃器用）"
+  },
+  "Option": {
+    "message": "選項"
+  },
+  "Plan default": {
+    "message": "計劃預設值"
+  },
+  "Very Low": {
+    "message": "非常低"
+  },
+  "Low": {
+    "message": "低"
+  },
+  "Medium": {
+    "message": "中"
+  },
+  "High": {
+    "message": "高"
+  },
+  "Very High": {
+    "message": "非常高"
+  },
+  "Assignment": {
+    "message": "指派"
+  },
+  "Allow self": {
+    "message": "允許自己"
+  },
+  "Allow tanks": {
+    "message": "允許坦克"
+  },
+  "Allow healers": {
+    "message": "允許治療"
+  },
+  "Allow melee": {
+    "message": "允許近戰"
+  },
+  "Allow ranged": {
+    "message": "允許遠程"
+  },
+  "Only if more damage is expected": {
+    "message": "僅在預期會造成更多傷害時"
+  },
+  "Criterion": {
+    "message": "篩選條件"
+  },
+  "OID": {
+    "message": "目標 ID"
+  },
+  "Waymark": {
+    "message": "場地標記"
+  },
+  "Offset": {
+    "message": "偏移量"
+  },
+  "Direction": {
+    "message": "方向"
+  },
+  "Name": {
+    "message": "名稱"
+  },
+  "Save": {
+    "message": "儲存"
+  },
+  "Delete": {
+    "message": "刪除"
+  },
+  "No changes": {
+    "message": "沒有變更"
+  },
+  "Hold shift to delete": {
+    "message": "按住 Shift 才能刪除"
+  },
+  "Select any module to remove": {
+    "message": "選取要移除的模組"
+  },
+  "Hold shift": {
+    "message": "按住 Shift"
+  },
+  "PRESET_Remove": {
+    "message": "移除"
+  },
+  "STRAT_OffsetDirectionHelp": {
+    "message": "以角度表示；0 為南方，逆時針遞增（90 為東，180 為北，-90 為西）"
+  },
+  "STRAT_PriorityHelp": {
+    "message": "為對應的技能定義自訂優先度。\n優先度會與其他候選技能互相比較；建議使用預先定義的基準值，再加上一個小偏移量來區分多個技能。\n基準優先度如下：\n* 非常低 (1000) - 只有在沒有其他技能可用時才會使用。\n* 低 (2000) - 只有在不會延誤任何 DPS 技能時才會使用（例如在沒有溢出風險時，可能會延後使用第二層技能）。\n* 中 (3000) - 會在下一個可用的 OGCD 時機使用，但不會延誤 GCD 或任何極度重要的 OGCD；每個 GCD 至少可預期有 1 個時機用於中優先度技能。\n* 高 (4000) - 會在下一個可用的 OGCD 時機使用；不會延誤 GCD，但若使用不慎，某些情況下可能打亂循環節奏。\n* 非常高 (5000) - 會盡快使用；必要時會延誤 GCD。"
+  },
+  "PRESETDB_IntroHelp": {
+    "message": "若要開始使用自動循環，請先建立一個 *預設*。\n預設會設定循環 *模組* 及其 *策略*。\n模組是一段程式碼，會評估遊戲狀態並產生一份依優先度排序的候選技能清單。\n自動循環框架會在下一次可施放的時機，從清單中選擇優先度最高的技能執行。\n每個模組都可以透過一組 *策略* 進一步設定，用來自訂其行為的不同面向。\n舉例來說，你可能想建立「單體」與「AOE」兩個預設，兩者使用相同的模組，但策略設定不同。\n你也可以選擇為每個策略值指定鍵盤輔助鍵；該值只有在按住輔助鍵時才會生效。\n這讓你可以例如設定成：按住 Shift 時延遲 2 分鐘爆發技。"
+  },
+  "Copy": {
+    "message": "複製"
+  },
+  "Revert": {
+    "message": "還原"
+  },
+  "New": {
+    "message": "新增"
+  },
+  "Current plan was not modified": {
+    "message": "目前的計劃沒有變更。"
+  },
+  "No plan selected": {
+    "message": "尚未選取任何計劃。"
+  },
+  "Current preset is modified, save or discard changes": {
+    "message": "目前的預設已有變更，請先儲存或捨棄。"
+  },
+  "No preset is selected": {
+    "message": "尚未選取任何預設。"
   }
 }
