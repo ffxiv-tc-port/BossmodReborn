@@ -41,7 +41,11 @@ public sealed class NormalMovement : RotationModule
     // 的預設值（同樣是 1 秒）—— 那是尋路自己認定的安全緩衝，低於它代表已經在吃緩衝了。
     public const float UrgentLeewaySeconds = 1f;
 
-    private static readonly AutorotationConfig _visualConfig = Service.Config.Get<AutorotationConfig>();
+    // ⚠️ 刻意用實例欄位而不是 static：static 欄位初始設在 beforefieldinit 的型別上，
+    // 可能早在 RotationModuleRegistry 用反射呼叫 Definition() 掃描模組時就被觸發，
+    // 而 ConfigRoot.Get 是字典索引 —— 若那時 Service.Config.Initialize() 還沒跑就會擲
+    // KeyNotFoundException，整個外掛載入失敗。實例只在預設集啟用這個模組時才建立，必定在初始化之後。
+    private readonly AutorotationConfig _visualConfig = Service.Config.Get<AutorotationConfig>();
 
     public NormalMovement(RotationModuleManager manager, Actor player) : base(manager, player)
     {
