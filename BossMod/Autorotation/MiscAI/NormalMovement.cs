@@ -200,10 +200,32 @@ public sealed class NormalMovement : RotationModule
                                 navi.Destination = uptimePosition;
                             break;
                         case RangeStrategy.GreedAutomatic:
-                            var uptimeCell = _navCtx.Map.GridToIndex(_navCtx.Map.WorldToGrid(uptimePosition));
+                            // 🔴 uptimePosition 是「目標身邊那個圈」上的一點，完全可能落在尋路視窗（約 60y 見方）之外——
+                            //    例如深牢 AutoClear 把遠處房間的怪設成 ForcedTarget，或 AIHints.Clear() 把
+                            //    PathfindMapCenter 歸零而玩家離原點很遠（同一個成因已經寫在 NavigationDecision.cs 的
+                            //    Build 裡，那裡是玩家自己的格子，這裡是 uptime 點——**同一個 bug 的另一半**）。
+                            //    Map.WorldToGrid 不夾限，GridToIndex 又只是 `y * Width + x`：
+                            //    ⚠️ 失敗有兩種形式，第二種更陰——
+                            //      ① 索引掉出 PixelMaxG → IndexOutOfRangeException。這支是每幀跑的，Execute 會在
+                            //         這一行中途死掉 ⇒ **Hints.ForcedMovement 永遠沒被設**，症狀是「自動移動不走，
+                            //         但世界上的標線照畫」（標線是這一行之前就填好的 _pendingVisualization）。
+                            //      ② PixelMaxG 是重複使用、只增不減的緩衝區（長度可以大於 Width*Height），
+                            //         而且 x 出界、y 沒出界時 `y*Width+x` 會落到**別的列**上 ——
+                            //         索引仍然合法 ⇒ 靜默拿到另一格的危險度，然後照它決定要不要貪輸出。
+                            //    ⇒ 一律用 InBounds 驗兩個軸（光驗 index >= 0 擋不掉 ② ）。
+                            //    出界代表「這一點安不安全我們不知道」，而不知道的正確處理是**完全不調整**：
+                            //    navi.Destination 維持尋路算出來的目的地，也就是照原目的地走。
+                            //    🔴 刻意**不**夾進視窗再比——那是拿另一格的危險度冒充這一格的答案，
+                            //    會在「uptime 點其實站不得」時把角色送過去，比不貪輸出糟得多。
+                            var uptimeGrid = _navCtx.Map.WorldToGrid(uptimePosition);
+                            var uptimeInWindow = _navCtx.Map.InBounds(uptimeGrid.x, uptimeGrid.y);
+                            LogGreedWindow(uptimeInWindow);
+                            // curCell 由 ThetaStar.Start 的 ClampToGrid 產生，本身在界內；這裡的長度檢查擋的是
+                            // 「這一幀沒跑過尋路」（Destination=Explicit 時 Map 是空的、StartNodeIndex 是上次的殘值）。
                             var curCell = _navCtx.ThetaStar.StartNodeIndex;
-                            if (navi.LeewaySeconds > 0)
+                            if (navi.LeewaySeconds > 0 && uptimeInWindow && (uint)curCell < (uint)_navCtx.Map.PixelMaxG.Length)
                             {
+                                var uptimeCell = _navCtx.Map.GridToIndex(uptimeGrid.x, uptimeGrid.y);
                                 if (_navCtx.Map.PixelMaxG[uptimeCell] >= _navCtx.Map.PixelMaxG[curCell])
                                     navi.Destination = uptimePosition;
                                 else if (Player.DistanceToHitbox(primaryTarget) <= maxRange)
@@ -297,6 +319,29 @@ public sealed class NormalMovement : RotationModule
                 Hints.ForcedMovement = dir.ToVec3(Player.PosRot.Y);
             }
         }
+    }
+
+    /// <summary>
+    /// GreedAutomatic 的 uptime 點上一次是不是落在尋路視窗內；用來只在<b>狀態翻轉</b>時記一行 log。
+    /// </summary>
+    private bool _greedUptimeInWindow = true;
+
+    /// <summary>
+    /// 把「貪輸出的目標點跑出尋路視窗、因此這一段不做距離調整」講出來。
+    /// </summary>
+    /// <remarks>
+    /// 📌 走 <c>Information</c>：使用者的 LogLevel 是 2，Debug/Verbose 收不到，而這一行正是
+    /// 「自動移動不走」到底是不是這個成因的唯一離線證據。
+    /// 🔴 只在翻轉時印。這支每幀都會被呼叫到，每幀印等於把 log 洗掉。
+    /// </remarks>
+    private void LogGreedWindow(bool inWindow)
+    {
+        if (inWindow == _greedUptimeInWindow)
+            return;
+        _greedUptimeInWindow = inWindow;
+        Service.Logger.Information(inWindow
+            ? "[NormalMovement] 貪輸出目標點回到尋路視窗內，恢復距離調整。"
+            : "[NormalMovement] 貪輸出目標點落在尋路視窗外（目標太遠，或尋路地圖中心停在原點），這一段不做距離調整、照尋路算出來的目的地走。");
     }
 
     private float CalculateUnobstructedPathLength(Angle dir)
