@@ -90,15 +90,39 @@ public sealed class PresetDatabase
 
     private List<Preset> LoadPresetsFromFile(FileInfo file)
     {
+        if (!file.Exists)
+            return [];
+
         try
         {
             var data = PlanPresetConverter.PresetSchema.Load(file);
             using var json = data.document;
-            return data.payload.Deserialize<List<Preset>>(Serialization.BuildSerializationOptions()) ?? [];
+            // 逐筆反序列化：JsonPresetConverter.Read 對缺鍵/壞值會擲例外，整份一起反序列化時
+            // 任何一筆壞 preset 會讓所有 preset 靜默消失 —— 壞的略過、好的保留。
+            var opts = Serialization.BuildSerializationOptions();
+            List<Preset> res = [];
+            var index = 0;
+            foreach (var jp in data.payload.EnumerateArray())
+            {
+                ++index;
+                try
+                {
+                    var p = jp.Deserialize<Preset>(opts);
+                    if (p != null)
+                        res.Add(p);
+                }
+                catch (Exception ex)
+                {
+                    var name = jp.ValueKind == JsonValueKind.Object && jp.TryGetProperty(nameof(Preset.Name), out var jn) ? jn.ToString() : $"第 {index} 筆";
+                    // 使用者跑 LogLevel 2，Information 才看得到
+                    Service.Logger.Information($"[Autorotation] 循環預設「{name}」損毀，已略過（{file.Name} 裡其餘預設不受影響）: {ex.Message}");
+                }
+            }
+            return res;
         }
         catch (Exception ex)
         {
-            Service.Log($"Failed to parse preset database '{file.FullName}': {ex}");
+            Service.Logger.Information($"[Autorotation] 循環預設資料庫 '{file.FullName}' 無法解析，本次以空清單載入（原檔與備份未動）: {ex.Message}");
             return [];
         }
     }
