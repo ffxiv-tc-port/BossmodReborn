@@ -8431,5 +8431,14 @@
   },
   "DD_WalkPathNearTrap": {
     "message": "拒絕移動：vnavmesh 給的路線第 {0} 段（共 {1} 段）距離已知陷阱只有 {2:f1} 碼（門檻 {3:f1} 碼）。什麼都不會動。這一段請自己走過去；如果你確定那個標記是錯的，可以用「將最近的陷阱位置設為忽略」。"
+  },
+  "DD_HoardDatabase": {
+    "message": "埋藏的寶藏：PalacePal 記載這一帶以前出現過。那份紀錄涵蓋這座深牢的所有樓層，所以它並不代表這一層這間房現在有——遊戲自己並沒有在這裡放任何東西。"
+  },
+  "Also use PalacePal's own trap and Accursed Hoard data when it is installed": {
+    "message": "裝有 PalacePal 時也一併採用它自己的陷阱與埋藏寶藏資料"
+  },
+  "BMR ships a snapshot of PalacePal's trap data, but PalacePal itself keeps learning new locations. With this on, whatever PalacePal currently knows for this deep dungeon is merged in on top of the built-in table (duplicates within 1y are dropped).\n\nIf PalacePal is not installed, is disabled, or speaks a version of the interface this build does not know, everything silently falls back to the built-in table - nothing breaks and nothing changes from before.\n\nIt also marks Accursed Hoard spots PalacePal has recorded. Those are drawn deliberately fainter than the ones the game itself places, because the record covers all ten floors of the deep dungeon at once: it means \"one has been found around here before\", NOT \"there is one here now\".\n\nRead-only - BMR never writes anything back to PalacePal.": {
+    "message": "BMR 內建的是 PalacePal 陷阱資料的一份快照，而 PalacePal 本身會持續學到新的點位。打開這個之後，PalacePal 目前對這座深牢知道的東西會疊加到內建表上面（相距 1 碼以內視為同一點，只留一份）。\n\n沒安裝 PalacePal、把它停用了、或它的介面版本這一版 BMR 不認得時，一律安靜地退回內建表——不會壞掉，也和以前完全一樣。\n\n它同時會標出 PalacePal 記載過的埋藏寶藏位置。那些標記刻意畫得比遊戲自己放的實體淡，因為那份紀錄是整座深牢十層一起算的：它的意思是「這一帶以前有人挖到過」，而不是「這裡現在有」。\n\n唯讀——BMR 不會回寫任何東西給 PalacePal。"
   }
 }

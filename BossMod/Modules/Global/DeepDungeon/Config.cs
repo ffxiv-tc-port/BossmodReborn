@@ -112,6 +112,12 @@ public sealed class AutoDDConfig : ConfigNode
 
     [PropertyDisplay("Try to avoid traps", tooltip: "Avoid known trap locations sourced from PalacePal data. Does not need PalacePal installed since data is included in BMR. (Traps revealed by a Pomander of Sight will always be avoided regardless of this setting.)")]
     public bool TrapHints = true;
+
+    // 🔴 預設 true。純資料增益：拿不到就退回 BMR 內建的那份表，也就是今天的行為，
+    //    所以預設開不可能讓任何人變差。合約版本對不上一樣整條停用。
+    [PropertyDisplay("Also use PalacePal's own trap and Accursed Hoard data when it is installed",
+        tooltip: "BMR ships a snapshot of PalacePal's trap data, but PalacePal itself keeps learning new locations. With this on, whatever PalacePal currently knows for this deep dungeon is merged in on top of the built-in table (duplicates within 1y are dropped).\n\nIf PalacePal is not installed, is disabled, or speaks a version of the interface this build does not know, everything silently falls back to the built-in table - nothing breaks and nothing changes from before.\n\nIt also marks Accursed Hoard spots PalacePal has recorded. Those are drawn deliberately fainter than the ones the game itself places, because the record covers all ten floors of the deep dungeon at once: it means \"one has been found around here before\", NOT \"there is one here now\".\n\nRead-only - BMR never writes anything back to PalacePal.")]
+    public bool UsePalacePal = true;
     [PropertyDisplay("Automatically navigate to Cairn of Passage")]
     public bool AutoPassage = true;
 

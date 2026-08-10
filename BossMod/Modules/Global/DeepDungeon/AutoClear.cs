@@ -533,32 +533,41 @@ public abstract class AutoClear : ZoneModule
         {
             WPos? pos = null;
             var minDistanceSq = float.MaxValue;
-            var lenCurrent = _trapsCurrentZone.Length;
             var countProblematic = ProblematicTrapLocations.Count;
-            for (var i = 0; i < lenCurrent; ++i)
+            // 🔴 PalacePal 補上來的點也要能被忽略。少了這一段的話，社群資料裡的誤報
+            //    在這顆按鈕面前是隱形的——按下去只會抓到旁邊那個內建點，使用者按幾次都沒用。
+            void PickClosest(WPos[] source)
             {
-                ref readonly var trap = ref _trapsCurrentZone[i];
-                var isProblematic = false;
-                for (var j = 0; j < countProblematic; ++j)
+                var len = source.Length;
+                for (var i = 0; i < len; ++i)
                 {
-                    if (trap == ProblematicTrapLocations[j])
+                    ref readonly var trap = ref source[i];
+                    var isProblematic = false;
+                    for (var j = 0; j < countProblematic; ++j)
                     {
-                        isProblematic = true;
-                        break;
+                        if (trap == ProblematicTrapLocations[j])
+                        {
+                            isProblematic = true;
+                            break;
+                        }
+                    }
+
+                    if (isProblematic)
+                        continue;
+
+                    var distanceSq = (trap - player.Position).LengthSq();
+
+                    if (distanceSq < minDistanceSq)
+                    {
+                        minDistanceSq = distanceSq;
+                        pos = trap;
                     }
                 }
-
-                if (isProblematic)
-                    continue;
-
-                var distanceSq = (trap - player.Position).LengthSq();
-
-                if (distanceSq < minDistanceSq)
-                {
-                    minDistanceSq = distanceSq;
-                    pos = trap;
-                }
             }
+
+            PickClosest(_trapsCurrentZone);
+            PickClosest(_palTraps);
+
             if (pos is WPos position)
             {
                 pos = position.Rounded(0.1f);
@@ -677,6 +686,7 @@ public abstract class AutoClear : ZoneModule
 
         UpdateStopWatchdog();
         UpdateStuckDetection();
+        UpdatePalacePal();
 
         // 純顯示，不影響任何決策。放在這裡是因為它必須每幀跑，
         // 而且要早於 Plugin.DrawUI 尾端的 Camera.DrawWorldPrimitives。
@@ -814,14 +824,14 @@ public abstract class AutoClear : ZoneModule
     #region 路徑的線段級陷阱檢查
 
     /// <summary>
-    /// 陷阱圓的半徑（碼）。
+    /// 陷阱圓的半徑（碼）。<b>AI 迴避與手動導航的線段檢查共用這一個值。</b>
     /// </summary>
     /// <remarks>
-    /// 🔴 沿用 AI 迴避那邊的語意，不另訂一個值：<see cref="CalculateAIHints"/> 兩處都是
-    /// <c>ShapeDistance.Circle(位置, 2f)</c>。兩邊用不同半徑的話，
-    /// 「AI 會閃但手動導航說沒問題」（或反過來）都會變成使用者眼中的自相矛盾。
+    /// 🔴 兩邊用不同半徑的話，「AI 會閃但手動導航說沒問題」（或反過來）
+    /// 都會變成使用者眼中的自相矛盾，而且沒有任何地方看得出來為什麼。
+    /// 原本兩處都是各自寫死的 <c>2f</c>，抽成常數是為了讓它們不可能再走散。
     /// </remarks>
-    private const float WalkTrapRadius = 2f;
+    private const float TrapCircleRadius = 2f;
 
     /// <summary>
     /// 這一次驗證要比對哪些陷阱點。
@@ -844,27 +854,33 @@ public abstract class AutoClear : ZoneModule
     {
         List<WPos> res = [];
 
-        bool StandingOn(WPos t) => playerPos is WPos p && t.InCircle(p, WalkTrapRadius);
+        bool StandingOn(WPos t) => playerPos is WPos p && t.InCircle(p, TrapCircleRadius);
 
         if (Config.TrapHints && _trapsHidden)
         {
-            var len = _trapsCurrentZone.Length;
             var ignoreCount = IgnoreTraps.Count;
-            for (var i = 0; i < len; ++i)
+            void AddFrom(WPos[] source)
             {
-                var trap = _trapsCurrentZone[i];
-                var ignored = false;
-                for (var j = 0; j < ignoreCount; ++j)
+                var len = source.Length;
+                for (var i = 0; i < len; ++i)
                 {
-                    if (IgnoreTraps[j].AlmostEqual(trap, 1f))
+                    var trap = source[i];
+                    var ignored = false;
+                    for (var j = 0; j < ignoreCount; ++j)
                     {
-                        ignored = true;
-                        break;
+                        if (IgnoreTraps[j].AlmostEqual(trap, 1f))
+                        {
+                            ignored = true;
+                            break;
+                        }
                     }
+                    if (!ignored && !StandingOn(trap))
+                        res.Add(trap);
                 }
-                if (!ignored && !StandingOn(trap))
-                    res.Add(trap);
             }
+
+            AddFrom(_trapsCurrentZone);
+            AddFrom(_palTraps);
         }
 
         foreach (var a in World.Actors)
@@ -936,10 +952,10 @@ public abstract class AutoClear : ZoneModule
             Extend(pp0);
         for (var i = 0; i < count; ++i)
             Extend(new WPos(path[i].X, path[i].Z));
-        minX -= WalkTrapRadius;
-        maxX += WalkTrapRadius;
-        minZ -= WalkTrapRadius;
-        maxZ += WalkTrapRadius;
+        minX -= TrapCircleRadius;
+        maxX += TrapCircleRadius;
+        minZ -= TrapCircleRadius;
+        maxZ += TrapCircleRadius;
 
         var prev = playerPos ?? new WPos(path[0].X, path[0].Z);
         var trapCount = traps.Count;
@@ -952,14 +968,14 @@ public abstract class AutoClear : ZoneModule
                 if (t.X < minX || t.X > maxX || t.Z < minZ || t.Z > maxZ)
                     continue;
                 var dist = DistanceToSegment(t, prev, cur);
-                if (dist <= WalkTrapRadius)
+                if (dist <= TrapCircleRadius)
                 {
                     Service.Logger.Information(
                         $"[DD] 手動導航拒絕：第 {i + 1}/{count} 段（{prev.X:f1},{prev.Z:f1} → {cur.X:f1},{cur.Z:f1}）" +
-                        $"距已知陷阱 ({t.X:f1},{t.Z:f1}) 只有 {dist:f1}y（門檻 {WalkTrapRadius}y）。");
+                        $"距已知陷阱 ({t.X:f1},{t.Z:f1}) 只有 {dist:f1}y（門檻 {TrapCircleRadius}y）。");
                     return string.Format(
                         Loc.T("DD_WalkPathNearTrap", "Refusing to move: leg {0} of {1} of vnavmesh's route passes {2:f1}y from a known trap (the threshold is {3:f1}y). Nothing is moved. Walk that stretch yourself, or use \"set closest trap location as ignored\" if you know that marker is wrong."),
-                        i + 1, count, dist, WalkTrapRadius);
+                        i + 1, count, dist, TrapCircleRadius);
                 }
             }
             prev = cur;
@@ -1350,6 +1366,41 @@ public abstract class AutoClear : ZoneModule
     #endregion
 
     /// <summary>血量低於門檻就不趕路（門檻 0＝停用）。</summary>
+    /// <summary>
+    /// 把一份陷阱點清單裡「在尋路視窗附近、而且沒有被使用者忽略」的那些加成禁區圓。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 半徑要蓋得住尋路視窗，否則視窗角落的陷阱不會進 forbidden zone，
+    /// 表現是「大部分陷阱會閃、偶爾一個不閃」而不是整個功能壞掉。
+    /// 深牢用的是 <c>AIHints.DefaultBounds</c> ＝ <c>ArenaBoundsSquare(30f)</c>，
+    /// 也就是以玩家為中心、半邊長 30y 的方形；角落離中心 30·√2 ≒ 42.4y
+    /// ⇒ 30y 的查詢半徑蓋不到角落，取 45y。
+    /// </remarks>
+    private void AddNearbyTrapCircles(WPos[] source, Actor player, List<Func<WPos, float>> traps)
+    {
+        var count = source.Length;
+        var countIgnoreTraps = IgnoreTraps.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var trap = source[i];
+            if (!trap.InCircle(player.Position, 45f))
+                continue;
+
+            var shouldIgnore = false;
+            for (var j = 0; j < countIgnoreTraps; ++j)
+            {
+                if (IgnoreTraps[j].AlmostEqual(trap, 1f))
+                {
+                    shouldIgnore = true;
+                    break;
+                }
+            }
+
+            if (!shouldIgnore)
+                traps.Add(ShapeDistance.Circle(trap, TrapCircleRadius));
+        }
+    }
+
     private bool TravelBlockedByHP(Actor player)
     {
         var pct = Config.StopTravelBelowHPPercent;
@@ -1599,37 +1650,11 @@ public abstract class AutoClear : ZoneModule
         }
         if (Config.TrapHints && _trapsHidden)
         {
-            var countTraps = _trapsCurrentZone.Length;
-            var traps = new List<Func<WPos, float>>(countTraps);
-
-            for (var i = 0; i < countTraps; ++i)
-            {
-                var trap = _trapsCurrentZone[i];
-                // 🔴 半徑要蓋得住尋路視窗，否則視窗角落的陷阱不會進 forbidden zone，
-                //    表現是「大部分陷阱會閃、偶爾一個不閃」而不是整個功能壞掉。
-                //    深牢用的是 AIHints.DefaultBounds ＝ ArenaBoundsSquare(30f)，
-                //    也就是以玩家為中心、半邊長 30y 的方形；角落離中心 30·√2 ≒ 42.4y
-                //    ⇒ 原本的 30y 查詢半徑蓋不到角落，取 45y。
-                if (trap.InCircle(player.Position, 45f))
-                {
-                    var shouldIgnore = false;
-                    var countIgnoreTraps = IgnoreTraps.Count;
-                    for (var j = 0; j < countIgnoreTraps; ++j)
-                    {
-                        if (IgnoreTraps[j].AlmostEqual(trap, 1f))
-                        {
-                            shouldIgnore = true;
-                            break;
-                        }
-                    }
-
-                    if (!shouldIgnore)
-                    {
-                        var trapCircle = ShapeDistance.Circle(trap, 2f);
-                        traps.Add(trapCircle);
-                    }
-                }
-            }
+            var traps = new List<Func<WPos, float>>(_trapsCurrentZone.Length + _palTraps.Length);
+            AddNearbyTrapCircles(_trapsCurrentZone, player, traps);
+            // PalacePal 補上來的點與內建表在這裡完全同一個語意（跨層聯集的「這裡可能有陷阱」），
+            // 所以走同一條路、同一個半徑、同一份忽略清單。
+            AddNearbyTrapCircles(_palTraps, player, traps);
 
             if (traps.Count != 0)
                 hints.AddForbiddenZone(ShapeDistance.Union(traps));
@@ -2303,6 +2328,136 @@ public abstract class AutoClear : ZoneModule
         return res;
     }
 
+    #region PalacePal 共享資料
+
+    /// <summary>
+    /// 與內建表視為同一個點的距離門檻（碼）。
+    /// </summary>
+    /// <remarks>內建表台服 143/143 實測正確，PalacePal 多出來的多半是社群新點，重疊的部分要去掉才不會重複計算。</remarks>
+    private const float PalaceDedupeRange = 1f;
+
+    /// <summary>重新向 PalacePal 取一次資料的間隔（秒）。</summary>
+    /// <remarks>
+    /// ⚠️ 不能每幀取：沒安裝時 <c>InvokeFunc</c> 是靠<b>擲例外</b>回報的。
+    /// 也不能只取一次：PalacePal 的清單會隨著玩下去長大，而且使用者可能中途才啟用它。
+    /// </remarks>
+    private const double PalaceRefreshSeconds = 10d;
+
+    /// <summary>PalacePal 提供、且不與內建表重複的陷阱點。</summary>
+    private WPos[] _palTraps = [];
+
+    /// <summary>
+    /// PalacePal 記載的埋藏寶藏點。
+    /// </summary>
+    /// <remarks>
+    /// 保留完整的 <see cref="Vector3"/>（含高度）是為了世界疊加層——把 Y 丟掉之後就得用猜的，
+    /// 而深牢雖然單層是平的，用對方給的真值仍然比猜好。
+    /// </remarks>
+    private Vector3[] _palHoards = [];
+
+    private DateTime _palNextRefresh;
+    private bool? _palAvailableLogged;
+
+    /// <summary>
+    /// 向 PalacePal 重新要一次這個區域的陷阱／寶藏座標。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>拿不到就整組清空，不留上一次的殘值。</b>使用者停用 PalacePal 之後還照著它的舊資料
+    /// 閃躲，是拿一份我們已經無法確認的資料在做決策——失敗形式是安靜地維持一個看不出來源的行為。
+    /// 清空之後就退回內建表，也就是今天的行為。
+    /// </remarks>
+    private void UpdatePalacePal()
+    {
+        if (!Config.UsePalacePal)
+        {
+            _palTraps = [];
+            _palHoards = [];
+            _palAvailableLogged = null;
+            return;
+        }
+
+        var now = World.CurrentTime;
+        if (now < _palNextRefresh)
+            return;
+        _palNextRefresh = now.AddSeconds(PalaceRefreshSeconds);
+
+        var territory = (ushort)World.CurrentZone;
+        var traps = PalacePalIpc.GetTraps(territory);
+        var hoards = PalacePalIpc.GetHoards(territory);
+        var available = traps != null || hoards != null;
+
+        _palTraps = traps != null ? DedupeTraps(traps) : [];
+        _palHoards = hoards != null ? [.. hoards] : [];
+
+        if (_palAvailableLogged != available)
+        {
+            _palAvailableLogged = available;
+            Service.Logger.Information(available
+                ? $"[DD pal] PalacePal 資料可用（區域 {territory}）：陷阱 {traps?.Count ?? 0} 筆、與內建表去重後多出 {_palTraps.Length} 筆；埋藏寶藏 {_palHoards.Length} 筆。"
+                : $"[DD pal] PalacePal 資料取不到（沒安裝／合約版本不是 {PalacePalIpc.SupportedApiVersion}／對方出錯），退回 BMR 內建的陷阱表。");
+        }
+    }
+
+    /// <summary>
+    /// 把 PalacePal 的清單去掉與內建表重複的、以及自己內部重複的點。
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ 用 <see cref="PalaceDedupeRange"/> 見方的格子先篩候選，再對候選做<b>原本那個</b>
+    /// <c>AlmostEqual</c> 判定——判定本身沒有被換掉，格子只是候選過濾器。
+    /// 直接兩層迴圈是 O(n·m)，而這是掛在每 10 秒一次的主執行緒路徑上；
+    /// 兩份清單各數百到數千筆時那是幾百萬次浮點比較，會變成看得見的頓一下。
+    /// </remarks>
+    private WPos[] DedupeTraps(List<Vector3> src)
+    {
+        static (int, int) Cell(WPos p) => ((int)MathF.Floor(p.X / PalaceDedupeRange), (int)MathF.Floor(p.Z / PalaceDedupeRange));
+
+        // 格子 → 落在該格的點。查詢時掃 3×3 鄰域，涵蓋所有可能落在 ±range 方框內的點。
+        Dictionary<(int, int), List<WPos>> grid = [];
+        void Index(WPos p)
+        {
+            var c = Cell(p);
+            if (!grid.TryGetValue(c, out var bucket))
+                grid[c] = bucket = [];
+            bucket.Add(p);
+        }
+
+        bool Duplicate(WPos p)
+        {
+            var (cx, cz) = Cell(p);
+            for (var dx = -1; dx <= 1; ++dx)
+            {
+                for (var dz = -1; dz <= 1; ++dz)
+                {
+                    if (!grid.TryGetValue((cx + dx, cz + dz), out var bucket))
+                        continue;
+                    for (var k = 0; k < bucket.Count; ++k)
+                    {
+                        if (bucket[k].AlmostEqual(p, PalaceDedupeRange))
+                            return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        for (var i = 0; i < _trapsCurrentZone.Length; ++i)
+            Index(_trapsCurrentZone[i]);
+
+        List<WPos> res = [];
+        var count = src.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var p = new WPos(src[i].X, src[i].Z);
+            if (Duplicate(p))
+                continue;
+            Index(p); // 也擋掉 PalacePal 自己清單裡的重複
+            res.Add(p);
+        }
+        return [.. res];
+    }
+
+    #endregion
+
     #region 埋藏的寶藏
 
     /// <summary>
@@ -2398,6 +2553,8 @@ public abstract class AutoClear : ZoneModule
         const float limit = Minimap.CellHalfPixels - 11f;
 
         List<HoardSpot> res = [];
+        Span<bool> roomTaken = stackalloc bool[DeepDungeonState.NumRooms];
+
         for (var i = 0; i < _hoardActors.Count; ++i)
         {
             var a = _hoardActors[i];
@@ -2408,8 +2565,32 @@ public abstract class AutoClear : ZoneModule
             var d = a.Position - center;
             var off = new Vector2(d.X * CellPixelsPerYalm, d.Z * CellPixelsPerYalm);
             off = Vector2.Clamp(off, new Vector2(-limit), new Vector2(limit));
-            res.Add(new(room, off, a.OID == (uint)OID.BandedCoffer));
+            roomTaken[room] = true;
+            res.Add(new(room, off, a.OID == (uint)OID.BandedCoffer ? HoardKind.Revealed : HoardKind.Buried));
         }
+
+        // ── PalacePal 記載過的點 ─────────────────────────────────────────
+        // 🔴 一間房最多畫一個。那份清單是**整個區域十層的聯集**，一格塞進五六個菱形
+        //    只會變成噪音，而且會讓人誤以為那裡有好幾個寶藏。
+        // 🔴 這一層已經挖到過就整個不畫（與 CollectHoardActors 同一個條件）。
+        // 📌 遊戲自己放了實體的房間也不畫資料庫點——已經有更強的證據了。
+        if (Config.UsePalacePal && !_hoardFound)
+        {
+            for (var i = 0; i < _palHoards.Length; ++i)
+            {
+                var p = new WPos(_palHoards[i].X, _palHoards[i].Z);
+                var room = NearestRoom(p, RoomTolerance);
+                if (room < 0 || roomTaken[room] || RoomCenters[room] is not WPos center)
+                    continue;
+
+                roomTaken[room] = true;
+                var d = p - center;
+                var off = new Vector2(d.X * CellPixelsPerYalm, d.Z * CellPixelsPerYalm);
+                off = Vector2.Clamp(off, new Vector2(-limit), new Vector2(limit));
+                res.Add(new(room, off, HoardKind.Database));
+            }
+        }
+
         return res;
     }
 
@@ -2432,6 +2613,13 @@ public abstract class AutoClear : ZoneModule
     // 埋藏寶藏預設色（青色）同一系，讓兩邊看起來是同一件事。
     // ⚠️ ImGui 的 uint 顏色是 ABGR：這個值是 R=0x30 G=0xE0 B=0xF0。
     private const uint ColorHoard = 0xFFF0E030u;
+
+    /// <summary>「資料庫記載」那一態的顏色：同色相、Alpha 約 55%（與小地圖那一版同值）。</summary>
+    private const uint ColorHoardFaint = 0x8CF0E030u;
+
+    /// <summary>資料庫記載點在世界上的繪製距離（碼）。</summary>
+    /// <remarks>取 40y 是為了「走到附近才提醒」——那份清單跨十層，全部畫出來只會變成噪音。</remarks>
+    private const float HoardDatabaseDrawRange = 40f;
 
     /// <summary>
     /// 在世界上畫出埋藏寶藏的位置。
@@ -2471,6 +2659,59 @@ public abstract class AutoClear : ZoneModule
             var p = _hoardActors[i].PosRot;
             DrawHoardMarker(camera, new Vector3(p.X, p.Y, p.Z));
         }
+
+        DrawHoardDatabaseOverlay(camera);
+    }
+
+    /// <summary>
+    /// 只在資料庫裡出現過的埋藏寶藏點（PalacePal）。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 🔴 <b>限制在玩家附近才畫。</b>那份清單是整個區域十層的聯集，全部畫出來會在畫面上
+    /// 灑滿幾十個圈——那不是資訊，是噪音，而且會讓真正的（有實體的）標記淹沒掉。
+    /// </para>
+    /// <para>
+    /// 🔴 <b>畫法必須比實體那一版弱</b>：沒有立柱、沒有中心叉、線更細。
+    /// 「可能有」與「已確認」用同一種畫法就是在說謊（PalacePal 自己的兩態慣例也是這樣分的）。
+    /// </para>
+    /// </remarks>
+    private void DrawHoardDatabaseOverlay(Camera camera)
+    {
+        if (!Config.UsePalacePal || _hoardFound || _palHoards.Length == 0)
+            return;
+
+        if (World.Party.Player() is not { } player)
+            return;
+
+        var pos = player.Position;
+        for (var i = 0; i < _palHoards.Length; ++i)
+        {
+            var v = _palHoards[i];
+            var p = new WPos(v.X, v.Z);
+            if (!p.InCircle(pos, HoardDatabaseDrawRange))
+                continue;
+
+            // 旁邊已經有實體了就不必再畫一個「可能有」
+            var covered = false;
+            for (var j = 0; j < _hoardActors.Count; ++j)
+            {
+                if ((_hoardActors[j].Position - p).LengthSq() <= HoardDedupeRangeSq)
+                {
+                    covered = true;
+                    break;
+                }
+            }
+            if (!covered)
+                DrawHoardDatabaseMarker(camera, v);
+        }
+    }
+
+    /// <summary>資料庫記載點的世界標記：只有一個細圈，沒有立柱也沒有中心叉。</summary>
+    private static void DrawHoardDatabaseMarker(Camera camera, Vector3 center)
+    {
+        camera.DrawWorldCircle(center, HoardMarkerRadius, Colors.Shadows, HoardMarkerThickness);
+        camera.DrawWorldCircle(center, HoardMarkerRadius, ColorHoardFaint, 1f);
     }
 
     /// <summary>

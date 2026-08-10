@@ -14,15 +14,31 @@ namespace BossMod.Global.DeepDungeon;
 /// </param>
 public readonly record struct ChestSpot(int Room, int Slot, Vector2 CellOffset);
 
-/// <summary>已經在 <c>ObjectTable</c> 裡看到的一個埋藏寶藏。</summary>
+/// <summary>
+/// 一個埋藏寶藏標記的把握程度。
+/// </summary>
+/// <remarks>
+/// 📌 三態的畫法照 PalacePal 的慣例走「虛→空心→實心」而不是換顏色，
+/// 這樣在不看圖例的情況下也讀得出哪一個比較「實」。
+/// 🔴 <see cref="Database"/> 與另外兩態的差別<b>不是程度問題而是種類問題</b>：
+/// 另外兩態的來源是遊戲自己放在那裡的實體，<see cref="Database"/> 的來源是別人玩過的紀錄，
+/// 而且是<b>整個區域十層的聯集</b>——它只代表「這一帶出現過」，不代表這一層現在有。
+/// </remarks>
+public enum HoardKind
+{
+    /// <summary>只有資料庫記載過（PalacePal）。這一層現在有沒有並不知道。</summary>
+    Database,
+    /// <summary>遊戲把埋藏處的事件物件放在那裡了（還埋著，遊戲裡看不見）。</summary>
+    Buried,
+    /// <summary>已現形、可以直接互動的「埋藏的寶藏」。</summary>
+    Revealed
+}
+
+/// <summary>小地圖上的一個埋藏寶藏標記。</summary>
 /// <param name="Room">房號 0..24。</param>
 /// <param name="CellOffset">相對於格子中心的像素偏移，換算方式與 <see cref="ChestSpot"/> 完全相同。</param>
-/// <param name="Revealed">
-/// <c>true</c>＝已現形、可以直接互動的「埋藏的寶藏」；<c>false</c>＝還埋著、遊戲裡看不見的隱藏點。
-/// 📌 兩態的畫法照 PalacePal 的慣例走「空心 vs 實心」而不是換顏色，
-/// 這樣在不看圖例的情況下也讀得出哪一個比較「實」。
-/// </param>
-public readonly record struct HoardSpot(int Room, Vector2 CellOffset, bool Revealed);
+/// <param name="Kind">把握程度，見 <see cref="HoardKind"/>。</param>
+public readonly record struct HoardSpot(int Room, Vector2 CellOffset, HoardKind Kind);
 
 /// <param name="ChestSpots">
 /// 已找到實體位置的寶箱。<b>null＝這一層的房間座標校驗沒過</b>
@@ -76,6 +92,15 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
     // 埋藏的寶藏。ABGR：R=0x30 G=0xE0 B=0xF0 ＝青色，與 AutoClear 的世界疊加層同一個值，
     // 也與 PalacePal 的埋藏寶藏預設色同一系 —— 三個地方看起來要是同一件事。
     private const uint ColorHoard = 0xFFF0E030u;
+
+    /// <summary>
+    /// 「資料庫記載」那一態的顏色：同一個色相、Alpha 降到約 55%。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 刻意<b>不</b>換色相。換色相會讀成「另一種東西」，而這一態是同一種東西的較弱把握度；
+    /// 三態的主要區別靠形狀（虛細／空心／實心），顏色只是加強。
+    /// </remarks>
+    private const uint ColorHoardFaint = 0x8CF0E030u;
 
     /// <summary>埋藏寶藏菱形標記的半徑（像素）。刻意比寶箱圖示（18px 見方）小一點，避免搶掉寶箱。</summary>
     private const float HoardMarkerRadius = 7f;
@@ -377,10 +402,13 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
     /// 畫某一格裡的埋藏寶藏，回傳要接進該格 tooltip 的說明文字（這一格沒有就回 null）。
     /// </summary>
     /// <remarks>
-    /// 這裡<b>只畫真的看到實體的點</b>，沒有「地圖說有但還沒找到」那一態——
-    /// 遊戲的深牢地圖資料根本不含埋藏寶藏的位置，我們也不打算自己維護一份猜測資料庫，
-    /// 所以「不知道」在這裡的正確表現方式就是<b>什麼都不畫</b>，而不是畫一個問號去暗示某一格有。
+    /// 「遊戲說有實體」的兩態畫實心／空心；<b>PalacePal 資料庫記載</b>的第三態畫得更小更細，
+    /// 而且 tooltip 明講它只是「這一帶出現過」。
+    /// <para>
+    /// 🔴 遊戲的深牢地圖資料本身<b>不含</b>埋藏寶藏的位置，所以「這一格到底有沒有」在沒有
+    /// 資料庫也沒有實體時的正確表現就是<b>什麼都不畫</b>——不畫問號去暗示某一格有。
     /// 唯一需要說出口的「不知道」是「偵測到了但放不上小地圖」，那一行由 <see cref="AutoClear"/> 印。
+    /// </para>
     /// </remarks>
     private string? DrawHoards(int room, Vector2 pos)
     {
@@ -388,7 +416,7 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
             return null;
 
         var dl = ImGui.GetWindowDrawList();
-        string? tip = null;
+        var best = (HoardKind?)null;
         var count = HoardSpots.Count;
 
         for (var i = 0; i < count; ++i)
@@ -401,25 +429,41 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
             ImGui.SetCursorPos(pos + new Vector2(CellHalfPixels, CellHalfPixels) + s.CellOffset);
             var center = ImGui.GetCursorScreenPos();
 
+            var r = s.Kind == HoardKind.Database ? HoardMarkerRadius * 0.7f : HoardMarkerRadius;
+
             // 菱形四角
-            var top = new Vector2(center.X, center.Y - HoardMarkerRadius);
-            var right = new Vector2(center.X + HoardMarkerRadius, center.Y);
-            var bottom = new Vector2(center.X, center.Y + HoardMarkerRadius);
-            var left = new Vector2(center.X - HoardMarkerRadius, center.Y);
+            var top = new Vector2(center.X, center.Y - r);
+            var right = new Vector2(center.X + r, center.Y);
+            var bottom = new Vector2(center.X, center.Y + r);
+            var left = new Vector2(center.X - r, center.Y);
 
             // NecroLens 風格：先深色外框再本體，不疊半透明色塊。
-            dl.AddQuad(top, right, bottom, left, ColorCountShadow, 3f);
-            if (s.Revealed)
-                dl.AddQuadFilled(top, right, bottom, left, ColorHoard);
-            else
-                dl.AddQuad(top, right, bottom, left, ColorHoard, 1.6f);
+            dl.AddQuad(top, right, bottom, left, ColorCountShadow, s.Kind == HoardKind.Database ? 2.4f : 3f);
+            switch (s.Kind)
+            {
+                case HoardKind.Revealed:
+                    dl.AddQuadFilled(top, right, bottom, left, ColorHoard);
+                    break;
+                case HoardKind.Buried:
+                    dl.AddQuad(top, right, bottom, left, ColorHoard, 1.6f);
+                    break;
+                default:
+                    dl.AddQuad(top, right, bottom, left, ColorHoardFaint, 1f);
+                    break;
+            }
 
-            tip ??= s.Revealed
-                ? Loc.T("DD_HoardRevealed", "Accursed Hoard: uncovered here, ready to be taken")
-                : Loc.T("DD_HoardBuried", "Accursed Hoard: buried here (invisible in game until you dig it up)");
+            // 🔴 一格裡混著好幾態時，tooltip 要講最有把握的那一個，不是第一個碰到的
+            if (best == null || s.Kind > best)
+                best = s.Kind;
         }
 
-        return tip;
+        return best switch
+        {
+            HoardKind.Revealed => Loc.T("DD_HoardRevealed", "Accursed Hoard: uncovered here, ready to be taken"),
+            HoardKind.Buried => Loc.T("DD_HoardBuried", "Accursed Hoard: buried here (invisible in game until you dig it up)"),
+            HoardKind.Database => Loc.T("DD_HoardDatabase", "Accursed Hoard: PalacePal has recorded one around here before. That record covers all floors of this deep dungeon, so it does NOT mean there is one in this room now - the game itself has not placed anything here."),
+            _ => null,
+        };
     }
 
     private static Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap SlotTexture(int slot, Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap bronze, Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap silver, Dalamud.Interface.Textures.TextureWraps.IDalamudTextureWrap gold)
