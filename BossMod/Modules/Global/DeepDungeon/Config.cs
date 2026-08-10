@@ -264,12 +264,182 @@ public sealed class AutoDDConfig : ConfigNode
             ImGui.TextColored(PrereqNoteColor, Loc.T("DD_PresetListUnavailable", "The preset list is only available once the AI has been initialised; the stored setting is kept as-is."));
 
         ImGui.TextColored(PrereqNoteColor, Loc.T("DD_PresetHint", "Switching happens in memory only - your saved AI preset setting is never rewritten, so a crash cannot leave you stuck on the deep dungeon preset."));
+
+        ImGui.Separator();
+        DrawPomanderAutoUseList();
     }
 
     [PropertyDisplay("Reveal all rooms before proceeding to next floor")]
     public bool FullClear = false;
     [PropertyDisplay("Allow automatic pomander use")]
     public bool AllowPomander = false;
+
+    // 🔴 預設 true 是使用者明確要求的（「當開啟金寶箱 身上對應的魔陶器已滿 要可以自動使用 重新開箱」
+    //    的姊妹需求）。這不是回退既有行為：以前這裡是一行 TODO，銀寶箱在魔石滿的時候
+    //    會被**永久跳過**，那顆寶箱就此不開。
+    [PropertyDisplay("Use up a magicite / demiclone when a silver coffer is skipped because you are at cap",
+        tooltip: "Silver coffers in Heaven-on-High and Eureka Orthos can contain magicite / demiclones. If you already hold three, the game refuses the coffer and it used to be skipped forever.\n\nWith this on, one of the stones you are holding is used so the coffer can be opened.\n\nWhich one is picked is not arbitrary: on a boss floor Ifrit / Titan / Garuda only deal damage, while Odin defeats the boss outright, so Odin is kept until it is the only thing left. In Eureka Orthos, Unei and Doga are spent first and the Onion Knight is kept the same way.\n\nOnly ever fires for a coffer the game has already told us contains one (via the \"you cannot carry any more\" message).")]
+    public bool AutoUseMagiciteWhenCapped = true;
+
+    #region 逐魔陶器的自動使用開關
+
+    /// <summary>
+    /// 金寶箱裡的魔陶器已經滿三個時，允許自動用掉哪一種來騰位置。索引＝<see cref="PomanderID"/>。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>預設值就是原本那份寫死的 15 種白名單，再加上「用了無害或有益」的那幾種</b>，
+    /// 所以既有使用者不會少掉任何原本會自動使用的魔陶器。
+    /// <para>
+    /// 預設<b>關</b>的分兩類：①變身類（蠍尾獅化／魅魔化／基路伯化／恐慌裝甲化）——變身期間
+    /// 整個模組都被 <c>IsPlayerTransformed</c> 擋住；②會改變樓層狀態而且可能不是你要的
+    /// （改變敵人＝下一層某間房變成模仿怪、形態變化、魔法效果解除＝連自己的增益一起消掉）。
+    /// </para>
+    /// <para>
+    /// ⚠️ 索引 0（<see cref="PomanderID.None"/>）永遠不用。陣列長度會在
+    /// <see cref="Deserialize"/> 正規化，舊設定檔比列舉短時補上新項目的預設值，
+    /// 而不是讓 UI 或消費端讀到索引外例外。
+    /// </para>
+    /// </remarks>
+    public bool[] PomanderAutoUse = BuildDefaultPomanderAutoUse();
+
+    /// <summary>
+    /// 預設允許自動使用的魔陶器。效果描述逐條讀 <c>DeepDungeonItem</c> 表判定
+    /// （該表第 1..35 列與 <see cref="PomanderID"/> 1..35 逐項對齊，已查表確認）。
+    /// </summary>
+    private static readonly PomanderID[] DefaultAutoUsable = [
+        // ── 原本寫死的 15 種（維持既有行為）──────────────────────────
+        PomanderID.Steel,            // 強化防禦：自身受到的傷害減輕 40%
+        PomanderID.Strength,         // 強化自身：傷害與治療量 +30%
+        PomanderID.Sight,            // 全景：點亮本層地圖與陷阱
+        PomanderID.Raising,          // 復生：復活第一個倒下的隊員
+        PomanderID.Fortune,          // 運氣上升：本層擊敗敵人時寶箱出現率上升
+        PomanderID.Concealment,      // 隱形：自身與小隊成員隱形
+        PomanderID.Affluence,        // 寶箱增加：增加下一層的寶箱
+        PomanderID.Frailty,          // 弱化敵人：本層敵人攻防低下
+        PomanderID.ProtoSteel,
+        PomanderID.ProtoStrength,
+        PomanderID.ProtoSight,
+        PomanderID.ProtoRaising,
+        PomanderID.ProtoLethargy,    // 緩速：本層敵人緩速
+        PomanderID.ProtoFortune,
+        PomanderID.ProtoAffluence,
+        // ── 新增：用了無害或有益 ─────────────────────────────────────
+        PomanderID.Safety,           // 咒印解除：清除本層所有陷阱
+        PomanderID.Flight,           // 減少敵人：減少下一層的敵人（與「寶箱增加」同形狀，原本就預設開）
+        PomanderID.Purity,           // 解咒：解除自身的詛咒狀態
+        PomanderID.Intuition,        // 感知寶藏：顯示埋藏的寶藏位置
+        PomanderID.Petrification,    // 石化敵人：本層敵人石化（模組本來就會優先打石化目標）
+        PomanderID.ProtoSafety,
+        PomanderID.ProtoStorms,      // 大漩渦：本層敵人 HP 降至個位數
+        PomanderID.ProtoFlight,
+        PomanderID.ProtoPurity,
+        PomanderID.ProtoIntuition,
+    ];
+
+    private static bool[] BuildDefaultPomanderAutoUse()
+    {
+        var res = new bool[(int)PomanderID.Count];
+        foreach (var p in DefaultAutoUsable)
+            res[(int)p] = true;
+        return res;
+    }
+
+    /// <summary>某一種魔陶器可不可以被自動用掉。索引超出存檔範圍時退回預設值。</summary>
+    public bool CanAutoUsePomander(PomanderID p)
+    {
+        var i = (int)p;
+        return (uint)i < (uint)PomanderAutoUse.Length && PomanderAutoUse[i];
+    }
+
+    /// <summary>
+    /// 反序列化之後把陣列長度補回列舉長度。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 沒有這一步的失敗形式是：以後 <see cref="PomanderID"/> 加了新項目，
+    /// 舊設定檔存的陣列比列舉短，UI 一畫就 <c>IndexOutOfRangeException</c>，
+    /// 而且只有真的打開深牢設定頁的人才會踩到。
+    /// 缺的那幾格補<b>新的預設值</b>，不是補 false ——「沒存過」等於「還沒表態」。
+    /// </remarks>
+    public override void Deserialize(System.Text.Json.JsonElement j, System.Text.Json.JsonSerializerOptions ser)
+    {
+        base.Deserialize(j, ser);
+
+        var want = (int)PomanderID.Count;
+        if (PomanderAutoUse.Length == want)
+            return;
+
+        var fixedUp = BuildDefaultPomanderAutoUse();
+        var n = Math.Min(PomanderAutoUse.Length, want);
+        Array.Copy(PomanderAutoUse, fixedUp, n);
+        PomanderAutoUse = fixedUp;
+    }
+
+    /// <summary>
+    /// 魔陶器的顯示名稱。
+    /// </summary>
+    /// <remarks>
+    /// 🔑 直接讀客戶端的 <c>DeepDungeonItem</c> 表，<b>不走 loc 檔</b>——
+    /// 這樣拿到的一定是該語系客戶端裡的官方名稱，不必維護 35 條翻譯，
+    /// 也不會有譯名與遊戲內對不上的問題。查不到才退回列舉名。
+    /// </remarks>
+    private static string PomanderName(PomanderID p)
+    {
+        var name = Service.LuminaRow<Lumina.Excel.Sheets.DeepDungeonItem>((uint)p)?.Name.ToString();
+        return string.IsNullOrEmpty(name) ? p.ToString() : name;
+    }
+
+    private static string PomanderTooltip(PomanderID p) => Service.LuminaRow<Lumina.Excel.Sheets.DeepDungeonItem>((uint)p)?.Tooltip.ToString() ?? "";
+
+    /// <summary>
+    /// 逐魔陶器的勾選清單。
+    /// </summary>
+    /// <remarks>
+    /// 📌 分兩段是照遊戲自己的分類：1..19 是死者宮殿／天之逆焰的「魔陶器」，
+    /// 20..35 是厄運迷宮的「魔科學器」。兩段都摺疊起來，因為 35 個核取方塊
+    /// 攤開會把這一頁其他設定推到看不見的地方。
+    /// </remarks>
+    private void DrawPomanderAutoUseList()
+    {
+        if (!ImGui.CollapsingHeader(Loc.T("DD_PomanderAutoUseHeader", "Which pomanders may be used automatically to make room")))
+            return;
+
+        ImGui.TextColored(PrereqNoteColor, Loc.T("DD_PomanderAutoUseNote",
+            "Only used when a gold coffer cannot be opened because you already hold three of what is inside. Names and descriptions come straight from the game's own data."));
+
+        DrawPomanderRange(Loc.T("DD_PomanderGroupClassic", "Palace of the Dead / Heaven-on-High"), PomanderID.Safety, PomanderID.Petrification);
+        DrawPomanderRange(Loc.T("DD_PomanderGroupProto", "Eureka Orthos"), PomanderID.ProtoLethargy, PomanderID.ProtoRaising);
+    }
+
+    private void DrawPomanderRange(string label, PomanderID first, PomanderID last)
+    {
+        ImGui.Separator();
+        ImGui.TextColored(PrereqNoteColor, label);
+        var col = 0;
+        for (var p = first; p <= last; ++p)
+        {
+            var i = (int)p;
+            if ((uint)i >= (uint)PomanderAutoUse.Length)
+                continue;
+
+            if (col++ % 2 == 1)
+                ImGui.SameLine(ImGui.GetWindowWidth() * 0.5f);
+
+            var v = PomanderAutoUse[i];
+            if (ImGui.Checkbox($"{PomanderName(p)}###pomanderAuto{i}", ref v))
+            {
+                PomanderAutoUse[i] = v;
+                Modified.Fire();
+            }
+            if (ImGui.IsItemHovered())
+            {
+                var tip = PomanderTooltip(p);
+                if (tip.Length > 0)
+                    ImGui.SetTooltip(tip);
+            }
+        }
+    }
+
+    #endregion
 
     // 🔴 預設 false，而且這是**刻意回退上游的既有行為**（上游會在 HP 40%／60% 以下自動喝掉）。
     //    深牢專屬秘藥是特殊商店購入、不可出售的昂貴資源，使用者明確表示要自己決定何時用。

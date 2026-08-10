@@ -399,11 +399,22 @@ public sealed unsafe class ActionManagerEx : IDisposable
                 }
                 return false;
             case ActionType.Magicite:
+                // 🔴 ActionType.Magicite 的 id 是「槽位 + 1」（ActionDefinitions 註冊的是 1..3，
+                //    0 不註冊），而 UseStone 吃的是 **0 基底**的槽位 —— 這裡原本直接把 id 丟進去，
+                //    等於永遠跳過第 0 格、而且會送出遊戲自己從來不送的 3。
+                //    0 基底是離線反組譯確認的，不是照抄 CS 的散文註解：
+                //    遊戲自己的呼叫端 0x140BA1690 在 call 之前是
+                //      movsxd rbx,edx / cmp ebx,2 / ja fail / imul rdx,rbx,0x78 / mov edx,ebx
+                //    ——「> 2 就拒絕」＋「用它當 0 基底索引」＋「原值不變地傳進去」。
+                //    UseStone 本身沒有任何邊界檢查（唯一的記憶體存取是 byte[this+0x210C]，
+                //    與槽位無關），所以越界不會在客戶端解參考到奇怪的地方，但也絕不該送。
+                if (action.ID is < 1 or > 3)
+                    return false;
                 ef = EventFramework.Instance();
                 dd = ef != null ? ef->GetInstanceContentDeepDungeon() : null;
                 if (dd != null)
                 {
-                    dd->UseStone(action.ID);
+                    dd->UseStone(action.ID - 1);
                     return true;
                 }
                 return false;

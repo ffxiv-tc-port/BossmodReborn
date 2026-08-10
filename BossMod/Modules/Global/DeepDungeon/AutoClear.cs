@@ -372,6 +372,7 @@ public abstract class AutoClear : ZoneModule
         Array.Fill(_playerImmunes, default);
         _lastChestContentsGold = null;
         _lastChestMagicite = false;
+        _magiciteSpendLogged = (-1, 0);
         _chestContentsGold.Clear();
         _chestContentsSilver.Clear();
         _trapsHidden = true;
@@ -1198,25 +1199,90 @@ public abstract class AutoClear : ZoneModule
         return player.HPMP.CurHP * 100f < player.HPMP.MaxHP * pct;
     }
 
-    private readonly List<PomanderID> AutoUsable = [
-        PomanderID.Steel,
-        PomanderID.Strength,
-        PomanderID.Sight,
-        PomanderID.Raising,
-        PomanderID.Fortune,
-        PomanderID.Concealment,
-        PomanderID.Affluence,
-        PomanderID.Frailty,
-        PomanderID.ProtoSteel,
-        PomanderID.ProtoStrength,
-        PomanderID.ProtoSight,
-        PomanderID.ProtoRaising,
-        PomanderID.ProtoLethargy,
-        PomanderID.ProtoFortune,
-        PomanderID.ProtoAffluence
-    ];
+    /// <summary>
+    /// 這一種魔陶器可不可以被自動用掉來騰位置。
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ 以前這是寫死在本檔的 15 種白名單，使用者完全無法調整。現在改成逐魔陶器的設定
+    /// （<see cref="AutoDDConfig.PomanderAutoUse"/>），<b>預設值就是原本那 15 種</b>再加上
+    /// 逐條讀 <c>DeepDungeonItem</c> 效果描述判定為「用了無害或有益」的那幾種。
+    /// </remarks>
+    private static bool CanAutoUse(PomanderID p) => Config.CanAutoUsePomander(p);
 
-    private bool CanAutoUse(PomanderID p) => AutoUsable.Contains(p);
+    #region 滿額時消耗魔石／亞靈複製體
+
+    /// <summary>
+    /// 天之逆焰的四種魔石裡，<b>留到最後才用</b>的那一種：奧汀。
+    /// </summary>
+    /// <remarks>
+    /// 查表依據：<c>DeepDungeon</c> 表第 2 列（天之御柱）的 <c>MagiciteSlot[0..3]</c> ＝ 1,2,3,4，
+    /// 指向 <c>DeepDungeonMagicStone</c> 第 1..4 列＝伊弗利特／泰坦／迦樓羅／<b>奧汀</b>。
+    /// <para>
+    /// 📌 為什麼留最後：BOSS 層伊弗利特／泰坦／迦樓羅只造成傷害，奧汀是直接打倒當前 BOSS，
+    /// 所以奧汀的邊際價值最高。⚠️ 這個機制差異是<b>使用者提供的</b>，
+    /// <c>DeepDungeonMagicStone</c> 的 <c>Tooltip</c> 只寫「用於召喚 X 的魔石」，查不到效果差異。
+    /// 假設不成立時的失敗方向是「消耗順序不是最佳」，不會多消耗任何一顆。
+    /// </para>
+    /// </remarks>
+    private const byte MagiciteKeepLastHoH = 4;
+
+    /// <summary>
+    /// 厄運迷宮的三種亞靈複製體裡留到最後的那一個：洋蔥騎士。
+    /// </summary>
+    /// <remarks>
+    /// 查表依據：<c>DeepDungeon</c> 表第 3 列（正統優雷卡）的 <c>MagiciteSlot[0..2]</c> ＝ 1,2,3，
+    /// 指向 <c>DeepDungeonDemiclone</c> 第 1..3 列＝烏內／多加／<b>洋蔥騎士</b>亞靈複製體
+    /// （台服官方譯名，非「洋蔥劍士」）。第 4 槽是 0 ＝ 厄運迷宮只有三種。
+    /// </remarks>
+    private const byte MagiciteKeepLastEO = 3;
+
+    /// <summary>上一次記錄過的消耗選擇，用來避免每幀刷 log。</summary>
+    private (int Slot, byte Kind) _magiciteSpendLogged = (-1, 0);
+
+    /// <summary>
+    /// 魔石／亞靈複製體已經滿三個時，該用掉哪一格。
+    /// </summary>
+    /// <returns>槽位 0..2；沒有可用的、或這個副本根本沒有魔石時回 <c>null</c>。</returns>
+    /// <remarks>
+    /// 順位：先用「留到最後」以外的；全部都是那一種時才用它（此時再撿一顆新的淨值不虧）。
+    /// 📌 死者宮殿沒有魔石（<c>DeepDungeon</c> 表第 1 列的 <c>MagiciteSlot</c> 全 0），
+    /// 所以在那裡一律回 null，不會誤用任何東西。
+    /// </remarks>
+    private int? PickMagiciteSlotToSpend()
+    {
+        var keepLast = Palace.DungeonId switch
+        {
+            DeepDungeonState.DungeonType.HOH => MagiciteKeepLastHoH,
+            DeepDungeonState.DungeonType.EO => MagiciteKeepLastEO,
+            _ => (byte)0
+        };
+        if (keepLast == 0)
+            return null;
+
+        var fallback = -1;
+        for (var i = 0; i < DeepDungeonState.NumMagicites; ++i)
+        {
+            var kind = Palace.Magicite[i];
+            if (kind == 0)
+                continue;
+            if (kind != keepLast)
+                return i;
+            if (fallback < 0)
+                fallback = i;
+        }
+        return fallback >= 0 ? fallback : null;
+    }
+
+    /// <summary>要記進 log 的魔石／亞靈複製體名稱（直接讀客戶端資料表，不維護譯名）。</summary>
+    private string MagiciteName(byte kind)
+    {
+        var name = Palace.DungeonId == DeepDungeonState.DungeonType.EO
+            ? Service.LuminaRow<Lumina.Excel.Sheets.DeepDungeonDemiclone>(kind)?.TitleCase.ToString()
+            : Service.LuminaRow<Lumina.Excel.Sheets.DeepDungeonMagicStone>(kind)?.Name.ToString();
+        return string.IsNullOrEmpty(name) ? $"#{kind}" : name;
+    }
+
+    #endregion
 
     private void IterAndExpire<T>(List<T> items, Func<T, bool> expire, Action<T> action, Action<T>? onRemove = null)
     {
@@ -1307,6 +1373,7 @@ public abstract class AutoClear : ZoneModule
         List<Func<WPos, float>> revealedTraps = [];
 
         PomanderID? pomanderToUseHere = null;
+        int? magiciteSlotToSpend = null;
 
         foreach (var a in World.Actors)
         {
@@ -1318,8 +1385,15 @@ public abstract class AutoClear : ZoneModule
             }
 
             if (_chestContentsSilver.ContainsKey(a.InstanceID) && Palace.Magicite.All(m => m > 0))
-                // TODO use magicite/demiclone to prevent overcap
+            {
+                // 這顆銀寶箱裡是魔石／亞靈複製體（遊戲用「無法獲得更多的了」那條系統訊息告訴我們的），
+                // 而三個槽都滿了 ⇒ 用掉一個騰位置，下一幀這顆箱子就會回到可開清單。
+                // 🔴 只在遊戲已經明講過內容物的箱子上做。沒有那條訊息就什麼都不動，
+                //    失敗方向是「維持現狀，箱子照舊跳過」而不是白白消耗資源。
+                if (Config.AutoUseMagiciteWhenCapped && a.IsTargetable)
+                    magiciteSlotToSpend ??= PickMagiciteSlotToSpend();
                 continue;
+            }
 
             if (_openedChests.Contains(a.InstanceID) || _fakeExits.Contains(a.InstanceID))
                 continue;
@@ -1422,6 +1496,24 @@ public abstract class AutoClear : ZoneModule
 
         if (Config.AllowPomander && !isStunned && pomanderToUseHere is PomanderID p2 && player.FindStatus((uint)SID.ItemPenalty) == null)
             hints.ActionsToExecute.Push(new ActionID(ActionType.Pomander, (uint)p2), null, ActionQueue.Priority.VeryHigh);
+
+        // 魔石／亞靈複製體：獨立開關（預設開），守衛與上面那條同款——變身／暈眩中不送、
+        // 身上有「物品使用封印」時不送。
+        // ⚠️ ActionType.Magicite 的 id 是「槽位 + 1」（註冊的是 1..3），
+        //    ActionManagerEx 會再減回 0 基底交給 UseStone —— 那條 0 基底是離線反組譯確認的。
+        if (Config.AutoUseMagiciteWhenCapped && !isStunned && magiciteSlotToSpend is int mslot
+            && player.FindStatus((uint)SID.ItemPenalty) == null)
+        {
+            var kind = Palace.Magicite[mslot];
+            if (_magiciteSpendLogged != (mslot, kind))
+            {
+                _magiciteSpendLogged = (mslot, kind);
+                Service.Logger.Information(
+                    $"[DD] 魔石滿額：用掉第 {mslot + 1} 格的「{MagiciteName(kind)}」（型別 {kind}）以便重新開啟銀寶箱。" +
+                    $"目前三格＝[{Palace.Magicite[0]}, {Palace.Magicite[1]}, {Palace.Magicite[2]}]");
+            }
+            hints.ActionsToExecute.Push(new ActionID(ActionType.Magicite, (uint)(mslot + 1)), null, ActionQueue.Priority.VeryHigh);
+        }
 
         // 「走過去」與「開起來」是兩件事，分開判斷。
         // ⚠️ 拆分前這裡是一條式子：`(AutoMoveTreasure && canNavigate) || 距離 < 3.5f`
