@@ -611,6 +611,12 @@
   "Show tips for positional abilities, indicating to move to the flank or rear of your target": {
     "message": "顯示站位技能提示，指示移動到目標的側面或後面"
   },
+  "Show dodge movement path in world": {
+    "message": "在遊戲世界顯示閃避移動路徑"
+  },
+  "Draws a line in the game world from your character to the spot the automatic movement module is steering towards this instant, plus the next waypoint after it when the path bends.\n\nThe line switches to the danger color when there is less than 1 second of safety margin left to reach that spot.\n\nPurely visual - it does not change where or how the AI moves.": {
+    "message": "在遊戲世界畫出一條線，從您的角色連到自動移動模組此刻正要前往的位置；路徑轉彎時還會多畫出接下來的那個路徑點。\n\n當抵達該位置的安全餘裕不到 1 秒時，線條會換成危險色。\n\n純顯示功能，不會改變 AI 移動的目的地或方式。"
+  },
   "Automatically disable autorotation when exiting combat": {
     "message": "離開戰鬥時自動停用自動循環"
   },

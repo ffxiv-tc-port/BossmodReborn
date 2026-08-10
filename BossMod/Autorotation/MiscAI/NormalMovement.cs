@@ -15,6 +15,34 @@ public sealed class NormalMovement : RotationModule
 
     public static NormalMovement? Instance;
 
+    // ---- 顯示層（純顯示，不參與任何移動決策）----
+
+    // 本幀移動決策的快照，給世界疊加層畫路徑用。
+    // 時序：Execute 由 Plugin.DrawUI 的 _rotation.Update() 呼叫，繪製端是同一個 DrawUI 裡稍後的
+    // WindowSystem.Draw() → UIRotationWindow.PreOpenCheck()。兩者同在 UiBuilder.Draw 這一個回呼中
+    // 依序執行（Plugin.cs 的 _rotation.Update() 在 Service.WindowSystem.Draw() 之前），
+    // 所以這裡不需要任何執行緒同步。
+    public readonly record struct MovementVisualization(WPos Destination, WPos? NextWaypoint, bool Urgent);
+
+    private static MovementVisualization? _pendingVisualization;
+
+    // 🔴 刻意做成「讀取後清空」而不是留著上一次的值。
+    // Execute 有多條提早 return 的路徑（移動被別的模組接管、沒有目的地、已經站到位、擊退尚未結算、
+    // Pyretic 將至…），而且這個模組不在啟用中的預設集裡時根本不會被呼叫。
+    // 若沿用舊值，上述每一種情況都會讓上一幀的線繼續畫在早已過期的位置上。
+    public static MovementVisualization? ConsumeVisualization()
+    {
+        var res = _pendingVisualization;
+        _pendingVisualization = null;
+        return res;
+    }
+
+    // LeewaySeconds 低於這個值就換成危險色。取 1 秒是對齊 NavigationDecision.ActivationTimeCushion
+    // 的預設值（同樣是 1 秒）—— 那是尋路自己認定的安全緩衝，低於它代表已經在吃緩衝了。
+    public const float UrgentLeewaySeconds = 1f;
+
+    private static readonly AutorotationConfig _visualConfig = Service.Config.Get<AutorotationConfig>();
+
     public NormalMovement(RotationModuleManager manager, Actor player) : base(manager, player)
     {
         Instance = this;
@@ -23,6 +51,7 @@ public sealed class NormalMovement : RotationModule
     public override void Dispose()
     {
         Instance = null;
+        _pendingVisualization = null;
         base.Dispose();
     }
 
@@ -131,6 +160,12 @@ public sealed class NormalMovement : RotationModule
         if (navi.Destination == null)
             return; // nothing to do
 
+        // 顯示層：下面的 Range 策略可能把 Destination 換成「維持輸出距離」的位置，換掉之後
+        // NextWaypoint 就不再是同一條路徑上的下一點，照畫會多出一段指向舊路徑的假線。
+        // 先記下原值，稍後比對，不相等就只畫第一段。
+        var showPath = _visualConfig.ShowMovementPath;
+        var preRangeDestination = showPath ? navi.Destination : null;
+
         var rangeOpt = strategy.Option(Track.Range);
         var rangeStrategy = rangeOpt.As<RangeStrategy>();
         if (rangeStrategy != RangeStrategy.Any)
@@ -185,6 +220,15 @@ public sealed class NormalMovement : RotationModule
             // TODO: what should we do if forced-movement is already set to something?.. not sure who could set it, some other module?..
             Hints.ForcedMovement = default;
             return;
+        }
+
+        if (showPath)
+        {
+            // 這裡 navi.Destination 已經套完 Range 的調整，而且確定「要往那裡走」（已站到位的情況上面已 return）。
+            // ⚠️ 只有 Pathfind 會產生有意義的 LeewaySeconds：Explicit 分支沒有設這個欄位（結構預設 0），
+            // 直接拿去比會讓明明不趕時間的手動指定座標永遠顯示成急迫。
+            var urgent = destinationStrategy == DestinationStrategy.Pathfind && navi.LeewaySeconds < UrgentLeewaySeconds;
+            _pendingVisualization = new(navi.Destination.Value, navi.Destination == preRangeDestination ? navi.NextWaypoint : null, urgent);
         }
 
         // we want to move somewhere, check whether we're allowed to

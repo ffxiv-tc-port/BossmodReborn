@@ -19,7 +19,7 @@ sealed class Camera
     public Vector2 ViewportSize;
     private const float maxerror = 1 / 90f;
 
-    private readonly List<(Vector2 from, Vector2 to, uint col)> _worldDrawLines = [];
+    private readonly List<(Vector2 from, Vector2 to, uint col, float thickness)> _worldDrawLines = [];
 
     public unsafe void Update()
     {
@@ -60,14 +60,15 @@ sealed class Camera
 
         var dl = ImGui.GetWindowDrawList();
         foreach (var l in _worldDrawLines)
-            dl.AddLine(l.from, l.to, l.col);
+            dl.AddLine(l.from, l.to, l.col, l.thickness);
         _worldDrawLines.Clear();
 
         ImGui.End();
         ImGui.PopStyleVar();
     }
 
-    public void DrawWorldLine(Vector3 start, Vector3 end, uint color)
+    // thickness 預設 1f，與改動前 dl.AddLine 的隱含預設相同 —— 既有呼叫端外觀完全不變。
+    public void DrawWorldLine(Vector3 start, Vector3 end, uint color, float thickness = 1f)
     {
         var p1w = start;
         var p2w = end;
@@ -80,7 +81,7 @@ sealed class Camera
         var p2c = p2p.XY() * (1 / p2p.W);
         var p1screen = new Vector2(0.5f * ViewportSize.X * (1 + p1c.X), 0.5f * ViewportSize.Y * (1 - p1c.Y)) + ImGuiHelpers.MainViewport.Pos;
         var p2screen = new Vector2(0.5f * ViewportSize.X * (1 + p2c.X), 0.5f * ViewportSize.Y * (1 - p2c.Y)) + ImGuiHelpers.MainViewport.Pos;
-        _worldDrawLines.Add((p1screen, p2screen, color));
+        _worldDrawLines.Add((p1screen, p2screen, color, thickness));
     }
 
     public void DrawWorldCone(Vector3 center, float radius, Angle direction, Angle halfWidth, uint color)
@@ -99,14 +100,14 @@ sealed class Camera
         DrawWorldLine(prev, center, color);
     }
 
-    public void DrawWorldCircle(Vector3 center, float radius, uint color)
+    public void DrawWorldCircle(Vector3 center, float radius, uint color, float thickness = 1f)
     {
         int numSegments = CurveApprox.CalculateCircleSegments(radius, 360f.Degrees(), maxerror);
         var prev = center + new Vector3(0, 0, radius);
         for (var i = 1; i <= numSegments; ++i)
         {
             var curr = center + radius * (i * 360.0f / numSegments).Degrees().ToDirection().ToVec3();
-            DrawWorldLine(curr, prev, color);
+            DrawWorldLine(curr, prev, color, thickness);
             prev = curr;
         }
     }
