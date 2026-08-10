@@ -1918,6 +1918,12 @@ public abstract class AutoClear : ZoneModule
         _coordGateLoggedState = null;
         RoomTolerance = RoomCenterToleranceFloor;
         Array.Clear(_centerFitted);
+        // 記憶化的結果是針對上一份版面算的，換層／換面時一律作廢
+        _coordMemoAt = default;
+        _coordMemoState = RoomCoordState.Unknown;
+        _coordMemoDistance = -1f;
+        _coordMemoRoom = -1;
+        _doorGateLogged = null;
     }
 
     /// <summary>對某一面評分：本人離「遊戲回報的那間房」多遠、離本人最近的是哪一間。</summary>
@@ -1964,8 +1970,32 @@ public abstract class AutoClear : ZoneModule
     /// 但最近的會變成別間）。
     /// </para>
     /// <para>📌 校驗沒過不是錯誤，是「這一層退化成房級標示」，而且必須讓使用者看得見原因。</para>
+    /// <para>
+    /// 🔴 <b>這個函式有副作用，所以一幀只准跑一次</b>——它會累加鏡像面自我校準的連續計數
+    /// （<see cref="_faceSwitchStreak"/>）。同一幀被呼叫兩次，
+    /// <see cref="FaceSwitchConfirmFrames"/> 那道遲滯就等於只剩一半，
+    /// 而失敗形式是「換層途中被殘留座標騙去換面」，完全不報錯。
+    /// 本函式因此對 <c>World.CurrentTime</c> 記憶化，實算在 <see cref="ComputeRoomCoords"/>。
+    /// </para>
     /// </remarks>
     protected RoomCoordState CheckRoomCoords(Actor player, out float distance, out int reportedRoom)
+    {
+        if (_coordMemoAt != World.CurrentTime)
+        {
+            _coordMemoAt = World.CurrentTime;
+            _coordMemoState = ComputeRoomCoords(player, out _coordMemoDistance, out _coordMemoRoom);
+        }
+        distance = _coordMemoDistance;
+        reportedRoom = _coordMemoRoom;
+        return _coordMemoState;
+    }
+
+    private DateTime _coordMemoAt;
+    private RoomCoordState _coordMemoState;
+    private float _coordMemoDistance = -1f;
+    private int _coordMemoRoom = -1;
+
+    private RoomCoordState ComputeRoomCoords(Actor player, out float distance, out int reportedRoom)
     {
         distance = -1f;
         reportedRoom = FindPlayerRoom(player);
@@ -2446,7 +2476,194 @@ public abstract class AutoClear : ZoneModule
             };
             return improvement > 10f ? travelWeight : 0f;
         });
+
+        AddDoorWaypoints(player, hints, playerRoom, next, d, travelWeight);
     }
+
+    #region 門口路點鏈
+
+    /// <summary>
+    /// 走廊「車道」的半寬（碼）。
+    /// </summary>
+    /// <remarks>
+    /// 這不是量到的走廊寬度，是<b>偏好帶</b>的寬度：帶內的格子多拿一份權重，帶外照舊。
+    /// 取寬一點是刻意的——真正的走廊比這窄的話，整條走廊都在帶內（正確）；
+    /// 比這寬的話，最多只是偏好走中間（無害）。
+    /// </remarks>
+    private const float LaneHalfWidth = 6f;
+
+    /// <summary>
+    /// 路點的「到了」半徑（碼）：走到這麼近就把那個路點<b>撤掉</b>。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 這是防呆的核心。路點是平台函式，站在平台上時整片權重相同 ⇒ 沒有東西叫角色繼續往前，
+    /// 表現會是「走到門口就停住不動」（然後被卡住偵測當成障礙物地圖對不上）。
+    /// 撤掉之後最高權重回到「往前走」那一片，角色自然接著走。
+    /// 撤除半徑刻意大於平台半徑，避免在邊界上一幀加一幀撤。
+    /// </remarks>
+    private const float WaypointArriveRadius = 6f;
+
+    private const float FarDoorRadius = 5f;
+    private const float NextCenterRadius = 10f;
+
+    /// <summary>路點權重相對趕路權重的倍率。</summary>
+    /// <remarks>
+    /// 🔴 <b>每一個都必須小於 1</b>：這樣任何單一路點都壓不過「往前走」那一片，
+    /// 也就不可能出現「因為某個路點而停在原地」。它們只在<b>同時也是往前的格子</b>上疊加生效。
+    /// </remarks>
+    private const float WaypointWeightFactor = 0.5f;
+
+    /// <summary>沿行進方向的分量（正＝朝那個方向）。</summary>
+    private static float AlongAxis(Direction d, WDir off) => d switch
+    {
+        Direction.North => -off.Z,
+        Direction.South => off.Z,
+        Direction.East => off.X,
+        _ => -off.X,
+    };
+
+    /// <summary>垂直於行進方向的分量。</summary>
+    private static float AcrossAxis(Direction d, WDir off) => d is Direction.North or Direction.South ? off.X : off.Z;
+
+    private static Wall DoorOnSide(RoomData<Wall> room, Direction d) => d switch
+    {
+        Direction.North => room.North,
+        Direction.South => room.South,
+        Direction.East => room.East,
+        _ => room.West,
+    };
+
+    private static Direction Opposite(Direction d) => d switch
+    {
+        Direction.North => Direction.South,
+        Direction.South => Direction.North,
+        Direction.East => Direction.West,
+        _ => Direction.East,
+    };
+
+    /// <summary>
+    /// 某間房在某一側的門口世界座標。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 📌 <b>資料來源就是 <see cref="LoadedFloors"/> 的四個方向欄位</b>——
+    /// <see cref="ApplyFace"/> 在「那一側沒有連通旗標」時把同一個值當成關著的門加進
+    /// <see cref="Walls"/>，所以它們是門的位置。反過來說，我們要走的那一側<b>一定</b>有連通旗標
+    /// （<see cref="FloorPathfind"/> 只走有旗標的邊），因此這個座標<b>不會</b>同時是禁區。
+    /// </para>
+    /// <para>
+    /// 🔴 這裡重跑一次離線閘門（<c>tools/bmr_deepdungeon_doors.py</c> 的 G1／G2）：
+    /// 門口相對房中心必須真的落在那一側，而且同軸分量要大於側向分量。
+    /// 對不上就回 false ＝這一項完全不加，退回原本的方向啟發式。
+    /// 2026-08-10 對 tc-7.20 全部 80 個版面、2240 個門口欄位離線實算：G1 一致率 1.0000
+    /// （四向全對調的負對照 0.0000）、G2 同軸支配 96.3%、中心→門口中位 18.2y。
+    /// </para>
+    /// <para>
+    /// ⚠️ 比對的中心用<b>版面表自己的</b> <c>Center</c>，不是 <see cref="RoomCenters"/>——
+    /// 後者可能是網格擬合補出來的，拿補值去驗原始值等於用兩把不同的尺。
+    /// </para>
+    /// </remarks>
+    private bool TryGetDoor(int room, Direction side, out WPos door)
+    {
+        door = default;
+        if ((uint)room >= DeepDungeonState.NumRooms)
+            return false;
+
+        var face = _activeFace == 0 ? _faceA : _activeFace == 1 ? _faceB : null;
+        if (face == null)
+            return false;
+
+        var data = face[room];
+        if (data.Center == default)
+            return false;
+
+        var w = DoorOnSide(data, side);
+        if (w == default)
+            return false;
+
+        var off = w.Position - data.Center.Position;
+        var along = AlongAxis(side, off);
+        if (along <= 1f || Math.Abs(AcrossAxis(side, off)) >= along)
+            return false;
+
+        door = w.Position;
+        return true;
+    }
+
+    /// <summary>上一次記錄過的門口路點閘門結果；null＝還沒記過（每層重設）。</summary>
+    private bool? _doorGateLogged;
+
+    /// <summary>
+    /// 把「下一個門口 → 走廊另一端 → 下一間房中心」這條路點鏈疊到趕路權重場上。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 🔑 <b>為什麼原本的啟發式不夠</b>：<c>improvement &gt; 10y</c> 是一個半平面平台，
+    /// 「往北 10 碼以上」的格子<b>全部同分</b>，所以尋路只會挑最近的那一格，
+    /// 橫向要不要對齊門口完全沒有訊號——角色因此常常沿著北牆磨到門口旁邊才轉過去。
+    /// 車道那一項就是補上橫向的訊號。
+    /// </para>
+    /// <para>
+    /// 🔴 <b>全部是加法，而且每一項都小於等於趕路權重</b>：
+    /// 任一閘門沒過就是少加一項，權重場退回原本的樣子＝今天的行為。
+    /// 沒有任何一條路徑會因為這個功能而<b>主動</b>把角色帶去別的地方。
+    /// </para>
+    /// </remarks>
+    private void AddDoorWaypoints(Actor player, AIHints hints, int playerRoom, int next, Direction d, float travelWeight)
+    {
+        // 🔴 前置＝座標校驗閘門。沒過代表這一層的寫死座標對不上，門口座標一樣不能信。
+        var door = default(WPos);
+        var gateOk = CheckRoomCoords(player, out _, out _) == RoomCoordState.Ok
+            && TryGetDoor(playerRoom, d, out door);
+
+        if (_doorGateLogged != gateOk)
+        {
+            _doorGateLogged = gateOk;
+            Service.Logger.Information(gateOk
+                ? $"[DD] 門口路點：樓層 {Palace.Floor} 啟用（版面 {(_activeFace == 0 ? "A" : "B")}、房間 {playerRoom} 往 {d} 到 {next}）。"
+                : $"[DD] 門口路點：樓層 {Palace.Floor} 不啟用，退回原本的方向啟發式（座標校驗或門口自我檢查沒過）。");
+        }
+
+        if (!gateOk)
+            return;
+
+        var pos = player.Position;
+        var laneAxisIsX = d is Direction.North or Direction.South;
+        var laneCoord = laneAxisIsX ? door.X : door.Z;
+
+        // ① 走廊車道：既要往 d 前進，又要橫向對齊門口。
+        //    刻意沿用上面那條「至少再前進 10y」的門檻——車道是套在它上面的濾網，不是另一套規則，
+        //    所以車道永遠是「原本就會被接受的格子」的子集。
+        hints.GoalZones.Add(p =>
+        {
+            var pp = player.Position;
+            var improvement = d switch
+            {
+                Direction.North => pp.Z - p.Z,
+                Direction.South => p.Z - pp.Z,
+                Direction.East => p.X - pp.X,
+                Direction.West => pp.X - p.X,
+                _ => 0f,
+            };
+            if (improvement <= 10f)
+                return 0f;
+            var lateral = Math.Abs((laneAxisIsX ? p.X : p.Z) - laneCoord);
+            return lateral <= LaneHalfWidth ? travelWeight * WaypointWeightFactor : 0f;
+        });
+
+        // ② 走廊的另一端＝下一間房那一側的門口。實測兩側門口相距約 0.42 倍中心距（中位 ~25y），
+        //    也就是說它已經在下一間房裡面，走到那裡遊戲回報的房號就會換。
+        if (TryGetDoor(next, Opposite(d), out var farDoor) && !farDoor.InCircle(pos, WaypointArriveRadius))
+            hints.GoalZones.Add(hints.GoalSingleTarget(farDoor, FarDoorRadius, travelWeight * WaypointWeightFactor));
+
+        // ③ 下一間房的中心。
+        //    ⚠️ 只用版面表真的有的中心，不用網格擬合補出來的（<see cref="_centerFitted"/>）——
+        //    補值最大可以差 15y，拿它當移動路點是把「顯示可以將就」的容忍度誤用到「走位」上。
+        if (!_centerFitted[next] && RoomCenters[next] is WPos c && !c.InCircle(pos, NextCenterRadius))
+            hints.GoalZones.Add(hints.GoalSingleTarget(c, NextCenterRadius, travelWeight * WaypointWeightFactor));
+    }
+
+    #endregion
 
     /// <summary>
     /// <see cref="RoomCenters"/>／<see cref="Walls"/> 目前載入的是哪一層、哪個版面。
