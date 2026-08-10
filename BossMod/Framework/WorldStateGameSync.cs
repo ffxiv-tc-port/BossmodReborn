@@ -813,13 +813,52 @@ sealed class WorldStateGameSync : IDisposable
                 _ws.Execute(new DeepDungeonState.OpPomandersChange(pomanders.ToArray()));
 
             Span<DeepDungeonState.Chest> chests = stackalloc DeepDungeonState.Chest[DeepDungeonState.NumChests];
+            // 🔴 原值要在 Sanitize **之前**留下來：SanitizeDeepDungeonRoom 把 0xFF（空槽）壓成 0，
+            //    壓完就再也分不出「空槽」與「第 0 間房的寶箱」——而那正好是我們要量的東西。
+            Span<byte> rawChestRooms = stackalloc byte[DeepDungeonState.NumChests];
+            var nonEmptyChests = 0;
             for (var i = 0; i < DeepDungeonState.NumChests; ++i)
             {
                 ref var c = ref dd->Chests[i];
+                rawChestRooms[i] = (byte)c.RoomIndex;
+                if (c.ChestType != 0)
+                    ++nonEmptyChests;
                 chests[i] = new(c.ChestType, SanitizeDeepDungeonRoom(c.RoomIndex));
             }
             if (fullUpdate || !MemoryExtensions.SequenceEqual(_ws.DeepDungeon.Chests.AsSpan(), chests))
                 _ws.Execute(new DeepDungeonState.OpChestsChange(chests.ToArray()));
+
+            // ── 原值診斷 ──────────────────────────────────────────────────
+            // 「地圖上的大房間到底有沒有寶箱，是遊戲根本沒送、還是我們畫丟了」——
+            // 這是唯一能離線分辨的量測，所以印遊戲送過來的**原始** (Type,Room) 與 25 格 MapData。
+            // 節流：進場、換層，以及「非空寶箱數變多」時各一次（開箱只會變少，不會刷版面）。
+            // 走 Information，因為要靠使用者的 log 回報才看得到（LogLevel 2）。
+            if (fullUpdate || dd->Floor != _ddDiagFloor || nonEmptyChests > _ddDiagChestCount)
+            {
+                var newFloor = fullUpdate || dd->Floor != _ddDiagFloor;
+                _ddDiagFloor = dd->Floor;
+                _ddDiagChestCount = nonEmptyChests;
+
+                var sb = new StringBuilder(320);
+                sb.Append("[DD] 寶箱原值 樓層 ").Append(dd->Floor).Append(" 版面 ").Append(dd->ActiveLayoutIndex).Append(" Chests[0..15]=");
+                for (var i = 0; i < DeepDungeonState.NumChests; ++i)
+                    sb.Append('(').Append(dd->Chests[i].ChestType).Append(',').Append(rawChestRooms[i]).Append(')');
+                Service.Logger.Information(sb.ToString());
+
+                if (newFloor)
+                {
+                    sb.Clear();
+                    sb.Append("[DD] MapData 原值 樓層 ").Append(dd->Floor).Append(' ');
+                    for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+                    {
+                        if (i % 5 == 0)
+                            sb.Append('[');
+                        sb.Append(((ushort)dd->MapData[i]).ToString("X2"));
+                        sb.Append(i % 5 == 4 ? ']' : ' ');
+                    }
+                    Service.Logger.Information(sb.ToString());
+                }
+            }
 
             if (fullUpdate || !MemoryExtensions.SequenceEqual(_ws.DeepDungeon.Magicite.AsSpan(), dd->Magicite))
                 _ws.Execute(new DeepDungeonState.OpMagiciteChange(dd->Magicite.ToArray()));
@@ -831,6 +870,10 @@ sealed class WorldStateGameSync : IDisposable
         }
         // else: we were and still are outside deep dungeon, nothing to do
     }
+
+    /// <summary>寶箱原值診斷用的節流狀態：上次印過的樓層與非空寶箱數。</summary>
+    private byte _ddDiagFloor = 255;
+    private int _ddDiagChestCount = -1;
 
     private byte SanitizeDeepDungeonRoom(sbyte room) => room < 0 ? (byte)0 : (byte)room;
     private ulong SanitizedObjectID(ulong raw) => raw != InvalidEntityId ? raw : 0;

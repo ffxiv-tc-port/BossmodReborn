@@ -113,7 +113,11 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
         for (var i = 0; i < lenC; ++i)
         {
             ref readonly var c = ref State.Chests[i];
-            if (c.Room > 0 && c.Room < DeepDungeonState.NumRooms && c.Type > 0)
+            // 🔴 原本這裡是 `c.Room > 0`——**0 是合法房號**（房號＝5×row+col 的線性格號 0..24，
+            //    離線反組譯確認過沒有旗標也沒有映射），所以左上角那一格的寶箱永遠不顯示。
+            //    空槽是 {ChestType=0, RoomIndex=0xFF}，0xFF 走 WorldStateGameSync 的
+            //    SanitizeDeepDungeonRoom 會變成 0 —— 擋掉空槽的是 `c.Type > 0`，不是房號。
+            if (c.Room < DeepDungeonState.NumRooms && c.Type > 0)
                 ++chestCounts[c.Room * ChestTypeSlots + ChestSlot(c.Type)];
         }
 

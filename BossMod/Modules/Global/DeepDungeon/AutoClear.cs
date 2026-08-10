@@ -63,7 +63,17 @@ public abstract class AutoClear : ZoneModule
         // EO
         1541, 1542, 1543, 1544, 1545, 1546, 1547, 1548, 1549, 1550, 1551, 1552, 1553, 1554
     ];
-    public static readonly HashSet<uint> RevealedTrapOIDs = [0x1EA08E, 0x1EA08F, 0x1EA090, 0x1EA091, 0x1EA092, 0x1EA9A0, 0x1EB864];
+    /// <summary>
+    /// 已現形（魔陶器：全景／踩過）的陷阱事件物件。
+    /// </summary>
+    /// <remarks>
+    /// 📌 <c>0x1EBEDB</c>（2014939）是 NecroLens 有、這裡原本沒有的一個。台服 <c>EObjName</c>
+    /// 第 2014939 列存在、名稱與其他六個陷阱一樣是空的（＝不可選取的裝飾/機關物件），
+    /// 形狀一致所以補進來。
+    /// ⚠️ 這是<b>離線查表</b>的結論，不是實機看過：假設不成立時的失敗方向是
+    /// 「多一個永遠不會命中的比對」，不會誤標任何東西。
+    /// </remarks>
+    public static readonly HashSet<uint> RevealedTrapOIDs = [0x1EA08E, 0x1EA08F, 0x1EA090, 0x1EA091, 0x1EA092, 0x1EA9A0, 0x1EB864, 0x1EBEDB];
 
     protected readonly List<(Actor Source, float Inner, float Outer)> Donuts = [];
     protected readonly List<(Actor Source, float Radius)> Circles = [];
@@ -186,6 +196,18 @@ public abstract class AutoClear : ZoneModule
             ws.DeepDungeon.MapDataChanged.Subscribe(_ =>
             {
                 BetweenFloors = false;
+
+                // 🔴 換層時該歸零的那組狀態原本**只**掛在系統訊息 7248（傳送開始）上，
+                //    而 7248 在台服不保證觸發（同一個成因已經害過房間座標沿用上一層）。
+                //    後果最嚴重的是 _trapsHidden：用過一次「魔陶器：咒印解除／全景」之後
+                //    它被設成 false，若沒有任何東西把它設回 true，
+                //    **之後每一層的資料庫陷阱迴避都靜默關閉**——設定頁照樣打勾。
+                //    這裡改用「遊戲回報的樓層變了」當驅動，與 7248 互為備援（誰先到都只跑一次）。
+                if (_floorStateFor != Palace.Floor)
+                {
+                    _floorStateFor = Palace.Floor;
+                    ResetFloorState();
+                }
                 // 🔴 判準是「載入的是不是這一層這個版面」，不是「Walls 是不是空的」。
                 //    舊的 `if (Walls.Count == 0)` 只在第一次載入，之後完全依賴 ClearState() 去清空，
                 //    而 ClearState 是由系統訊息 7248（傳送開始）驅動的 —— 那條在台服沒有觸發，
@@ -313,7 +335,25 @@ public abstract class AutoClear : ZoneModule
 
     protected virtual void OnChangeFloors() { }
 
-    private void ClearState()
+    /// <summary>
+    /// 這一層已經跑過 <see cref="ResetFloorState"/> 的樓層號；255＝還沒跑過。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 沒有這個記號就分不出「換層了」與「同一層又揭開一間房」——
+    /// <c>MapDataChanged</c> 每揭開一間房就會觸發一次。
+    /// </remarks>
+    private byte _floorStateFor = 255;
+
+    /// <summary>
+    /// <b>換一層</b>就該歸零的東西。
+    /// </summary>
+    /// <remarks>
+    /// 從兩條路進來：系統訊息 7248（傳送開始，走 <see cref="ClearState"/>）與
+    /// <c>MapDataChanged</c> 偵測到樓層變化。兩者互為備援，<see cref="_floorStateFor"/> 保證
+    /// 同一層只跑一次。刻意<b>不</b>含房間座標／牆壁／AOE 清單——那幾樣是
+    /// 「真的傳送」才該作廢的，而且座標與牆壁由 <see cref="LoadWalls"/> 自己負責重載。
+    /// </remarks>
+    private void ResetFloorState()
     {
         // 換層了，上一層算出來的路徑一律作廢；我們發起的移動也停掉
         // （角色會被傳走，繼續照舊路徑走是沒有意義而且可能有害的）
@@ -325,17 +365,6 @@ public abstract class AutoClear : ZoneModule
         _stuckMessage = null;
         _stuckSince = default;
 
-        Donuts.Clear();
-        Circles.Clear();
-        Gazes.Clear();
-        Interrupts.Clear();
-        Stuns.Clear();
-        Spikes.Clear();
-        HintDisabled.Clear();
-        LOS.Clear();
-        Walls.Clear();
-        Array.Clear(RoomCenters);
-        _coordGateLogged = false;
         IgnoreTraps.Clear();
         IgnoreTraps.AddRange(ProblematicTrapLocations);
         DesiredRoom = 0;
@@ -350,6 +379,23 @@ public abstract class AutoClear : ZoneModule
         _openedChests.Clear();
         _fakeExits.Clear();
         OnChangeFloors();
+    }
+
+    private void ClearState()
+    {
+        ResetFloorState();
+
+        Donuts.Clear();
+        Circles.Clear();
+        Gazes.Clear();
+        Interrupts.Clear();
+        Stuns.Clear();
+        Spikes.Clear();
+        HintDisabled.Clear();
+        LOS.Clear();
+        Walls.Clear();
+        Array.Clear(RoomCenters);
+        ResetCoordGate();
         BetweenFloors = true;
     }
 
@@ -828,7 +874,7 @@ public abstract class AutoClear : ZoneModule
                     continue;
                 if (_fakeExits.Contains(a.InstanceID))
                     continue;
-                if (NearestRoom(a.Position, RoomCenterTolerance) != room)
+                if (NearestRoom(a.Position, RoomTolerance) != room)
                     continue;
                 dest = a.PosRot.XYZ();
                 return true;
@@ -1326,7 +1372,12 @@ public abstract class AutoClear : ZoneModule
             for (var i = 0; i < countTraps; ++i)
             {
                 var trap = _trapsCurrentZone[i];
-                if (trap.InCircle(player.Position, 30f))
+                // 🔴 半徑要蓋得住尋路視窗，否則視窗角落的陷阱不會進 forbidden zone，
+                //    表現是「大部分陷阱會閃、偶爾一個不閃」而不是整個功能壞掉。
+                //    深牢用的是 AIHints.DefaultBounds ＝ ArenaBoundsSquare(30f)，
+                //    也就是以玩家為中心、半邊長 30y 的方形；角落離中心 30·√2 ≒ 42.4y
+                //    ⇒ 原本的 30y 查詢半徑蓋不到角落，取 45y。
+                if (trap.InCircle(player.Position, 45f))
                 {
                     var shouldIgnore = false;
                     var countIgnoreTraps = IgnoreTraps.Count;
@@ -1623,12 +1674,92 @@ public abstract class AutoClear : ZoneModule
     }
 
     /// <summary>
-    /// 房間中心座標的容許誤差（單位 y）。房間間距實測約 55~58y，
-    /// 半幅約 27.5y，取 35y 留一點餘裕又不至於跨到隔壁房。
+    /// 房間中心座標容許誤差的<b>下限</b>（單位 y）；實際值由 <see cref="RoomTolerance"/> 逐版面實算。
     /// </summary>
-    private const float RoomCenterTolerance = 35f;
+    /// <remarks>
+    /// ⚠️ 原本這是唯一的常數，註解寫「房間間距實測約 55~58y」——<b>那個數字是錯的</b>。
+    /// 2026-08-10 拿 <see cref="LoadedFloors"/> 全部版面實算最近鄰房距，結果是 31.5~87.4y，
+    /// 而 35y 的歸屬半徑在厄運迷宮有 25.2% 的格子不夠用（最大需要 40.2y），
+    /// 死者宮殿 0.8%、天之逆焰 0%。⇒ 固定 35y 在厄運迷宮會讓四分之一的寶箱／敵人
+    /// <b>歸屬不到任何房間而被靜默丟掉</b>。
+    /// <para>
+    /// 保留 35f 當下限是刻意的：容許誤差只會變大不會變小，所以今天能正確歸屬的東西
+    /// 明天一定還能，這個改動不可能讓既有行為退步。
+    /// </para>
+    /// </remarks>
+    private const float RoomCenterToleranceFloor = 35f;
 
-    private bool _coordGateLogged;
+    /// <summary>容許誤差的上限，避免只載到兩三間房時算出荒謬的大值。</summary>
+    private const float RoomCenterToleranceCap = 80f;
+
+    /// <summary>
+    /// 目前這個版面的房間歸屬容許誤差（單位 y），由 <see cref="ApplyFace"/> 實算。
+    /// </summary>
+    private float RoomTolerance = RoomCenterToleranceFloor;
+
+    #region 鏡像版面自我校準
+
+    /// <summary>本層那一組樓層的兩份鏡像版面；null＝這一層沒有可用的座標資料。</summary>
+    private Tileset<Wall>? _faceA, _faceB;
+
+    /// <summary>目前套用的是哪一面：0＝RoomsA、1＝RoomsB、-1＝沒有版面資料。</summary>
+    private int _activeFace = -1;
+
+    /// <summary>連續幾次評分都顯示「另一面才對」；到門檻才真的換面（遲滯）。</summary>
+    private int _faceSwitchStreak;
+
+    /// <summary>
+    /// 換面需要連續吻合幾次。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>不能只看一幀。</b>剛換層那一瞬間角色還在傳送途中，位置是上一層的殘值或中間態，
+    /// 拿它去選面會<b>主動選錯</b>。兩份鏡像版面中心相距約 845y，正常遊玩時
+    /// 不可能連續 8 次都落在錯的那一面附近，所以這個遲滯足以濾掉傳送中的雜訊。
+    /// </remarks>
+    private const int FaceSwitchConfirmFrames = 8;
+
+    /// <summary>上一次記錄過的閘門狀態；null＝還沒記過。用來做「狀態變化才記一行」。</summary>
+    private RoomCoordState? _coordGateLoggedState;
+
+    private void ResetCoordGate()
+    {
+        _faceA = _faceB = null;
+        _activeFace = -1;
+        _faceSwitchStreak = 0;
+        _coordGateLoggedState = null;
+        RoomTolerance = RoomCenterToleranceFloor;
+        Array.Clear(_centerFitted);
+    }
+
+    /// <summary>對某一面評分：本人離「遊戲回報的那間房」多遠、離本人最近的是哪一間。</summary>
+    /// <returns>該面沒有這間房的座標時回 <c>null</c>。</returns>
+    private (float Distance, int Nearest, bool Ok)? ScoreFace(Tileset<Wall> face, WPos pos, int reportedRoom)
+    {
+        var reported = face[reportedRoom].Center;
+        if (reported == default)
+            return null;
+
+        var distance = (reported.Position - pos).Length();
+
+        var nearest = -1;
+        var bestSq = float.MaxValue;
+        for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+        {
+            var c = face[i].Center;
+            if (c == default)
+                continue;
+            var dsq = (c.Position - pos).LengthSq();
+            if (dsq < bestSq)
+            {
+                bestSq = dsq;
+                nearest = i;
+            }
+        }
+
+        return (distance, nearest, distance <= RoomTolerance && nearest == reportedRoom);
+    }
+
+    #endregion
 
     /// <summary>
     /// 🔴 <b>台服座標校驗閘門。</b>
@@ -1649,25 +1780,70 @@ public abstract class AutoClear : ZoneModule
     {
         distance = -1f;
         reportedRoom = FindPlayerRoom(player);
-        if (reportedRoom < 0 || RoomCenters[reportedRoom] is not WPos center)
+        if (reportedRoom < 0 || _activeFace < 0)
             return RoomCoordState.Unknown;
 
-        distance = (center - player.Position).Length();
+        var pos = player.Position;
+        var active = _activeFace == 0 ? _faceA : _faceB;
+        var score = active != null ? ScoreFace(active, pos, reportedRoom) : null;
 
-        var nearest = NearestRoom(player.Position, float.MaxValue);
-        var ok = distance <= RoomCenterTolerance && nearest == reportedRoom;
-
-        if (!_coordGateLogged)
+        // ── 鏡像面自我校準 ────────────────────────────────────────────────
+        // 目前這一面對不上時，看看另一面對不對得上。兩面中心相距約 845y ⇒ 只有一面可能吻合，
+        // 巧合吻合實務上不可能發生。連續 FaceSwitchConfirmFrames 次都指向另一面才真的換，
+        // 免得被傳送途中的座標騙走。
+        if (score is not { Ok: true } && _faceA != null && _faceB != null)
         {
-            _coordGateLogged = true;
-            // 要使用者回報才查得出台服座標對不對，所以走 Information（使用者的 LogLevel 是 2）。
-            // 一層只印一次。
-            Service.Logger.Information(
-                $"[DD] 房間座標校驗：樓層 {Palace.Floor}、版面 {Palace.Progress.Tileset}、遊戲回報房號 {reportedRoom}、" +
-                $"與該房中心距離 {distance:f1}y、最近的房間是 {nearest} ⇒ {(ok ? "通過" : "不通過")}");
+            var otherIdx = 1 - _activeFace;
+            var other = otherIdx == 0 ? _faceA : _faceB;
+            var otherScore = ScoreFace(other, pos, reportedRoom);
+            if (otherScore is { Ok: true })
+            {
+                if (++_faceSwitchStreak >= FaceSwitchConfirmFrames)
+                {
+                    Service.Logger.Information(
+                        $"[DD] 鏡像版面自我校準：改用版面 {(otherIdx == 0 ? "A" : "B")}（遊戲回報的 Progress.Tileset 是 {Palace.Progress.Tileset}）。" +
+                        $"樓層 {Palace.Floor}、回報房號 {reportedRoom}、本人 ({pos.X:f1}, {pos.Z:f1})、" +
+                        $"原本那面距離 {(score?.Distance ?? -1f):f1}y/最近房 {(score?.Nearest ?? -1)}、" +
+                        $"改用那面距離 {otherScore.Value.Distance:f1}y/最近房 {otherScore.Value.Nearest}");
+                    ApplyFace(otherIdx);
+                    _faceSwitchStreak = 0;
+                    // ⚠️ ApplyFace 會重算容許誤差，所以要用新的那份重新評分，不能沿用上面那次
+                    score = ScoreFace(other, pos, reportedRoom);
+                }
+            }
+            else
+            {
+                _faceSwitchStreak = 0;
+            }
+        }
+        else
+        {
+            _faceSwitchStreak = 0;
         }
 
-        return ok ? RoomCoordState.Ok : RoomCoordState.Mismatch;
+        if (score is not { } s)
+            return RoomCoordState.Unknown;
+
+        distance = s.Distance;
+        var state = s.Ok ? RoomCoordState.Ok : RoomCoordState.Mismatch;
+
+        // 🔴 診斷改成「狀態變化才記一行」而不是「一層記一次」。
+        //    一層記一次記到的必然是樓層載入後的**第一幀**，而那一幀角色還在傳送中——
+        //    量到的是一個與回報房號無關的固定位置（實機 log 裡「最近的房間」恆為 3 或 10
+        //    就是這個特徵），於是把「量測時機不對」誤報成「座標對不上」。
+        //    改成翻轉才記，下一次實跑就分得出「站定之後其實會通過」與「站定也不過」。
+        if (_coordGateLoggedState != state)
+        {
+            _coordGateLoggedState = state;
+            // 要使用者回報才查得出台服座標對不對，所以走 Information（使用者的 LogLevel 是 2）。
+            Service.Logger.Information(
+                $"[DD] 房間座標校驗{(state == RoomCoordState.Ok ? "通過" : "不通過")}：樓層 {Palace.Floor}、" +
+                $"Progress.Tileset {Palace.Progress.Tileset}、實際採用版面 {(_activeFace == 0 ? "A" : "B")}、" +
+                $"遊戲回報房號 {reportedRoom}、本人 ({pos.X:f1}, {pos.Z:f1})、與該房中心距離 {s.Distance:f1}y、" +
+                $"最近的房間是 {s.Nearest}、容許誤差 {RoomTolerance:f1}y");
+        }
+
+        return state;
     }
 
     /// <summary>
@@ -1731,7 +1907,7 @@ public abstract class AutoClear : ZoneModule
             var slot = ChestSlotForOID(a.OID);
             if (slot < 0)
                 continue;
-            var room = NearestRoom(a.Position, RoomCenterTolerance);
+            var room = NearestRoom(a.Position, RoomTolerance);
             if (room < 0 || RoomCenters[room] is not WPos center)
                 continue;
 
@@ -1843,7 +2019,7 @@ public abstract class AutoClear : ZoneModule
         for (var i = 0; i < _hoardActors.Count; ++i)
         {
             var a = _hoardActors[i];
-            var room = NearestRoom(a.Position, RoomCenterTolerance);
+            var room = NearestRoom(a.Position, RoomTolerance);
             if (room < 0 || RoomCenters[room] is not WPos center)
                 continue;
 
@@ -1991,7 +2167,7 @@ public abstract class AutoClear : ZoneModule
         {
             if (a.Type != ActorType.Enemy || a.IsAlly || !a.IsTargetable || a.IsDeadOrDestroyed)
                 continue;
-            var room = NearestRoom(a.Position, RoomCenterTolerance);
+            var room = NearestRoom(a.Position, RoomTolerance);
             if (room < 0)
                 continue;
             ++_roomEnemies[room];
@@ -2095,7 +2271,7 @@ public abstract class AutoClear : ZoneModule
         // 🔴 座標也要一起作廢。半套狀態（新樓層 + 舊座標）比完全沒有資料更糟：
         //    校驗閘門會拿舊座標去比，得到「不通過」而不是「不知道」。
         Array.Clear(RoomCenters);
-        _coordGateLogged = false;
+        ResetCoordGate();
         _loadedLayout = (Palace.Floor, Palace.Progress.Tileset);
 
         var floorset = Palace.Floor / 10;
@@ -2105,22 +2281,43 @@ public abstract class AutoClear : ZoneModule
             Service.Log($"unable to load floorset {key}");
             return;
         }
-        Tileset<Wall> tileset;
-        switch (Palace.Progress.Tileset)
+
+        if (Palace.Progress.Tileset == 2)
         {
-            case 0:
-                tileset = floor.RoomsA;
-                break;
-            case 1:
-                tileset = floor.RoomsB;
-                break;
-            case 2:
-                Service.Log($"hall of fallacies - nothing to do");
-                return;
-            default:
-                Service.Log($"unrecognized tileset number {Palace.Progress.Tileset}");
-                return;
+            Service.Log($"hall of fallacies - nothing to do");
+            return;
         }
+
+        // 兩面都留著，之後由 CheckRoomCoords 拿本人位置自我校準決定用哪一面。
+        _faceA = floor.RoomsA;
+        _faceB = floor.RoomsB;
+
+        // 起手仍然照遊戲回報的 Progress.Tileset 選面＝維持既有行為；
+        // 認不得的值退回 A 面（以前是整個不載入，那會讓所有依賴座標的功能一起消失）。
+        var initial = Palace.Progress.Tileset == 1 ? 1 : 0;
+        if (Palace.Progress.Tileset > 1)
+            Service.Logger.Information($"[DD] 認不得的版面編號 {Palace.Progress.Tileset}，先套用版面 A，交給座標自我校準判斷。");
+        ApplyFace(initial);
+    }
+
+    /// <summary>
+    /// 把某一面鏡像版面套進 <see cref="RoomCenters"/> 與 <see cref="Walls"/>。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>中心座標與牆壁必須同時換</b>。兩者是同一份版面資料，只換一半就會回到
+    /// 「新樓層 + 舊座標」那種半套狀態——閘門會得到「不通過」而不是「不知道」。
+    /// </remarks>
+    private void ApplyFace(int face)
+    {
+        var tileset = face == 0 ? _faceA : _faceB;
+        if (tileset == null)
+            return;
+
+        _activeFace = face;
+        Walls.Clear();
+        Array.Clear(RoomCenters);
+        Array.Clear(_centerFitted);
+
         var len = Palace.Rooms.Length;
         for (var i = 0; i < len; ++i)
         {
@@ -2142,7 +2339,163 @@ public abstract class AutoClear : ZoneModule
                     Walls.Add((roomdata.West, true));
             }
         }
+
+        FillMissingRoomCenters();
+        RoomTolerance = ComputeRoomTolerance();
     }
+
+    #region 房間中心的補值與容許誤差
+
+    /// <summary>這一格的中心是網格擬合補出來的，不是 <see cref="LoadedFloors"/> 真的有的值。</summary>
+    private readonly bool[] _centerFitted = new bool[DeepDungeonState.NumRooms];
+
+    /// <summary>
+    /// 網格擬合的最大容許殘差（碼）。已知中心對不上線性網格到這個程度就整個不補。
+    /// </summary>
+    /// <remarks>
+    /// 實測房間中心<b>不在完美網格上</b>，所以擬合本來就有殘差；但殘差大到這個地步
+    /// 代表這一面根本不是規則網格，補出來的座標會比沒有更糟（會把寶箱畫進錯的房間）。
+    /// ⇒ 寧可留 null 讓那一格退化成「地圖說有、位置不明」。
+    /// </remarks>
+    private const float GridFitMaxResidual = 15f;
+
+    /// <summary>
+    /// 用已知的房間中心做 5×5 線性網格擬合，補上「地圖說有房間但座標表是 default」的格子。
+    /// </summary>
+    /// <remarks>
+    /// <see cref="LoadedFloors"/> 是上游一格一格 dump 出來的，缺格不是「那裡沒有房間」而是
+    /// 「當時沒 dump 到」。缺格的後果是 <see cref="NearestRoom"/> 把那間房裡的東西
+    /// <b>歸屬到隔壁房</b>——靜默畫錯，比不畫更糟。
+    /// <para>
+    /// 做法：X 只跟 col 有關、Z 只跟 row 有關（房號＝5×row+col，已由反組譯確認是線性格號），
+    /// 兩軸各做一次最小平方直線擬合。殘差超過 <see cref="GridFitMaxResidual"/> 就整個放棄。
+    /// </para>
+    /// <para>🔴 只補 <c>MapData</c> 說有房間的格子。四角那種連遊戲都說不是房間的格子不補。</para>
+    /// </remarks>
+    private void FillMissingRoomCenters()
+    {
+        // 兩軸各自的 (自變數, 應變數) 樣本
+        var (nx, sumCol, sumColSq, sumX, sumColX) = (0, 0f, 0f, 0f, 0f);
+        var (nz, sumRow, sumRowSq, sumZ, sumRowZ) = (0, 0f, 0f, 0f, 0f);
+        var distinctCols = 0;
+        var distinctRows = 0;
+        Span<bool> seenCol = stackalloc bool[5];
+        Span<bool> seenRow = stackalloc bool[5];
+
+        for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+        {
+            if (RoomCenters[i] is not WPos c)
+                continue;
+            var row = (float)(i / 5);
+            var col = (float)(i % 5);
+            ++nx;
+            sumCol += col;
+            sumColSq += col * col;
+            sumX += c.X;
+            sumColX += col * c.X;
+            ++nz;
+            sumRow += row;
+            sumRowSq += row * row;
+            sumZ += c.Z;
+            sumRowZ += row * c.Z;
+            if (!seenCol[i % 5])
+            {
+                seenCol[i % 5] = true;
+                ++distinctCols;
+            }
+            if (!seenRow[i / 5])
+            {
+                seenRow[i / 5] = true;
+                ++distinctRows;
+            }
+        }
+
+        // 少於兩個不同的欄／列就擬不出斜率
+        if (distinctCols < 2 || distinctRows < 2)
+            return;
+
+        var denX = nx * sumColSq - sumCol * sumCol;
+        var denZ = nz * sumRowSq - sumRow * sumRow;
+        if (Math.Abs(denX) < 1e-3f || Math.Abs(denZ) < 1e-3f)
+            return;
+
+        var bx = (nx * sumColX - sumCol * sumX) / denX;
+        var ax = (sumX - bx * sumCol) / nx;
+        var bz = (nz * sumRowZ - sumRow * sumZ) / denZ;
+        var az = (sumZ - bz * sumRow) / nz;
+
+        // 殘差檢查：擬合對不上已知的格子，就不要拿它去補未知的格子
+        var maxResidual = 0f;
+        for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+        {
+            if (RoomCenters[i] is not WPos c)
+                continue;
+            var dx = Math.Abs(ax + bx * (i % 5) - c.X);
+            var dz = Math.Abs(az + bz * (i / 5) - c.Z);
+            maxResidual = Math.Max(maxResidual, Math.Max(dx, dz));
+        }
+        if (maxResidual > GridFitMaxResidual)
+        {
+            Service.Logger.Information($"[DD] 房間中心網格擬合放棄：最大殘差 {maxResidual:f1}y 超過 {GridFitMaxResidual}y，缺格維持未知。");
+            return;
+        }
+
+        var filled = 0;
+        for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+        {
+            if (RoomCenters[i] != null)
+                continue;
+            if ((byte)Palace.Rooms[i] == 0)
+                continue; // 遊戲自己說這一格不是房間（四角就是這種）——不補
+            RoomCenters[i] = new WPos(ax + bx * (i % 5), az + bz * (i / 5));
+            _centerFitted[i] = true;
+            ++filled;
+        }
+
+        if (filled > 0)
+            Service.Logger.Information(
+                $"[DD] 房間中心網格擬合：補了 {filled} 格（樓層 {Palace.Floor}、版面 {(_activeFace == 0 ? "A" : "B")}），" +
+                $"最大殘差 {maxResidual:f1}y、X={ax:f1}+{bx:f1}·col、Z={az:f1}+{bz:f1}·row");
+    }
+
+    /// <summary>
+    /// 逐版面實算房間歸屬的容許誤差：取所有房間裡「最近鄰房距」最大的那一個的一半，再加餘裕。
+    /// </summary>
+    /// <remarks>
+    /// 為什麼取最大而不是最小：這個值是 <see cref="NearestRoom"/> 的<b>截斷距離</b>，
+    /// 而不是分辨兩間房的門檻——歸屬本來就是「離誰最近算誰的」，截斷只決定
+    /// 「離所有房都太遠就當不在任何房裡」。取最小會讓格子大的那幾間房內側的東西
+    /// 被靜默丟掉（實測厄運迷宮有 25.2% 的格子踩到這個）。
+    /// </remarks>
+    private float ComputeRoomTolerance()
+    {
+        var maxNearest = 0f;
+        for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+        {
+            if (RoomCenters[i] is not WPos a)
+                continue;
+            var bestSq = float.MaxValue;
+            for (var j = 0; j < DeepDungeonState.NumRooms; ++j)
+            {
+                if (i == j || RoomCenters[j] is not WPos b)
+                    continue;
+                var dsq = (b - a).LengthSq();
+                if (dsq < bestSq)
+                    bestSq = dsq;
+            }
+            if (bestSq < float.MaxValue)
+                maxNearest = Math.Max(maxNearest, MathF.Sqrt(bestSq));
+        }
+
+        // 半幅 + 8y 餘裕；下限維持原本的 35y（只會變寬，不可能讓既有行為退步）
+        var tol = Math.Clamp(maxNearest * 0.5f + 8f, RoomCenterToleranceFloor, RoomCenterToleranceCap);
+        Service.Logger.Information(
+            $"[DD] 房間歸屬容許誤差：樓層 {Palace.Floor}、版面 {(_activeFace == 0 ? "A" : "B")}、" +
+            $"最大最近鄰房距 {maxNearest:f1}y ⇒ 採用 {tol:f1}y");
+        return tol;
+    }
+
+    #endregion
 
     protected void AddLOSFromTerrain(Actor Source, float Range)
     {
