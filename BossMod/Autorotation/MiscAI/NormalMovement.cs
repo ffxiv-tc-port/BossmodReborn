@@ -217,6 +217,16 @@ public sealed class NormalMovement : RotationModule
                             //    navi.Destination 維持尋路算出來的目的地，也就是照原目的地走。
                             //    🔴 刻意**不**夾進視窗再比——那是拿另一格的危險度冒充這一格的答案，
                             //    會在「uptime 點其實站不得」時把角色送過去，比不貪輸出糟得多。
+                            //
+                            // 📌 實機三個樣本（2026-08-10 22:32:04、22:47:42，堆疊逐字相同）與觸發條件：
+                            //    ① **只有近戰／坦克會爆**（使用者換成遠程職業＝零例外）。機理就在上面那行
+                            //       effectiveRange：坦克/近戰是 MeleeRange 2.6y、其餘是 CasterRange 25y。
+                            //       uptimePosition 是「距目標 maxRange」的那一點，所以目標一遠，
+                            //       近戰的 uptime 點會停在目標身邊（離玩家＝離地圖中心很遠）＝出視窗；
+                            //       遠程的則往玩家方向退了 25y，通常還在視窗內。**這不是機率問題，是職業問題。**
+                            //    ② 要有目標才會走到這裡（上面 `rangeReference != null`），所以「進場正常、
+                            //       開了 WrathCombo 介面才開始拋」是**取得目標的時點**，不是 UI 的因果——
+                            //       自動輪替本來就每幀從 Plugin.DrawUI 跑，跟開哪個視窗無關。
                             var uptimeGrid = _navCtx.Map.WorldToGrid(uptimePosition);
                             var uptimeInWindow = _navCtx.Map.InBounds(uptimeGrid.x, uptimeGrid.y);
                             LogGreedWindow(uptimeInWindow);
