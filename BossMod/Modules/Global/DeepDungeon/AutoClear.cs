@@ -223,7 +223,13 @@ public abstract class AutoClear : ZoneModule
 
         _trapsCurrentZone = GeneratedTrapData.Traps.TryGetValue(ws.CurrentZone, out var locations) ? locations : [];
 
-        ProblematicTrapLocations.AddRange(ProblematicTrapLocations);
+        // 🔴 這裡刻意沒有內建的「問題陷阱」種子清單，不要好心把它加回來。
+        //    原本 BadTraps.cs 那 6 個座標不帶副本／樓層限定，而深牢的座標空間是跨副本共用的：
+        //    拿它們去比對本檔用的 GeneratedTrapData（14176 筆），每一點都對得上 3~6 個 zone 的
+        //    真實陷阱，其中 (-374.9, 302.2) 同時命中死者宮殿（562/593/594/595）與天之御柱（772/782）。
+        //    灌進 IgnoreTraps 等於在從沒驗證過的樓層關掉那些點的陷阱迴避
+        //    （CollectWalkTrapPoints 與 AddNearbyTrapCircles 都會直接跳過被忽略的點），
+        //    所以整份資料連同 BadTraps.cs 一起移除。要復活的話必須先補上 zone／樓層限定。
         IgnoreTraps.AddRange(ProblematicTrapLocations);
     }
 
