@@ -137,7 +137,10 @@ public sealed class RotationModuleManager : IDisposable
     public Actor? ResolveTargetOverride(StrategyTarget strategy, int param) => strategy switch
     {
         StrategyTarget.Self => Player,
-        StrategyTarget.PartyByAssignment => _prc.SlotsPerAssignment(WorldState.Party) is var spa && param < spa.Length ? WorldState.Party[spa[param]] : null,
+        // 🔴 param 來自預設／計畫 JSON 的 TargetParam（Strategy.cs 直接 GetInt32()），負值進得來。
+        //    舊的 `param < spa.Length` 對 -1 是成立的 ⇒ spa[-1] 擲 IndexOutOfRangeException。
+        //    轉 uint 比較讓負值一起被擋掉（會繞回極大值），落回本來就存在的「回 null」語意。
+        StrategyTarget.PartyByAssignment => _prc.SlotsPerAssignment(WorldState.Party) is var spa && (uint)param < (uint)spa.Length ? WorldState.Party[spa[param]] : null,
         StrategyTarget.PartyWithLowestHP => FilteredPartyMembers((StrategyPartyFiltering)param).MinBy(a => a.HPMP.CurHP),
         StrategyTarget.EnemyWithHighestPriority => Hints.PriorityTargets.MaxBy(RateEnemy((StrategyEnemySelection)param))?.Actor,
         StrategyTarget.EnemyByOID => Player != null && (uint)param is var oid && oid != 0 ? Hints.PotentialTargets.Where(e => e.Actor.OID == oid).MinBy(e => (e.Actor.Position - Player.Position).LengthSq())?.Actor : null,
