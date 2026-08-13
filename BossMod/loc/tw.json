@@ -8479,5 +8479,14 @@
   },
   "Also before raidwides": {
     "message": "全體傷害前也使用"
+  },
+  "Unknown damage type": {
+    "message": "傷害屬性判不出時"
+  },
+  "Do not mitigate, leave it to me": {
+    "message": "不推減傷，留給我自己處理"
+  },
+  "Mitigate anyway": {
+    "message": "照樣推減傷"
   }
 }
