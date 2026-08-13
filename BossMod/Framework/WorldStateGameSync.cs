@@ -838,6 +838,61 @@ sealed class WorldStateGameSync : IDisposable
                 }
             }
 
+            // ── 房間位置普查 ──────────────────────────────────────────────
+            // 🔑 上面那份「隊伍房號原值」只在**房號變了**的那一幀才記，所以它的每一筆都落在
+            //    房間交界上——拿來擬合房間中心是**病態的**：2026-08-14 離線實測，用它對一個
+            //    格線已知正確的一般層（樓層 65）做最小平方擬合，留一法一致率是 **0.000**
+            //    （工具 ~/.claude/tools/bmr_dd_hall_gridfit.py，它的校準閘門就是為此擋下來的）。
+            //    要擬合中心需要的是**房間內部**的位置，也就是定時取樣而不是變化時取樣。
+            // 📌 這一段只收資料、印一行，不參與任何決策。目標是「大廳層」（無內牆的 12 格版面，
+            //    實測樓層 15／25／64）——那種版面 A／B 兩面座標表都不涵蓋，座標校驗整層不通過，
+            //    於是小地圖只畫得出摘要、畫不出寶箱點位。
+            // ⚠️ 一般層也照收：它們的表本來就通過校驗，正好當「擬合方法對不對」的對照組。
+            //    沒有對照組就分不出「擬合失敗」與「擬合程式自己寫錯」。
+            if (dd->Floor != _ddCensusFloor)
+            {
+                FlushDeepDungeonRoomCensus();
+                _ddCensusFloor = dd->Floor;
+                _ddCensusLayout = dd->ActiveLayoutIndex;
+                _ddCensusFloorSince = _ws.CurrentTime;
+                Array.Clear(_ddCensus);
+            }
+            // 🔴 換層後要先靜置：剛進場那一瞬間角色還在傳送中，回報的是一個與房號完全無關的
+            //    固定位置（實機看到的 (0, -300) 那一組，離房中心 600~740 碼）。那種樣本會把
+            //    整組平均值拉歪，而且看起來只是「離群值大了點」，不像壞掉。
+            else if ((_ws.CurrentTime - _ddCensusFloorSince).TotalSeconds >= DDCensusSettleSeconds
+                     && _ws.CurrentTime >= _ddCensusNextSample
+                     && _ws.Party.Player() is { } censusPlayer)
+            {
+                for (var i = 0; i < DeepDungeonState.NumPartyMembers; ++i)
+                {
+                    ref var p = ref dd->Party[i];
+                    if (SanitizedObjectID(p.EntityId) != censusPlayer.InstanceID)
+                        continue;
+                    if ((uint)p.RoomIndex >= DeepDungeonState.NumRooms)
+                        break; // 遊戲說「不在任何房間」（負值）或超出範圍——那不是量測，是沒有量測
+                    _ddCensusNextSample = _ws.CurrentTime.AddSeconds(DDCensusSampleInterval);
+                    ref var cell = ref _ddCensus[p.RoomIndex];
+                    var px = censusPlayer.PosRot.X;
+                    var pz = censusPlayer.PosRot.Z;
+                    if (cell.N++ == 0)
+                    {
+                        cell.MinX = cell.MaxX = px;
+                        cell.MinZ = cell.MaxZ = pz;
+                    }
+                    else
+                    {
+                        cell.MinX = Math.Min(cell.MinX, px);
+                        cell.MaxX = Math.Max(cell.MaxX, px);
+                        cell.MinZ = Math.Min(cell.MinZ, pz);
+                        cell.MaxZ = Math.Max(cell.MaxZ, pz);
+                    }
+                    cell.SumX += px;
+                    cell.SumZ += pz;
+                    break;
+                }
+            }
+
             Span<DeepDungeonState.PomanderState> pomanders = stackalloc DeepDungeonState.PomanderState[DeepDungeonState.NumPomanderSlots];
             for (var i = 0; i < DeepDungeonState.NumPomanderSlots; ++i)
             {
@@ -901,6 +956,9 @@ sealed class WorldStateGameSync : IDisposable
         else if (_ws.DeepDungeon.DungeonId != DeepDungeonState.DungeonType.None)
         {
             // exiting deep dungeon, clean up all state
+            // 離開深牢也要把最後一層的普查倒出來，否則最後一層（含大廳層）永遠記不到。
+            FlushDeepDungeonRoomCensus();
+            _ddCensusFloor = 255;
             _ws.Execute(new DeepDungeonState.OpProgressChange(DeepDungeonState.DungeonType.None, default));
         }
         // else: we were and still are outside deep dungeon, nothing to do
@@ -918,6 +976,74 @@ sealed class WorldStateGameSync : IDisposable
 
     /// <summary>隊伍房號原值每層最多記幾行。</summary>
     private const int DDPartyDiagLinesPerFloor = 40;
+
+    /// <summary>房間位置普查：某一間房收到的樣本統計。</summary>
+    private struct DDRoomCensus
+    {
+        public int N;
+        public double SumX, SumZ;
+        public float MinX, MaxX, MinZ, MaxZ;
+    }
+
+    private readonly DDRoomCensus[] _ddCensus = new DDRoomCensus[DeepDungeonState.NumRooms];
+    private byte _ddCensusFloor = 255;
+    private byte _ddCensusLayout;
+    private DateTime _ddCensusFloorSince;
+    private DateTime _ddCensusNextSample;
+
+    /// <summary>房間位置普查的取樣間隔（秒）。</summary>
+    /// <remarks>
+    /// 2 Hz。一層待個幾分鐘就是數百筆，足夠把每間房的平均位置壓到房間尺寸的零頭；
+    /// 再密只是讓同一個站位重複計數（角色不動時樣本完全相同），拉不出更多資訊。
+    /// </remarks>
+    private const double DDCensusSampleInterval = 0.5d;
+
+    /// <summary>換層後要靜置這麼久才開始取樣（秒）。</summary>
+    private const double DDCensusSettleSeconds = 2d;
+
+    /// <summary>
+    /// 把上一層的房間位置普查倒成一行 log。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 走 <c>Information</c>：這是要靠使用者回報才看得到的量測（使用者的 LogLevel 是 2）。
+    /// 一層只印一行，所以量很小。
+    /// <para>
+    /// 每一格印的是「樣本數／平均位置／半幅」。半幅是拿來判斷這一格的樣本到底散得多開——
+    /// 平均值本身沒辦法告訴你它是「房間中心」還是「兩次穿門的中點」，半幅可以。
+    /// </para>
+    /// </remarks>
+    private void FlushDeepDungeonRoomCensus()
+    {
+        if (_ddCensusFloor == 255)
+            return;
+
+        var total = 0;
+        for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+            total += _ddCensus[i].N;
+        if (total == 0)
+            return;
+
+        var sb = new StringBuilder(512);
+        sb.Append("[DD] 房間位置普查 樓層 ").Append(_ddCensusFloor)
+          .Append(" 版面 ").Append(_ddCensusLayout)
+          .Append(" 取樣 ").Append(total).Append(" 筆：");
+        var first = true;
+        for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+        {
+            ref var c = ref _ddCensus[i];
+            if (c.N == 0)
+                continue;
+            if (!first)
+                sb.Append('、');
+            first = false;
+            sb.Append('r').Append(i).Append(" n=").Append(c.N)
+              .Append(" 心(").Append(((float)(c.SumX / c.N)).ToString("f1")).Append(", ")
+              .Append(((float)(c.SumZ / c.N)).ToString("f1")).Append(')')
+              .Append(" 幅(").Append(((c.MaxX - c.MinX) * 0.5f).ToString("f1")).Append(", ")
+              .Append(((c.MaxZ - c.MinZ) * 0.5f).ToString("f1")).Append(')');
+        }
+        Service.Logger.Information(sb.ToString());
+    }
 
     private byte SanitizeDeepDungeonRoom(sbyte room) => room < 0 ? (byte)0 : (byte)room;
     private ulong SanitizedObjectID(ulong raw) => raw != InvalidEntityId ? raw : 0;
