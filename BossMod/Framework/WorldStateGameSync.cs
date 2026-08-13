@@ -795,13 +795,42 @@ sealed class WorldStateGameSync : IDisposable
                 _ws.Execute(new DeepDungeonState.OpMapDataChange(dd->MapData.ToArray()));
 
             Span<DeepDungeonState.PartyMember> party = stackalloc DeepDungeonState.PartyMember[DeepDungeonState.NumPartyMembers];
+            // 🔴 原值要在 Sanitize **之前**留下來，理由與寶箱那份相同：
+            //    SanitizeDeepDungeonRoom 把負值（＝遊戲說「不在任何房間」）壓成 0，
+            //    壓完就再也分不出「不在任何房間」與「第 0 間房」——而所有版面的房號 0
+            //    都沒有中心座標，於是座標校驗閘門會靜默地卡在 Unknown。
+            Span<sbyte> rawPartyRooms = stackalloc sbyte[DeepDungeonState.NumPartyMembers];
             for (var i = 0; i < DeepDungeonState.NumPartyMembers; ++i)
             {
                 ref var p = ref dd->Party[i];
+                rawPartyRooms[i] = p.RoomIndex;
                 party[i] = new(SanitizedObjectID(p.EntityId), SanitizeDeepDungeonRoom(p.RoomIndex));
             }
             if (fullUpdate || !MemoryExtensions.SequenceEqual(_ws.DeepDungeon.Party.AsSpan(), party))
                 _ws.Execute(new DeepDungeonState.OpPartyStateChange(party.ToArray()));
+
+            // ── 隊伍房號原值診斷 ──────────────────────────────────────────
+            // 只在原值真的變了、而且沒超過每層上限時印。上限是為了擋「大房間裡房號每幀在
+            // -1 與某個房號之間跳」那種會刷爆 log 的情況——被擋掉本身也是訊息（看行數就知道）。
+            if (!MemoryExtensions.SequenceEqual(_ddDiagPartyRooms.AsSpan(), rawPartyRooms))
+            {
+                rawPartyRooms.CopyTo(_ddDiagPartyRooms.AsSpan());
+                if (dd->Floor != _ddDiagPartyFloor)
+                {
+                    _ddDiagPartyFloor = dd->Floor;
+                    _ddDiagPartyLines = 0;
+                }
+                if (++_ddDiagPartyLines <= DDPartyDiagLinesPerFloor)
+                {
+                    var pb = new StringBuilder(96);
+                    pb.Append("[DD] 隊伍房號原值 樓層 ").Append(dd->Floor).Append(" Party[0..3].RoomIndex=");
+                    for (var i = 0; i < DeepDungeonState.NumPartyMembers; ++i)
+                        pb.Append(i == 0 ? "" : ", ").Append(rawPartyRooms[i]);
+                    if (_ddDiagPartyLines == DDPartyDiagLinesPerFloor)
+                        pb.Append("（已達本層上限，之後不再記錄）");
+                    Service.Logger.Information(pb.ToString());
+                }
+            }
 
             Span<DeepDungeonState.PomanderState> pomanders = stackalloc DeepDungeonState.PomanderState[DeepDungeonState.NumPomanderSlots];
             for (var i = 0; i < DeepDungeonState.NumPomanderSlots; ++i)
@@ -874,6 +903,15 @@ sealed class WorldStateGameSync : IDisposable
     /// <summary>寶箱原值診斷用的節流狀態：上次印過的樓層與非空寶箱數。</summary>
     private byte _ddDiagFloor = 255;
     private int _ddDiagChestCount = -1;
+
+    /// <summary>隊伍房號原值診斷用的節流狀態：上次印過的四個原值、樓層與本層已記了幾行。</summary>
+    /// <remarks>初值刻意用 <c>sbyte.MinValue</c>，讓進場第一次一定會印（0 與 -1 都是會出現的合法值）。</remarks>
+    private readonly sbyte[] _ddDiagPartyRooms = [sbyte.MinValue, sbyte.MinValue, sbyte.MinValue, sbyte.MinValue];
+    private byte _ddDiagPartyFloor = 255;
+    private int _ddDiagPartyLines;
+
+    /// <summary>隊伍房號原值每層最多記幾行。</summary>
+    private const int DDPartyDiagLinesPerFloor = 40;
 
     private byte SanitizeDeepDungeonRoom(sbyte room) => room < 0 ? (byte)0 : (byte)room;
     private ulong SanitizedObjectID(ulong raw) => raw != InvalidEntityId ? raw : 0;

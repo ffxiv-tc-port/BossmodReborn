@@ -59,7 +59,22 @@ public readonly record struct HoardSpot(int Room, Vector2 CellOffset, HoardKind 
 /// 埋藏的寶藏。<b>null＝功能關閉、或這一層的房間座標校驗沒過</b>（後者由 <see cref="AutoClear"/>
 /// 另外印一行說明，因為那時世界疊加層還是照畫）。
 /// </param>
-public sealed record class Minimap(DeepDungeonState State, Actor Player, int CurrentDestination, AutoDDConfig Config, IReadOnlyList<ChestSpot>? ChestSpots, IReadOnlyList<int>? RoomEnemies, IReadOnlyList<HoardSpot>? HoardSpots)
+/// <param name="ChestSeen">
+/// 「本層每一格每一型別最多同時看過幾個寶箱」的累積值，由 <see cref="AutoClear"/> 維護；
+/// null＝退回只看當幀（舊行為）。
+/// <para>
+/// 🔴 <b>存在的理由</b>：遊戲的 <c>Chests[]</c> 陣列<b>不是本層的完整清單</b>，
+/// 內容會隨著本人走動而縮甚至整個清空（2026-08-13 天之御柱 15 層實機：整層大多數時候
+/// 「遊戲的寶箱清單沒列任何東西」，中間穿插一次只列一格的狀態，格號還一直換）。
+/// 直接畫當幀清單＝寶箱標記會在小地圖上<b>閃爍甚至完全消失</b>，也就是使用者回報的
+/// 「大房間沒有寶箱顯示」。
+/// </para>
+/// <para>
+/// ⚠️ 代價：開過的箱如果沒能歸屬到房間（<see cref="AutoClear.NearestRoom"/> 回 -1），
+/// 標記會殘留到換層。這是刻意取捨——<b>殘留一個開過的標記可以接受，該有的箱消失不行</b>。
+/// </para>
+/// </param>
+public sealed record class Minimap(DeepDungeonState State, Actor Player, int CurrentDestination, AutoDDConfig Config, IReadOnlyList<ChestSpot>? ChestSpots, IReadOnlyList<int>? RoomEnemies, IReadOnlyList<HoardSpot>? HoardSpots, IReadOnlyList<int>? ChestSeen = null)
 {
     enum IconID : uint
     {
@@ -118,6 +133,27 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
     /// </remarks>
     public static int ChestSlot(int type) => type >= 1 && type <= 3 ? type - 1 : UnknownChestSlot;
 
+    /// <summary>
+    /// 把遊戲<b>當幀</b>的寶箱清單累加進 <paramref name="counts"/>（索引＝房號×<see cref="ChestTypeSlots"/>＋槽位）。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 原本這段的條件是 <c>c.Room &gt; 0</c>——**0 是合法房號**（房號＝5×row+col 的線性格號
+    /// 0..24，離線反組譯確認過沒有旗標也沒有映射），所以左上角那一格的寶箱永遠不顯示。
+    /// 空槽是 <c>{ChestType=0, RoomIndex=0xFF}</c>，0xFF 走 <c>WorldStateGameSync</c> 的
+    /// <c>SanitizeDeepDungeonRoom</c> 會變成 0 —— 擋掉空槽的是 <c>c.Type &gt; 0</c>，不是房號。
+    /// <para>📌 不清空 <paramref name="counts"/>，清空與否由呼叫端決定。</para>
+    /// </remarks>
+    public static void CountChests(DeepDungeonState state, int[] counts)
+    {
+        var lenC = state.Chests.Length;
+        for (var i = 0; i < lenC; ++i)
+        {
+            ref readonly var c = ref state.Chests[i];
+            if (c.Room < DeepDungeonState.NumRooms && c.Type > 0)
+                ++counts[c.Room * ChestTypeSlots + ChestSlot(c.Type)];
+        }
+    }
+
     /// <summary>最後一次 <see cref="Draw"/> 算出來的「地圖說這一格這一型別有幾個」；null＝還沒畫過。</summary>
     private int[]? _diagChestCounts;
 
@@ -143,18 +179,17 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
         // 每間房、每種型別各有幾個寶箱。
         // 🔴 原本這裡是 `chests[room] |= (RoomChest)(1 << (type - 1))` —— 位元 OR 會把
         //    「同一間房兩個銅寶箱」壓成同一個位元，格子上永遠只看得到一個。改成計數。
+        // 🔴 有 ChestSeen 就用累積值，因為遊戲的當幀清單會縮／清空（理由見 ChestSeen 的說明）。
         var chestCounts = new int[DeepDungeonState.NumRooms * ChestTypeSlots];
-        var lenC = State.Chests.Length;
-
-        for (var i = 0; i < lenC; ++i)
+        if (ChestSeen != null)
         {
-            ref readonly var c = ref State.Chests[i];
-            // 🔴 原本這裡是 `c.Room > 0`——**0 是合法房號**（房號＝5×row+col 的線性格號 0..24，
-            //    離線反組譯確認過沒有旗標也沒有映射），所以左上角那一格的寶箱永遠不顯示。
-            //    空槽是 {ChestType=0, RoomIndex=0xFF}，0xFF 走 WorldStateGameSync 的
-            //    SanitizeDeepDungeonRoom 會變成 0 —— 擋掉空槽的是 `c.Type > 0`，不是房號。
-            if (c.Room < DeepDungeonState.NumRooms && c.Type > 0)
-                ++chestCounts[c.Room * ChestTypeSlots + ChestSlot(c.Type)];
+            var n = Math.Min(ChestSeen.Count, chestCounts.Length);
+            for (var i = 0; i < n; ++i)
+                chestCounts[i] = ChestSeen[i];
+        }
+        else
+        {
+            CountChests(State, chestCounts);
         }
 
         // 已經找到實體位置的，逐間逐型別數一次；上排的摘要只畫「還沒找到」的那些
@@ -513,7 +548,14 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
             return sb.ToString();
         }
 
+        // 遊戲當幀的清單另外數一次：累積值是單調的，看不出遊戲有沒有在縮清單，
+        // 而「遊戲的清單縮了」正是這一輪要量的東西。
+        // 📌 刻意**不**把當幀值算進節流簽章——它每幾秒就變一次，算進去等於取消節流。
+        var live = new int[DeepDungeonState.NumRooms * ChestTypeSlots];
+        CountChests(State, live);
+
         var any = false;
+        var liveTotal = 0;
         for (var room = 0; room < DeepDungeonState.NumRooms; ++room)
         {
             for (var s = 0; s < ChestTypeSlots; ++s)
@@ -521,20 +563,24 @@ public sealed record class Minimap(DeepDungeonState State, Actor Player, int Cur
                 var idx = room * ChestTypeSlots + s;
                 var total = counts[idx];
                 var loc = located[idx];
-                if (total == 0 && loc == 0)
+                liveTotal += live[idx];
+                if (total == 0 && loc == 0 && live[idx] == 0)
                     continue;
                 if (any)
                     sb.Append('、');
                 any = true;
                 var pending = total - loc;
                 sb.Append("cell").Append(room).Append('=').Append(SlotDiagName(s))
-                  .Append(" 地圖").Append(total)
+                  .Append(" 本層累積").Append(total)
+                  .Append(" 當幀").Append(live[idx])
                   .Append(" 已定位").Append(loc)
                   .Append(" 摘要待畫").Append(pending > 0 ? pending : 0);
             }
         }
         if (!any)
             sb.Append("（遊戲的寶箱清單沒列任何東西，ObjectTable 也沒看到）");
+        else if (liveTotal == 0)
+            sb.Append("　※ 遊戲當幀的寶箱清單是空的，畫出來的全部來自本層累積值");
         return sb.ToString();
     }
 

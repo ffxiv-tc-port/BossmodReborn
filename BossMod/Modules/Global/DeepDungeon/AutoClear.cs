@@ -349,7 +349,59 @@ public abstract class AutoClear : ZoneModule
         }
     }
 
-    private void OnOpenTreasure(Actor chest) => _openedChests.Add(chest.InstanceID);
+    private void OnOpenTreasure(Actor chest)
+    {
+        _openedChests.Add(chest.InstanceID);
+        ForgetOpenedChest(chest);
+    }
+
+    /// <summary>
+    /// 開箱之後把 <see cref="_chestSeen"/> 對應的那一格扣回去，免得累積值讓開過的箱永遠留在小地圖上。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>只有座標校驗通過時才扣。</b>把實體歸屬到房間靠的就是那份座標，
+    /// 閘門沒過時做這件事等於用一份我們剛剛才宣告不可信的資料去<b>刪</b>標記——
+    /// 扣錯格子會把另一個還沒開的箱從小地圖上抹掉，那正是這一輪要修的失敗形式。
+    /// ⚠️ 代價是閘門沒過的樓層（例如大房間層）開過的箱會殘留到換層。
+    /// <b>殘留一個開過的標記可以接受，該有的箱消失不行。</b>
+    /// </remarks>
+    private void ForgetOpenedChest(Actor chest)
+    {
+        if (_coordMemoState != RoomCoordState.Ok)
+            return;
+        var slot = ChestSlotForOID(chest.OID);
+        if (slot < 0)
+            return;
+        var room = NearestRoom(chest.Position, RoomTolerance);
+        if (room < 0)
+            return;
+        ref var seen = ref _chestSeen[room * Minimap.ChestTypeSlots + slot];
+        if (seen > 0)
+            --seen;
+    }
+
+    /// <summary>本層每一格每一型別「最多同時看過幾個寶箱」。索引與 <see cref="Minimap.ChestSeen"/> 相同。</summary>
+    private readonly int[] _chestSeen = new int[DeepDungeonState.NumRooms * Minimap.ChestTypeSlots];
+
+    /// <summary>算當幀清單用的暫存區，避免每幀配置。</summary>
+    private readonly int[] _chestSeenScratch = new int[DeepDungeonState.NumRooms * Minimap.ChestTypeSlots];
+
+    /// <summary>
+    /// 把遊戲當幀的寶箱清單併進 <see cref="_chestSeen"/>（取大值）。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 取大值而不是覆蓋：遊戲的 <c>Chests[]</c> 會縮，覆蓋等於跟著它一起把標記抹掉。
+    /// </remarks>
+    private void UpdateChestSeen()
+    {
+        Array.Clear(_chestSeenScratch);
+        Minimap.CountChests(Palace, _chestSeenScratch);
+        for (var i = 0; i < _chestSeen.Length; ++i)
+        {
+            if (_chestSeenScratch[i] > _chestSeen[i])
+                _chestSeen[i] = _chestSeenScratch[i];
+        }
+    }
 
     private void OnEObjAnim(Actor actor, ushort p1, ushort p2)
     {
@@ -405,6 +457,8 @@ public abstract class AutoClear : ZoneModule
         _pullLoggedFloor = 255;
         _openedChests.Clear();
         _fakeExits.Clear();
+        // 🔴 寶箱累積值是「本層看過什麼」，換層一定要歸零，否則上一層的標記會跟著下來。
+        Array.Clear(_chestSeen);
         // 換層／重新進場都讓寶箱摘要再印一次。簽章本身含樓層，同一輪往下走本來就會變；
         // 這裡歸零處理的是「離開再回到同一層、內容剛好一模一樣」那種會被吃掉的情況。
         _chestDiagSignature = 0;
@@ -516,9 +570,12 @@ public abstract class AutoClear : ZoneModule
 
         var hoardSpots = ComputeHoardSpots(coords, out var hoardDetected);
 
+        // 🔴 要在建 Minimap 之前併，繪製端才看得到這一幀新出現的寶箱。
+        UpdateChestSeen();
+
         // 🔴 Minimap 是 record class、每幀重建，所以「上次印過什麼」這種狀態只能放在呼叫端
         //    （同款先例：_floorStateFor）。
-        var minimap = new Minimap(Palace, player, DesiredRoom, Config, ComputeChestSpots(coords), roomEnemies, hoardSpots);
+        var minimap = new Minimap(Palace, player, DesiredRoom, Config, ComputeChestSpots(coords), roomEnemies, hoardSpots, _chestSeen);
         var targetRoom = minimap.Draw();
         LogChestDiagnostic(minimap);
 
@@ -2087,15 +2144,31 @@ public abstract class AutoClear : ZoneModule
     /// 正解是拿 EntityId 比對，小地圖畫玩家標記時本來就是這樣找的。
     /// </remarks>
     /// <returns>房號 0..24；找不到本人時回 -1（剛換層、資料尚未同步等）。</returns>
-    protected int FindPlayerRoom(Actor player)
+    protected int FindPlayerRoom(Actor player) => FindPlayerRoom(player, out _, out _);
+
+    /// <inheritdoc cref="FindPlayerRoom(Actor)"/>
+    /// <param name="reason">回 -1 時的死因；正常回房號時是 <see cref="RoomCoordUnknownReason.None"/>。</param>
+    /// <param name="rawRoom">遊戲回報的房號原值（本人不在名單裡時回 -1），只給診斷用。</param>
+    protected int FindPlayerRoom(Actor player, out RoomCoordUnknownReason reason, out int rawRoom)
     {
         var len = Palace.Party.Length;
         for (var i = 0; i < len; ++i)
         {
             ref readonly var p = ref Palace.Party[i];
             if (p.EntityId == player.InstanceID)
-                return p.Room < DeepDungeonState.NumRooms ? p.Room : -1;
+            {
+                rawRoom = p.Room;
+                if (p.Room < DeepDungeonState.NumRooms)
+                {
+                    reason = RoomCoordUnknownReason.None;
+                    return p.Room;
+                }
+                reason = RoomCoordUnknownReason.RoomOutOfRange;
+                return -1;
+            }
         }
+        rawRoom = -1;
+        reason = RoomCoordUnknownReason.PlayerNotInParty;
         return -1;
     }
 
@@ -2109,6 +2182,47 @@ public abstract class AutoClear : ZoneModule
         /// <summary>對不起來：這一層的寫死座標不適用，任何依賴它的顯示都必須退化。</summary>
         Mismatch
     }
+
+    /// <summary>
+    /// <see cref="RoomCoordState.Unknown"/> 的死因碼。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>這個列舉存在的理由是「Unknown 以前完全不留痕跡」。</b>
+    /// 2026-08-13 天之御柱 15 層實機事件：整層只有進層那一瞬間的一行「不通過」，之後到換層為止
+    /// <b>再也沒有任何一行閘門記錄</b>——因為 Unknown 兩條 return 都在記錄點之前就跳出去了，
+    /// 既不印 log 也不更新 <see cref="_coordGateLoggedState"/>。於是「座標真的對不上」與
+    /// 「遊戲根本沒給房號」在 log 上長得一模一樣，只能猜。
+    /// <para>
+    /// ⚠️ 最需要被分辨出來的是 <see cref="NoRoomCenter"/> ＋ 回報房號 0：
+    /// <c>WorldStateGameSync.SanitizeDeepDungeonRoom</c> 把遊戲的<b>負值</b>（＝「不在任何房間」）
+    /// 壓成 0，而 <b>40 個樓層組、80 個版面裡的房號 0 全部沒有中心座標</b>（離線實算），
+    /// 所以「遊戲說我不在任何房間」會靜默地變成「第 0 間房，可是這一面沒有第 0 間房」，
+    /// 然後永遠停在 Unknown。這條路徑不印出來就永遠查不到。
+    /// </para>
+    /// </remarks>
+    protected enum RoomCoordUnknownReason
+    {
+        /// <summary>沒有問題（不是 Unknown）。</summary>
+        None,
+        /// <summary>本人的 EntityId 不在遊戲的深牢隊伍名單裡。</summary>
+        PlayerNotInParty,
+        /// <summary>遊戲回報的房號超出 0..24。</summary>
+        RoomOutOfRange,
+        /// <summary>這一層的版面座標還沒載入（<see cref="_activeFace"/> 是 -1）。</summary>
+        NoFaceLoaded,
+        /// <summary>版面表裡這一格是 <c>default</c>，沒有中心座標。</summary>
+        NoRoomCenter
+    }
+
+    /// <summary>把死因碼翻成 log 用的中文。刻意不進在地化——這是寫給 log 的，不是介面文字。</summary>
+    private static string UnknownReasonText(RoomCoordUnknownReason reason) => reason switch
+    {
+        RoomCoordUnknownReason.PlayerNotInParty => "本人不在遊戲的深牢隊伍名單裡",
+        RoomCoordUnknownReason.RoomOutOfRange => "遊戲回報的房號超出 0..24",
+        RoomCoordUnknownReason.NoFaceLoaded => "這一層的版面座標還沒載入",
+        RoomCoordUnknownReason.NoRoomCenter => "版面表裡這一格沒有中心座標",
+        _ => "（無）",
+    };
 
     /// <summary>
     /// 房間中心座標容許誤差的<b>下限</b>（單位 y）；實際值由 <see cref="RoomTolerance"/> 逐版面實算。
@@ -2167,6 +2281,34 @@ public abstract class AutoClear : ZoneModule
     /// <summary>上一次記錄過的閘門狀態；null＝還沒記過。用來做「狀態變化才記一行」。</summary>
     private RoomCoordState? _coordGateLoggedState;
 
+    /// <summary>上一次記錄過的 Unknown 死因，讓「同樣是 Unknown 但換了死因」也記得下來。</summary>
+    private RoomCoordUnknownReason _coordGateLoggedReason;
+
+    /// <summary>這一層是否曾經通過過校驗。沒通過過就沒有東西好遲滯——那是「這一層的座標不適用」。</summary>
+    private bool _coordGateEverOk;
+
+    /// <summary>最後一次「實算結果就是 Ok」的時間。</summary>
+    private DateTime _coordGateOkAt;
+
+    /// <summary>
+    /// 閘門降級的遲滯時間（秒）：通過過的樓層要連續這麼久都不通過，才真的退化。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>只對「降級」方向遲滯，升級（Ok）永遠即時。</b>所以這道遲滯不會讓任何東西
+    /// 比今天更早被信任，只會讓已經信任過的東西不要因為單幀雜訊被抽掉。
+    /// <para>
+    /// 成因：實機 log 裡 16／17／18／19 層每次<b>過房間邊界</b>都會翻一次
+    /// （距離 21~34y、容許 37.7y，失敗的是 <c>nearest != reported</c> 那個條件——
+    /// 遊戲回報的房號與「離本人最近的房間」在邊界上本來就會短暫不一致）。
+    /// 每翻一次 <see cref="ComputeChestSpots"/>／<see cref="ComputeHoardSpots"/>／
+    /// <c>UpdateRoomEnemies</c> 就整組退化一幀，小地圖上已定位的標記因此<b>連環閃爍</b>。
+    /// </para>
+    /// <para>
+    /// 📌 用時間而不是幀數：幀率不固定，用幀數的話高幀率機器的遲滯會短得多。
+    /// </para>
+    /// </remarks>
+    private const double CoordGateHoldSeconds = 2d;
+
     private void ResetCoordGate()
     {
         _faceA = _faceB = null;
@@ -2174,6 +2316,9 @@ public abstract class AutoClear : ZoneModule
         _faceSwitchStreak = 0;
         _faceSwitchRoom = -1;
         _coordGateLoggedState = null;
+        _coordGateLoggedReason = RoomCoordUnknownReason.None;
+        _coordGateEverOk = false;
+        _coordGateOkAt = default;
         RoomTolerance = RoomCenterToleranceFloor;
         Array.Clear(_centerFitted);
         // 記憶化的結果是針對上一份版面算的，換層／換面時一律作廢
@@ -2256,11 +2401,20 @@ public abstract class AutoClear : ZoneModule
     private RoomCoordState ComputeRoomCoords(Actor player, out float distance, out int reportedRoom)
     {
         distance = -1f;
-        reportedRoom = FindPlayerRoom(player);
-        if (reportedRoom < 0 || _activeFace < 0)
-            return RoomCoordState.Unknown;
-
+        reportedRoom = FindPlayerRoom(player, out var reason, out var rawRoom);
         var pos = player.Position;
+
+        // 🔴 這兩條路徑以前是直接 `return Unknown`——不印 log、也不動 _coordGateLoggedState。
+        //    現在改成走到底下同一個記錄點，才有辦法在下一次實跑時一行定死因。
+        //    ⚠️ 但**不能**順手在這裡把 _faceSwitchStreak 歸零：原本這兩條路徑不碰它，
+        //    歸零會改變鏡像面自我校準的既有行為。
+        if (reportedRoom < 0 || _activeFace < 0)
+        {
+            if (reportedRoom >= 0)
+                reason = RoomCoordUnknownReason.NoFaceLoaded;
+            return FinishRoomCoords(RoomCoordState.Unknown, reason, rawRoom, pos, -1, -1f, out distance);
+        }
+
         var active = _activeFace == 0 ? _faceA : _faceB;
         var score = active != null ? ScoreFace(active, pos, reportedRoom) : null;
 
@@ -2304,28 +2458,110 @@ public abstract class AutoClear : ZoneModule
         }
 
         if (score is not { } s)
-            return RoomCoordState.Unknown;
+            return FinishRoomCoords(RoomCoordState.Unknown, RoomCoordUnknownReason.NoRoomCenter, rawRoom, pos, -1, -1f, out distance);
 
-        distance = s.Distance;
-        var state = s.Ok ? RoomCoordState.Ok : RoomCoordState.Mismatch;
+        return FinishRoomCoords(s.Ok ? RoomCoordState.Ok : RoomCoordState.Mismatch,
+            RoomCoordUnknownReason.None, rawRoom, pos, s.Nearest, s.Distance, out distance);
+    }
 
-        // 🔴 診斷改成「狀態變化才記一行」而不是「一層記一次」。
+    /// <summary>
+    /// 套上降級遲滯、記錄狀態變化，並交出最終的閘門狀態。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>三條路徑（Ok／Mismatch／Unknown）一律走這裡</b>——以前 Unknown 直接 return，
+    /// 結果是「整層沉默」這種最難查的失敗形式。集中在一個出口才保證每一種結果都留得下痕跡。
+    /// </remarks>
+    /// <param name="raw">實算出來的狀態，還沒套遲滯。</param>
+    /// <param name="nearest">離本人最近的房間；-1＝這次沒算（Unknown 路徑會另外補算供診斷用）。</param>
+    /// <param name="rawDistance">與回報房中心的距離；-1＝沒算。</param>
+    private RoomCoordState FinishRoomCoords(RoomCoordState raw, RoomCoordUnknownReason reason, int rawRoom, WPos pos, int nearest, float rawDistance, out float distance)
+    {
+        distance = rawDistance;
+
+        // ── 降級遲滯 ──────────────────────────────────────────────────────
+        // 通過過的樓層，單幀的不通過／不知道不立刻退化；Ok 方向維持即時。
+        var state = raw;
+        var heldFor = 0d;
+        if (raw == RoomCoordState.Ok)
+        {
+            _coordGateEverOk = true;
+            _coordGateOkAt = World.CurrentTime;
+        }
+        else if (_coordGateEverOk)
+        {
+            heldFor = (World.CurrentTime - _coordGateOkAt).TotalSeconds;
+            if (heldFor < CoordGateHoldSeconds)
+                state = RoomCoordState.Ok;
+        }
+
+        // 🔴 診斷是「狀態變化才記一行」而不是「一層記一次」。
         //    一層記一次記到的必然是樓層載入後的**第一幀**，而那一幀角色還在傳送中——
         //    量到的是一個與回報房號無關的固定位置（實機 log 裡「最近的房間」恆為 3 或 10
         //    就是這個特徵），於是把「量測時機不對」誤報成「座標對不上」。
-        //    改成翻轉才記，下一次實跑就分得出「站定之後其實會通過」與「站定也不過」。
-        if (_coordGateLoggedState != state)
+        //    記的是**遲滯之後**的狀態，也就是其他功能真的看到的那個值——記原始值會與行為對不上。
+        if (_coordGateLoggedState != state || (state == RoomCoordState.Unknown && _coordGateLoggedReason != reason))
         {
             _coordGateLoggedState = state;
+            _coordGateLoggedReason = reason;
+
+            var face = _activeFace == 0 ? "A" : _activeFace == 1 ? "B" : "未載入";
             // 要使用者回報才查得出台服座標對不對，所以走 Information（使用者的 LogLevel 是 2）。
-            Service.Logger.Information(
-                $"[DD] 房間座標校驗{(state == RoomCoordState.Ok ? "通過" : "不通過")}：樓層 {Palace.Floor}、" +
-                $"Progress.Tileset {Palace.Progress.Tileset}、實際採用版面 {(_activeFace == 0 ? "A" : "B")}、" +
-                $"遊戲回報房號 {reportedRoom}、本人 ({pos.X:f1}, {pos.Z:f1})、與該房中心距離 {s.Distance:f1}y、" +
-                $"最近的房間是 {s.Nearest}、容許誤差 {RoomTolerance:f1}y");
+            if (state == RoomCoordState.Unknown)
+            {
+                // Unknown 時 ScoreFace 沒有交出任何數字，所以另外補算「本人其實離哪一間最近」。
+                // 只在狀態翻轉那一幀跑，25 次迴圈的成本無關緊要。
+                var (nearRoom, nearDist) = NearestFaceRoomForDiag(pos);
+                // 🔴 房號 0 要特別點名：遊戲回報「不在任何房間」的負值會被
+                //    SanitizeDeepDungeonRoom 壓成 0，而所有版面的房號 0 都沒有中心座標。
+                var zeroHint = rawRoom == 0 && reason == RoomCoordUnknownReason.NoRoomCenter
+                    ? "（⚠️ 房號 0 也可能是遊戲回報「不在任何房間」的負值被正規化的結果）" : "";
+                Service.Logger.Information(
+                    $"[DD] 房間座標校驗無法判定：樓層 {Palace.Floor}、Progress.Tileset {Palace.Progress.Tileset}、" +
+                    $"實際採用版面 {face}、原因 {UnknownReasonText(reason)}{zeroHint}、" +
+                    $"遊戲回報房號 {rawRoom}、本人 ({pos.X:f1}, {pos.Z:f1})、" +
+                    $"最近的房間是 {nearRoom}（距離 {nearDist:f1}y）、容許誤差 {RoomTolerance:f1}y");
+            }
+            else
+            {
+                var heldNote = state == RoomCoordState.Mismatch && _coordGateEverOk
+                    ? $"、已遲滯 {heldFor:f1}s 仍未回到通過" : "";
+                Service.Logger.Information(
+                    $"[DD] 房間座標校驗{(state == RoomCoordState.Ok ? "通過" : "不通過")}：樓層 {Palace.Floor}、" +
+                    $"Progress.Tileset {Palace.Progress.Tileset}、實際採用版面 {face}、" +
+                    $"遊戲回報房號 {rawRoom}、本人 ({pos.X:f1}, {pos.Z:f1})、與該房中心距離 {rawDistance:f1}y、" +
+                    $"最近的房間是 {nearest}、容許誤差 {RoomTolerance:f1}y{heldNote}");
+            }
         }
 
         return state;
+    }
+
+    /// <summary>診斷用：離某個座標最近的房間與距離，直接掃<b>版面表原始中心</b>。</summary>
+    /// <remarks>
+    /// ⚠️ 刻意不用 <see cref="NearestRoom"/>——那個掃的是 <see cref="RoomCenters"/>，
+    /// 裡面可能混了網格擬合補出來的值。診斷要問的是「原始表怎麼說」。
+    /// </remarks>
+    private (int Room, float Distance) NearestFaceRoomForDiag(WPos pos)
+    {
+        var face = _activeFace == 0 ? _faceA : _activeFace == 1 ? _faceB : null;
+        if (face == null)
+            return (-1, -1f);
+
+        var best = -1;
+        var bestSq = float.MaxValue;
+        for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+        {
+            var c = face[i].Center;
+            if (c == default)
+                continue;
+            var dsq = (c.Position - pos).LengthSq();
+            if (dsq < bestSq)
+            {
+                bestSq = dsq;
+                best = i;
+            }
+        }
+        return best < 0 ? (-1, -1f) : (best, MathF.Sqrt(bestSq));
     }
 
     /// <summary>
