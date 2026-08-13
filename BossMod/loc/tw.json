@@ -8449,5 +8449,35 @@
   },
   "Needs \"automatically navigate to Cairn of Passage\" above - this setting only adds the final click, it never walks you anywhere by itself.\n\nOff by default: navigating there walks you next to it and stops, leaving the decision to descend to you. With this ticked, once you are standing in interact range, out of combat and not transformed, the interact is sent for you.\n\nThe game then asks you to confirm in its own dialog, and BMR does NOT answer that dialog - you still press Yes yourself, so a floor is never left by accident.\n\nOnly fires while the Cairn is actually unlocked, and never while \"reveal all rooms before proceeding to next floor\" still has rooms left to visit. Coffers keep exactly the priority configured above.\n\nLike \"automatically open coffers you have reached\", this needs BMR's AI (or the Normal Movement autorotation module) to be running - it is what actually sends the interact.": {
     "message": "需要上面的「自動移動至下層傳送裝置」——本項只補上最後那一下點擊，它自己不會拉著你走到任何地方。\n\n預設關閉：自動移動只會把你帶到傳送裝置旁邊就停下，要不要下一層由你決定。勾起來之後，只要你已經站在互動距離內、不在戰鬥中、也沒有變身，互動就會替你送出。\n\n接著遊戲會用它自己的視窗要你確認，而 BMR 不會替你回答那個視窗——「是」仍然由你自己按，所以絕不會不小心離開這一層。\n\n只有在傳送裝置真的已經解鎖時才會觸發；「前往下一層前探索所有房間」還有房間沒逛完時也不會。寶箱的優先順序完全照上面的設定，不受影響。\n\n與「走近寶箱時自動開啟」一樣，這需要 BMR 的 AI（或自動循環的 Normal Movement 模組）正在運作，實際送出互動的是它。"
+  },
+  "Predictive mitigation": {
+    "message": "預測減傷"
+  },
+  "Presses mitigation and self-preservation oGCDs ahead of predicted raidwides and tankbusters. Never presses GCDs and never changes your target, so it can run alongside an external rotation plugin.": {
+    "message": "依 Boss 模組預測到的全體傷害與坦克死刑，提前按下減傷／自保能力技。不會按 GCD、也不會改變你的目標，可以和外部循環外掛並用。"
+  },
+  "Party mitigation": {
+    "message": "團隊減傷"
+  },
+  "Personal mitigation": {
+    "message": "自身減傷"
+  },
+  "Emergency self-preservation": {
+    "message": "低血自保"
+  },
+  "Raidwide lead time (s)": {
+    "message": "全體傷害提前秒數"
+  },
+  "Tankbuster lead time (s)": {
+    "message": "坦克死刑提前秒數"
+  },
+  "Emergency HP threshold (%)": {
+    "message": "自保血量門檻（％）"
+  },
+  "Only when a tankbuster targets me": {
+    "message": "只在坦克死刑點名自己時"
+  },
+  "Also before raidwides": {
+    "message": "全體傷害前也使用"
   }
 }
