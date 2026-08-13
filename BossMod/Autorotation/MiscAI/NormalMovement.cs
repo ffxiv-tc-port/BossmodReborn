@@ -15,6 +15,36 @@ public sealed class NormalMovement : RotationModule
 
     public static NormalMovement? Instance;
 
+    // ---- 移動擁有權（給舊的 AI 走位讓路用）----
+
+    private bool _ownsMovement;
+
+    /// <summary>
+    /// 這一幀「自動移動」模組是不是移動的<b>唯一擁有者</b>。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 存在的理由是<b>兩套走位會跨幀交替接管，表現成角色抖動</b>：
+    /// <c>Plugin.DrawUI</c> 先跑 <c>_rotation.Update()</c>（本模組寫 <c>Hints.ForcedMovement</c>），
+    /// 再跑 <c>_ai.Update()</c>（<c>AIController.Update</c> 只在 <c>ForcedMovement == null</c> 時
+    /// 寫<b>它自己另外算的</b>目的地）。同一幀不會雙寫，所以不是「搶」——
+    /// 但本模組在詠唱擋門（<c>allowMovement == false</c> ⇒ 寫回 default ＝ null）、
+    /// 已站到位、擊退未結算、Pyretic 將至等情況會讓出那一幀，
+    /// 舊 AI 就用<b>不同的演算法、不同的 MoveDelay</b> 算出的目的地接手。
+    /// 接管權逐幀交替＝方向逐幀跳動＝使用者看到的抖動。
+    /// <para>
+    /// ⚠️ 判準刻意是「<b>本模組會不會做移動決策</b>」而不是「本模組存不存在」：
+    /// 使用者把 <c>Destination</c> 軌設成 <see cref="DestinationStrategy.None"/> 時，
+    /// 本模組整場不碰移動，這時必須讓舊 AI 照舊接管，否則兩邊都不動。
+    /// </para>
+    /// <para>
+    /// 📌 時序上安全：本旗標在 <see cref="Execute"/> 的<b>最前面</b>設定（早於所有提早 return），
+    /// 而 <c>_rotation.Update()</c> 每幀都在 <c>_ai.Update()</c> 之前跑，所以 AI 讀到的一定是本幀的值。
+    /// 模組不在啟用中的預設集裡時 <see cref="Instance"/> 會在 <see cref="Dispose"/> 被清成 null
+    /// （<c>RotationModuleManager.DirtyActiveModules</c> 會 Dispose 掉舊模組），於是自動退回舊行為。
+    /// </para>
+    /// </remarks>
+    public static bool OwnsMovement => Instance?._ownsMovement ?? false;
+
     // ---- 顯示層（純顯示，不參與任何移動決策）----
 
     // 本幀移動決策的快照，給世界疊加層畫路徑用。
@@ -102,6 +132,14 @@ public sealed class NormalMovement : RotationModule
 
     public override void Execute(StrategyValues strategy, Actor? primaryTarget, float estimatedAnimLockDelay, bool isMoving)
     {
+        // 🔴 先算移動擁有權，而且刻意放在所有提早 return 之前 —— 見 OwnsMovement 的說明。
+        //    下面每一條提早 return（別的模組已在移動、擊退未結算、Pyretic 將至、沒有目的地…）
+        //    都是「這一幀不移動」而不是「不再負責移動」；用它們當判準會讓舊 AI 在正是本模組
+        //    刻意站住不動的那些幀插進來，那恰好是最不該移動的時候。
+        var destinationOpt = strategy.Option(Track.Destination);
+        var destinationStrategy = destinationOpt.As<DestinationStrategy>();
+        _ownsMovement = destinationStrategy != DestinationStrategy.None;
+
         // do nothing if we're already being moved by some other module (i.e. quest battle pathfinding)
         if (Hints.ForcedMovement != null)
             return;
@@ -145,8 +183,6 @@ public sealed class NormalMovement : RotationModule
         }
 
         var speed = World.Client.MoveSpeed;
-        var destinationOpt = strategy.Option(Track.Destination);
-        var destinationStrategy = destinationOpt.As<DestinationStrategy>();
         var cushionStrategy = strategy.Option(Track.ForbiddenZoneCushion).As<ForbiddenZoneCushionStrategy>();
         var cushionSize = cushionStrategy switch
         {

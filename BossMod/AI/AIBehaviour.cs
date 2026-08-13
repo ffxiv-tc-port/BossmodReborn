@@ -390,6 +390,13 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
 
     private void UpdateMovement(Actor player, Actor master, Targeting target, bool gazeOrPyreticImminent, Angle misdirectionAngle, ActionQueue? queueForSprint)
     {
+        // 🔴 讓路：預設集裡的「自動移動」模組正在負責移動時，這裡完全不做自己的移動決策。
+        //    兩邊各自算目的地、逐幀交替接管，使用者看到的就是角色抖動（見 NormalMovement.OwnsMovement）。
+        //    ⚠️ 只讓出「移動」這一項：目標選擇、InteractWithTarget、凝視／Pyretic 的中斷詠唱、
+        //    衝刺推送全部照舊，所以這裡不是提早 return，而是只把 NaviTargetPos 壓成 null。
+        //    讓出後由 NormalMovement 單獨寫 Hints.ForcedMovement ⇒ 移動只有一個擁有者。
+        var yieldMovement = Autorotation.MiscAI.NormalMovement.OwnsMovement;
+
         if (gazeOrPyreticImminent)
         {
             // gaze or pyretic imminent, drop any movement - we should have moved to safe zone already...
@@ -407,7 +414,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             var allowMovement = forceddir.AlmostEqual(Angle.FromDirection(dir), threshold.Rad);
             if (allowMovement)
                 allowMovement = CalculateUnobstructedPathLength(forceddir) >= Math.Min(3f, distSq);
-            ctrl.NaviTargetPos = allowMovement && distSq >= 0.01f ? destination : null;
+            ctrl.NaviTargetPos = !yieldMovement && allowMovement && distSq >= 0.01f ? destination : null;
 
             float CalculateUnobstructedPathLength(Angle dir)
             {
@@ -457,7 +464,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
                 mustMoveNow = followActor != player && (followActor.Position - player.Position).LengthSq() > maxRange * maxRange;
             }
 
-            ctrl.NaviTargetPos = WorldState.CurrentTime >= _navStartTime && mustMoveNow ? _naviDecision.Destination : null;
+            ctrl.NaviTargetPos = !yieldMovement && WorldState.CurrentTime >= _navStartTime && mustMoveNow ? _naviDecision.Destination : null;
             ctrl.NaviTargetVertical = master != player ? master.PosRot.Y : null;
             ctrl.AllowInterruptingCastByMovement = player.CastInfo != null && _naviDecision.LeewaySeconds <= player.CastInfo.RemainingTime - 0.5d;
             ctrl.ForceCancelCast = false;
