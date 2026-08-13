@@ -173,6 +173,24 @@ public abstract class AutoClear : ZoneModule
     /// </remarks>
     private const float PassageInteractDistance = 3.5f;
 
+    /// <summary>
+    /// 「走過去開寶箱」這個目標區的作用半徑（碼）。
+    /// </summary>
+    /// <remarks>
+    /// 沿用原本平台函式的 25y，作用範圍完全不變 —— 這一版只把<b>形狀</b>從平台換成斜坡。
+    /// </remarks>
+    private const float TreasureApproachRadius = 25f;
+
+    /// <summary>
+    /// 「走過去開寶箱」的最高權重（就在寶箱上，隨距離線性遞減到 <see cref="TreasureApproachRadius"/> 歸零）。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 刻意維持原本平台的 1：新的權重在每一點都 ≤ 舊值，所以不可能壓過原本壓不過的目標區
+    /// （趕路 10／0.5、坦克拉怪 12、傳送裝置 0.5＋0.25、閃避偏好 0.5）。
+    /// 調高它等於「開箱比趕路重要」，那是行為變更，要另外裁決。
+    /// </remarks>
+    private const float TreasureApproachWeight = 1f;
+
     protected struct PlayerImmuneState
     {
         public DateTime RoleBuffExpire; // 0 if not active
@@ -1922,9 +1940,15 @@ public abstract class AutoClear : ZoneModule
         //    把移動又加回來。
         // 📌 兩個新開關都預設 true，而且這樣拆**對預設值是逐案等價的**，不是「大致一樣」：
         //    拆分前唯一會多加 GoalZone 的情況是「已經走到 3.5y 內、但 wantMove 為 false」，
-        //    而 `GoalSingleTarget(pos, 25f)` 是**平台函式**（25y 內一律回傳 weight、外面回 0，
+        //    而當時那個 `GoalSingleTarget(pos, 25f)` 是**平台函式**（25y 內一律回傳 weight、外面回 0，
         //    見 AIHints.GoalSingleTarget），人站在 3.5y 處時整個鄰域都在平台內、權重全部相同，
         //    對尋路沒有任何方向性影響 ⇒ 少加這一個 GoalZone 不改變行為。
+        // 🔴🔴 上面那段「平台內權重全部相同、對尋路沒有方向性影響」的觀察**是對的，而那正是 bug 本身**
+        //    （2026-08-13 實機定案）：權重相同的範圍只要把玩家包進去，`ThetaStar.PrefillH` 就會給
+        //    玩家格 `HScore == 0`，`Execute()` 一步都不跑、直接回傳起點，`GetFirstWaypoints` 回
+        //    `(null, null)` ⇒ **Destination 是 null ⇒ 角色不走、不畫標線、不報錯**。
+        //    也就是說「走過去開寶箱」在人進入 25y 之後就會停住 —— 使用者回報的「走幾步就停」。
+        //    ⇒ 下面改用 GoalProximity（隨距離遞減的梯度），詳見那一行。
         Actor? moveToCoffer = null;
         Actor? openCoffer = null;
         if (coffer is Actor t && !IsPlayerTransformed(player))
@@ -1973,8 +1997,19 @@ public abstract class AutoClear : ZoneModule
             }
         }
 
+        // 🔴🔴 這裡原本是 `GoalSingleTarget(moveTarget.Position, 25f)` ＝ **25y 內全部同分的平台**，
+        //    而平台只要把玩家包進去，尋路就會回報「已經在最佳位置」、完全不移動（機制見上面那段註解）。
+        //    症狀：寶箱在 25y 外時角色會走過去，一踏進 25y 就停住 —— 也就是使用者說的「走幾步就停」，
+        //    而且一路上不報錯、連移動標線都不會畫。
+        //    ⇒ 改用 GoalProximity：距離愈近權重愈高（寶箱處 = TreasureApproachWeight，25y 處歸零），
+        //      整段都有梯度，尋路每一幀都算得出「往寶箱再靠近一格」。
+        //    📌 這個換法對其他目標區是**保守**的：新的權重在每一點都 ≤ 舊的平台值（同樣的最大值、
+        //      同樣的作用半徑），所以不可能壓過原本壓不過的東西；差別只在平台變成斜坡。
+        //    📌 對照組：同一份 hints 裡的坦克拉怪用的是 `GoalSingleTarget(target, 2.6y, 12)`，
+        //      那個小圈**不會包住玩家**（拉怪距離十幾碼），所以它一直都是好的 —— 實機 23:29:34
+        //      拉怪會動、趕路不動，差別就在這裡，不是擁有權、也不是座標。
         if (moveToCoffer is Actor moveTarget)
-            hints.GoalZones.Add(hints.GoalSingleTarget(moveTarget.Position, 25f));
+            hints.GoalZones.Add(hints.GoalProximity(moveTarget.Position, TreasureApproachRadius, TreasureApproachWeight));
 
         // 🔑 寶箱優先於傳送裝置，而且這正好就是既有的優先度：傳送裝置比寶箱近而且沒勾
         //    「優先開啟寶箱」時，上面已經把 openCoffer 清成 null 了 ⇒ 那種情況輪得到傳送裝置。

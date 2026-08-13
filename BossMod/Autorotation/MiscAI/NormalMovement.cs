@@ -56,9 +56,17 @@ public sealed class NormalMovement : RotationModule
     /// 把旗標放下，<see cref="Execute"/> 再重新舉起來；<see cref="Execute"/> 半路擲例外時也會放下。
     /// </para>
     /// <para>
-    /// ⚠️ 讓位的判準仍然刻意留在<b>所有提早 return 之前</b>（那正是 .52 的重點，別退回去）：
+    /// ⚠️ 舉手仍然刻意放在<b>所有提早 return 之前</b>（那正是 .52 的重點，別退回去）：
     /// 那些 return 是「這一幀不移動」而不是「不再負責移動」，拿它們當判準會讓舊 AI 正好在本模組
-    /// 刻意站住不動的那些幀插進來（例如擊退結算中）。這次改的只有<b>旗標的壽命</b>，不是判準。
+    /// 刻意站住不動的那些幀插進來（例如擊退結算中）。
+    /// </para>
+    /// <para>
+    /// 🔴🔴 <b>唯一的例外是「尋路回不出目的地」</b>（.57 加）：那不是「我決定不動」而是<b>「我沒有意見」</b>。
+    /// 兩者的差別是可以驗證的——本模組跑在 <c>_rotation.Update()</c> 裡，而 <c>AIBehaviour</c> 自己的
+    /// 目標區（跟隨主人、閃避方向偏好、pre-dodge 錨點、「沒人給目標區就走向目標」的退路）是在
+    /// <c>_ai.Update()</c> 才加進 <c>hints</c> 的，本模組<b>這一幀根本讀不到</b>。
+    /// 沒有意見時繼續佔著擁有權＝兩邊都不動，而且完全不報錯（實機 2026-08-13 深牢：擁有權常駐本模組
+    /// 七分鐘、角色零移動、log 零翻轉）。單一擁有者原則沒有被破壞：只要算得出目的地就仍然獨佔。
     /// </para>
     /// <para>
     /// 📌 模組不在啟用中的預設集裡時 <see cref="Instance"/> 會在 <see cref="Dispose"/> 被清成 null
@@ -251,7 +259,25 @@ public sealed class NormalMovement : RotationModule
             _ => default
         };
         if (navi.Destination == null)
+        {
+            // 🔴🔴 這一幀我們**什麼都沒決定**（權重場在腳下是平的、目標區沒被畫上去、或根本沒有目標區），
+            //    那就不能繼續佔著移動擁有權。
+            //    ⚠️ 這條與上面那些提早 return **不是同一類**，不要一起處理：
+            //      上面的（別的模組在移動、擊退未結算、Pyretic 將至）是「我決定這一幀不移動」，
+            //      讓位會讓舊 AI 正好在最不該移動的時候插進來 ⇒ 必須繼續持有擁有權。
+            //      這裡是「我沒有意見」——舊 AI 有本模組看不到的目標區
+            //      （AIBehaviour 的跟隨主人、閃避方向偏好、pre-dodge 錨點，都是在 _rotation.Update()
+            //      **之後**才加進 hints 的，本模組這一幀根本讀不到），讓它試比兩邊一起站著好。
+            //    📌 單一擁有者原則沒有被破壞：只要本模組算得出目的地就仍然獨佔，兩邊同時寫方向的
+            //       抖動情境（.52 修的那個）完全不受影響。
+            if (destinationStrategy != DestinationStrategy.None)
+            {
+                _ownsMovement = false;
+                LogNoDestination(true, in navi);
+            }
             return; // nothing to do
+        }
+        LogNoDestination(false, in navi);
 
         // 顯示層：下面的 Range 策略可能把 Destination 換成「維持輸出距離」的位置，換掉之後
         // NextWaypoint 就不再是同一條路徑上的下一點，照畫會多出一段指向舊路徑的假線。
@@ -418,6 +444,29 @@ public sealed class NormalMovement : RotationModule
                 Hints.ForcedMovement = dir.ToVec3(Player.PosRot.Y);
             }
         }
+    }
+
+    /// <summary>上一次記過的「這一段有沒有目的地」；用來只在<b>狀態翻轉</b>時記一行 log。</summary>
+    private bool _loggedNoDestination;
+
+    /// <summary>
+    /// 把「本模組這一段算不出目的地、因此把移動擁有權交還給 AI」講出來，並且<b>一行講完為什麼</b>。
+    /// </summary>
+    /// <remarks>
+    /// 🔑 這一行是「角色站著不動」唯一的離線證據，而不動有四種互斥成因，外觀完全相同
+    /// （尋路回 <c>null</c>、不報錯、連標線都不畫）——四種的判別交給
+    /// <see cref="NavigationDecision.DiagSummary"/>，那裡有本次尋路真正看到的數字。
+    /// 📌 走 <c>Information</c>：使用者的 LogLevel 是 2，Debug/Verbose 收不到。
+    /// 🔴 只在翻轉時印。這支每幀都會被呼叫到。
+    /// </remarks>
+    private void LogNoDestination(bool stuck, in NavigationDecision navi)
+    {
+        if (stuck == _loggedNoDestination)
+            return;
+        _loggedNoDestination = stuck;
+        Service.Logger.Information(stuck
+            ? $"[NormalMovement] 這一段算不出目的地，移動擁有權交還給 AI 自動走位：{navi.DiagSummary()}"
+            : "[NormalMovement] 重新算得出目的地，移動擁有權回到「自動移動」模組。");
     }
 
     /// <summary>

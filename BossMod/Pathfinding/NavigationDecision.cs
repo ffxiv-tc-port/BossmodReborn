@@ -23,6 +23,63 @@ public struct NavigationDecision
     public float LeewaySeconds; // can be used for finishing casts / slidecasting etc.
     public float TimeToGoal;
 
+    #region 診斷（純輸出，不參與任何決策）
+
+    /// <summary>這一次真正拿去 rasterize 的目標區數量（<b>快照</b>長度，不是還活著的那份 List）。</summary>
+    public int DiagGoalZones;
+
+    /// <summary>目標區有沒有真的被畫上權重場。詠唱中、玩家格出視窗、玩家腳下本來就危險時都<b>不會</b>畫。</summary>
+    public bool DiagGoalsRasterized;
+
+    /// <summary>玩家所在的格子在不在尋路視窗內。</summary>
+    public bool DiagPlayerInWindow;
+
+    /// <summary>玩家格的危險度（<c>float.MaxValue</c>＝安全、0＝現在就危險、負＝不可通行）。</summary>
+    public float DiagPlayerMaxG;
+
+    /// <summary>玩家格的目標權重。</summary>
+    public float DiagPlayerPriority;
+
+    /// <summary>整張權重場的最高權重。</summary>
+    public float DiagMaxPriority;
+
+    /// <summary>
+    /// 把「尋路這一次到底看到了什麼」寫成一行。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>只在狀態翻轉時呼叫</b>：這支會組字串，每幀叫等於每幀配置記憶體，而且會把 log 洗掉。
+    /// <para>
+    /// 🔑 存在的理由是「角色不走」有<b>四種互斥成因</b>，而它們的外觀完全相同（回 null、不報錯）：
+    /// <list type="number">
+    /// <item>玩家格落在尋路視窗外 —— 目標區對玩家的位置完全沒有作用。</item>
+    /// <item>目標區整段沒被畫上權重場（詠唱中，或玩家腳下已經在危險區裡 ⇒ 安全優先）。</item>
+    /// <item><b>權重場在玩家腳下是平的</b> —— 玩家格的權重已經等於場上最高，
+    /// <c>ThetaStar.PrefillH</c> 因此給它 <c>HScore == 0</c>，<c>Execute</c> 一步都不跑就回傳起點，
+    /// <c>GetFirstWaypoints</c> 回 <c>(null, null)</c>。<b>平台型的目標區</b>
+    /// （<c>GoalSingleTarget(pos, 大半徑, w)</c> 這種半徑內同分的）只要把玩家包在裡面就必然踩到這條。</item>
+    /// <item>有高低差但更好的格子被禁區／障礙物隔開。</item>
+    /// </list>
+    /// </para>
+    /// </remarks>
+    public readonly string DiagSummary()
+    {
+        var why = !DiagPlayerInWindow
+            ? "玩家格落在尋路視窗外 ⇒ 目標區對玩家目前的位置完全沒有作用"
+            : !DiagGoalsRasterized
+                ? DiagGoalZones == 0
+                    ? "場上沒有任何目標區 ⇒ 沒有人要求移動"
+                    : "目標區沒有被畫上權重場（詠唱中，或玩家腳下已經在危險區裡，安全優先）"
+                : DiagMaxPriority <= DiagPlayerPriority
+                    ? "權重場在玩家腳下是平的（玩家格的權重已經等於場上最高）⇒ 尋路認定「已經在最佳位置」"
+                    : "權重場有高低差，但更好的格子到不了（多半被禁區或障礙物隔開）";
+        return $"目標區 {DiagGoalZones} 個、已畫上權重場={(DiagGoalsRasterized ? "是" : "否")}、玩家格在視窗內={(DiagPlayerInWindow ? "是" : "否")}、" +
+            $"玩家格危險度={FormatMaxG(DiagPlayerMaxG)}、玩家格權重={DiagPlayerPriority:f2}、場上最高權重={DiagMaxPriority:f2} ⇒ {why}";
+    }
+
+    private static string FormatMaxG(float g) => g == float.MaxValue ? "安全" : g < 0f ? "不可通行" : $"{g:f2}s";
+
+    #endregion
+
     public const float ActivationTimeCushion = 1f; // reduce time between now and activation by this value in seconds; increase for more conservativeness
 
     public static NavigationDecision Build(Context ctx, WorldState ws, AIHints hints, Actor player, float playerSpeed = 6f, float forbiddenZoneCushion = default, bool avoidFutureAOEs = false, float activationTimeCushion = ActivationTimeCushion)
@@ -50,20 +107,25 @@ public struct NavigationDecision
             }
             RasterizeForbiddenZones(ctx.Map, localForbiddenZones, ws.CurrentTime, ctx.Scratch, activationTimeCushion);
         }
+        // WorldToGrid 不做夾限，玩家在格線外時 x/y 會是負數，GridToIndex 因此算出負的索引。
+        // 原本的守衛只檢查上界（Length > index），任何負索引都會通過 → IndexOutOfRangeException。
+        // 實際發生條件：AIHints.Clear() 把 PathfindMapCenter 歸零，而只有 CalculateAutoHints 會重設它；
+        // 有 active boss module 且該模組沒設定中心時，中心就停在 (0,0)，於是遠離原點的區域必爆。
+        // 用 InBounds 同時驗兩個軸——只檢查 index >= 0 是不夠的：x = -1、y = 1 會算出「看似合法」
+        // 但屬於前一列的索引。這也是本專案其他地方的既有寫法（AIBehaviour.cs:350、NormalMovement.cs:264）。
+        // 📌 這幾個值同時也是下面診斷欄位的來源，所以刻意提到迴圈外算一次（值與原本逐案相同）。
+        var (playerGridX, playerGridY) = ctx.Map.WorldToGrid(player.Position);
+        var playerInWindow = ctx.Map.InBounds(playerGridX, playerGridY);
+        var playerCell = playerInWindow ? ctx.Map.GridToIndex(playerGridX, playerGridY) : -1;
+        var goalsRasterized = false;
         if (player.CastInfo == null) // don't rasterize goal zones if casting or if inside a very dangerous pixel
         {
-            // WorldToGrid 不做夾限，玩家在格線外時 x/y 會是負數，GridToIndex 因此算出負的索引。
-            // 原本的守衛只檢查上界（Length > index），任何負索引都會通過 → IndexOutOfRangeException。
-            // 實際發生條件：AIHints.Clear() 把 PathfindMapCenter 歸零，而只有 CalculateAutoHints 會重設它；
-            // 有 active boss module 且該模組沒設定中心時，中心就停在 (0,0)，於是遠離原點的區域必爆。
-            // 用 InBounds 同時驗兩個軸——只檢查 index >= 0 是不夠的：x = -1、y = 1 會算出「看似合法」
-            // 但屬於前一列的索引。這也是本專案其他地方的既有寫法（AIBehaviour.cs:350、NormalMovement.cs:264）。
-            var (playerGridX, playerGridY) = ctx.Map.WorldToGrid(player.Position);
-            if (ctx.Map.InBounds(playerGridX, playerGridY) && ctx.Map.PixelMaxG[ctx.Map.GridToIndex(playerGridX, playerGridY)] is >= 1f or < 0f) // prioritize safety over uptime, still needs to be active for below 0 MaxG to go back inside arena bounds if needed
+            if (playerInWindow && ctx.Map.PixelMaxG[playerCell] is >= 1f or < 0f) // prioritize safety over uptime, still needs to be active for below 0 MaxG to go back inside arena bounds if needed
             {
                 if (localGoalZones.Length != 0) // 同上：看快照，不要看還在被主執行緒清空的那份 List
                 {
                     RasterizeGoalZones(ctx.Map, localGoalZones);
+                    goalsRasterized = true;
                 }
                 if (forbiddenZoneCushion > 0)
                 {
@@ -76,7 +138,20 @@ public struct NavigationDecision
         var bestNodeIndex = ctx.ThetaStar.Execute();
         ref var bestNode = ref ctx.ThetaStar.NodeByIndex(bestNodeIndex);
         var waypoints = GetFirstWaypoints(ctx.ThetaStar, ctx.Map, bestNodeIndex, player.Position);
-        return new() { Destination = waypoints.first, NextWaypoint = waypoints.second, LeewaySeconds = bestNode.PathLeeway, TimeToGoal = bestNode.GScore };
+        return new()
+        {
+            Destination = waypoints.first,
+            NextWaypoint = waypoints.second,
+            LeewaySeconds = bestNode.PathLeeway,
+            TimeToGoal = bestNode.GScore,
+            // 診斷：全部取自本次真正用到的地圖，不重算、不猜。玩家格出視窗時不去讀陣列（那正是上面守衛擋的東西）。
+            DiagGoalZones = localGoalZones.Length,
+            DiagGoalsRasterized = goalsRasterized,
+            DiagPlayerInWindow = playerInWindow,
+            DiagPlayerMaxG = playerInWindow ? ctx.Map.PixelMaxG[playerCell] : default,
+            DiagPlayerPriority = playerInWindow ? ctx.Map.PixelPriority[playerCell] : default,
+            DiagMaxPriority = ctx.Map.MaxPriority
+        };
     }
 
     private static void AvoidForbiddenZone(Map map, float forbiddenZoneCushion)

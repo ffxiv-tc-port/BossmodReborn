@@ -450,7 +450,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         _loggedYieldMovement = yield;
         Service.Logger.Information(yield
             ? "[AI] 移動擁有權交給預設集的「自動移動」模組：本 AI 這段期間完全不設導航目標。若角色同時站著不動，代表接手的那一方也沒寫出移動方向。"
-            : "[AI] 移動擁有權回到 AI 自動走位：預設集裡的「自動移動」模組沒有舉手（不在預設集裡、或 Destination 軌設成 None）。");
+            : "[AI] 移動擁有權回到 AI 自動走位：預設集裡的「自動移動」模組沒有舉手（不在預設集裡、Destination 軌設成 None、或它這一段算不出目的地而主動交還——後者上一行會有 [NormalMovement] 的說明）。");
     }
 
     /// <summary>建導航決策那一刻場上有幾個目標區；給下面那支診斷區分「沒人給方向」與「給了方向但算不出來」。</summary>
@@ -465,13 +465,20 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
     /// 而那有兩種完全不同的成因：<b>真的已經站在最好的位置</b>，或<b>目標區根本沒被 rasterize</b>
     /// （玩家格出了尋路視窗、或本地副本與存活 List 的 race）。有目標區卻回 null 就是後者的徵兆。
     /// </remarks>
-    private void LogNoDestination(bool stuck)
+    private void LogNoDestination(bool evaluated, bool stuck)
     {
+        // 🔴 讓位期間「連問都沒問」——本 AI 的導航決策這一段根本不會被使用，
+        //    把它當成 false 會印出「導航恢復」，而那是**假的**：實機 2026-08-13 23:20:26.800
+        //    那一行「導航恢復」與同一毫秒的「移動擁有權交給…」是同一件事，尋路什麼都沒改變。
+        //    不知道的時候就什麼都不宣稱，維持上一次的判斷。
+        //    （同款陷阱與同款解法見 MovementOverride.LogFollowPathYield。）
+        if (!evaluated)
+            return;
         if (stuck == _loggedNoDestination)
             return;
         _loggedNoDestination = stuck;
         Service.Logger.Information(stuck
-            ? $"[AI] 導航算不出目的地：場上有 {_naviGoalZoneCount} 個目標區，尋路卻回報「已經在最佳位置」⇒ 這一段不會移動。常見成因是玩家格落在尋路視窗外（目標區整段沒被 rasterize），或目標區的權重在目前位置附近是平的。"
+            ? $"[AI] 導航算不出目的地：丟進尋路時場上有 {_naviGoalZoneCount} 個目標區，尋路卻回報「已經在最佳位置」⇒ 這一段不會移動。{_naviDecision.DiagSummary()}"
             : "[AI] 導航恢復：尋路重新算得出目的地。");
     }
 
@@ -554,8 +561,8 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
                 mustMoveNow = followActor != player && (followActor.Position - player.Position).LengthSq() > maxRange * maxRange;
             }
 
-            // 只在「我方負責移動」時才有意義：讓位期間目的地本來就不該由這裡產生。
-            LogNoDestination(!yieldMovement && _naviDecision.Destination == null && _naviGoalZoneCount != 0);
+            // 只在「我方負責移動」時才有意義：讓位期間目的地本來就不該由這裡產生 ⇒ 那時是「沒問」不是「沒事」。
+            LogNoDestination(!yieldMovement, _naviDecision.Destination == null && _naviGoalZoneCount != 0);
 
             ctrl.NaviTargetPos = !yieldMovement && WorldState.CurrentTime >= _navStartTime && mustMoveNow ? _naviDecision.Destination : null;
             ctrl.NaviTargetVertical = master != player ? master.PosRot.Y : null;
