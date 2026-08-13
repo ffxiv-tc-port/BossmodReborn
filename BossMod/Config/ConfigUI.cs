@@ -221,10 +221,20 @@ public sealed class ConfigUI : IDisposable
             WalkNodes(r, [], _filterNodes);
     }
 
+    /// <summary>
+    /// 節點名的搜尋比對。除了 <see cref="TextMatches"/> 的原文／譯文兩軸，還要比對
+    /// <see cref="NodeDisplayName"/> 的結果——職業節點顯示的是「舞者（DNC）」，
+    /// 那個中文名不在 tw.json 的 <c>DNC</c> 鍵下（根本沒有那個鍵），
+    /// 只比 <c>Loc.T(name, name)</c> 的話使用者搜「舞者」會永遠零結果。
+    /// </summary>
+    private bool NodeNameMatches(string name)
+        => TextMatches(name)
+        || NodeDisplayName(name).Contains(_searchText, StringComparison.InvariantCultureIgnoreCase);
+
     private void WalkNodes(UINode node, List<string> path, List<List<string>> results)
     {
         // 整頁命中：用 "*" 當萬用尾綴，代表這一頁底下所有項目都要顯示
-        if (TextMatches(node.Name))
+        if (NodeNameMatches(node.Name))
         {
             results.Add([.. path, node.Name, "*"]);
             return;
@@ -301,6 +311,36 @@ public sealed class ConfigUI : IDisposable
 
     private static string GenerateNodeName(Type t) => t.Name.EndsWith("Config", StringComparison.Ordinal) ? t.Name[..^"Config".Length] : t.Name;
 
+    /// <summary>節點名（英文內部名）→ 職業列舉；只在名稱剛好等於某個 <see cref="Class"/> 成員時命中。</summary>
+    private static readonly Dictionary<string, Class> _classNodeNames =
+        Enum.GetValues<Class>().Where(c => c != Class.None).ToDictionary(c => c.ToString());
+
+    /// <summary>
+    /// 設定樹節點的顯示名稱。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>職業設定節點原本顯示的是三字母縮寫</b>——<see cref="GenerateNodeName"/> 由型別名
+    /// （<c>DNCConfig</c>）產生節點名 <c>DNC</c>，而「技能調整」底下十一個職業節點都沒有指定
+    /// <c>ConfigDisplay.Name</c>，於是整排都是 DNC／DRG／GNB…。對照官方繁中介面完全認不出來。
+    /// 這裡把剛好等於 <see cref="Class"/> 成員的節點名，改用既有的 <c>CLASS_*</c> 譯名顯示，
+    /// 縮寫保留在括號裡（縮寫是 BMR 各處通用的稱呼，拿掉反而不好對照）。
+    /// <para>
+    /// ⚠️ <b>只改顯示</b>：<c>UINode.Name</c>／<c>UINode.Path</c> 仍是英文內部名，
+    /// 而設定檔的序列化鍵是<b>型別名</b>（<c>ConfigRoot.LoadFromFile</c> 走 <c>Type.GetType</c>），
+    /// 兩者都不受影響。沒有 <c>CLASS_*</c> 譯文時（例如英文語系）退回原本的行為。
+    /// </para>
+    /// </remarks>
+    private static string NodeDisplayName(string name)
+    {
+        if (_classNodeNames.TryGetValue(name, out var c))
+        {
+            var localized = Loc.T($"CLASS_{c}", "");
+            if (localized.Length > 0)
+                return $"{localized}（{name}）";
+        }
+        return Loc.T(name, name);
+    }
+
     private static void SortByOrder(List<UINode> nodes)
     {
         nodes.Sort((a, b) => a.Order.CompareTo(b.Order));
@@ -310,7 +350,7 @@ public sealed class ConfigUI : IDisposable
 
     private void DrawNodes(List<UINode> nodes)
     {
-        foreach (var n in _tree.Nodes(nodes.Where(n => MatchesFilter(n.Path)), n => new(Loc.T(n.Name, n.Name))))
+        foreach (var n in _tree.Nodes(nodes.Where(n => MatchesFilter(n.Path)), n => new(NodeDisplayName(n.Name))))
         {
             DrawNode(n.Node, _root, _tree, _ws, props => MatchesFilter([.. n.Path, props.Label]));
             DrawNodes(n.Children);

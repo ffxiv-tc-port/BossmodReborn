@@ -948,7 +948,7 @@
     "message": "以更智慧的方式取代遊戲內「自動面向目標」選項。\n使用技能時，僅在目標不在正面錐形範圍內時才改變朝向。\n詠唱期間保持角色面向目標。"
   },
   "Auto use Peloton when moving out of combat": {
-    "message": "戰鬥外移動時自動使用 Peloton"
+    "message": "戰鬥外移動時自動使用速行"
   },
   "Enable auto AFK": {
     "message": "啟用自動 AFK"
@@ -990,25 +990,25 @@
     "message": "嘗試防止衝刺進入 AOE"
   },
   "Prevent automatic use of targeted dashes (like WAR Onslaught) if they would move you into a dangerous area. May not work as expected in instances that do not have modules.\n\nThis option will also apply to manually pressed dashes if you have \"": {
-    "message": "若目標式衝刺（如戰士強攻）會將您移入危險區域則禁止自動使用。在沒有模組的副本中可能不如預期運作。\n\n若您已啟用「"
+    "message": "若目標式衝刺（如戰士猛攻）會將您移入危險區域則禁止自動使用。在沒有模組的副本中可能不如預期運作。\n\n若您已啟用「"
   },
   "Use dash abilities for navigation (Smudge, Elusive Jump, etc)": {
     "message": "使用衝刺技能輔助移動（Smudge、閃避跳躍等）"
   },
   "Elusive Jump direction": {
-    "message": "閃避跳躍方向"
+    "message": "迴避跳躍方向"
   },
   "Align Hell's Egress/Ingress with camera direction": {
-    "message": "使地獄出入口方向與攝影機方向一致"
+    "message": "使地獄出境／地獄入境方向與攝影機方向一致"
   },
   "Align Smudge with camera direction": {
-    "message": "使 Smudge 方向與攝影機方向一致"
+    "message": "使速塗方向與攝影機方向一致"
   },
   "Align Aetherial Shift with camera direction": {
-    "message": "使以太轉移方向與攝影機方向一致"
+    "message": "使乙太變移方向與攝影機方向一致"
   },
   "Align En Avant with camera direction": {
-    "message": "使 En Avant 方向與攝影機方向一致"
+    "message": "使前衝步方向與攝影機方向一致"
   },
   "Camera-relative, backwards": {
     "message": "相對攝影機，向後"
@@ -1023,40 +1023,40 @@
     "message": "遊戲預設（相對角色，向後）"
   },
   "Passage of Arms direction": {
-    "message": "臂展防護方向"
+    "message": "武裝戍衛方向"
   },
   "Delay Thunderclap if already in melee range of target": {
     "message": "已在目標近戰範圍內時延遲使用雷擊"
   },
   "Forbid Harpe too early in prepull": {
-    "message": "在預拉怪中禁止過早使用 Harpe"
+    "message": "預拉怪時禁止過早使用勾刃"
   },
   "Forbid tomahawk too early in prepull": {
-    "message": "在預拉怪中禁止過早使用戰斧投擲"
+    "message": "預拉怪時禁止過早使用飛斧"
   },
   "Prefer self-targeted holmgang; requires smart targeting to be enabled (and allows overriding target by mouseover)": {
-    "message": "偏好對自身使用霍姆幫；需啟用智慧目標（並允許以滑鼠懸停覆蓋目標）"
+    "message": "偏好對自身使用死鬥；需啟用智慧目標（並允許以滑鼠懸停覆蓋目標）"
   },
   "Pause autorotation while channeling Flamethrower": {
     "message": "使用火焰噴射器引導期間暫停自動循環"
   },
   "Prevent use of 'Broil' too early when in pre-pull": {
-    "message": "預拉怪時禁止過早使用 Broil"
+    "message": "預拉怪時禁止過早使用極炎法"
   },
   "Prevent use of 'Holy Spirit' too early when in pre-pull": {
-    "message": "預拉怪時禁止過早使用神聖靈"
+    "message": "預拉怪時禁止過早使用聖靈"
   },
   "Prevent use of 'Lightning Shot' too early when in pre-pull": {
-    "message": "預拉怪時禁止過早使用閃雷箭"
+    "message": "預拉怪時禁止過早使用雷電彈"
   },
   "Prevent use of 'Shield Lob' too early when in pre-pull (if Holy Spirit is not unlocked)": {
-    "message": "預拉怪時禁止過早使用盾牌投擲（若神聖靈尚未解鎖）"
+    "message": "預拉怪時禁止過早使用投盾（若聖靈尚未解鎖）"
   },
   "Apply the previous option to all dashes, not just gap closers": {
     "message": "將前述選項套用至所有衝刺，而非僅限於縮短距離的衝刺"
   },
   "Includes backdashes (e.g. SAM Yaten), teleports (e.g. NIN Shukuchi), and fixed-length dashes (e.g. DRG Elusive Jump)": {
-    "message": "包含後退衝刺（如武士夜天）、瞬移（如忍者縮地）及固定距離衝刺（如龍騎士閃避跳躍）"
+    "message": "包含後退衝刺（如武士必殺劍·夜天）、瞬移（如忍者縮地）及固定距離衝刺（如龍騎士迴避跳躍）"
   },
   "Auto misdirection: prevent movement under misdirection if angle between normal movement and misdirected is greater than this threshold (set to 180 to disable).": {
     "message": "自動誤導：若正常移動方向與誤導方向的夾角大於此閾值則禁止移動（設為 180 停用）。"
@@ -1620,7 +1620,7 @@
     "message": "平台編號字型大小"
   },
   "Prevent automatic use of targeted dashes (like WAR Onslaught) if they would move you into a dangerous area. May not work as expected in instances that do not have modules.\n\nThis option will also apply to manually pressed dashes if you have \"Use custom queueing for manually pressed actions\" enabled.": {
-    "message": "當指向性衝刺技能（如戰士的突擊）會將你移入危險區域時，阻止自動使用該技能。在沒有對應模組的副本中可能無法正常運作。\n\n若你已啟用「對手動按下的技能使用自訂佇列」，此選項也會套用到手動按下的衝刺技能。"
+    "message": "當指向性衝刺技能（如戰士的猛攻）會將你移入危險區域時，阻止自動使用該技能。在沒有對應模組的副本中可能無法正常運作。\n\n若你已啟用「對手動按下的技能使用自訂佇列」，此選項也會套用到手動按下的衝刺技能。"
   },
   "Prey targets both use common opposite direction, if it gives better angle; players in all quadrants use same direction": {
     "message": "獵物目標若能取得更好的角度，則兩者共用相同的相反方向；所有象限的玩家皆使用相同方向"
