@@ -455,6 +455,10 @@ public abstract class AutoClear : ZoneModule
         _lastChestContentsGold = null;
         _lastChestMagicite = false;
         _magiciteSpendLogged = (-1, 0);
+        ResetPomanderAttempts();
+        ResetMagiciteAttempts();
+        _pomanderGiveUp.Clear();
+        _magiciteGiveUp = false;
         _chestContentsGold.Clear();
         _chestContentsSilver.Clear();
         _trapsHidden = true;
@@ -1603,6 +1607,82 @@ public abstract class AutoClear : ZoneModule
         return fallback >= 0 ? fallback : null;
     }
 
+    #region 自動使用的重試節流（魔陶器與魔石共用同一套形狀）
+
+    /// <summary>兩次送出之間至少隔多久。成功與否遊戲都不會明講，只能用「數量掉了沒」回推。</summary>
+    private static readonly TimeSpan SpecialItemRetryInterval = TimeSpan.FromSeconds(3);
+
+    /// <summary>連續幾次送出後數量都沒掉就放棄（本層內不再嘗試該項目）。</summary>
+    private const int SpecialItemMaxAttempts = 3;
+
+    private PomanderID _pomanderAttemptKind;
+    private int _pomanderAttempts;
+    private DateTime _pomanderNextAttempt;
+    private readonly HashSet<PomanderID> _pomanderGiveUp = [];
+    private int _magiciteAttempts;
+    private DateTime _magiciteNextAttempt;
+    private bool _magiciteGiveUp;
+
+    /// <summary>候選消失（用成功了、或走遠了）就把計數歸零；放棄名單保留到換層。</summary>
+    private void ResetPomanderAttempts()
+    {
+        _pomanderAttemptKind = PomanderID.None;
+        _pomanderAttempts = 0;
+        _pomanderNextAttempt = default;
+    }
+
+    private void ResetMagiciteAttempts()
+    {
+        _magiciteAttempts = 0;
+        _magiciteNextAttempt = default;
+    }
+
+    private bool ShouldAttemptPomander(PomanderID p)
+    {
+        if (_pomanderGiveUp.Contains(p))
+            return false;
+        if (_pomanderAttemptKind != p)
+        {
+            _pomanderAttemptKind = p;
+            _pomanderAttempts = 0;
+            _pomanderNextAttempt = default;
+        }
+        if (World.CurrentTime < _pomanderNextAttempt)
+            return false;
+        if (_pomanderAttempts >= SpecialItemMaxAttempts)
+        {
+            _pomanderGiveUp.Add(p);
+            Service.Logger.Information(
+                $"[DD] 魔陶器自動使用：「{p}」連續 {SpecialItemMaxAttempts} 次送出數量都沒變" +
+                "（本層可能禁用專用道具，或這種魔陶器現在不可使用，例如沒有魔法效果時的魔法效果解除）。" +
+                "本層放棄這一種，該寶箱維持跳過。");
+            return false;
+        }
+        ++_pomanderAttempts;
+        _pomanderNextAttempt = World.CurrentTime + SpecialItemRetryInterval;
+        return true;
+    }
+
+    private bool ShouldAttemptMagicite()
+    {
+        if (_magiciteGiveUp)
+            return false;
+        if (World.CurrentTime < _magiciteNextAttempt)
+            return false;
+        if (_magiciteAttempts >= SpecialItemMaxAttempts)
+        {
+            _magiciteGiveUp = true;
+            Service.Logger.Information(
+                $"[DD] 魔石自動使用：連續 {SpecialItemMaxAttempts} 次送出數量都沒變（本層可能禁用，例如結界層）。本層放棄。");
+            return false;
+        }
+        ++_magiciteAttempts;
+        _magiciteNextAttempt = World.CurrentTime + SpecialItemRetryInterval;
+        return true;
+    }
+
+    #endregion
+
     /// <summary>要記進 log 的魔石／亞靈複製體名稱（直接讀客戶端資料表，不維護譯名）。</summary>
     private string MagiciteName(byte kind)
     {
@@ -1798,8 +1878,18 @@ public abstract class AutoClear : ZoneModule
             }
         }
 
+        // 🔴 這兩條推送**不能每幀重推**。原本是「條件成立就每幀 Push」，實測三個症狀
+        //    （使用者 2026-08-13 回報）：①本層禁用專用道具時永遠送不出去，卻以 VeryHigh
+        //    佔住行動佇列＝卡佇列；②遊戲拒絕是靜默的，我們永遠不知道該收手；
+        //    ③使用者手動用的那一瞬間我們的推送也在飛＝連用兩個。
+        //    ⇒ 改成 3 秒一次、連續 3 次數量都沒掉就本層放棄並記 log。
         if (Config.AllowPomander && !isStunned && pomanderToUseHere is PomanderID p2 && player.FindStatus((uint)SID.ItemPenalty) == null)
-            hints.ActionsToExecute.Push(new ActionID(ActionType.Pomander, (uint)p2), null, ActionQueue.Priority.VeryHigh);
+        {
+            if (ShouldAttemptPomander(p2))
+                hints.ActionsToExecute.Push(new ActionID(ActionType.Pomander, (uint)p2), null, ActionQueue.Priority.VeryHigh);
+        }
+        else if (pomanderToUseHere == null)
+            ResetPomanderAttempts();
 
         // 魔石／亞靈複製體：獨立開關（預設開），守衛與上面那條同款——變身／暈眩中不送、
         // 身上有「物品使用封印」時不送。
@@ -1816,8 +1906,11 @@ public abstract class AutoClear : ZoneModule
                     $"[DD] 魔石滿額：用掉第 {mslot + 1} 格的「{MagiciteName(kind)}」（型別 {kind}）以便重新開啟銀寶箱。" +
                     $"目前三格＝[{Palace.Magicite[0]}, {Palace.Magicite[1]}, {Palace.Magicite[2]}]");
             }
-            hints.ActionsToExecute.Push(new ActionID(ActionType.Magicite, (uint)(mslot + 1)), null, ActionQueue.Priority.VeryHigh);
+            if (ShouldAttemptMagicite())
+                hints.ActionsToExecute.Push(new ActionID(ActionType.Magicite, (uint)(mslot + 1)), null, ActionQueue.Priority.VeryHigh);
         }
+        else if (magiciteSlotToSpend == null)
+            ResetMagiciteAttempts();
 
         // 「走過去」與「開起來」是兩件事，分開判斷。
         // ⚠️ 拆分前這裡是一條式子：`(AutoMoveTreasure && canNavigate) || 距離 < 3.5f`

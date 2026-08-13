@@ -371,6 +371,11 @@ public sealed class AutoDDConfig : ConfigNode
         PomanderID.ProtoFlight,
         PomanderID.ProtoPurity,
         PomanderID.ProtoIntuition,
+        // ── revision 1（2026-08-13 使用者指定）───────────────────────
+        // 魔法效果解除：本層沒有魔法效果時遊戲會拒絕——那條由 AutoClear 的
+        // 重試上限接手（3 次沒生效就本層放棄），不會卡佇列。
+        PomanderID.Serenity,
+        PomanderID.ProtoSerenity,
     ];
 
     private static bool[] BuildDefaultPomanderAutoUse()
@@ -397,18 +402,39 @@ public sealed class AutoDDConfig : ConfigNode
     /// 而且只有真的打開深牢設定頁的人才會踩到。
     /// 缺的那幾格補<b>新的預設值</b>，不是補 false ——「沒存過」等於「還沒表態」。
     /// </remarks>
+    /// <summary>
+    /// 白名單預設值的一次性遷移版本。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 既有使用者的 <see cref="PomanderAutoUse"/> 已整條陣列存進設定檔，
+    /// 改 <see cref="DefaultAutoUsable"/> 只有全新安裝的人吃得到。要把新預設帶給
+    /// 既有使用者只能做一次性遷移（本欄位記到哪一版）。使用者遷移後手動關掉的話，
+    /// 下次存檔會連本欄位一起存，不會被重複翻回來。
+    /// </remarks>
+    public int PomanderAutoUseRevision;
+
     public override void Deserialize(System.Text.Json.JsonElement j, System.Text.Json.JsonSerializerOptions ser)
     {
         base.Deserialize(j, ser);
 
         var want = (int)PomanderID.Count;
-        if (PomanderAutoUse.Length == want)
-            return;
+        if (PomanderAutoUse.Length != want)
+        {
+            var fixedUp = BuildDefaultPomanderAutoUse();
+            var n = Math.Min(PomanderAutoUse.Length, want);
+            Array.Copy(PomanderAutoUse, fixedUp, n);
+            PomanderAutoUse = fixedUp;
+        }
 
-        var fixedUp = BuildDefaultPomanderAutoUse();
-        var n = Math.Min(PomanderAutoUse.Length, want);
-        Array.Copy(PomanderAutoUse, fixedUp, n);
-        PomanderAutoUse = fixedUp;
+        // revision 1：魔法效果解除加入自動使用（2026-08-13 使用者裁決「不會使用」是缺陷）
+        if (PomanderAutoUseRevision < 1)
+        {
+            PomanderAutoUseRevision = 1;
+            if ((int)PomanderID.Serenity < PomanderAutoUse.Length)
+                PomanderAutoUse[(int)PomanderID.Serenity] = true;
+            if ((int)PomanderID.ProtoSerenity < PomanderAutoUse.Length)
+                PomanderAutoUse[(int)PomanderID.ProtoSerenity] = true;
+        }
     }
 
     /// <summary>
