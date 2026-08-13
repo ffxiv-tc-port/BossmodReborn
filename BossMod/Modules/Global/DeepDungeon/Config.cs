@@ -125,6 +125,19 @@ public sealed class AutoDDConfig : ConfigNode
     [PropertyDisplay("Automatically navigate to Cairn of Passage")]
     public bool AutoPassage = true;
 
+    // 🔴 預設 false（opt-in），而且這是刻意的裁決而不是保守：使用者要的原話只有「走到通道石旁邊」，
+    //    「自動下一層」是多出來的一步，由他自己勾。關著的時候行為與拆分前逐字相同
+    //    ——在此之前這條路徑<b>從來沒有</b>設過 InteractWithTarget（TryGetRoomDestination 的註解
+    //    「只是走過去，絕不自動互動」講的就是這件事）。
+    // 📌 只加「最後那一下」，不加任何移動來源：走過去仍然是 AutoPassage 那兩個 GoalZone 的事，
+    //    這個開關只在人已經站到互動距離內時才把傳送裝置設成互動目標。
+    // ⚠️ 遊戲自己的「要前往下一層嗎」確認視窗<b>不</b>由 BMR 回答：BMR 全庫沒有任何
+    //    SelectYesno／addon callback 的處理管線（實測：GetAddonByName 只有讀詠唱條與 debug 視窗兩處），
+    //    不為了這個功能新增一條盲按。所以最終那一下「是」仍然是使用者按的，tooltip 必須講清楚。
+    [PropertyDisplay("Also interact with the Cairn of Passage once you have reached it",
+        tooltip: "Needs \"automatically navigate to Cairn of Passage\" above - this setting only adds the final click, it never walks you anywhere by itself.\n\nOff by default: navigating there walks you next to it and stops, leaving the decision to descend to you. With this ticked, once you are standing in interact range, out of combat and not transformed, the interact is sent for you.\n\nThe game then asks you to confirm in its own dialog, and BMR does NOT answer that dialog - you still press Yes yourself, so a floor is never left by accident.\n\nOnly fires while the Cairn is actually unlocked, and never while \"reveal all rooms before proceeding to next floor\" still has rooms left to visit. Coffers keep exactly the priority configured above.\n\nLike \"automatically open coffers you have reached\", this needs BMR's AI (or the Normal Movement autorotation module) to be running - it is what actually sends the interact.")]
+    public bool AutoUsePassage = false;
+
     [PropertyDisplay("Automatic mob targeting behavior")]
     public ClearBehavior AutoClear = ClearBehavior.Leveling;
 

@@ -154,6 +154,25 @@ public abstract class AutoClear : ZoneModule
     /// <summary>上一次樓層尋路是不是找不到路（連通的房間還沒探索到時是正常現象）。</summary>
     private bool _lastPathfindFailed;
 
+    /// <summary>
+    /// 「已經走到下層傳送裝置旁邊了」的距離門檻（碼，已扣掉雙方 hitbox）。
+    /// </summary>
+    /// <remarks>
+    /// 📌 與寶箱那條用同一個數字，兩者是同一個語意（「站到旁邊了」）。
+    /// <para>
+    /// 🔑 這只是「要不要把它設成互動目標」的門檻，<b>不是</b>能不能互動的判斷：
+    /// 真正的判斷在 <c>Plugin.CheckInteractRange</c>，那裡問的是遊戲自己的
+    /// <c>EventFramework::CheckInteractRange</c>。所以這個數字寬一點的代價只是
+    /// 「多設一個互動目標、遊戲說還不夠近、於是什麼都不送」，窄一點的代價卻是
+    /// 「走到了卻永遠不點」——寧可寬。
+    /// </para>
+    /// <para>
+    /// ⚠️ 真的要走到這麼近，是靠 AutoPassage 既有的 <c>GoalSingleTarget(c.Position, 2f, 0.5f)</c>
+    /// 那個半徑 2y 的平台；這個門檻比它寬，所以不會出現「AI 認為到了、這裡認為還沒到」的僵局。
+    /// </para>
+    /// </remarks>
+    private const float PassageInteractDistance = 3.5f;
+
     protected struct PlayerImmuneState
     {
         public DateTime RoleBuffExpire; // 0 if not active
@@ -1762,6 +1781,7 @@ public abstract class AutoClear : ZoneModule
                 openCoffer = t;
         }
 
+        Actor? usePassage = null;
         if (!player.InCombat && Config.AutoPassage && Palace.PassageActive)
         {
             if (DesiredRoom == 0)
@@ -1784,14 +1804,30 @@ public abstract class AutoClear : ZoneModule
                     moveToCoffer = null;
                     openCoffer = null;
                 }
+
+                // 🔴 「到了就自動點下去」——獨立開關，預設關。
+                //    只在「已經走到互動距離內」才設，理由與上面寶箱那條完全相同：
+                //    InteractWithTarget 本身會變成 AI 的 forceDestination，無條件設它等於
+                //    從後門多加一條移動來源。走過去是上面那兩個 GoalZone 的事，這一行只負責最後那一下。
+                // 📌 這一行住在 `passage is Actor c && !fullClear` 裡面是刻意的：全清模式
+                //    還有房間沒逛完時連走過去都不做，自然更不該替使用者點下去。
+                // ⚠️ 遊戲接著跳的「要前往下一層嗎」確認視窗不由 BMR 回答（全庫沒有那條管線），
+                //    使用者仍然要自己按「是」——設定的 tooltip 有寫明。
+                if (Config.AutoUsePassage && !IsPlayerTransformed(player) && player.DistanceToHitbox(c) < PassageInteractDistance)
+                    usePassage = c;
             }
         }
 
         if (moveToCoffer is Actor moveTarget)
             hints.GoalZones.Add(hints.GoalSingleTarget(moveTarget.Position, 25f));
 
+        // 🔑 寶箱優先於傳送裝置，而且這正好就是既有的優先度：傳送裝置比寶箱近而且沒勾
+        //    「優先開啟寶箱」時，上面已經把 openCoffer 清成 null 了 ⇒ 那種情況輪得到傳送裝置。
+        //    反過來說寶箱該先開時 openCoffer 還在，這裡就不會把它蓋掉。
         if (openCoffer is Actor openTarget)
             hints.InteractWithTarget = openTarget;
+        else if (usePassage is Actor passageTarget)
+            hints.InteractWithTarget = passageTarget;
 
         if (revealedTraps.Count > 0)
             hints.AddForbiddenZone(ShapeDistance.Union(revealedTraps));
