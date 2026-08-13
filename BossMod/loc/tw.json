@@ -3308,6 +3308,12 @@
   "Triggers the garbage collection.": {
     "message": "觸發記憶體垃圾回收。"
   },
+  "toggles radar display": {
+    "message": "切換雷達顯示。"
+  },
+  "Sets radar display to on or off.": {
+    "message": "將雷達顯示設為開啟或關閉。"
+  },
   "Lists all configs.": {
     "message": "列出所有設定項目。"
   },
