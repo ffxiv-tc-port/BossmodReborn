@@ -1676,7 +1676,7 @@ public abstract class AutoClear : ZoneModule
         var fullClear = false;
         if (Config.FullClear)
         {
-            var unexplored = Array.FindIndex(Palace.Rooms, d => (byte)d > 0 && !d.HasFlag(RoomFlags.Revealed));
+            var unexplored = FindNextUnexploredRoom(player);
             if (unexplored > 0)
             {
                 // ⚠️ 這是**無條件覆寫**，使用者剛剛在小地圖上點的目標會被蓋掉。
@@ -2768,6 +2768,45 @@ public abstract class AutoClear : ZoneModule
         : oid == (uint)OID.SilverCoffer ? 1
         : oid == (uint)OID.GoldCoffer ? 2
         : -1;
+
+    /// <summary>這一格有房間（旗標非零）而且還沒被探索過。</summary>
+    private static bool IsUnexploredRoom(RoomFlags d) => (byte)d > 0 && !d.HasFlag(RoomFlags.Revealed);
+
+    /// <summary>
+    /// 「前往下一層前探索所有房間」下一間要去哪。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 🔑 原本是 <c>Array.FindIndex</c>，也就是<b>房號最小</b>的那一間未探索房。房號是 5x5 格子的
+    /// 列優先編號，與「離我多遠」沒有任何關係 ⇒ 全清模式會在地圖上來回橫跳
+    /// （走到 23 號房，然後因為 2 號房剛冒出來又整條走回去）。
+    /// 改成拿 <see cref="FloorPathfind"/>（同一張房間圖、同一組活的連通旗標）做 BFS，
+    /// 挑<b>路徑距離最近</b>的那一間。
+    /// </para>
+    /// <para>
+    /// 🔴 <b>降級語意＝退回原本的行為，不是退回「不動」。</b>兩種情況會退回 <c>Array.FindIndex</c>：
+    /// ①遊戲還沒回報本人在哪一間房（剛換層），②BFS 一間未探索房都走不到——
+    /// 中間那幾間自己也還沒探索，拿不到它們的連通旗標，這在一層剛開始時是<b>常態</b>而不是錯誤
+    /// （<see cref="HandleFloorPathfind"/> 對同一件事的註解也是這樣寫的）。
+    /// 所以最壞情況就是今天的行為。
+    /// </para>
+    /// <para>
+    /// ⚠️ 這裡<b>不</b>判斷「實際上走不走得過去」——那是 <see cref="HandleFloorPathfind"/> 的事。
+    /// 兩邊讀的是同一張圖，所以不會出現「這裡說可以、那裡說不行」。
+    /// </para>
+    /// </remarks>
+    private int FindNextUnexploredRoom(Actor player)
+    {
+        var playerRoom = FindPlayerRoom(player);
+        if (playerRoom >= 0)
+        {
+            var nearest = new FloorPathfind(Palace.Rooms).NearestRoom(playerRoom, IsUnexploredRoom);
+            if (nearest > 0)
+                return nearest;
+        }
+        // 退回原本的「房號最小」——呼叫端的 `> 0` 閘門與以前逐字相同
+        return Array.FindIndex(Palace.Rooms, IsUnexploredRoom);
+    }
 
     private void HandleFloorPathfind(Actor player, AIHints hints)
     {
