@@ -822,10 +822,16 @@ sealed class WorldStateGameSync : IDisposable
                 }
                 if (++_ddDiagPartyLines <= DDPartyDiagLinesPerFloor)
                 {
-                    var pb = new StringBuilder(96);
+                    var pb = new StringBuilder(128);
                     pb.Append("[DD] 隊伍房號原值 樓層 ").Append(dd->Floor).Append(" Party[0..3].RoomIndex=");
                     for (var i = 0; i < DeepDungeonState.NumPartyMembers; ++i)
                         pb.Append(i == 0 ? "" : ", ").Append(rawPartyRooms[i]);
+                    // 帶上本人座標：大廳層（無內牆 12 格）A/B 兩面座標表都不涵蓋，座標校驗整層
+                    // Mismatch（2026-08-13 樓層 15/25 實證；房號原值一路正常＝「-1 塌陷」假設已排除）。
+                    // 房號變化時的 (座標, 房號) 樣本正是擬合大廳格心所需的量測資料。
+                    if (_ws.Party.Player() is { } pcActor)
+                        pb.Append(" 本人 (").Append(pcActor.PosRot.X.ToString("f1")).Append(", ")
+                          .Append(pcActor.PosRot.Z.ToString("f1")).Append(')');
                     if (_ddDiagPartyLines == DDPartyDiagLinesPerFloor)
                         pb.Append("（已達本層上限，之後不再記錄）");
                     Service.Logger.Information(pb.ToString());

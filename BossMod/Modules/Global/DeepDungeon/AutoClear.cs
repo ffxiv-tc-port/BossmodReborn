@@ -343,6 +343,11 @@ public abstract class AutoClear : ZoneModule
             case 7274:
                 _hoardFound = true;
                 break;
+            // 滿額訊息是一族一個 id：魔陶器（全深牢共用）7222、EO 亞靈複製體 10287、
+            // 天之御柱的魔石是 9208（9206~9209 那組 HoH 專屬家族，鄰居 9217 假傳送燈籠
+            // 就是本檔已在用的那個）。只接 10287 時 HoH 魔石滿箱完全沒反應——
+            // 2026-08-13 實機 19:35:44 此訊息開火而這裡沒接，同晚 21:59 魔陶器側正常自動使用。
+            case 9208: // HoH magicite overcap
             case 10287: // demiclone overcap
                 _lastChestMagicite = true;
                 break;
