@@ -32,7 +32,14 @@ public struct NavigationDecision
         // local copies of forbidden zones and goals to ensure no race conditions during async pathfinding
         (Func<WPos, float>, DateTime, ulong)[] localForbiddenZones = [.. hints.ForbiddenZones];
         Func<WPos, float>[] localGoalZones = [.. hints.GoalZones];
-        if (hints.ForbiddenZones.Count != 0)
+        // 🔴 閘門必須看**快照**，不能看還活著的那份 List。
+        //    這支會被 AIBehaviour 丟進 Task.Run 在執行緒集區跑，而主執行緒每幀都會
+        //    AIHintsBuilder.Update → hints.Clear() 把 ForbiddenZones/GoalZones 清空。
+        //    快照拿到之後、閘門判斷之前若剛好被清掉，就會出現「快照裡明明有目標區、卻整段不 rasterize」
+        //    ⇒ 權重場全平 ⇒ ThetaStar 的最佳格就是玩家腳下 ⇒ GetFirstWaypoints 回 (null, null)
+        //    ⇒ Destination 為 null ⇒ **角色不走、也不畫任何標線，而且完全不報錯**。
+        //    上面兩行取本地副本的註解本來就是為了這個 race，閘門漏改是單純的疏漏。
+        if (localForbiddenZones.Length != 0)
         {
             if (avoidFutureAOEs)
             {
@@ -54,7 +61,7 @@ public struct NavigationDecision
             var (playerGridX, playerGridY) = ctx.Map.WorldToGrid(player.Position);
             if (ctx.Map.InBounds(playerGridX, playerGridY) && ctx.Map.PixelMaxG[ctx.Map.GridToIndex(playerGridX, playerGridY)] is >= 1f or < 0f) // prioritize safety over uptime, still needs to be active for below 0 MaxG to go back inside arena bounds if needed
             {
-                if (hints.GoalZones.Count != 0)
+                if (localGoalZones.Length != 0) // 同上：看快照，不要看還在被主執行緒清空的那份 List
                 {
                     RasterizeGoalZones(ctx.Map, localGoalZones);
                 }

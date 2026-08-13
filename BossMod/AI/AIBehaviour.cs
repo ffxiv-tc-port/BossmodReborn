@@ -168,7 +168,9 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
                     // 📌 與「只在深牢出招」的互動：深牢外 autorotAllowed 為 false ⇒ Preset 直接是 null，
                     //    這裡選了哪個 preset 都不影響，兩個開關同時開啟時語意是一致的。
                     var preset = inDeepDungeon ? ResolveDeepDungeonPreset() ?? AIPreset : AIPreset;
-                    autorot.Preset = target.Target != null && autorotAllowed ? preset : null;
+                    var hasTarget = target.Target != null;
+                    LogPresetGate(hasTarget && autorotAllowed, hasTarget, autorotAllowed);
+                    autorot.Preset = hasTarget && autorotAllowed ? preset : null;
                 }
                 UpdateMovement(player, master, target, gazeImminent || pyreticImminent, misdirectionMode ? autorot.Hints.MisdirectionThreshold : default, !forbidTargeting ? autorot.Hints.ActionsToExecute : null);
             }
@@ -345,6 +347,8 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             }
             if (_preDodgeAnchor != null && !_wasForcedDodging)
                 autorot.Hints.GoalZones.Add(autorot.Hints.GoalProximity(_preDodgeAnchor.Value, 3f, 1.5f));
+            // 診斷用：記下丟進尋路的那一刻有幾個目標區（Task.Run 之後主執行緒就會把 hints 清掉了）
+            _naviGoalZoneCount = autorot.Hints.GoalZones.Count;
             return await Task.Run(() => NavigationDecision.Build(_naviCtx, WorldState, autorot.Hints, player, autorot.Bossmods.WorldState.Client.MoveSpeed, forbiddenZoneCushion: forbiddenZoneCushion, avoidFutureAOEs: _config.AvoidFutureAOEs, activationTimeCushion: _config.ActivationTimeCushion)).ConfigureAwait(false);
         }
 
@@ -353,6 +357,8 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             autorot.Hints.GoalZones.Add(autorot.Hints.GoalSingleTarget(targeting.Target.Actor, targeting.PreferredPosition, targeting.PreferredRange));
         if (_preDodgeAnchor != null && !_wasForcedDodging)
             autorot.Hints.GoalZones.Add(autorot.Hints.GoalProximity(_preDodgeAnchor.Value, 3f, 1.5f));
+        // 診斷用：見上面同名的那一行
+        _naviGoalZoneCount = autorot.Hints.GoalZones.Count;
         return await Task.Run(() => NavigationDecision.Build(_naviCtx, WorldState, autorot.Hints, player, autorot.Bossmods.WorldState.Client.MoveSpeed, forbiddenZoneCushion, avoidFutureAOEs: _config.AvoidFutureAOEs, activationTimeCushion: _config.ActivationTimeCushion)).ConfigureAwait(false);
     }
 
@@ -388,6 +394,89 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         return masterIsMoving;
     }
 
+    #region 移動為什麼沒發生 —— 三個狀態轉換診斷
+
+    // 📌 三支都走 Information（使用者跑 LogLevel 2，Debug/Verbose 收不到），而且**只在狀態翻轉時記一行**：
+    //    這些判斷每幀都會走到，每幀印等於把 log 洗掉。
+    // 🔑 三行合起來可以把「角色不動」拆成互斥的三種原因，不需要實機旁觀就能定案：
+    //      ① 預設集根本沒掛上（沒有主要目標）⇒ 自動移動模組整段不執行
+    //      ② 預設集掛上了、AI 也讓位了，但自動移動模組沒寫出方向
+    //      ③ 沒人讓位，AI 自己有目標區卻算不出目的地（尋路回 null）
+
+    private bool? _loggedPresetGate;
+
+    /// <summary>
+    /// 把「自動循環預設被掛上／卸下」講出來。這是<b>趕路時什麼都沒發生</b>的頭號嫌疑。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <c>Preset</c> 被卸下時 <c>RotationModuleManager</c> 會 Dispose 掉預設集裡的所有模組，
+    /// 包含「自動移動」——於是它的 <c>Execute</c> 整段不跑：<b>不寫 ForcedMovement，也不產生
+    /// 移動目標視覺化</b>。使用者看到的就是「站著不動、連提示線都沒有」。
+    /// ⚠️ 脫戰趕路時場上的被動怪在 <c>AIHintsBuilder.FillEnemies</c> 只拿到
+    /// <c>PriorityUndesirable</c>（-3），進不了 <c>AIHints.PriorityTargets</c>
+    /// ⇒ <c>SelectPrimaryTarget</c> 選不到任何目標 ⇒ 這個閘門必然關著。
+    /// </remarks>
+    private void LogPresetGate(bool on, bool hasTarget, bool autorotAllowed)
+    {
+        if (_loggedPresetGate == on)
+            return;
+        _loggedPresetGate = on;
+        if (on)
+        {
+            Service.Logger.Information("[AI] 自動循環預設已掛上（有主要目標且允許出招）：預設集裡的模組從現在起每幀執行，「自動移動」模組會開始寫移動方向與標線。");
+        }
+        else
+        {
+            var why = !hasTarget
+                ? "沒有主要目標（脫戰趕路時場上的被動怪優先度是 -3，進不了 PriorityTargets）"
+                : "目前不允許出招（只在深牢出招的開關擋住）";
+            Service.Logger.Information($"[AI] 自動循環預設已卸下：{why}。⚠️ 這代表預設集裡的「自動移動」模組**整段不執行** —— 不寫移動方向、也不畫移動目標標線，趕路完全交給 AI 自動走位處理。");
+        }
+    }
+
+    private bool _loggedYieldMovement;
+
+    /// <summary>
+    /// 把「AI 把移動讓給預設集的自動移動模組」講出來。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 讓位期間本 AI <b>完全不設</b> <c>NaviTargetPos</c>。若角色同時也不動，代表接手的那一方
+    /// 也沒有寫出方向 —— 那就是「兩邊都不動」的殭屍狀態，必須看這一行才分得出來是誰的問題。
+    /// </remarks>
+    private void LogMovementOwnership(bool yield)
+    {
+        if (yield == _loggedYieldMovement)
+            return;
+        _loggedYieldMovement = yield;
+        Service.Logger.Information(yield
+            ? "[AI] 移動擁有權交給預設集的「自動移動」模組：本 AI 這段期間完全不設導航目標。若角色同時站著不動，代表接手的那一方也沒寫出移動方向。"
+            : "[AI] 移動擁有權回到 AI 自動走位：預設集裡的「自動移動」模組沒有舉手（不在預設集裡、或 Destination 軌設成 None）。");
+    }
+
+    /// <summary>建導航決策那一刻場上有幾個目標區；給下面那支診斷區分「沒人給方向」與「給了方向但算不出來」。</summary>
+    private int _naviGoalZoneCount;
+    private bool _loggedNoDestination;
+
+    /// <summary>
+    /// 把「有人給了目標區，尋路卻算不出目的地」講出來 —— 這正是趕路「走幾步就停」的形狀。
+    /// </summary>
+    /// <remarks>
+    /// <c>NavigationDecision.Build</c> 在最佳格就是玩家腳下時回傳 <c>Destination == null</c>，
+    /// 而那有兩種完全不同的成因：<b>真的已經站在最好的位置</b>，或<b>目標區根本沒被 rasterize</b>
+    /// （玩家格出了尋路視窗、或本地副本與存活 List 的 race）。有目標區卻回 null 就是後者的徵兆。
+    /// </remarks>
+    private void LogNoDestination(bool stuck)
+    {
+        if (stuck == _loggedNoDestination)
+            return;
+        _loggedNoDestination = stuck;
+        Service.Logger.Information(stuck
+            ? $"[AI] 導航算不出目的地：場上有 {_naviGoalZoneCount} 個目標區，尋路卻回報「已經在最佳位置」⇒ 這一段不會移動。常見成因是玩家格落在尋路視窗外（目標區整段沒被 rasterize），或目標區的權重在目前位置附近是平的。"
+            : "[AI] 導航恢復：尋路重新算得出目的地。");
+    }
+
+    #endregion
+
     private void UpdateMovement(Actor player, Actor master, Targeting target, bool gazeOrPyreticImminent, Angle misdirectionAngle, ActionQueue? queueForSprint)
     {
         // 🔴 讓路：預設集裡的「自動移動」模組正在負責移動時，這裡完全不做自己的移動決策。
@@ -396,6 +485,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         //    衝刺推送全部照舊，所以這裡不是提早 return，而是只把 NaviTargetPos 壓成 null。
         //    讓出後由 NormalMovement 單獨寫 Hints.ForcedMovement ⇒ 移動只有一個擁有者。
         var yieldMovement = Autorotation.MiscAI.NormalMovement.OwnsMovement;
+        LogMovementOwnership(yieldMovement);
 
         if (gazeOrPyreticImminent)
         {
@@ -463,6 +553,9 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
                 var maxRange = target.Target != null ? _config.MaxDistanceToTarget : _config.MaxDistanceToSlot;
                 mustMoveNow = followActor != player && (followActor.Position - player.Position).LengthSq() > maxRange * maxRange;
             }
+
+            // 只在「我方負責移動」時才有意義：讓位期間目的地本來就不該由這裡產生。
+            LogNoDestination(!yieldMovement && _naviDecision.Destination == null && _naviGoalZoneCount != 0);
 
             ctrl.NaviTargetPos = !yieldMovement && WorldState.CurrentTime >= _navStartTime && mustMoveNow ? _naviDecision.Destination : null;
             ctrl.NaviTargetVertical = master != player ? master.PosRot.Y : null;

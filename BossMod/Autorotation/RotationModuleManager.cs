@@ -124,6 +124,13 @@ public sealed class RotationModuleManager : IDisposable
                 : (ResolveTargetOverride(StrategyTarget.EnemyWithHighestPriority, 0) ?? (Bossmods.ActiveModule?.PrimaryActor is var primary && primary != null && !primary.IsDeadOrDestroyed && primary.IsTargetable ? primary : null));
         }
 
+        // 🔴 先把「自動移動」模組的移動擁有權放下，讓它在下面的迴圈裡自己重新舉手。
+        //    那個旗標是 AI 走位讓路的唯一依據（見 MiscAI.NormalMovement.OwnsMovement），
+        //    而它原本是跨幀留值的 static bool ⇒ 只要本幀沒跑到那個模組
+        //    （排在前面的模組擲例外、模組被 class/level 濾掉、Execute 自己爆掉…），
+        //    AI 就會照著上一次的 true 永久讓位，兩邊都不動而且完全不報錯。
+        MiscAI.NormalMovement.ReleaseMovementOwnership();
+
         // auto actions
         var target = Hints.ForcedTarget ?? WorldState.Actors.Find(Player?.TargetID ?? 0);
         for (var i = 0; i < ActiveModules.Count; ++i)

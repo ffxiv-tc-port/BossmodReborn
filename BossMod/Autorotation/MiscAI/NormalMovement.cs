@@ -37,13 +37,50 @@ public sealed class NormalMovement : RotationModule
     /// 本模組整場不碰移動，這時必須讓舊 AI 照舊接管，否則兩邊都不動。
     /// </para>
     /// <para>
-    /// 📌 時序上安全：本旗標在 <see cref="Execute"/> 的<b>最前面</b>設定（早於所有提早 return），
-    /// 而 <c>_rotation.Update()</c> 每幀都在 <c>_ai.Update()</c> 之前跑，所以 AI 讀到的一定是本幀的值。
-    /// 模組不在啟用中的預設集裡時 <see cref="Instance"/> 會在 <see cref="Dispose"/> 被清成 null
+    /// 🔴🔴 <b>擁有權每幀都必須重新舉手，不是設一次就永久成立。</b>
+    /// 這一段原本寫的是「<c>_rotation.Update()</c> 每幀都在 <c>_ai.Update()</c> 之前跑，
+    /// 所以 AI 讀到的一定是本幀的值」——<b>那句話是錯的</b>，而且錯的方向是永久卡死：
+    /// <list type="number">
+    /// <item><c>AIBehaviour.Execute</c> 是 <c>async</c> 而且被 <c>_ = </c> 丟著不等，中間隔了
+    /// <c>await Task.Run(NavigationDecision.Build)</c>；真正讀本旗標的 <c>UpdateMovement</c> 跑在
+    /// <b>執行緒集區的接續</b>上，時間點與「本幀」無關。</item>
+    /// <item><c>RotationModuleManager.Update</c> 的模組迴圈裡，只要<b>排在前面的模組擲例外</b>，
+    /// 本模組的 <see cref="Execute"/> 這一幀就完全不會被呼叫，但 <see cref="Instance"/> 還在。</item>
+    /// <item>本模組自己的 <see cref="Execute"/> 擲例外也一樣（這不是假想：GreedAutomatic 的
+    /// <c>IndexOutOfRangeException</c> 就是實機發生過的，症狀正是「標線照畫但角色不走」）。</item>
+    /// </list>
+    /// 上面任何一條發生時，舊寫法都會把旗標<b>留在最後一次的 true</b>，而 AI 那邊看到 true 就永遠讓位
+    /// ⇒ 兩邊都不動、而且完全不報錯。
+    /// ⇒ 正解＝<b>生命週期只有一次 rotation 更新</b>：
+    /// <see cref="ReleaseMovementOwnership"/> 由 <c>RotationModuleManager.Update</c> 在跑模組迴圈<b>之前</b>
+    /// 把旗標放下，<see cref="Execute"/> 再重新舉起來；<see cref="Execute"/> 半路擲例外時也會放下。
+    /// </para>
+    /// <para>
+    /// ⚠️ 讓位的判準仍然刻意留在<b>所有提早 return 之前</b>（那正是 .52 的重點，別退回去）：
+    /// 那些 return 是「這一幀不移動」而不是「不再負責移動」，拿它們當判準會讓舊 AI 正好在本模組
+    /// 刻意站住不動的那些幀插進來（例如擊退結算中）。這次改的只有<b>旗標的壽命</b>，不是判準。
+    /// </para>
+    /// <para>
+    /// 📌 模組不在啟用中的預設集裡時 <see cref="Instance"/> 會在 <see cref="Dispose"/> 被清成 null
     /// （<c>RotationModuleManager.DirtyActiveModules</c> 會 Dispose 掉舊模組），於是自動退回舊行為。
     /// </para>
     /// </remarks>
     public static bool OwnsMovement => Instance?._ownsMovement ?? false;
+
+    /// <summary>
+    /// 把移動擁有權放下。由 <c>RotationModuleManager.Update</c> 在跑模組迴圈<b>之前</b>呼叫，
+    /// 本模組若這一幀真的有跑，會在 <see cref="Execute"/> 最前面重新舉手。
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ 放下與重新舉起之間會有一小段「無人舉手」的空窗（同一次同步的 <c>Update()</c> 之內，
+    /// 排在本模組前面的其他模組執行的那段時間，量級是微秒）。AI 的接續剛好落在那個空窗時，
+    /// 最多讓舊 AI 多寫一次導航目標＝<b>最多一次的抖動</b>；相對於舊寫法的<b>永久卡死</b>，這個取捨是刻意的。
+    /// </remarks>
+    public static void ReleaseMovementOwnership()
+    {
+        if (Instance is { } m)
+            m._ownsMovement = false;
+    }
 
     // ---- 顯示層（純顯示，不參與任何移動決策）----
 
@@ -140,6 +177,22 @@ public sealed class NormalMovement : RotationModule
         var destinationStrategy = destinationOpt.As<DestinationStrategy>();
         _ownsMovement = destinationStrategy != DestinationStrategy.None;
 
+        // 🔴 半路擲例外＝這一幀我們什麼都沒決定，就不能繼續佔著移動擁有權：
+        //    舊寫法會把 true 留在旗標上，而 Execute 從此每幀都在同一個地方爆掉 ⇒ AI 永久讓位、
+        //    兩邊都不動。刻意**不吞**例外（照樣往上丟給 Dalamud 記 log），只是先把手放下。
+        try
+        {
+            ExecuteCore(strategy, primaryTarget, destinationOpt, destinationStrategy);
+        }
+        catch
+        {
+            _ownsMovement = false;
+            throw;
+        }
+    }
+
+    private void ExecuteCore(StrategyValues strategy, Actor? primaryTarget, StrategyValues.OptionRef destinationOpt, DestinationStrategy destinationStrategy)
+    {
         // do nothing if we're already being moved by some other module (i.e. quest battle pathfinding)
         if (Hints.ForcedMovement != null)
             return;
