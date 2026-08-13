@@ -61,12 +61,18 @@ public sealed class NormalMovement : RotationModule
     /// 刻意站住不動的那些幀插進來（例如擊退結算中）。
     /// </para>
     /// <para>
-    /// 🔴🔴 <b>唯一的例外是「尋路回不出目的地」</b>（.57 加）：那不是「我決定不動」而是<b>「我沒有意見」</b>。
+    /// 🔴🔴 <b>唯一的例外是「尋路連續 <see cref="NoDestinationHoldSeconds"/> 秒回不出目的地」</b>
+    /// （.57 加、.58 補上遲滯）：那不是「我決定不動」而是<b>「我沒有意見」</b>。
     /// 兩者的差別是可以驗證的——本模組跑在 <c>_rotation.Update()</c> 裡，而 <c>AIBehaviour</c> 自己的
     /// 目標區（跟隨主人、閃避方向偏好、pre-dodge 錨點、「沒人給目標區就走向目標」的退路）是在
     /// <c>_ai.Update()</c> 才加進 <c>hints</c> 的，本模組<b>這一幀根本讀不到</b>。
     /// 沒有意見時繼續佔著擁有權＝兩邊都不動，而且完全不報錯（實機 2026-08-13 深牢：擁有權常駐本模組
     /// 七分鐘、角色零移動、log 零翻轉）。單一擁有者原則沒有被破壞：只要算得出目的地就仍然獨佔。
+    /// <br/>
+    /// 🔴 <b>但「立刻交還」是錯的</b>——實機 2026-08-14 量到 1578 次完整換手循環、拿回段中位數只有
+    /// 86ms（p25 20ms）。逐幀換手＝兩套不同的權重場輪流寫方向＝使用者看到的走走停停，
+    /// 也就是 .52 修掉的那個抖動從這個新開的口子跑回來。⇒ 交還必須遲滯，見
+    /// <see cref="NoDestinationHoldSeconds"/>。
     /// </para>
     /// <para>
     /// 📌 模組不在啟用中的預設集裡時 <see cref="Instance"/> 會在 <see cref="Dispose"/> 被清成 null
@@ -272,12 +278,27 @@ public sealed class NormalMovement : RotationModule
             //       抖動情境（.52 修的那個）完全不受影響。
             if (destinationStrategy != DestinationStrategy.None)
             {
-                _ownsMovement = false;
-                LogNoDestination(true, in navi);
+                // 🔴🔴 交還擁有權要**遲滯**，不能一算不出來就立刻放手（.58 加，見 NoDestinationHoldSeconds）。
+                _noDestinationSince ??= World.CurrentTime;
+                var heldFor = (float)(World.CurrentTime - _noDestinationSince.Value).TotalSeconds;
+                if (heldFor >= NoDestinationHoldSeconds)
+                {
+                    _ownsMovement = false;
+                    LogNoDestination(true, in navi, heldFor);
+                }
+                else
+                {
+                    ++_noDestinationSuppressed;
+                }
             }
             return; // nothing to do
         }
-        LogNoDestination(false, in navi);
+        // 算得出目的地 ⇒ 遲滯計時歸零。升級永遠即時，只有降級要等——與深牢座標閘門同一套不對稱。
+        // ⚠️ 計數也要在這裡歸零，不能只在 LogNoDestination 裡歸零：遲滯期間就恢復的那些循環
+        //    根本不會走到那一行（那正是本次修正要消滅的多數情況），計數會一路累加下去。
+        _noDestinationSince = null;
+        _noDestinationSuppressed = 0;
+        LogNoDestination(false, in navi, default);
 
         // 顯示層：下面的 Range 策略可能把 Destination 換成「維持輸出距離」的位置，換掉之後
         // NextWaypoint 就不再是同一條路徑上的下一點，照畫會多出一段指向舊路徑的假線。
@@ -449,6 +470,48 @@ public sealed class NormalMovement : RotationModule
     /// <summary>上一次記過的「這一段有沒有目的地」；用來只在<b>狀態翻轉</b>時記一行 log。</summary>
     private bool _loggedNoDestination;
 
+    /// <summary>從哪一刻起連續算不出目的地；null＝上一次算得出來。</summary>
+    private DateTime? _noDestinationSince;
+
+    /// <summary>遲滯期間吞掉了幾次「算不出目的地」；只用來在真的交還時報出規模。</summary>
+    private int _noDestinationSuppressed;
+
+    /// <summary>
+    /// 「算不出目的地」要連續持續這麼久，才真的把移動擁有權交還給舊的 AI 走位（秒）。
+    /// </summary>
+    /// <remarks>
+    /// 🔴🔴 <b>沒有這道遲滯的話，.57 修好「永久卡死」的同時會把 .52 修好的「角色抖動」放回來。</b>
+    /// 實機 2026-08-14 深牢 61~70 層一小時的 log 直接量到了：
+    /// <list type="bullet">
+    /// <item>完整的「交還→拿回」循環 <b>1578 次</b>（[NormalMovement] 那兩行各 1578／1766 筆）。</item>
+    /// <item>拿回擁有權的那一段有多短：<b>p25 只有 20ms、中位數 86ms</b>——也就是 1~5 幀。
+    /// 20ms 的「我沒有意見」不是判斷，是雜訊。</item>
+    /// <item>交還的那一段中位數 137ms。兩邊都短 ⇒ 每秒鐘換手好幾次。</item>
+    /// </list>
+    /// 換手為什麼會表現成走走停停：兩邊<b>不是同一個尋路</b>——
+    /// <c>AIBehaviour.BuildNavigationDecision</c> 會另外加自己的目標區（閃避方向偏好、
+    /// pre-dodge 錨點、跟隨主人），而且用的是 <c>_config.PreferredDistance</c> 當禁區緩衝，
+    /// 本模組用的是 <see cref="Track.ForbiddenZoneCushion"/>。不同的權重場＝不同的目的地，
+    /// 於是每次換手方向就跳一次。它還跑在 <c>Task.Run</c> 的接續上，用的是<b>上一幀</b>的決策。
+    /// 使用者若把 AI 的 <c>MoveDelay</c> 調成非 0，每次「null→非 null」還會重新起算一次延遲
+    /// （<c>AIBehaviour.cs</c> 的 <c>_navStartTime</c>），那就變成每次換手都真的站住。
+    /// <para>
+    /// 🔑 取 0.5 秒的理由：它要大於「雜訊」又要遠小於「真的卡住」。實測雜訊窗 p90 是 656ms 的
+    /// 拿回段與 137ms 的交還段；而 .56 那次真正的卡死是<b>七分鐘</b>零翻轉。0.5 秒把 p25=20ms
+    /// 這一類全部濾掉，同時讓真卡死在半秒內就交出去——兩個量級差了三個數量級，不是險勝。
+    /// </para>
+    /// <para>
+    /// ⚠️ 遲滯期間本模組仍然持有擁有權而且不寫方向＝角色站著不動，最多半秒。這是刻意的取捨：
+    /// 相對於「每秒換手好幾次」，半秒的靜止對使用者是<b>更小</b>的干擾，而且只發生在尋路真的
+    /// 算不出東西的時候。
+    /// </para>
+    /// <para>
+    /// 📌 這道遲滯<b>只擋降級</b>：一算得出目的地就立刻拿回擁有權，不等任何時間。
+    /// 與深牢座標閘門 <c>CoordGateHoldSeconds</c> 是同一套設計，理由也相同。
+    /// </para>
+    /// </remarks>
+    private const float NoDestinationHoldSeconds = 0.5f;
+
     /// <summary>
     /// 把「本模組這一段算不出目的地、因此把移動擁有權交還給 AI」講出來，並且<b>一行講完為什麼</b>。
     /// </summary>
@@ -459,14 +522,24 @@ public sealed class NormalMovement : RotationModule
     /// 📌 走 <c>Information</c>：使用者的 LogLevel 是 2，Debug/Verbose 收不到。
     /// 🔴 只在翻轉時印。這支每幀都會被呼叫到。
     /// </remarks>
-    private void LogNoDestination(bool stuck, in NavigationDecision navi)
+    private void LogNoDestination(bool stuck, in NavigationDecision navi, float heldFor)
     {
         if (stuck == _loggedNoDestination)
             return;
         _loggedNoDestination = stuck;
-        Service.Logger.Information(stuck
-            ? $"[NormalMovement] 這一段算不出目的地，移動擁有權交還給 AI 自動走位：{navi.DiagSummary()}"
-            : "[NormalMovement] 重新算得出目的地，移動擁有權回到「自動移動」模組。");
+        if (stuck)
+        {
+            // 遲滯吞掉的次數要報出來：它就是「本來會發生幾次換手」的規模，也是下一輪判斷
+            // NoDestinationHoldSeconds 該不該調整的唯一離線依據。
+            var suppressed = _noDestinationSuppressed;
+            Service.Logger.Information(
+                $"[NormalMovement] 已連續 {heldFor:f1}s 算不出目的地（遲滯門檻 {NoDestinationHoldSeconds:f1}s、" +
+                $"期間吞掉 {suppressed} 幀），移動擁有權交還給 AI 自動走位：{navi.DiagSummary()}");
+        }
+        else
+        {
+            Service.Logger.Information("[NormalMovement] 重新算得出目的地，移動擁有權回到「自動移動」模組。");
+        }
     }
 
     /// <summary>

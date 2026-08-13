@@ -40,8 +40,17 @@ public struct NavigationDecision
     /// <summary>玩家格的目標權重。</summary>
     public float DiagPlayerPriority;
 
-    /// <summary>整張權重場的最高權重。</summary>
+    /// <summary>整張權重場的最高權重（<b>含走不到的格子</b>）。</summary>
     public float DiagMaxPriority;
+
+    /// <summary>這一次搜尋真的走得到的格子裡最高的權重。見 <see cref="ThetaStar.MaxReachedPriority"/>。</summary>
+    public float DiagReachablePriority;
+
+    /// <summary>整個可達區域都探過了（開放清單掃空）。</summary>
+    public bool DiagSearchExhausted;
+
+    /// <summary>這一次尋路展開了幾格。</summary>
+    public int DiagSearchSteps;
 
     /// <summary>
     /// 把「尋路這一次到底看到了什麼」寫成一行。
@@ -71,9 +80,16 @@ public struct NavigationDecision
                     : "目標區沒有被畫上權重場（詠唱中，或玩家腳下已經在危險區裡，安全優先）"
                 : DiagMaxPriority <= DiagPlayerPriority
                     ? "權重場在玩家腳下是平的（玩家格的權重已經等於場上最高）⇒ 尋路認定「已經在最佳位置」"
-                    : "權重場有高低差，但更好的格子到不了（多半被禁區或障礙物隔開）";
+                    // 🔑 這裡以前只有一句「更好的格子到不了」，而那句把兩種完全不同的病混在一起。
+                    //    分辨它們的唯一數字就是「走得到的最高權重」——見 ThetaStar.MaxReachedPriority。
+                    : DiagReachablePriority <= DiagPlayerPriority + 1e-4f
+                        ? (DiagSearchExhausted
+                            ? "整個可達區域都探過了，走得到的最高權重就是玩家腳下這一格 ⇒ 玩家卡在局部最高點（更高的權重被禁區／障礙物隔在外面）"
+                            : "走得到的最高權重就是玩家腳下這一格，但搜尋沒有掃完可達區域 ⇒ 提早收斂")
+                        : "走得到更好的格子，尋路卻沒有採用 ⇒ 這是尋路自己的問題，不是目標區的問題";
         return $"目標區 {DiagGoalZones} 個、已畫上權重場={(DiagGoalsRasterized ? "是" : "否")}、玩家格在視窗內={(DiagPlayerInWindow ? "是" : "否")}、" +
-            $"玩家格危險度={FormatMaxG(DiagPlayerMaxG)}、玩家格權重={DiagPlayerPriority:f2}、場上最高權重={DiagMaxPriority:f2} ⇒ {why}";
+            $"玩家格危險度={FormatMaxG(DiagPlayerMaxG)}、玩家格權重={DiagPlayerPriority:f2}、場上最高權重={DiagMaxPriority:f2}、" +
+            $"走得到的最高權重={DiagReachablePriority:f2}、展開 {DiagSearchSteps} 格{(DiagSearchExhausted ? "（已掃完）" : "")} ⇒ {why}";
     }
 
     private static string FormatMaxG(float g) => g == float.MaxValue ? "安全" : g < 0f ? "不可通行" : $"{g:f2}s";
@@ -150,7 +166,10 @@ public struct NavigationDecision
             DiagPlayerInWindow = playerInWindow,
             DiagPlayerMaxG = playerInWindow ? ctx.Map.PixelMaxG[playerCell] : default,
             DiagPlayerPriority = playerInWindow ? ctx.Map.PixelPriority[playerCell] : default,
-            DiagMaxPriority = ctx.Map.MaxPriority
+            DiagMaxPriority = ctx.Map.MaxPriority,
+            DiagReachablePriority = ctx.ThetaStar.MaxReachedPriority,
+            DiagSearchExhausted = ctx.ThetaStar.OpenListExhausted,
+            DiagSearchSteps = ctx.ThetaStar.NumSteps
         };
     }
 
