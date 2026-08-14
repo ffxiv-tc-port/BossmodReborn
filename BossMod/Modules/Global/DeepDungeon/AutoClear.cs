@@ -2521,6 +2521,17 @@ public abstract class AutoClear : ZoneModule
         _coordMemoDistance = -1f;
         _coordMemoRoom = -1;
         _doorGateLogged = null;
+
+        // 大廳層的狀態也一起歸零。半套狀態（新樓層 + 舊大廳格心）與上面那條註解是同一個病。
+        _hallMode = false;
+        _hallCenterSource = HallCenterSource.None;
+        _hallFitCells = 0;
+        _hallFloorSince = default;
+        _hallNextSample = default;
+        _hallNextFit = default;
+        Array.Clear(_hallSampleN);
+        Array.Clear(_hallSampleX);
+        Array.Clear(_hallSampleZ);
     }
 
     /// <summary>對某一面評分：本人離「遊戲回報的那間房」多遠、離本人最近的是哪一間。</summary>
@@ -2597,6 +2608,11 @@ public abstract class AutoClear : ZoneModule
         distance = -1f;
         reportedRoom = FindPlayerRoom(player, out var reason, out var rawRoom);
         var pos = player.Position;
+
+        // 大廳層沒有固定格心表時，拿本人在房內的位置即時擬合（自我校準閘門在 TryFitHallCenters）。
+        // 🔴 必須放在下面那個 early return **之前**：擬合成功之前 _activeFace 就是 -1，
+        //    放在後面等於永遠收不到樣本，而失敗形式是「大廳永遠停在摘要模式」——完全不報錯。
+        AccumulateHallSample(reportedRoom, pos);
 
         // 🔴 這兩條路徑以前是直接 `return Unknown`——不印 log、也不動 _coordGateLoggedState。
         //    現在改成走到底下同一個記錄點，才有辦法在下一次實跑時一行定死因。
@@ -2698,7 +2714,7 @@ public abstract class AutoClear : ZoneModule
             _coordGateLoggedState = state;
             _coordGateLoggedReason = reason;
 
-            var face = _activeFace == 0 ? "A" : _activeFace == 1 ? "B" : "未載入";
+            var face = FaceName();
             // 要使用者回報才查得出台服座標對不對，所以走 Information（使用者的 LogLevel 是 2）。
             if (state == RoomCoordState.Unknown)
             {
@@ -3482,8 +3498,12 @@ public abstract class AutoClear : ZoneModule
         {
             _doorGateLogged = gateOk;
             Service.Logger.Information(gateOk
-                ? $"[DD] 門口路點：樓層 {Palace.Floor} 啟用（版面 {(_activeFace == 0 ? "A" : "B")}、房間 {playerRoom} 往 {d} 到 {next}）。"
-                : $"[DD] 門口路點：樓層 {Palace.Floor} 不啟用，退回原本的方向啟發式（座標校驗或門口自我檢查沒過）。");
+                ? $"[DD] 門口路點：樓層 {Palace.Floor} 啟用（版面 {FaceName()}、房間 {playerRoom} 往 {d} 到 {next}）。"
+                // 🔑 大廳層是「本來就沒有門」而不是「閘門沒過」，兩者要分得出來——
+                //    大廳 12 格互通，門口路點對它沒有意義，只留方向場才是正解。
+                : _hallMode
+                    ? $"[DD] 門口路點：樓層 {Palace.Floor} 是大廳層（無內牆 12 格），沒有門口座標可用，只保留方向場。"
+                    : $"[DD] 門口路點：樓層 {Palace.Floor} 不啟用，退回原本的方向啟發式（座標校驗或門口自我檢查沒過）。");
         }
 
         if (!gateOk)
@@ -3547,17 +3567,36 @@ public abstract class AutoClear : ZoneModule
         ResetCoordGate();
         _loadedLayout = (Palace.Floor, Palace.Progress.Tileset);
 
+        // ── 大廳層（無內牆的稠密 12 格版面）────────────────────────────────
+        // 🔴 上游原本在這裡用 `Palace.Progress.Tileset == 2` 判大廳（並印 "hall of fallacies"），
+        //    那在台服是**死條件**：2026-08-14 天之御柱 1~40 層實機 log 離線實算，四個大廳層
+        //    （15／17／28／34）回報的 Progress.Tileset **全是 0**，那行從頭到尾一次都沒印過。
+        //    後果是大廳層照樣去載一般層的 A／B 座標表，而大廳的實體位置在第三象限
+        //    （X>0 且 Z>0 —— 全部 80 個版面裡，A 面恆在 X<0/Z>0、B 面恆在 X>0/Z<0，
+        //    兩面都不涵蓋大廳），於是座標校驗恆差 665~723y，整層退化成摘要模式。
+        //    ⇒ 那個判斷式已移除，改用 MapData 自己的形狀判定（見 <see cref="DetectHall"/>）。
+        _hallMode = DetectHall();
+        if (_hallMode)
+        {
+            _hallFloorSince = World.CurrentTime;
+            var table = BuildHallCentersFromTable();
+            if (table != null)
+                ApplyHallFace(table, HallCenterSource.FixedTable, "固定表（天之御柱大廳，離線擬合）");
+            else
+                Service.Logger.Information(
+                    $"[DD] 大廳層偵測到：樓層 {Palace.Floor}、迷宮 {Palace.DungeonId}，" +
+                    $"但沒有這個迷宮的大廳格心表 ⇒ 改用本層即時擬合" +
+                    $"（要 {HallFitMinCells} 格以上、每格 {HallFitMinSamplesPerCell} 筆以上樣本才會啟用）。");
+            // 🔴 大廳層不載一般層的 A／B 表——載了就是「用差 700y 的座標去比」，
+            //    而那正是這個功能要修掉的病。
+            return;
+        }
+
         var floorset = Palace.Floor / 10;
         var key = $"{(int)Palace.DungeonId}.{floorset + 1}";
         if (!LoadedFloors.Walls.TryGetValue(key, out var floor))
         {
             Service.Log($"unable to load floorset {key}");
-            return;
-        }
-
-        if (Palace.Progress.Tileset == 2)
-        {
-            Service.Log($"hall of fallacies - nothing to do");
             return;
         }
 
@@ -3727,7 +3766,7 @@ public abstract class AutoClear : ZoneModule
 
         if (filled > 0)
             Service.Logger.Information(
-                $"[DD] 房間中心網格擬合：補了 {filled} 格（樓層 {Palace.Floor}、版面 {(_activeFace == 0 ? "A" : "B")}），" +
+                $"[DD] 房間中心網格擬合：補了 {filled} 格（樓層 {Palace.Floor}、版面 {FaceName()}），" +
                 $"最大殘差 {maxResidual:f1}y、X={ax:f1}+{bx:f1}·col、Z={az:f1}+{bz:f1}·row");
     }
 
@@ -3761,12 +3800,413 @@ public abstract class AutoClear : ZoneModule
         }
 
         // 半幅 + 8y 餘裕；下限維持原本的 35y（只會變寬，不可能讓既有行為退步）
-        var tol = Math.Clamp(maxNearest * 0.5f + 8f, RoomCenterToleranceFloor, RoomCenterToleranceCap);
+        var tol = Math.Clamp(maxNearest * (_hallMode ? HallToleranceFactor : 0.5f) + 8f, RoomCenterToleranceFloor, RoomCenterToleranceCap);
         Service.Logger.Information(
-            $"[DD] 房間歸屬容許誤差：樓層 {Palace.Floor}、版面 {(_activeFace == 0 ? "A" : "B")}、" +
+            $"[DD] 房間歸屬容許誤差：樓層 {Palace.Floor}、版面 {FaceName()}、" +
             $"最大最近鄰房距 {maxNearest:f1}y ⇒ 採用 {tol:f1}y");
         return tol;
     }
+
+    #endregion
+
+    #region 大廳層（無內牆的稠密 12 格版面）
+
+    /// <summary>大廳層的格數：3 列 × 4 欄。</summary>
+    private const int HallCellCount = 12;
+
+    /// <summary>大廳格心用的 <see cref="Wall.Depth"/>，沿用 <see cref="LoadedFloors"/> 對中心點的慣例值。</summary>
+    private const float HallCenterDepth = 0.25f;
+
+    /// <summary>
+    /// 大廳層的房間歸屬容許誤差係數（取代一般層的 0.5）。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>大廳非用大一點的係數不可，而理由不是「怕算不準」。</b>一般層的格子被牆隔開，
+    /// 角色能站的位置離房中心有限；大廳 12 格完全互通，角色可以站到格子的**對角**上，
+    /// 而 52×51 格的半對角線是 36.3y —— 已經超過 <c>0.5×間距+8</c> 算出來的 35.0y。
+    /// 2026-08-14 拿實機 log 的 75 筆房間交界樣本實算：0.5 的係數有 7 筆超出容許（最大 38.2y），
+    /// 0.75 則是 75/75 全部涵蓋。超出的後果是閘門在角落站久了就翻成不通過，
+    /// 小地圖上已定位的標記連環閃爍。
+    /// <para>
+    /// 📌 放寬距離門檻**不會**放寬正確性：<see cref="ScoreFace"/> 另外要求
+    /// 「離本人最近的房間就是遊戲回報的那一間」，辨別力來自那一條。距離門檻要抓的是
+    /// 「整份座標表根本在別的地方」（實測差 665~723y），48y 與 35y 對那件事沒有差別。
+    /// </para>
+    /// </remarks>
+    private const float HallToleranceFactor = 0.75f;
+
+    /// <summary>本層是不是大廳層。</summary>
+    private bool _hallMode;
+
+    /// <summary>大廳格心是哪來的。</summary>
+    private HallCenterSource _hallCenterSource;
+
+    private enum HallCenterSource
+    {
+        /// <summary>還沒有格心：剛偵測到大廳，或即時擬合還沒通過自我校準。</summary>
+        None,
+        /// <summary>離線量測寫死的固定表。</summary>
+        FixedTable,
+        /// <summary>本層即時擬合出來的。</summary>
+        LiveFit
+    }
+
+    #region 天之御柱大廳的固定格心表
+
+    /// <summary>
+    /// 天之御柱大廳層的格心線性模型：<c>X = 原點 + 間距 × col</c>、<c>Z = 原點 + 間距 × row</c>。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 📌 <b>資料來源</b>：2026-08-14 天之御柱 1~40 層實機 log 的「房間位置普查」
+    /// （<c>WorldStateGameSync</c> 那份 2Hz 定時取樣），四個大廳層（15／17／28／34）
+    /// 共 1580 筆房內樣本，加權合併後兩軸各做一次最小平方直線擬合。
+    /// </para>
+    /// <para>
+    /// 🔑 <b>為什麼一張表就夠</b>：那四層橫跨三組樓層（11-20／21-30／31-40），
+    /// 逐層各自擬合出來的網格互判是滿分——把任一層的模型拿去判其他三層的房間質心，
+    /// 42 個樣本裡 41~42 個判回自己（row/col 對調的負對照只有 0.238）。
+    /// 也就是說<b>大廳是天之御柱裡一塊固定的實體區域</b>，與樓層組無關；
+    /// 這與一般層正好相反（一般層的 A／B 表逐樓層組都不同）。
+    /// </para>
+    /// <para>
+    /// 🔑 <b>為什麼用線性模型而不是逐格質心</b>：兩者的留一層交叉驗證幾乎同分
+    /// （質心 42/42、線性 41/42），但那個測試是<b>偏心的</b>——它拿「玩家走位平均」去預測
+    /// 「玩家走位平均」，而我們真正要的是房間中心。改用獨立估計量（房間交界穿越樣本的
+    /// 外接框中點）比對，線性模型平均偏差 7.7y、逐格質心 8.7y，線性勝；
+    /// 在交界樣本上判對房間的比率也是線性較高（0.653 對 0.573）。
+    /// 線性模型只有 4 個參數（逐格質心有 24 個），對只有四層的樣本比較不會過擬合。
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>只有這個迷宮有表。</b>死者宮殿與厄運迷宮的大廳沒有任何量測資料，
+    /// 拿這組數字去套會是「差幾百碼」等級的錯誤 —— 所以
+    /// <see cref="BuildHallCentersFromTable"/> 硬性檢查迷宮種類，其他迷宮走即時擬合。
+    /// </para>
+    /// </remarks>
+    private const float HohHallOriginX = 222.62f;
+    private const float HohHallSpacingX = 52.81f;
+    private const float HohHallOriginZ = 199.52f;
+    private const float HohHallSpacingZ = 51.35f;
+
+    /// <summary>
+    /// 固定表實測涵蓋的格位範圍（列 1..3、欄 0..3）。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 四個大廳層的 MapData 佔用格位<b>一模一樣</b>（房號 5~8／10~13／15~18，
+    /// 連通位元逐格逐位元相同）。超出這個矩形的格位從來沒被量到過，
+    /// 硬把線性模型外推過去就是在猜 —— 寧可退回即時擬合。
+    /// </remarks>
+    private const int HohHallMinRow = 1;
+    private const int HohHallMaxRow = 3;
+    private const int HohHallMinCol = 0;
+    private const int HohHallMaxCol = 3;
+
+    /// <summary>照固定表算出這一層的格心；沒有可用的表時回 <c>null</c>。</summary>
+    private WPos?[]? BuildHallCentersFromTable()
+    {
+        if (Palace.DungeonId != DeepDungeonState.DungeonType.HOH)
+            return null;
+
+        var centers = new WPos?[DeepDungeonState.NumRooms];
+        for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+        {
+            if ((byte)Palace.Rooms[i] == 0)
+                continue;
+            var row = i / 5;
+            var col = i % 5;
+            if (row < HohHallMinRow || row > HohHallMaxRow || col < HohHallMinCol || col > HohHallMaxCol)
+                return null;
+            centers[i] = new WPos(HohHallOriginX + HohHallSpacingX * col, HohHallOriginZ + HohHallSpacingZ * row);
+        }
+        return centers;
+    }
+
+    #endregion
+
+    /// <summary>
+    /// 本層是不是大廳層：<b>12 格、稠密矩形、內部每一對相鄰格都互通</b>。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 🔴 <b>刻意不用 <c>Progress.Tileset == 2</c></b> —— 那在台服是死條件，實測大廳層回報 0。
+    /// 改成問 MapData 自己的形狀，因為「無內牆」本來就是大廳的定義，而 MapData 的低四位元
+    /// 就是四向連通旗標，這是遊戲自己送過來的、不是我們猜的。
+    /// </para>
+    /// <para>
+    /// 📌 <b>MapData 是靜態版面而不是逐步揭露的。</b>這一點必須成立，否則進場那一刻判不出來。
+    /// 2026-08-14 對 41 個樓層實算：玩家實際待過的每一間房，在<b>進場那一幀</b>的 MapData 就已經
+    /// 是非零了（反例 0 個）。<c>Revealed</c> 是另一個位元（0x80），與「這一格是不是房間」無關。
+    /// </para>
+    /// <para>
+    /// 🔑 <b>判準的誤判率是量出來的</b>：同一份 log 的 41 個樓層，命中 4/4 個大廳、0/37 誤判
+    /// （一般層最多 7 格，離 12 格很遠）。判準刻意嚴格到「剛好 12 格」——
+    /// 別的形狀的大廳我們沒有任何資料，寧可維持今天的行為也不要誤判成大廳，
+    /// 因為誤判的代價是把一般層那份**本來是對的**座標表整個關掉。
+    /// </para>
+    /// </remarks>
+    private bool DetectHall()
+    {
+        var count = 0;
+        int minRow = 5, maxRow = -1, minCol = 5, maxCol = -1;
+        for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+        {
+            if ((byte)Palace.Rooms[i] == 0)
+                continue;
+            ++count;
+            var row = i / 5;
+            var col = i % 5;
+            if (row < minRow)
+                minRow = row;
+            if (row > maxRow)
+                maxRow = row;
+            if (col < minCol)
+                minCol = col;
+            if (col > maxCol)
+                maxCol = col;
+        }
+
+        if (count != HallCellCount)
+            return false;
+        // 稠密矩形：外接框的面積要剛好等於格數
+        if ((maxRow - minRow + 1) * (maxCol - minCol + 1) != count)
+            return false;
+
+        // 內部無牆：每一對相鄰格的連通旗標**兩側都要有**。
+        // ⚠️ 兩側都檢查是刻意的——旗標理論上對稱，但「理論上」不是查證。
+        for (var row = minRow; row <= maxRow; ++row)
+        {
+            for (var col = minCol; col <= maxCol; ++col)
+            {
+                var cur = Palace.Rooms[row * 5 + col];
+                if (row < maxRow)
+                {
+                    var south = Palace.Rooms[(row + 1) * 5 + col];
+                    if (!cur.HasFlag(RoomFlags.ConnectionS) || !south.HasFlag(RoomFlags.ConnectionN))
+                        return false;
+                }
+                if (col < maxCol)
+                {
+                    var east = Palace.Rooms[row * 5 + col + 1];
+                    if (!cur.HasFlag(RoomFlags.ConnectionE) || !east.HasFlag(RoomFlags.ConnectionW))
+                        return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// 用一份格心座標組出「只有中心、沒有門」的版面表。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 四個方向欄位刻意留 <c>default</c>：<see cref="ApplyFace"/> 只在方向欄位<b>不是</b>
+    /// default 時才把它當成關著的門加進 <see cref="Walls"/> —— 所以大廳層一道牆都不會注入。
+    /// 大廳 12 格互通，注入錯誤的牆會把走廊封死，而尋路失敗的外顯是「角色站著不動」，
+    /// 完全看不出跟牆有關。同理 <see cref="TryGetDoor"/> 會回 false，門口路點自動退回方向場。
+    /// </remarks>
+    private static Tileset<Wall> BuildCenterOnlyFace(WPos?[] centers)
+    {
+        var rooms = new RoomData<Wall>[DeepDungeonState.NumRooms];
+        for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+            rooms[i] = new RoomData<Wall>(
+                centers[i] is WPos c ? new Wall(c, HallCenterDepth) : default,
+                default, default, default, default);
+        return new Tileset<Wall>(rooms);
+    }
+
+    /// <summary>把一份大廳格心套進去當作唯一的版面。</summary>
+    /// <remarks>
+    /// 🔴 <b>B 面留成 null 是刻意的</b>：鏡像自我校準比的是相距約 845y 的兩份版面，
+    /// 大廳只有一份座標，那道機制在這裡沒有意義（而且它會拿「另一面」去搶，只會搗亂）。
+    /// <see cref="ComputeRoomCoords"/> 的換面分支要求 <c>_faceA != null &amp;&amp; _faceB != null</c>，
+    /// 所以留 null 就自然停用，不需要多一個旗標。
+    /// </remarks>
+    private void ApplyHallFace(WPos?[] centers, HallCenterSource source, string sourceText)
+    {
+        _hallCenterSource = source;
+        _faceA = BuildCenterOnlyFace(centers);
+        _faceB = null;
+        ApplyFace(0);
+        Service.Logger.Information(
+            $"[DD] 大廳層格心啟用：樓層 {Palace.Floor}、迷宮 {Palace.DungeonId}、" +
+            $"來源 {sourceText}、容許誤差 {RoomTolerance:f1}y");
+    }
+
+    #region 大廳格心的即時擬合（沒有固定表的迷宮才走這條）
+
+    /// <summary>取樣間隔（秒）。與普查用的 2Hz 一致。</summary>
+    private const double HallSampleIntervalSeconds = 0.5d;
+
+    /// <summary>
+    /// 換層後要靜置這麼久才開始取樣（秒）。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 剛進場那一瞬間角色還在傳送中，回報的是一個與房號完全無關的固定位置
+    /// （實機 log 裡的 (0, -290) 那一組，離房中心 600~740y）。那種樣本會把平均值拉歪，
+    /// 而且外顯只是「離群值大了點」，不像壞掉。
+    /// </remarks>
+    private const double HallSettleSeconds = 2d;
+
+    /// <summary>每隔這麼久試擬合一次（秒）。</summary>
+    private const double HallFitIntervalSeconds = 5d;
+
+    /// <summary>至少要有這麼多格有足夠樣本才准擬合（大廳共 12 格）。</summary>
+    private const int HallFitMinCells = 8;
+
+    /// <summary>一格至少要這麼多筆樣本才算數。</summary>
+    private const int HallFitMinSamplesPerCell = 10;
+
+    /// <summary>
+    /// 擬合的最大容許殘差（碼）。
+    /// </summary>
+    /// <remarks>
+    /// 實機四個大廳層各自擬合的最大殘差是 17.8~26.7y（樣本是玩家走位平均，本來就有走位偏差），
+    /// 所以門檻取 30y：真的擬得出來的過得了，離譜的擋得住。
+    /// </remarks>
+    private const float HallFitMaxResidual = 30f;
+
+    private readonly int[] _hallSampleN = new int[DeepDungeonState.NumRooms];
+    private readonly double[] _hallSampleX = new double[DeepDungeonState.NumRooms];
+    private readonly double[] _hallSampleZ = new double[DeepDungeonState.NumRooms];
+    private DateTime _hallFloorSince;
+    private DateTime _hallNextSample;
+    private DateTime _hallNextFit;
+
+    /// <summary>目前這份即時擬合用了幾格；0＝還沒擬合成功過。</summary>
+    private int _hallFitCells;
+
+    /// <summary>收一筆「本人在遊戲說的那間房裡」的位置樣本，夠了就試擬合。</summary>
+    private void AccumulateHallSample(int reportedRoom, WPos pos)
+    {
+        // 有固定表就不必擬合——固定表在進場那一幀就生效，即時擬合要走過八間房才有結果。
+        if (!_hallMode || _hallCenterSource == HallCenterSource.FixedTable)
+            return;
+        if ((uint)reportedRoom >= DeepDungeonState.NumRooms || (byte)Palace.Rooms[reportedRoom] == 0)
+            return;
+
+        var now = World.CurrentTime;
+        if ((now - _hallFloorSince).TotalSeconds < HallSettleSeconds || now < _hallNextSample)
+            return;
+        _hallNextSample = now.AddSeconds(HallSampleIntervalSeconds);
+        ++_hallSampleN[reportedRoom];
+        _hallSampleX[reportedRoom] += pos.X;
+        _hallSampleZ[reportedRoom] += pos.Z;
+
+        if (now < _hallNextFit)
+            return;
+        _hallNextFit = now.AddSeconds(HallFitIntervalSeconds);
+        TryFitHallCenters();
+    }
+
+    /// <summary>
+    /// 拿累積到的房內位置擬合大廳格心；通過自我校準閘門才真的套用。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 模型與 <see cref="FillMissingRoomCenters"/> 同一套：X 只跟 col 有關、Z 只跟 row 有關，
+    /// 房號＝5×row+col。差別是自變數的樣本來自本層實測而不是寫死的表。
+    /// </para>
+    /// <para>
+    /// 🔴 <b>閘門有三道，任一沒過就整個不套用（＝維持今天的行為）</b>：
+    /// ①覆蓋度——大廳的每一列、每一欄都要有取樣過的格子，否則等於在外推；
+    /// ②自我判定——擬出來的格心要把每一格的樣本質心判回<b>它自己</b>，這正是
+    /// <see cref="ScoreFace"/> 真正依賴的性質；③殘差不得超過 <see cref="HallFitMaxResidual"/>。
+    /// 沒有②就分不出「擬合成功」與「這段程式自己算錯」——離線工具的校準閘門是同一個形狀。
+    /// </para>
+    /// <para>📌 只在「用得比上次多格」時才重新套用，免得每 5 秒抖一次。</para>
+    /// </remarks>
+    private void TryFitHallCenters()
+    {
+        var n = 0;
+        double sumCol = 0d, sumColSq = 0d, sumX = 0d, sumColX = 0d;
+        double sumRow = 0d, sumRowSq = 0d, sumZ = 0d, sumRowZ = 0d;
+        Span<bool> seenRow = stackalloc bool[5];
+        Span<bool> seenCol = stackalloc bool[5];
+
+        for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+        {
+            if (_hallSampleN[i] < HallFitMinSamplesPerCell)
+                continue;
+            var x = _hallSampleX[i] / _hallSampleN[i];
+            var z = _hallSampleZ[i] / _hallSampleN[i];
+            double row = i / 5, col = i % 5;
+            ++n;
+            sumCol += col;
+            sumColSq += col * col;
+            sumX += x;
+            sumColX += col * x;
+            sumRow += row;
+            sumRowSq += row * row;
+            sumZ += z;
+            sumRowZ += row * z;
+            seenRow[i / 5] = true;
+            seenCol[i % 5] = true;
+        }
+
+        if (n < HallFitMinCells || n <= _hallFitCells)
+            return;
+
+        // ① 覆蓋度：大廳用到的每一列與每一欄都要有樣本
+        for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+            if ((byte)Palace.Rooms[i] != 0 && (!seenRow[i / 5] || !seenCol[i % 5]))
+                return;
+
+        var denCol = n * sumColSq - sumCol * sumCol;
+        var denRow = n * sumRowSq - sumRow * sumRow;
+        if (Math.Abs(denCol) < 1e-6d || Math.Abs(denRow) < 1e-6d)
+            return;
+
+        var bx = (n * sumColX - sumCol * sumX) / denCol;
+        var ax = (sumX - bx * sumCol) / n;
+        var bz = (n * sumRowZ - sumRow * sumZ) / denRow;
+        var az = (sumZ - bz * sumRow) / n;
+
+        var centers = new WPos?[DeepDungeonState.NumRooms];
+        for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+            if ((byte)Palace.Rooms[i] != 0)
+                centers[i] = new WPos((float)(ax + bx * (i % 5)), (float)(az + bz * (i / 5)));
+
+        // ②③ 自我判定與殘差
+        var maxResidual = 0f;
+        var total = 0;
+        for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+        {
+            total += _hallSampleN[i];
+            if (_hallSampleN[i] < HallFitMinSamplesPerCell)
+                continue;
+            var mean = new WPos((float)(_hallSampleX[i] / _hallSampleN[i]), (float)(_hallSampleZ[i] / _hallSampleN[i]));
+            var best = -1;
+            var bestSq = float.MaxValue;
+            for (var j = 0; j < DeepDungeonState.NumRooms; ++j)
+            {
+                if (centers[j] is not WPos cj)
+                    continue;
+                var dsq = (cj - mean).LengthSq();
+                if (dsq < bestSq)
+                {
+                    bestSq = dsq;
+                    best = j;
+                }
+            }
+            if (best != i)
+                return;
+            if (centers[i] is not WPos ci)
+                return;
+            maxResidual = Math.Max(maxResidual, Math.Max(Math.Abs(ci.X - mean.X), Math.Abs(ci.Z - mean.Z)));
+        }
+        if (maxResidual > HallFitMaxResidual)
+            return;
+
+        _hallFitCells = n;
+        ApplyHallFace(centers, HallCenterSource.LiveFit,
+            $"即時擬合（{n} 格、{total} 筆樣本、最大殘差 {maxResidual:f1}y、" +
+            $"X={ax:f1}+{bx:f1}·col、Z={az:f1}+{bz:f1}·row）");
+    }
+
+    #endregion
+
+    /// <summary>log 用的版面名稱。大廳層沒有 A／B 之分。</summary>
+    private string FaceName() => _hallMode ? "大廳" : _activeFace == 0 ? "A" : _activeFace == 1 ? "B" : "未載入";
 
     #endregion
 
