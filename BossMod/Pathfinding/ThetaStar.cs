@@ -78,6 +78,16 @@ public sealed class ThetaStar
     public WPos CellCenter(int index) => _map.GridToWorld(index % _map.Width, index / _map.Width, 0.5f, 0.5f);
 
     // gMultiplier is typically inverse speed, which turns g-values into time
+    /// <remarks>
+    /// 🔴🔴 <b><paramref name="gMultiplier"/> 必須是有限的正數，這是本類別的不變式而不是建議。</b>
+    /// 它是 <c>1/速度</c>，速度 0 就會傳進 <c>+∞</c>；<c>_deltaGSide</c> 一旦是 ∞，
+    /// <c>VisitNeighbour</c> 算出的 <c>PathLeeway</c> 就是 <c>float.MaxValue - ∞ = -∞</c>
+    /// ⇒ <see cref="CalculateScore"/> 對<b>每一格</b>都回 <see cref="Score.UnsafeAsStart"/>
+    /// ⇒ 沒有任何格子贏得過起點 ⇒ <see cref="Execute"/> 把整個可達區域掃完後回傳<b>起點</b>，
+    /// 呼叫端看到的是「算不出目的地」，完全不像速度出問題（2026-08-14 深牢實證）。
+    /// 唯一的生產呼叫點 <c>NavigationDecision.Build</c> 已經夾限（見那裡的 <c>NominalPlayerSpeed</c>），
+    /// <b>新增呼叫點時要自己保證這件事</b>。
+    /// </remarks>
     public void Start(Map map, WPos startPos, float gMultiplier)
     {
         _map = map;

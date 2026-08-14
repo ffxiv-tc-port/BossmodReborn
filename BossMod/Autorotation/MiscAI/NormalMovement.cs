@@ -264,6 +264,8 @@ public sealed class NormalMovement : RotationModule
             DestinationStrategy.Explicit => new() { Destination = ResolveTargetLocation(destinationOpt.Value), TimeToGoal = destinationOpt.Value.ExpireIn },
             _ => default
         };
+        if (destinationStrategy == DestinationStrategy.Pathfind)
+            LogSpeedSubstitution(navi.DiagSpeedSubstituted, navi.DiagRawSpeed);
         if (navi.Destination == null)
         {
             // 🔴🔴 這一幀我們**什麼都沒決定**（權重場在腳下是平的、目標區沒被畫上去、或根本沒有目標區），
@@ -540,6 +542,31 @@ public sealed class NormalMovement : RotationModule
         {
             Service.Logger.Information("[NormalMovement] 重新算得出目的地，移動擁有權回到「自動移動」模組。");
         }
+    }
+
+    /// <summary>上一次記過的「移動速度是不是被代打了」；用來只在<b>狀態翻轉</b>時記一行 log。</summary>
+    private bool _loggedSpeedSubstituted;
+
+    /// <summary>
+    /// 把「移動速度讀到不合理的值、這一段改用名目速度算路徑」講出來。
+    /// </summary>
+    /// <remarks>
+    /// 🔑 這一行是「速度來源到底有沒有壞」唯一的離線證據，而且<b>修好之後才更需要它</b>：
+    /// 夾限一旦生效，「算不出目的地」那一行就不會再出現，速度是 0 這件事會重新變成隱形的。
+    /// 速度來源是 <c>WorldStateGameSync</c> 的 <c>Control.Instance() + 0x7108</c>（寫死偏移）
+    /// 乘上特徵碼掃到的 <c>CalculateMovementSpeedMultiplier</c>，兩者在台服都無法離線證明正確；
+    /// 這一行印的是<b>相乘之後的原始值</b>，可以直接判讀。
+    /// 📌 走 <c>Information</c>：使用者的 LogLevel 是 2。🔴 只在翻轉時印，這支每幀都會被呼叫到。
+    /// </remarks>
+    private void LogSpeedSubstitution(bool substituted, float rawSpeed)
+    {
+        if (substituted == _loggedSpeedSubstituted)
+            return;
+        _loggedSpeedSubstituted = substituted;
+        Service.Logger.Information(substituted
+            ? $"[NormalMovement] 移動速度讀到 {rawSpeed:f3}（不在合理範圍），這一段改用名目速度 {NavigationDecision.NominalPlayerSpeed:f0} 碼/秒算路徑。" +
+              "沒有這道代打的話，尋路的餘裕會變成負無限大、每一格都被評成「和起點一樣不安全」，結果是算不出目的地＝角色站著不動。"
+            : $"[NormalMovement] 移動速度恢復正常（{rawSpeed:f3} 碼/秒），改回用實際速度算路徑。");
     }
 
     /// <summary>

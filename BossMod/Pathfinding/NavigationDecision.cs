@@ -52,6 +52,12 @@ public struct NavigationDecision
     /// <summary>這一次尋路展開了幾格。</summary>
     public int DiagSearchSteps;
 
+    /// <summary>呼叫端傳進來的<b>原始</b>移動速度（碼／秒），沒有被夾限前的值。</summary>
+    public float DiagRawSpeed;
+
+    /// <summary>原始速度不在合理範圍，這一次改用 <see cref="NominalPlayerSpeed"/> 算。見那裡的說明。</summary>
+    public bool DiagSpeedSubstituted;
+
     /// <summary>
     /// 把「尋路這一次到底看到了什麼」寫成一行。
     /// </summary>
@@ -67,6 +73,8 @@ public struct NavigationDecision
     /// <c>GetFirstWaypoints</c> 回 <c>(null, null)</c>。<b>平台型的目標區</b>
     /// （<c>GoalSingleTarget(pos, 大半徑, w)</c> 這種半徑內同分的）只要把玩家包在裡面就必然踩到這條。</item>
     /// <item>有高低差但更好的格子被禁區／障礙物隔開。</item>
+    /// <item><b>移動速度讀到 0</b> —— 見 <see cref="NominalPlayerSpeed"/>。這一條在 .59 之前
+    /// 會偽裝成第 ④ 條的相反面（「走得到更好的格子卻沒採用」），因為它壞的是<b>評分</b>不是搜尋。</item>
     /// </list>
     /// </para>
     /// </remarks>
@@ -89,7 +97,8 @@ public struct NavigationDecision
                         : "走得到更好的格子，尋路卻沒有採用 ⇒ 這是尋路自己的問題，不是目標區的問題";
         return $"目標區 {DiagGoalZones} 個、已畫上權重場={(DiagGoalsRasterized ? "是" : "否")}、玩家格在視窗內={(DiagPlayerInWindow ? "是" : "否")}、" +
             $"玩家格危險度={FormatMaxG(DiagPlayerMaxG)}、玩家格權重={DiagPlayerPriority:f2}、場上最高權重={DiagMaxPriority:f2}、" +
-            $"走得到的最高權重={DiagReachablePriority:f2}、展開 {DiagSearchSteps} 格{(DiagSearchExhausted ? "（已掃完）" : "")} ⇒ {why}";
+            $"走得到的最高權重={DiagReachablePriority:f2}、展開 {DiagSearchSteps} 格{(DiagSearchExhausted ? "（已掃完）" : "")}、" +
+            $"移動速度={DiagRawSpeed:f2}{(DiagSpeedSubstituted ? $"（不合理，改用 {NominalPlayerSpeed:f0}）" : "")} ⇒ {why}";
     }
 
     private static string FormatMaxG(float g) => g == float.MaxValue ? "安全" : g < 0f ? "不可通行" : $"{g:f2}s";
@@ -97,6 +106,70 @@ public struct NavigationDecision
     #endregion
 
     public const float ActivationTimeCushion = 1f; // reduce time between now and activation by this value in seconds; increase for more conservativeness
+
+    /// <summary>
+    /// 移動速度讀不出合理值時拿來代打的名目速度（碼／秒）。與 <see cref="Build"/> 的
+    /// <c>playerSpeed</c> 預設值相同，也就是未改造的角色跑步速度。
+    /// </summary>
+    /// <remarks>
+    /// 🔴🔴 <b>speed 讀到 0 會讓整個尋路靜默失效，而且症狀完全不像「速度」的問題。</b>
+    /// 這是 2026-08-14 深牢「趕路站著不動」的真因，機制是純算術的：
+    /// <list type="number">
+    /// <item><c>ThetaStar.Start(map, pos, 1f / speed)</c> ⇒ <c>gMultiplier = 1/0 = +∞</c>
+    /// ⇒ <c>_deltaGSide = Resolution * ∞ = +∞</c>。</item>
+    /// <item>於是<b>第一步</b>就有 <c>candidateG = 0 + ∞ = ∞</c>。</item>
+    /// <item><c>VisitNeighbour</c> 算餘裕：<c>candidateLeeway = min(destPixG, parentPixG) - candidateG</c>
+    /// ＝ <c>float.MaxValue - ∞</c> ＝ <b><c>-∞</c></b>。</item>
+    /// <item><c>CalculateScore</c> 因此 <c>pathSafe == false</c>，跳過 <c>destSafe &amp;&amp; pathSafe</c> 那一支；
+    /// 而全程都是安全格 ⇒ <c>pathMinG == _startMaxG == float.MaxValue</c> ⇒ 落到
+    /// <c>destBetter ? UnsafeImprove : UnsafeAsStart</c>，而 <c>destBetter</c>＝
+    /// <c>pixMaxG &gt; _startMaxG</c>＝<c>MaxValue &gt; MaxValue</c>＝false
+    /// ⇒ <b>每一格都是 <c>Score.UnsafeAsStart</c>(3)</b>。</item>
+    /// <item>起點自己不受影響（它的餘裕是 <c>_startMaxG</c> 不是 <c>MaxValue-g</c>）⇒ <c>_startScore == Safe</c>(7)。
+    /// <c>ExecuteStep</c> 的 <c>_bestIndex</c> 只在<b>分數更高</b>時才換，3 永遠不高於 7
+    /// ⇒ <b>最佳格從頭到尾都是起點</b>；<c>_fallbackIndex</c> 要 <c>UltimatelySafe</c> 才會設，也永遠不會設
+    /// ⇒ <c>Execute()</c> 的迴圈兩個提早結束條件都不成立 ⇒ <b>把整個可達區域掃完</b>
+    /// ⇒ <c>BestIndex()</c> 回起點 ⇒ <c>GetFirstWaypoints</c> 的
+    /// 「<c>GScore==0 &amp;&amp; PathMinG==MaxValue</c>」命中 ⇒ 回 <c>(null, null)</c>
+    /// ⇒ <b><c>Destination == null</c>：角色不走、不畫標線、不報錯。</b></item>
+    /// </list>
+    /// <para>
+    /// 🔑 <b>這是從實機 log 的數字反推出來的，不是猜的。</b>2026-08-14 01:55~01:57 那一段的九行
+    /// 診斷全部是「玩家格安全、走得到的最高權重＝場上最高權重、展開 6392~6630 格<b>已掃完</b>」。
+    /// 反過來推：既然那些格子<b>被展開了</b>就代表沒有被 <c>JustBad</c> 守衛擋掉，
+    /// 而安全格只要 <c>pathSafe</c> 成立就必然拿到 <c>Safe</c> 以上、必然贏過起點；
+    /// 既然沒贏，<c>pathSafe</c> 就必須對<b>每一格</b>都是 false；
+    /// 又因為 <c>pathMinG</c> 仍是 <c>MaxValue</c>（否則會變 <c>UltimatelySafe</c> 而設下 fallback、
+    /// 迴圈會提早結束、就不會「已掃完」），唯一的可能就是 <c>MaxValue - g &lt;= 0</c>
+    /// ⇒ <c>g &gt;= float.MaxValue</c> ⇒ <c>_deltaGSide</c> 是 ∞ ⇒ <b>speed 是 0</b>。
+    /// 沒有第二組輸入能同時滿足那九行的每一個欄位。
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>為什麼夾限不會動到戰鬥閃避</b>（這條是出貨前提，不是順帶）：
+    /// <list type="bullet">
+    /// <item>對任何<b>物理上可能</b>的速度（走路 ~2、跑步 6、衝刺 ~10、減速 3、坐騎 ~20），
+    /// <c>speed is &gt; MinValidSpeed and &lt; MaxValidSpeed</c> 恆為真 ⇒ 這段是<b>恆等式</b>，
+    /// 一個位元都不會變。閃避的權重場、評分、路徑全部逐字相同。</item>
+    /// <item>唯一會改變輸出的輸入是 0／負數／NaN／∞／荒謬值，而<b>那些情況今天的輸出是「完全不閃避」</b>
+    /// （上面推導的 <c>Destination == null</c>）。沒有任何閃避行為需要被保留，只有被恢復。</item>
+    /// <item>g 值在這套演算法裡的語意只有「時間」（餘裕與 F 值的排序）。速度估錯只會讓 ETA 不準；
+    /// 速度是 ∞ 則會摧毀<b>排序本身</b>（把每一格壓成同一個分數）。有限值嚴格較好。</item>
+    /// </list>
+    /// </para>
+    /// <para>
+    /// 📌 刻意<b>不</b>去改 <c>WorldStateGameSync</c> 那個速度來源（<c>Control.Instance() + 0x7108</c>
+    /// 是寫死的偏移，台服對不對無法離線證明），也刻意不去動 <c>ClientState.MoveSpeed</c> 本身：
+    /// 讓 <c>MainDebugWindow</c> 的「Player move speed」繼續顯示<b>真值</b>，
+    /// 這裡只負責讓尋路不被它拖垮，並把原始值寫進 <see cref="DiagRawSpeed"/> 供離線判讀。
+    /// </para>
+    /// </remarks>
+    public const float NominalPlayerSpeed = 6f;
+
+    /// <summary>速度低於這個值就當作「沒讀到」。比任何實際的減速都低。</summary>
+    private const float MinValidPlayerSpeed = 0.1f;
+
+    /// <summary>速度高於這個值就當作「沒讀到」。比任何坐騎都高，同時擋掉 ∞。</summary>
+    private const float MaxValidPlayerSpeed = 200f;
 
     public static NavigationDecision Build(Context ctx, WorldState ws, AIHints hints, Actor player, float playerSpeed = 6f, float forbiddenZoneCushion = default, bool avoidFutureAOEs = false, float activationTimeCushion = ActivationTimeCushion)
     {
@@ -150,7 +223,11 @@ public struct NavigationDecision
             }
         }
         // execute pathfinding
-        ctx.ThetaStar.Start(ctx.Map, player.Position, 1.0f / playerSpeed);
+        // 🔴 speed 不合理時一律用名目速度 —— 完整推導與「為什麼閃避不受影響」見 NominalPlayerSpeed。
+        //    ⚠️ 寫成 `is > x and < y` 而不是 `!(...)`：NaN 對這個模式回 false，會正確落到代打那邊。
+        var speedValid = playerSpeed is > MinValidPlayerSpeed and < MaxValidPlayerSpeed;
+        var effectiveSpeed = speedValid ? playerSpeed : NominalPlayerSpeed;
+        ctx.ThetaStar.Start(ctx.Map, player.Position, 1.0f / effectiveSpeed);
         var bestNodeIndex = ctx.ThetaStar.Execute();
         ref var bestNode = ref ctx.ThetaStar.NodeByIndex(bestNodeIndex);
         var waypoints = GetFirstWaypoints(ctx.ThetaStar, ctx.Map, bestNodeIndex, player.Position);
@@ -169,7 +246,9 @@ public struct NavigationDecision
             DiagMaxPriority = ctx.Map.MaxPriority,
             DiagReachablePriority = ctx.ThetaStar.MaxReachedPriority,
             DiagSearchExhausted = ctx.ThetaStar.OpenListExhausted,
-            DiagSearchSteps = ctx.ThetaStar.NumSteps
+            DiagSearchSteps = ctx.ThetaStar.NumSteps,
+            DiagRawSpeed = playerSpeed,
+            DiagSpeedSubstituted = !speedValid
         };
     }
 
