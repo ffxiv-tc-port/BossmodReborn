@@ -1552,6 +1552,50 @@ public abstract class AutoClear : ZoneModule
     }
 
     /// <summary>
+    /// 使用者現在有沒有按著「強制趕路」那顆鍵。
+    /// </summary>
+    /// <remarks>
+    /// 🔑 使用者裁決的原話是「不然做成按著指定按鍵時 一直觸發?」——語意是一個<b>明確的授權</b>：
+    /// 按住期間三道趕路閘門（戰鬥中／拉怪數上限／低血量）一律放行，放開立刻恢復。
+    /// <para>
+    /// 🔴 只解除<b>趕路</b>。自動開箱、自動使用傳送裝置這兩個「互動」開關完全不受影響——
+    /// 那是為了讓這顆鍵永遠不可能把人意外送到下一層。
+    /// 閃避與戰鬥走位根本不經過這條路徑（它們在 <c>AIHints.ForbiddenZones</c> 與 <c>AIBehaviour</c>），
+    /// 所以這顆鍵按或不按對它們是逐字相同的。
+    /// </para>
+    /// <para>
+    /// ⚠️ 讀 ImGui 的按鍵狀態要有 ImGui context。這支的呼叫鏈是
+    /// <c>Plugin.DrawUI → AIHintsBuilder.Update → ZoneModule.CalculateAIHints → 本檔</c>，
+    /// 整條都在 <c>UiBuilder.Draw</c> 回呼裡（<c>MovementOverride.IsForceUnblocked</c> 也是同一個回呼），
+    /// 所以是安全的。搬到別的時機點呼叫之前要先確認這件事。
+    /// </para>
+    /// </remarks>
+    private static bool ForceTravelHeld()
+        => Config.ForceTravelKey != ActionTweaksConfig.ModifierKey.None
+        && MovementOverride.IsModifierHeld(Config.ForceTravelKey);
+
+    /// <summary>上一次記過的強制趕路狀態；用來只在<b>翻轉</b>時記一行 log。</summary>
+    private bool _loggedForceTravel;
+
+    /// <summary>
+    /// 把「強制趕路鍵被按下／放開」講出來。
+    /// </summary>
+    /// <remarks>
+    /// 📌 走 <c>Information</c>：使用者的 LogLevel 是 2。這一行的用途是讓「我按著鍵怎麼還是不動」
+    /// 這種回報能立刻分辨出「鍵根本沒被認到」與「認到了但別的東西擋住」。
+    /// 🔴 只在翻轉時印 —— 這支每幀都會被呼叫到。
+    /// </remarks>
+    private void LogForceTravel(bool held)
+    {
+        if (held == _loggedForceTravel)
+            return;
+        _loggedForceTravel = held;
+        Service.Logger.Information(held
+            ? $"[DD] 按鍵觸發：啟動（{Config.ForceTravelKey}）——趕路的三道閘門（戰鬥中／拉怪數上限／低血量）這段期間一律放行；開箱與使用傳送裝置仍照各自的設定。"
+            : "[DD] 按鍵觸發：放開——趕路恢復照設定判斷。");
+    }
+
+    /// <summary>
     /// 這一種魔陶器可不可以被自動用掉來騰位置。
     /// </summary>
     /// <remarks>
@@ -1754,6 +1798,10 @@ public abstract class AutoClear : ZoneModule
         if (Palace.IsBossFloor || BetweenFloors)
             return;
 
+        // 按住指定按鍵＝「現在交給你走」。見 ForceTravelHeld。
+        var forceTravel = ForceTravelHeld();
+        LogForceTravel(forceTravel);
+
         bool canNavigate;
 
         if (Config.MaxPull == 0)
@@ -1777,6 +1825,13 @@ public abstract class AutoClear : ZoneModule
             canNavigate = count < Config.MaxPull;
         }
 
+        // 按住的期間三道趕路閘門一律放行（戰鬥中／拉怪數上限在 canNavigate 裡，低血量在下面）。
+        // 🔴 刻意在這裡覆寫而不是逐處加 `|| forceTravel`：canNavigate 這個變數下面還餵給
+        //    TryPullTarget（坦克主動走去拉怪），而「按住鍵＝我要你現在走」對那條路徑的語意
+        //    與趕路完全一致 —— 它同樣只是移動，開火與否仍由自動選怪的設定決定。
+        if (forceTravel)
+            canNavigate = true;
+
         var countWalls = Walls.Count;
         for (var i = 0; i < countWalls; ++i)
         {
@@ -1785,8 +1840,8 @@ public abstract class AutoClear : ZoneModule
             hints.AddForbiddenZone(ShapeDistance.Rect(w.Position, (wall.Rotated ? 90f : default).Degrees(), w.Depth, w.Depth, 20f));
         }
 
-        // 血量低於門檻就不趕路（只擋趕路，戰鬥走位與閃避不受影響）
-        if (canNavigate && !TravelBlockedByHP(player))
+        // 血量低於門檻就不趕路（只擋趕路，戰鬥走位與閃避不受影響）；按住強制趕路鍵時一併放行
+        if (canNavigate && (forceTravel || !TravelBlockedByHP(player)))
             HandleFloorPathfind(player, hints);
 
         DrawAOEs(playerSlot, player, hints);
@@ -1953,7 +2008,11 @@ public abstract class AutoClear : ZoneModule
         Actor? openCoffer = null;
         if (coffer is Actor t && !IsPlayerTransformed(player))
         {
-            var wantMove = Config.AutoMoveTreasure && canNavigate;
+            // 按住強制趕路鍵時連「自動移動至寶箱」這個開關本身也一併放行——
+            // 那顆鍵的語意是「現在交給你走」，而不是「把已經開著的東西再開一次」。
+            // ⚠️ 開箱**不**跟著被強制：openCoffer 仍然要 Config.AutoOpenTreasure。
+            //    使用者把開箱關掉是刻意的（例如只想被帶到箱子旁邊自己決定），不可以從這裡繞過去。
+            var wantMove = forceTravel || (Config.AutoMoveTreasure && canNavigate);
             if (wantMove)
                 moveToCoffer = t;
             if (Config.AutoOpenTreasure && (wantMove || player.DistanceToHitbox(t) < 3.5f))
@@ -1961,7 +2020,9 @@ public abstract class AutoClear : ZoneModule
         }
 
         Actor? usePassage = null;
-        if (!player.InCombat && Config.AutoPassage && Palace.PassageActive)
+        // 同上：按住時連「戰鬥中」與「自動移動至下層傳送裝置」開關一起放行，
+        // 但真的按下傳送裝置仍然只看 Config.AutoUsePassage（在下面），按住這顆鍵不會意外下一層。
+        if (Palace.PassageActive && (forceTravel || (!player.InCombat && Config.AutoPassage)))
         {
             if (DesiredRoom == 0)
             {

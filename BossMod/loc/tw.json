@@ -827,6 +827,12 @@
   "Try to use terrain to LOS attacks": {
     "message": "嘗試利用地形進行視線遮擋攻擊"
   },
+  "Hold this key to force travelling": {
+    "message": "按住這個按鍵強制趕路"
+  },
+  "While the key is held, travelling to the destination room, to coffers and to the Cairn of Passage runs regardless of combat, the pull limit and the low-HP threshold above. Let go and it stops immediately.\n\nThis only forces the walking. Whether a coffer is opened, or the Cairn is actually used, still follows their own settings - holding the key can never drop you to the next floor by accident.\n\nDodging and combat positioning are unaffected either way. Off by default.": {
+    "message": "按住期間，前往目標房間、前往寶箱、前往下層傳送裝置這三種趕路，不再受戰鬥中、拉怪數上限、以及上面那個低血量門檻的限制。放開就立刻停止。\n\n這只強制「走過去」。寶箱要不要打開、傳送裝置要不要真的按下去，仍然各自照它們自己的設定判斷——按住這個按鍵永遠不會讓你意外掉到下一層。\n\n無論按或不按，閃避與戰鬥走位都不受影響。預設關閉。"
+  },
   "Automatically navigate to coffers": {
     "message": "自動移動至寶箱"
   },

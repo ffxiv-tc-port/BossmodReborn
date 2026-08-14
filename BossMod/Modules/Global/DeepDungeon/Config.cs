@@ -166,6 +166,21 @@ public sealed class AutoDDConfig : ConfigNode
         tooltip: "Only has any effect in Eureka Orthos: it is the only deep dungeon whose floor module marks casts as line-of-sight-able. In Palace of the Dead and Heaven-on-High this setting does nothing at all.\n\nWhen it does apply, it replaces the simple \"stay out of a circle around the caster\" hint with one computed from the actual terrain, so you can break line of sight instead of just running away. Falls back to the simple circle if no obstacle map is available for the floor.")]
     public bool AutoLOS = false;
 
+    // 🔴 預設 None＝這個功能整個關著，既有行為一個位元都不變。
+    // 📌 使用者裁決的原話：「不然做成按著指定按鍵時 一直觸發?」——語意是一個明確的
+    //    「現在交給你走」開關：按住期間強制趕路，放開立刻停、控制權回到使用者手上。
+    //    所以它刻意是**按住**而不是切換：切換會留下「我以為關了其實還開著」的狀態，
+    //    而這個功能的重點正是「使用者隨時知道現在是誰在走」。
+    // ⚠️ 只解除**趕路**的三道閘門（戰鬥中／拉怪數上限／低血量），不碰任何「互動」開關：
+    //    自動開箱仍然看「Automatically open coffers you have reached」、
+    //    自動下一層仍然看「Also interact with the Cairn of Passage once you have reached it」。
+    //    按住這顆鍵不會讓你意外掉到下一層。
+    // ⚠️ 閃避與戰鬥走位完全不經過這裡（它們住在 AIHints 的 ForbiddenZones／AIBehaviour），
+    //    這顆鍵一個字都碰不到它們。
+    [PropertyDisplay("Hold this key to force travelling",
+        tooltip: "While the key is held, travelling to the destination room, to coffers and to the Cairn of Passage runs regardless of combat, the pull limit and the low-HP threshold above. Let go and it stops immediately.\n\nThis only forces the walking. Whether a coffer is opened, or the Cairn is actually used, still follows their own settings - holding the key can never drop you to the next floor by accident.\n\nDodging and combat positioning are unaffected either way. Off by default.")]
+    public ActionTweaksConfig.ModifierKey ForceTravelKey = ActionTweaksConfig.ModifierKey.None;
+
     [PropertyDisplay("Automatically navigate to coffers",
         tooltip: "Walking only. Whether a coffer you have reached is actually opened is the separate setting below.")]
     public bool AutoMoveTreasure = true;

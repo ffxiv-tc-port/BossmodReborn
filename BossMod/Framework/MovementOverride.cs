@@ -38,7 +38,17 @@ public sealed unsafe class MovementOverride : IDisposable
     public bool IsMoving() => ActualMove != default;
     public bool IsMoveRequested() => UserMove != default;
 
-    public bool IsForceUnblocked() => _tweaksConfig.MoveEscapeHatch switch
+    /// <summary>
+    /// <see cref="ActionTweaksConfig.ModifierKey"/> 這一顆「按住不放」的鍵現在有沒有被按著。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>只能在 Dalamud 的 Draw 回呼裡呼叫</b>（<c>ImGui.GetIO()</c> 要有 ImGui context）。
+    /// 現有的兩個呼叫端都在 <c>Plugin.DrawUI</c> 底下：<see cref="IsForceUnblocked"/> 由
+    /// <c>Plugin.DrawUI</c> 直接呼叫，深牢的強制趕路鍵由 <c>AIHintsBuilder.Update</c>
+    /// （同樣在 <c>DrawUI</c> 裡）呼叫。
+    /// 📌 抽成 static 是為了讓滑鼠雙鍵那一條（唯一需要 unsafe 的部分）只有一份實作。
+    /// </remarks>
+    public static bool IsModifierHeld(ActionTweaksConfig.ModifierKey key) => key switch
     {
         ActionTweaksConfig.ModifierKey.Ctrl => ImGui.GetIO().KeyCtrl,
         ActionTweaksConfig.ModifierKey.Alt => ImGui.GetIO().KeyAlt,
@@ -46,6 +56,8 @@ public sealed unsafe class MovementOverride : IDisposable
         ActionTweaksConfig.ModifierKey.M12 => UIInputData.Instance()->UIFilteredCursorInputs.MouseButtonHeldFlags.HasFlag(MouseButtonFlags.LBUTTON | MouseButtonFlags.RBUTTON),
         _ => false,
     };
+
+    public bool IsForceUnblocked() => IsModifierHeld(_tweaksConfig.MoveEscapeHatch);
 
     public bool MovementBlocked
     {
