@@ -55,6 +55,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ReplayManagementWindow _wndReplay;
     private readonly UIRotationWindow _wndRotation;
     private readonly MainDebugWindow _wndDebug;
+    private readonly ConfigChangelogWindow _wndChangelog;
     private readonly RotationSolverRebornModule _rsr;
 
     public unsafe Plugin(IDalamudPluginInterface dalamud, ICommandManager commandManager, ISigScanner sigScanner, IDataManager dataManager)
@@ -81,6 +82,10 @@ public sealed class Plugin : IDalamudPlugin
         Service.Condition.ConditionChange += OnConditionChanged;
         Camera.Instance = new();
 
+        // 「設定檔在載入之前存不存在」必須在 LoadFromFile 之前問,而且要立刻存成 bool
+        // (FileInfo.Exists 第一次讀之後就快取住了)。ConfigChangelogWindow 靠它分辨
+        // 「全新安裝」與「既有使用者第一次升上來」——這兩者的設定檔裡都沒有 LastSeenVersion。
+        var hadExistingConfig = dalamud.ConfigFile.Exists;
         Service.Config.Initialize();
         Service.Config.LoadFromFile(dalamud.ConfigFile);
         _configFile = dalamud.ConfigFile;
@@ -137,6 +142,8 @@ public sealed class Plugin : IDalamudPlugin
         config.Modified.ExecuteAndSubscribe(() => _wndReplay.UpdateLogDirectory());
         _wndRotation = new(_rotation, _amex, () => OpenConfigUI("Autorotation presets"));
         _wndDebug = new(_ws, _rotation, _zonemod, _amex, _movementOverride, _hintsBuilder, dalamud);
+        // 版本升級後第一次載入時自己開起來;沒有可列的內容就整個不開(見 ConfigChangelogWindow 建構式)
+        _wndChangelog = new(hadExistingConfig);
 
         dalamud.UiBuilder.DisableAutomaticUiHide = true;
         dalamud.UiBuilder.Draw += DrawUI;
@@ -148,6 +155,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         Service.Condition.ConditionChange -= OnConditionChanged;
         _multibox.Dispose();
+        _wndChangelog.Dispose();
         _wndDebug.Dispose();
         _wndRotation.Dispose();
         _wndReplay.Dispose();

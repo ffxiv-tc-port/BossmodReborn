@@ -8515,5 +8515,44 @@
   },
   "Miscellaneous": {
     "message": "雜項"
+  },
+  "CHANGELOG_Title": {
+    "message": "BossMod Reborn 更新內容"
+  },
+  "CHANGELOG_Since": {
+    "message": "與你上次使用的版本相比的變更"
+  },
+  "CHANGELOG_Current": {
+    "message": "目前版本"
+  },
+  "CHANGELOG_UnknownPrevious": {
+    "message": "先前的版本"
+  },
+  "CHANGELOG_NoValuesChanged": {
+    "message": "這個視窗只是通知：你既有的設定值一個都沒有被改動。"
+  },
+  "CHANGELOG_KindNewOption": {
+    "message": "新增選項"
+  },
+  "CHANGELOG_KindChangedBehaviour": {
+    "message": "行為變更"
+  },
+  "CHANGELOG_OK": {
+    "message": "知道了"
+  },
+  "CHANGELOG_UnlockMultibox": {
+    "message": "多開解鎖現在是一個選項，而且預設關閉。在 7.20.0.62（含）之前，外掛每次載入都會無條件關掉遊戲的單一實例互斥鎖，沒有開關也沒有告知。想要原本的行為請自行勾選——勾之前請先讀那個選項的提示。"
+  },
+  "CHANGELOG_DeepDungeonGridFit": {
+    "message": "深牢自動探索：房間中心的網格擬合依實機量測重新校準（接受門檻由 15 碼放寬到 30 碼），並排除地圖資料在王層補出來的幽靈房心。小地圖與趕路時的房間定位會更常對得上。沒有新增設定，你設定過的東西也沒有被改動。"
+  },
+  "CHANGELOG_DashSafetyBlockExternal": {
+    "message": "原本的位移安全檢查只看得到走 BossMod 自己動作佇列的技能。直接呼叫遊戲 UseAction 的外掛（例如 WrathCombo 的自動循環）整條佇列都繞過去，它們放出的突進照樣會把你送進 AOE。現在同一套落點檢查也會在 UseAction 掛鉤上跑一次，所有來源都會經過那裡。預設開啟，且只在 BossMod 的 AI 啟用時生效。"
+  },
+  "CHANGELOG_DashSafetyActivationThreshold": {
+    "message": "上一個選項的搭配滑桿：只有已經生效、或在這麼多秒內引爆的危險區才會擋下位移技。還很久才引爆的區域不構成拒放的理由——AI 自己會走出來。"
+  },
+  "CHANGELOG_ForceTravelKey": {
+    "message": "深牢自動探索現在可以「按住指定按鍵＝現在交給你走」：按住期間，趕路不再受戰鬥中、拉怪數上限與低血量門檻限制，放開立刻停。它只強制走過去——寶箱要不要開、下層傳送裝置要不要按，仍各自照它們自己的設定。預設沒有指定按鍵，也就是整個功能關著。"
   }
 }
