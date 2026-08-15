@@ -506,6 +506,15 @@ public abstract class AutoClear : ZoneModule
         LOS.Clear();
         Walls.Clear();
         Array.Clear(RoomCenters);
+        // 🔴 座標清掉了，「已載入的是哪一層哪個版面」也一定要跟著作廢。
+        //    少了這一行就是靜默失效：Update 那邊的重載判準是
+        //    `_loadedLayout != (Palace.Floor, Palace.Progress.Tileset)`，
+        //    而 ClearState 走完之後這兩者仍然相等 ⇒ LoadWalls 永遠不會被叫回來，
+        //    RoomCenters／Walls 就這樣空著過完整層（寶箱點位、各房敵人數、
+        //    手動導航驗證一起消失，而且沒有任何訊息說為什麼）。
+        //    ⚠️ 台服目前很少走到：驅動 ClearState 的系統訊息 7248 在台服沒有觸發，
+        //    現在靠的是「樓層變了就重載」那條備援。這一行是把備援失效時的洞補起來。
+        _loadedLayout = (255, 255);
         ResetCoordGate();
         BetweenFloors = true;
     }
@@ -3540,7 +3549,8 @@ public abstract class AutoClear : ZoneModule
 
         // ③ 下一間房的中心。
         //    ⚠️ 只用版面表真的有的中心，不用網格擬合補出來的（<see cref="_centerFitted"/>）——
-        //    補值最大可以差 15y，拿它當移動路點是把「顯示可以將就」的容忍度誤用到「走位」上。
+        //    2026-08-15 留一法實測補值誤差中位 1.9~11.6y、最糟 28.7y，
+        //    拿它當移動路點是把「顯示可以將就」的容忍度誤用到「走位」上。
         if (!_centerFitted[next] && RoomCenters[next] is WPos c && !c.InCircle(pos, NextCenterRadius))
             hints.GoalZones.Add(hints.GoalSingleTarget(c, NextCenterRadius, travelWeight * WaypointWeightFactor));
     }
@@ -3665,109 +3675,188 @@ public abstract class AutoClear : ZoneModule
     /// 網格擬合的最大容許殘差（碼）。已知中心對不上線性網格到這個程度就整個不補。
     /// </summary>
     /// <remarks>
-    /// 實測房間中心<b>不在完美網格上</b>，所以擬合本來就有殘差；但殘差大到這個地步
-    /// 代表這一面根本不是規則網格，補出來的座標會比沒有更糟（會把寶箱畫進錯的房間）。
-    /// ⇒ 寧可留 null 讓那一格退化成「地圖說有、位置不明」。
+    /// 實測房間中心<b>不在完美網格上</b>，所以擬合本來就有殘差；殘差大到某個地步就代表
+    /// 這一面根本不是規則網格，補出來的座標會比沒有更糟（會把寶箱畫進錯的房間）。
+    /// ⇒ 那時寧可留 null 讓那一格退化成「地圖說有、位置不明」。
+    /// <para>
+    /// 🔴 <b>原本的 15f 是拍腦袋的值，而且是死鍵</b>：2026-08-15 把
+    /// <see cref="LoadedFloors"/> 的 80 個版面全量離線重算（工具
+    /// <c>~/.claude/tools/ddmap/gridfit_residual.py</c>，校準閘門之一就是重現實機
+    /// log 印過的那筆成功擬合 <c>X=-402.1+53.3·col／Z=186.2+56.9·row／殘差 14.1y</c>），
+    /// 最大殘差分布是 <b>min 0.0／p50 19.9／p90 23.2／max 26.5y</b> ——
+    /// 15f 讓 <b>70/80 個版面直接放棄</b>，實機 log 也對得上（兩份 log 共 154 行擬合訊息，
+    /// <b>150 行是「放棄」</b>、只有 4 行成功，而那 4 行全是王層的幽靈補值）。
+    /// </para>
+    /// <para>
+    /// 📌 <b>30f 的依據</b>：①它蓋得住整個實測母體（26.5y）還留一點餘裕，
+    /// 而 30f 以上沒有任何資料可以講，所以不再往上放；
+    /// ②品質用留一法實測過——把每個已知房心輪流拿掉、用其餘的擬合回頭預測它，
+    /// 1680 個留一房的補值誤差中位 1.9~11.6y（最糟那一個 28.7y），
+    /// 再把補出來的座標放回 <see cref="NearestRoom"/> 的歸屬裡實算面積：
+    /// <b>1680/1680 全部「救回的面積 &gt; 偷走的面積」</b>，
+    /// 殘差 25~30y 那一桶的救回率中位仍有 83.5%。
+    /// 判準不是「殘差夠不夠小」，是<b>不補的話那一格是 100% 歸屬錯</b>，所以補歪一點仍然淨賺。
+    /// </para>
     /// </remarks>
-    private const float GridFitMaxResidual = 15f;
+    private const float GridFitMaxResidual = 30f;
+
+    /// <summary>5×5 房間格的四個角（房號 0／4／20／24）。</summary>
+    /// <remarks>
+    /// 🔴 <b>這四格不是「沒 dump 到的房間」，是這張地圖根本沒有的格子</b>，所以永遠不補：
+    /// <list type="bullet">
+    /// <item>離線：<see cref="LoadedFloors"/> 的 <b>80 個版面（3 迷宮 × 40 組樓層 × 2 面）
+    /// 全部</b>剛好 21 格有座標，缺的<b>永遠</b>是這四角，沒有任何一個版面缺別的格子。</item>
+    /// <item>實機：台服 242 行 <c>MapData</c> 原值（193 非王層／21 王層／28 個樓層 0）裡，
+    /// <b>193 個非王層對四角一次都沒設過旗標</b>；
+    /// 唯一會設的是<b>王層</b>——王層的地圖是退化的兩格
+    /// （<c>[0]=0x22 ConnectionS|Passage</c>、<c>[5]=0xC1 ConnectionN|Home|Revealed</c>），
+    /// 房號 0 在那裡是「往下一層的傳送點」而不是 5×5 網格上的房間。</item>
+    /// </list>
+    /// ⇒ 舊碼的 <c>(byte)Palace.Rooms[i] == 0</c> 那一條擋不住王層的房號 0，
+    /// 於是實機在天之御柱 60／70 層真的補出過一格<b>幽靈房心</b>
+    /// （而且王層載到的還是<c>下一組</c>樓層的座標表，因為 key 用的是 <c>Floor / 10</c>）。
+    /// 放寬門檻之前一定要先把這一條補上，否則幽靈房心會從 10/80 個版面擴散到 80/80。
+    /// </remarks>
+    private static bool IsGridCorner(int room) => room is 0 or 4 or 20 or 24;
+
+    /// <summary>上一次印出來的網格擬合結局；一樣就不再印（翻轉才印）。</summary>
+    /// <remarks>
+    /// ⚠️ 刻意<b>不</b>在 <see cref="ResetCoordGate"/> 裡清掉：清了就會變成每層都印一次同樣的話
+    /// （實機一份 log 曾經連印 33 次一模一樣的放棄訊息）。
+    /// 樓層／版面的上下文不會因此遺失——同一個 <see cref="ApplyFace"/> 裡
+    /// <see cref="ComputeRoomTolerance"/> 那行本來就每次都帶著樓層與版面印出來。
+    /// </remarks>
+    private string? _gridFitLogged;
 
     /// <summary>
     /// 用已知的房間中心做 5×5 線性網格擬合，補上「地圖說有房間但座標表是 default」的格子。
     /// </summary>
     /// <remarks>
-    /// <see cref="LoadedFloors"/> 是上游一格一格 dump 出來的，缺格不是「那裡沒有房間」而是
-    /// 「當時沒 dump 到」。缺格的後果是 <see cref="NearestRoom"/> 把那間房裡的東西
-    /// <b>歸屬到隔壁房</b>——靜默畫錯，比不畫更糟。
+    /// <see cref="LoadedFloors"/> 是上游一格一格 dump 出來的；缺格的後果是
+    /// <see cref="NearestRoom"/> 把那間房裡的東西<b>歸屬到隔壁房</b>——靜默畫錯，比不畫更糟。
     /// <para>
     /// 做法：X 只跟 col 有關、Z 只跟 row 有關（房號＝5×row+col，已由反組譯確認是線性格號），
     /// 兩軸各做一次最小平方直線擬合。殘差超過 <see cref="GridFitMaxResidual"/> 就整個放棄。
     /// </para>
-    /// <para>🔴 只補 <c>MapData</c> 說有房間的格子。四角那種連遊戲都說不是房間的格子不補。</para>
+    /// <para>
+    /// 📌 <b>台服現況：這條路目前一格都補不到，那是正常的。</b>2026-08-15 全量離線掃描證實
+    /// 80 個版面「缺的格子」與四角完全重合（見 <see cref="IsGridCorner"/>），
+    /// 也就是說<b>上游的表其實沒有 dump 缺口</b>。機制留著是為了「哪天真的有缺口」，
+    /// 所以結局訊息要能分辨「沒東西可補」與「有東西可補但放棄了」——
+    /// 舊版兩種情形一個沉默、一個印「缺格維持未知」，剛好把最容易誤導人的那面留在 log 裡。
+    /// </para>
+    /// <para>🔴 只補 <c>MapData</c> 說有房間、而且不是四角的格子。</para>
     /// </remarks>
     private void FillMissingRoomCenters()
     {
-        // 兩軸各自的 (自變數, 應變數) 樣本
-        var (nx, sumCol, sumColSq, sumX, sumColX) = (0, 0f, 0f, 0f, 0f);
-        var (nz, sumRow, sumRowSq, sumZ, sumRowZ) = (0, 0f, 0f, 0f, 0f);
-        var distinctCols = 0;
-        var distinctRows = 0;
-        Span<bool> seenCol = stackalloc bool[5];
-        Span<bool> seenRow = stackalloc bool[5];
-
+        // 想補的格子先數出來：這個數字與擬合成不成功無關，而且**兩種結局都要印它**。
+        var wanted = 0;
+        var corners = 0;
         for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
         {
-            if (RoomCenters[i] is not WPos c)
-                continue;
-            var row = (float)(i / 5);
-            var col = (float)(i % 5);
-            ++nx;
-            sumCol += col;
-            sumColSq += col * col;
-            sumX += c.X;
-            sumColX += col * c.X;
-            ++nz;
-            sumRow += row;
-            sumRowSq += row * row;
-            sumZ += c.Z;
-            sumRowZ += row * c.Z;
-            if (!seenCol[i % 5])
-            {
-                seenCol[i % 5] = true;
-                ++distinctCols;
-            }
-            if (!seenRow[i / 5])
-            {
-                seenRow[i / 5] = true;
-                ++distinctRows;
-            }
-        }
-
-        // 少於兩個不同的欄／列就擬不出斜率
-        if (distinctCols < 2 || distinctRows < 2)
-            return;
-
-        var denX = nx * sumColSq - sumCol * sumCol;
-        var denZ = nz * sumRowSq - sumRow * sumRow;
-        if (Math.Abs(denX) < 1e-3f || Math.Abs(denZ) < 1e-3f)
-            return;
-
-        var bx = (nx * sumColX - sumCol * sumX) / denX;
-        var ax = (sumX - bx * sumCol) / nx;
-        var bz = (nz * sumRowZ - sumRow * sumZ) / denZ;
-        var az = (sumZ - bz * sumRow) / nz;
-
-        // 殘差檢查：擬合對不上已知的格子，就不要拿它去補未知的格子
-        var maxResidual = 0f;
-        for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
-        {
-            if (RoomCenters[i] is not WPos c)
-                continue;
-            var dx = Math.Abs(ax + bx * (i % 5) - c.X);
-            var dz = Math.Abs(az + bz * (i / 5) - c.Z);
-            maxResidual = Math.Max(maxResidual, Math.Max(dx, dz));
-        }
-        if (maxResidual > GridFitMaxResidual)
-        {
-            Service.Logger.Information($"[DD] 房間中心網格擬合放棄：最大殘差 {maxResidual:f1}y 超過 {GridFitMaxResidual}y，缺格維持未知。");
-            return;
+            if (RoomCenters[i] != null || (byte)Palace.Rooms[i] == 0)
+                continue; // 有座標了，或遊戲自己說這一格不是地圖的一部分
+            if (IsGridCorner(i))
+                ++corners;
+            else
+                ++wanted;
         }
 
         var filled = 0;
-        for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+        var outcome = Fit();
+
+        // ── 單一出口：上面每一條 return 都在這裡匯流，兩態都帶著實際數字 ──────────
+        var signature = $"{FaceName()}|{outcome}";
+        if (_gridFitLogged != signature)
         {
-            if (RoomCenters[i] != null)
-                continue;
-            if ((byte)Palace.Rooms[i] == 0)
-                continue; // 遊戲自己說這一格不是房間（四角就是這種）——不補
-            RoomCenters[i] = new WPos(ax + bx * (i % 5), az + bz * (i / 5));
-            _centerFitted[i] = true;
-            ++filled;
+            _gridFitLogged = signature;
+            Service.Logger.Information(
+                $"[DD] 房間中心網格擬合：樓層 {Palace.Floor}、版面 {FaceName()}、想補 {wanted} 格" +
+                (corners > 0 ? $"（另有 {corners} 格是四角，永不補）" : string.Empty) +
+                $" ⇒ {outcome}");
         }
 
-        if (filled > 0)
-            Service.Logger.Information(
-                $"[DD] 房間中心網格擬合：補了 {filled} 格（樓層 {Palace.Floor}、版面 {FaceName()}），" +
-                $"最大殘差 {maxResidual:f1}y、X={ax:f1}+{bx:f1}·col、Z={az:f1}+{bz:f1}·row");
+        string Fit()
+        {
+            // 兩軸各自的 (自變數, 應變數) 樣本
+            var (nx, sumCol, sumColSq, sumX, sumColX) = (0, 0f, 0f, 0f, 0f);
+            var (nz, sumRow, sumRowSq, sumZ, sumRowZ) = (0, 0f, 0f, 0f, 0f);
+            var distinctCols = 0;
+            var distinctRows = 0;
+            Span<bool> seenCol = stackalloc bool[5];
+            Span<bool> seenRow = stackalloc bool[5];
+
+            for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+            {
+                if (RoomCenters[i] is not WPos c)
+                    continue;
+                var row = (float)(i / 5);
+                var col = (float)(i % 5);
+                ++nx;
+                sumCol += col;
+                sumColSq += col * col;
+                sumX += c.X;
+                sumColX += col * c.X;
+                ++nz;
+                sumRow += row;
+                sumRowSq += row * row;
+                sumZ += c.Z;
+                sumRowZ += row * c.Z;
+                if (!seenCol[i % 5])
+                {
+                    seenCol[i % 5] = true;
+                    ++distinctCols;
+                }
+                if (!seenRow[i / 5])
+                {
+                    seenRow[i / 5] = true;
+                    ++distinctRows;
+                }
+            }
+
+            // 少於兩個不同的欄／列就擬不出斜率
+            if (distinctCols < 2 || distinctRows < 2)
+                return $"擬不出斜率：已知 {nx} 格、只有 {distinctCols} 個不同欄／{distinctRows} 個不同列（兩者都要 ≥2）";
+
+            var denX = nx * sumColSq - sumCol * sumCol;
+            var denZ = nz * sumRowSq - sumRow * sumRow;
+            if (Math.Abs(denX) < 1e-3f || Math.Abs(denZ) < 1e-3f)
+                return $"擬不出斜率：已知 {nx} 格、分母太接近 0（X={denX:f3}、Z={denZ:f3}）";
+
+            var bx = (nx * sumColX - sumCol * sumX) / denX;
+            var ax = (sumX - bx * sumCol) / nx;
+            var bz = (nz * sumRowZ - sumRow * sumZ) / denZ;
+            var az = (sumZ - bz * sumRow) / nz;
+
+            // 殘差檢查：擬合對不上已知的格子，就不要拿它去補未知的格子
+            var maxResidual = 0f;
+            for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+            {
+                if (RoomCenters[i] is not WPos c)
+                    continue;
+                var dx = Math.Abs(ax + bx * (i % 5) - c.X);
+                var dz = Math.Abs(az + bz * (i / 5) - c.Z);
+                maxResidual = Math.Max(maxResidual, Math.Max(dx, dz));
+            }
+            if (maxResidual > GridFitMaxResidual)
+                return $"放棄：已知 {nx} 格、最大殘差 {maxResidual:f1}y 超過門檻 {GridFitMaxResidual:f0}y ⇒ 缺格維持未知";
+
+            for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+            {
+                if (RoomCenters[i] != null)
+                    continue;
+                if ((byte)Palace.Rooms[i] == 0)
+                    continue; // 遊戲自己說這一格不是地圖的一部分——不補
+                if (IsGridCorner(i))
+                    continue; // 🔴 四角永遠不是 5×5 網格上的房間，補了就是幽靈房心（見 IsGridCorner）
+                RoomCenters[i] = new WPos(ax + bx * (i % 5), az + bz * (i / 5));
+                _centerFitted[i] = true;
+                ++filled;
+            }
+
+            return $"採用：補了 {filled} 格（已知 {nx} 格、最大殘差 {maxResidual:f1}y 未超過門檻 " +
+                $"{GridFitMaxResidual:f0}y、X={ax:f1}+{bx:f1}·col、Z={az:f1}+{bz:f1}·row）";
+        }
     }
 
     /// <summary>
