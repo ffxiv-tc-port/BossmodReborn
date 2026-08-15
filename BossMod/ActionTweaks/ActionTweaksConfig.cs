@@ -89,6 +89,13 @@ public sealed class ActionTweaksConfig : ConfigNode
     [PropertyDisplay("Apply the previous option to all dashes, not just gap closers", tooltip: "Includes backdashes (e.g. SAM Yaten), teleports (e.g. NIN Shukuchi), and fixed-length dashes (e.g. DRG Elusive Jump)")]
     public bool DashSafetyExtra = true;
 
+    [PropertyDisplay("Also block dashes requested by other plugins (read tooltip!)", tooltip: "The two options above only affect actions that go through BossMod's own action queue. Plugins that call the game's UseAction directly - WrathCombo's auto-rotation, for example - bypass that queue entirely, so a gap closer they fire can still throw you into an AOE.\n\nThis adds the same landing-spot check at the UseAction hook itself, which every source passes through. A dash judged dangerous is simply dropped for that frame; the rotation carries on and the action fires as soon as the path is clear.\n\nOnly active while BossMod's AI is enabled - the hook cannot tell who asked for the action, so with AI off you are assumed to be playing manually and nothing is blocked. Holding the movement escape hatch key also lets everything through. Dashes whose landing spot cannot be computed (ground-targeted teleports like NIN Shukuchi) are never blocked.")]
+    public bool DashSafetyBlockExternal = true;
+
+    [PropertyDisplay("Dash block: only count danger zones going off within this many seconds", tooltip: "A zone that will not go off for a long time is not a reason to refuse a dash - the AI would simply walk back out of it. Only zones that are already active, or that resolve within this many seconds, can block a dash.")]
+    [PropertySlider(0.1f, 10f, Speed = 0.1f)]
+    public float DashSafetyActivationThreshold = 1.5f;
+
     [PropertyDisplay("Automatically manage auto attacks", tooltip: "This setting prevents starting autos early during countdown, starts them automatically at pull, when switching targets and when using any actions that don't explicitly cancel autos.")]
     public bool AutoAutos = false;
 

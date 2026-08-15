@@ -336,6 +336,9 @@ public sealed class Plugin : IDalamudPlugin
         _bossmod.Update();
         _zonemod.ActiveModule?.Update();
         _hintsBuilder.Update(_hints, PartyState.PlayerSlot, moveImminent);
+        // 危險區這時候才剛建好（hints.Clear -> 模組填 -> Normalize 都在上面那一行裡跑完）。
+        // 位移攔截的快照必須在這裡拍，而且必須在 Draw 回呼裡 —— IsForceUnblocked 會讀 ImGui IO。
+        _amex.UpdateDashIntercept(_movementOverride.IsForceUnblocked());
         _amex.QueueManualActions();
         _rotation.Update(_amex.AnimationLockDelayEstimate, _movementOverride.IsMoving());
         _ai.Update();

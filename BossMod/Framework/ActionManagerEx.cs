@@ -65,6 +65,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
     private readonly MacroQueueTweak _macroQueueTweak = new();
     private readonly ActionQueueWindowTweak _queueWindowTweak = new();
     private readonly IgnoreLineOfSightTweak _lineOfSightTweak = new();
+    private readonly DashInterceptTweak _dashIntercept;
 
     private readonly HookAddress<ActionManager.Delegates.Update> _updateHook;
     private readonly HookAddress<ActionManager.Delegates.UseAction> _useActionHook;
@@ -102,6 +103,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
         _oocActionsTweak = new(ws);
         _autoAutosTweak = new(ws, hints);
         _slidecastMarkerTweak = new(_castTimeTweak); // shares the reduction record, so the drawn window always matches the one CalculateDesiredOrientation uses
+        _dashIntercept = new(ws);
 
         Service.Log($"[AMEx] ActionManager singleton address = 0x{(ulong)_inst:X}");
         _updateHook = new(ActionManager.Addresses.Update, UpdateDetour);
@@ -145,6 +147,12 @@ public sealed unsafe class ActionManagerEx : IDisposable
 
     // ImGui overlay on top of the player's own cast bar; no-op unless explicitly enabled, and it neither reads nor writes any BossMod state
     public void DrawSlidecastMarker() => _slidecastMarkerTweak.Draw();
+
+    /// <summary>
+    /// 每幀重建位移攔截用的危險區快照。🔴 只能從 Dalamud 的 Draw 回呼呼叫 ——
+    /// <paramref name="escapeHatchHeld"/> 的來源 <c>MovementOverride.IsForceUnblocked</c> 會讀 ImGui IO。
+    /// </summary>
+    public void UpdateDashIntercept(bool escapeHatchHeld) => _dashIntercept.Update(_hints, escapeHatchHeld);
 
     public void QueueManualActions()
     {
@@ -631,6 +639,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
         var origTargetId = targetId; // 覆寫可能只做到一半就失敗，Original 要拿完全沒被我們碰過的參數
         var haveTargetSystem = false; // 維持 false ＝ 走原本「targetSystem == null 就原封不動轉交」那條路
         var queued = false;
+        var dashBlocked = false; // 位移技危險攔截；算不出來就維持 false ＝ 照舊放行
         try
         {
             var targetSystem = TargetSystem.Instance();
@@ -677,19 +686,28 @@ public sealed unsafe class ActionManagerEx : IDisposable
                     return InvalidEntityId;
                 }
 
+                // 位移技危險攔截：**一定要擺在手動佇列之前** —— 進了我們自己的佇列之後，實際執行是走
+                // UpdateDetour → ExecuteAction → UseActionLocation，這一關就再也攔不到了。
+                // 目標解析：targetId 為空時用玩家目前的硬目標（遊戲自己也是這樣解），否則用（可能被滑鼠指向覆寫過的）targetId。
+                dashBlocked = _dashIntercept.ShouldBlock(action, targetId is 0u or InvalidEntityId ? primaryTargetId : targetId);
+
                 // note: only standard mode can be filtered
                 // note: current implementation introduces slight input lag (on button press, next autorotation update will pick state updates, which will be executed on next action manager update)
-                queued = mode == ActionManager.UseActionMode.None && action.Type is ActionType.Spell or ActionType.Item && _manualQueue.Push(action, targetId, GetAdjustedCastTime(action) * 0.001f, !targetOverridden, getAreaTarget, findNearestTarget);
+                queued = !dashBlocked && mode == ActionManager.UseActionMode.None && action.Type is ActionType.Spell or ActionType.Item && _manualQueue.Push(action, targetId, GetAdjustedCastTime(action) * 0.001f, !targetOverridden, getAreaTarget, findNearestTarget);
             }
         }
         catch (Exception ex)
         {
             // 退化行為：這一次按鍵不進我們的手動佇列、也不套滑鼠指向目標，直接以原始參數交給遊戲的原生佇列
-            //（等於「手動佇列微調關掉」時的按鍵行為）。技能照樣打得出去。
+            //（等於「手動佇列微調關掉」時的按鍵行為）。技能照樣打得出去 —— 位移攔截同樣退回「不攔」。
             targetId = origTargetId;
             queued = false;
+            dashBlocked = false;
             DetourGuard.Report(nameof(UseActionDetour), ex);
         }
+
+        if (dashBlocked)
+            return false; // 吞掉這一發位移技（診斷已在 ShouldBlock 裡記過），下一幀安全就會自然放行
 
         if (queued)
             return false; // 已收進我們自己的佇列，遊戲不會看到這次按鍵

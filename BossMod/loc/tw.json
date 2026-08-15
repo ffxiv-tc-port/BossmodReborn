@@ -1064,6 +1064,18 @@
   "Includes backdashes (e.g. SAM Yaten), teleports (e.g. NIN Shukuchi), and fixed-length dashes (e.g. DRG Elusive Jump)": {
     "message": "包含後退衝刺（如武士必殺劍·夜天）、瞬移（如忍者縮地）及固定距離衝刺（如龍騎士迴避跳躍）"
   },
+  "Also block dashes requested by other plugins (read tooltip!)": {
+    "message": "連其他外掛要求的位移技也一併攔下（請看提示！）"
+  },
+  "The two options above only affect actions that go through BossMod's own action queue. Plugins that call the game's UseAction directly - WrathCombo's auto-rotation, for example - bypass that queue entirely, so a gap closer they fire can still throw you into an AOE.\n\nThis adds the same landing-spot check at the UseAction hook itself, which every source passes through. A dash judged dangerous is simply dropped for that frame; the rotation carries on and the action fires as soon as the path is clear.\n\nOnly active while BossMod's AI is enabled - the hook cannot tell who asked for the action, so with AI off you are assumed to be playing manually and nothing is blocked. Holding the movement escape hatch key also lets everything through. Dashes whose landing spot cannot be computed (ground-targeted teleports like NIN Shukuchi) are never blocked.": {
+    "message": "上面兩個選項只管得到走 BossMod 自己動作佇列的技能。直接呼叫遊戲 UseAction 的外掛（例如 WrathCombo 的自動循環）整條佇列都繞過去了，它放出來的突進照樣會把你送進 AOE。\n\n這個選項把同一套落點檢查搬到 UseAction 掛鉤本身，所有來源都會經過那裡。被判定危險的位移技只是這一幀不放行；循環會繼續跑，路徑一安全就自然放出來。\n\n只在 BossMod 的 AI 啟用時生效——掛鉤分不出技能是誰要放的，AI 關著就視為您在純手動操作，一律不攔。按住「詠唱期間允許移動需按住的按鍵」同樣全部放行。算不出落點的位移技（像忍者縮地這類指定地面座標的傳送）永遠不攔。"
+  },
+  "Dash block: only count danger zones going off within this many seconds": {
+    "message": "位移攔截：只計入這麼多秒內會引爆的危險區"
+  },
+  "A zone that will not go off for a long time is not a reason to refuse a dash - the AI would simply walk back out of it. Only zones that are already active, or that resolve within this many seconds, can block a dash.": {
+    "message": "還很久才引爆的區域不構成拒放位移技的理由——AI 自己會走出來。只有已經生效、或在這麼多秒內結算的區域才會擋下位移技。"
+  },
   "Auto misdirection: prevent movement under misdirection if angle between normal movement and misdirected is greater than this threshold (set to 180 to disable).": {
     "message": "自動誤導：若正常移動方向與誤導方向的夾角大於此閾值則禁止移動（設為 180 停用）。"
   },
