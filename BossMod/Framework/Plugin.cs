@@ -36,6 +36,10 @@ public sealed class Plugin : IDalamudPlugin
     private DateTime _throttleJump;
     private DateTime _throttleInteract;
 
+    // 多開解鎖:目前實際「已經解鎖過了嗎」,用來只在翻轉時動作(見建構式)
+    private readonly ConfigListener<MiscConfig> _multibox;
+    private bool _multiboxUnlocked;
+
     // 設定存檔去抖動用的狀態(見 RequestConfigSave)
     private static readonly TimeSpan ConfigSaveDebounce = TimeSpan.FromSeconds(1d);
     private readonly FileInfo _configFile;
@@ -75,13 +79,32 @@ public sealed class Plugin : IDalamudPlugin
         Service.WindowSystem = new("bmr");
         //Service.Device = pluginInterface.UiBuilder.Device;
         Service.Condition.ConditionChange += OnConditionChanged;
-        MultiboxUnlock.Exec();
         Camera.Instance = new();
 
         Service.Config.Initialize();
         Service.Config.LoadFromFile(dalamud.ConfigFile);
         _configFile = dalamud.ConfigFile;
         Service.Config.Modified.Subscribe(RequestConfigSave);
+
+        // 🔴 多開解鎖刻意搬到設定載入「之後」才跑。它原本就在 Service.Config.Initialize() 之前,
+        //    那個時間點設定根本還讀不到,掛不上開關。它做的是關掉本行程的單一實例互斥鎖
+        //    (handle 一關就是整個遊戲行程活著的期間都有效),晚幾行執行對結果沒有任何差別。
+        // 📌 預設關,而且只在「翻轉成開」時才動作、才印診斷。
+        _multibox = Service.Config.GetAndSubscribe<MiscConfig>(cfg =>
+        {
+            if (cfg.UnlockMultibox == _multiboxUnlocked)
+                return;
+            _multiboxUnlocked = cfg.UnlockMultibox;
+            if (_multiboxUnlocked)
+            {
+                Service.Logger.Information("[Multibox] 多開解鎖已開啟:開始列舉本行程的控制代碼,關閉遊戲的單一實例互斥鎖(名稱以 _ffxiv_game0 結尾)。");
+                MultiboxUnlock.Exec();
+            }
+            else
+            {
+                Service.Logger.Information("[Multibox] 多開解鎖已關閉:這一刻起不再做任何事。已經被關掉的互斥鎖控制代碼要重開遊戲才會回來。");
+            }
+        });
 
         CommandManager = commandManager;
         CommandManager.AddHandler("/bmr", new CommandInfo(OnCommand) { HelpMessage = "Show boss mod settings UI" });
@@ -124,6 +147,7 @@ public sealed class Plugin : IDalamudPlugin
     public void Dispose()
     {
         Service.Condition.ConditionChange -= OnConditionChanged;
+        _multibox.Dispose();
         _wndDebug.Dispose();
         _wndRotation.Dispose();
         _wndReplay.Dispose();

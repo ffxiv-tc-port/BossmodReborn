@@ -8506,5 +8506,14 @@
   },
   "Mitigate anyway": {
     "message": "照樣推減傷"
+  },
+  "Unlock multiboxing (close the game's single-instance mutex)": {
+    "message": "解除多開限制（關閉遊戲的單一實例互斥鎖）"
+  },
+  "Lets you run more than one game client on this machine at the same time.\n\nWhat it actually does: the plugin walks this game process's own handle table, finds the named mutex the launcher uses to enforce \"one client per machine\" (its name ends in _ffxiv_game0) and closes that one handle. Nothing is sent to the server and no other process is touched.\n\nRisks, please read: running several clients at once is against the terms of service of most FFXIV services, and each extra client costs a full set of CPU, GPU and memory. The handle is only closed for this client, and it comes back the next time you restart the game.\n\nOff by default. Note that up to and including version 7.20.0.62 this ran unconditionally on every plugin load, with no setting and no notice - if you were relying on it, this is the switch that brings it back.": {
+    "message": "讓這台電腦可以同時執行一個以上的遊戲客戶端。\n\n實際上做的事：外掛會走過這個遊戲行程自己的控制代碼表，找出啟動器用來限制「一台機器只能開一個」的具名互斥鎖（名稱以 _ffxiv_game0 結尾），只關掉那一個控制代碼。不會送出任何封包，也不會碰到其他行程。\n\n風險，請務必看完：同時開多個客戶端在多數 FFXIV 服務的使用條款中是被禁止的，而且每多開一個就多吃一整份 CPU、GPU 與記憶體。這個控制代碼只對目前這個客戶端關閉，下次重開遊戲就會回來。\n\n預設關閉。請注意：在 7.20.0.62（含）之前，這件事是每次載入外掛都無條件執行的，沒有開關也沒有任何告知——如果你本來就靠它，這個選項就是把原本的行為找回來的地方。"
+  },
+  "Miscellaneous": {
+    "message": "雜項"
   }
 }
