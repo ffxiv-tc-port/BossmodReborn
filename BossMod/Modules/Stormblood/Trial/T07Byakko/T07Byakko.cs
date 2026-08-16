@@ -9,15 +9,51 @@ class TheRoarOfThunder(BossModule module) : Components.RaidwideCast(module, (uin
 class ImperialGuard(BossModule module) : Components.SimpleAOEs(module, (uint)AID.ImperialGuard, new AOEShapeRect(44.75f, 2.5f));
 class FireAndLightning(BossModule module) : Components.SimpleAOEGroups(module, [(uint)AID.FireAndLightning1, (uint)AID.FireAndLightning2], new AOEShapeRect(50f, 10f));
 
-// outer radius used to be 3f, i.e. smaller than the inner radius. AOEShapeDonut.Check() forwards to
-// InDonut(inner, outer), which can never be true when outer < inner, so this component was inert: it never
-// flagged anyone as being in the AOE. 25f is the outer radius recorded in T07ByakkoEnums.cs's own generated
-// comment for AID 10800 ("range ?-25 donut") and is what Ex6Byakko uses for the same mechanic.
-// Inner radius deliberately left at 5f: in the TC replays every cast by the boss itself reports 0 damage
-// against the (over-levelled, unsynced) player, so they carry no evidence about where the safe hole ends.
-class DistantClap(BossModule module) : Components.SimpleAOEs(module, (uint)AID.DistantClap, new AOEShapeDonut(5f, 25f));
+// Upstream had AOEShapeDonut(5f, 3f): outer smaller than inner. AOEShapeDonut.Check() forwards to
+// InDonut(inner, outer), which can never be true when outer < inner, so the component was inert.
+// Both radii are now measured from TC replays rather than guessed. Method: a CST! target list only
+// contains actors the ability actually affected, so player-in-list vs not, against the player's distance
+// from the boss, brackets the boundary. (Damage VALUES are useless here - the player ran a shield, see
+// the notes in tools/bmr-replay.) Calibrated on SweepTheLeg3, whose declared inner radius is 5f: measured
+// boundary fell in (5.71, 5.74], i.e. the method reproduces a known value with the expected sign.
+// For DistantClap over 11 replays: closest HIT 4.54, furthest MISS below it 3.41 -> inner radius is in
+// (3.41, 4.54]. The old 5f therefore promised a safe hole LARGER than reality, which matches the live
+// report of being hit while standing where the module said it was safe. 4f is inside the measured
+// bracket and is also what Ex6Byakko uses for the same mechanic. Outer 25f from the enum comment.
+class DistantClap(BossModule module) : Components.SimpleAOEs(module, (uint)AID.DistantClap, new AOEShapeDonut(4f, 25f));
 
-class HighestStakes(BossModule module) : Components.StackWithIcon(module, (uint)IconID.Stackmarker, (uint)AID.HighestStakes2, 6f, 5f, 7, 7);
+// 乾坤一擲: the boss throws the main-aggro player at a spot, and that spot needs to be shared.
+// Upstream modelled this with StackWithIcon, which is for icons that land on PLAYERS. In the replays
+// icon 62 lands on a HELPER actor (OID 0x18D6) positioned at the landing spot, which is why the marker
+// was "not being removed properly" - it was the wrong component shape, not a bug in the removal.
+// Rebuilt on GenericTowers following Ex6Byakko's HighestStakes, which already handles exactly this.
+// Radius 6f from the enum comment for 10806; activation 5.9s measured from icon to resolution
+// (37.76->43.66 and 479.95->485.87 in _WAR100_Lo_U_2026_08_16_22_45_12).
+// Soaker counts: the replays are all SOLO, so the required number of soakers is NOT determinable from
+// them. Ex6 uses 3/3, but this is the normal trial (lower damage, no instakill per the live report), so
+// rather than copy an unverified number we use 1..8 - it still says "someone stand here" but can never
+// wrongly tell a player to leave. Tighten once a full-party replay exists.
+class HighestStakes(BossModule module) : Components.GenericTowers(module, (uint)AID.HighestStakes2)
+{
+    public override void OnEventIcon(Actor actor, uint iconID, ulong targetID)
+    {
+        if (iconID == (uint)IconID.Stackmarker)
+            Towers.Add(new(actor.Position.Quantized(), 6f, 1, 8, default, WorldState.FutureTime(5.9d)));
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if (spell.Action.ID == WatchedAction)
+        {
+            ++NumCasts;
+            Towers.Clear();
+        }
+    }
+}
+
+// 荒彈: helper-cast puddles. 10793 has a real cast bar (2.2s) so it can drive a plain SimpleAOEs;
+// its sibling 10818 is instant and is therefore NOT drawable this way - see the note in T07ByakkoStates.
+class Aratama(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Aratama1, new AOEShapeCircle(4f));
 
 class AratamaForce(BossModule module) : Components.Voidzone(module, 2f, GetVoidzones, 2)
 {
@@ -40,13 +76,21 @@ class AratamaForce(BossModule module) : Components.Voidzone(module, 2f, GetVoidz
     }
 }
 
+// 百雷繚亂 exaflare. Every parameter below is measured from the TC replays rather than guessed:
+// 4 helpers cast 10808 simultaneously (cardinal set at radius 5, then a diagonal set 3s later), each line
+// then advances outward via 10809. Per volley each line explodes 4 times, the step is exactly 5.0 units,
+// and the interval is 1.06-1.17s. Upstream's disabled version said 1d and 10 explosions - both wrong;
+// a line that claims 10 explosions never reaches ExplosionsLeft == 0 within a volley, so stale lines
+// accumulate instead of being removed, which is the likely cause of the "just not appearing" note.
+// Also switched caster.Rotation -> spell.Rotation to match Ex6Byakko; in these replays the two agree
+// exactly, so this is for robustness (actor facing can be stale), not a behaviour change.
 class HundredfoldHavoc(BossModule module) : Components.Exaflare(module, 5f)
 {
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         if (spell.Action.ID == (uint)AID.HundredfoldHavocFirst)
         {
-            Lines.Add(new(caster.Position, 5f * caster.Rotation.ToDirection(), Module.CastFinishAt(spell), 1d, 10, 2));
+            Lines.Add(new(caster.Position, 5f * spell.Rotation.ToDirection(), Module.CastFinishAt(spell), 1.1d, 4, 2));
         }
     }
 
