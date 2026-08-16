@@ -9,7 +9,13 @@ class TheRoarOfThunder(BossModule module) : Components.RaidwideCast(module, (uin
 class ImperialGuard(BossModule module) : Components.SimpleAOEs(module, (uint)AID.ImperialGuard, new AOEShapeRect(44.75f, 2.5f));
 class FireAndLightning(BossModule module) : Components.SimpleAOEGroups(module, [(uint)AID.FireAndLightning1, (uint)AID.FireAndLightning2], new AOEShapeRect(50f, 10f));
 
-class DistantClap(BossModule module) : Components.SimpleAOEs(module, (uint)AID.DistantClap, new AOEShapeDonut(5f, 3f));
+// outer radius used to be 3f, i.e. smaller than the inner radius. AOEShapeDonut.Check() forwards to
+// InDonut(inner, outer), which can never be true when outer < inner, so this component was inert: it never
+// flagged anyone as being in the AOE. 25f is the outer radius recorded in T07ByakkoEnums.cs's own generated
+// comment for AID 10800 ("range ?-25 donut") and is what Ex6Byakko uses for the same mechanic.
+// Inner radius deliberately left at 5f: in the TC replays every cast by the boss itself reports 0 damage
+// against the (over-levelled, unsynced) player, so they carry no evidence about where the safe hole ends.
+class DistantClap(BossModule module) : Components.SimpleAOEs(module, (uint)AID.DistantClap, new AOEShapeDonut(5f, 25f));
 
 class HighestStakes(BossModule module) : Components.StackWithIcon(module, (uint)IconID.Stackmarker, (uint)AID.HighestStakes2, 6f, 5f, 7, 7);
 
@@ -65,5 +71,9 @@ class HundredfoldHavoc(BossModule module) : Components.Exaflare(module, 5f)
     }
 }
 
-[ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 290, NameID = 6221)]
+// NameID was 6221, which is Susano's BNpcName row (T01Susano declares the same value); it is only used by
+// ModuleViewer to label the entry, so the module list showed this trial under the wrong boss name.
+// 7092 is verified three ways: BNpcName row 7092 is 白虎 while 6221 is 須佐之男 in the TC sheet, the live
+// TC replays report nameId 7092 on the primary actor (OID 0x20F7), and Ex6Byakko already uses 7092.
+[ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 290, NameID = 7092)]
 public class T07Byakko(WorldState ws, Actor primary) : BossModule(ws, primary, default, new ArenaBoundsCircle(20f));
