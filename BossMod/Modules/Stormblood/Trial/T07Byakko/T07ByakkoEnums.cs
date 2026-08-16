@@ -65,7 +65,11 @@ public enum AID : uint
     UnknownCast = 10794, // Boss->self, no cast, single-target
 
     UnknownSpell1 = 10222, // Boss->self, no cast, single-target
-    UnknownSpell2 = 10817, // Helper->location, no cast, single-target
+
+    // was UnknownSpell2; identified 2026-08-16 from TC replays as the telegraph half of the 荒彈
+    // rain - it lands at exactly the spot Aratama2 (10818) detonates 6.07s later (117/117 pairs,
+    // zero location mismatches). Value unchanged, renamed only so the mechanic is legible.
+    AratamaRainTelegraph = 10817, // Helper->location, no cast, spawns the puddle
 
     UnrelentingAnguish = 10221, // Boss->self, 3.0s cast, single-target
     WhiteHerald = 10828, // Hakutei1->self, no cast, range 50 circle

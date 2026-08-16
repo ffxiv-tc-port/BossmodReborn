@@ -51,9 +51,39 @@ class HighestStakes(BossModule module) : Components.GenericTowers(module, (uint)
     }
 }
 
-// 荒彈: helper-cast puddles. 10793 has a real cast bar (2.2s) so it can drive a plain SimpleAOEs;
-// its sibling 10818 is instant and is therefore NOT drawable this way - see the note in T07ByakkoStates.
+// 荒彈, cast-bar variant: 10793 has a real 2.2s cast so a plain SimpleAOEs is enough.
 class Aratama(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Aratama1, new AOEShapeCircle(4f));
+
+// 荒彈, the aerial-phase rain - the mechanic the live report was about.
+// Behaviour (per the player): it locks onto someone and fires once every 2s.
+// Structure measured across 11 TC replays / 117 telegraph-detonation pairs:
+//   AratamaRainTelegraph (10817) lands at the target's current position, and Aratama2 (10818)
+//   detonates that exact spot 6.07s later (observed 5.99-6.15); cadence 1.90-2.09s.
+// The pairing is strictly FIFO. Matching each detonation to the NEAREST earlier telegraph instead
+// produces a false ambiguity (candidate delays split between ~0.1s and ~2.0s), because the same
+// point repeats every 2s whenever the locked player stands still - that artefact is what made this
+// look undrawable on the first pass. FIFO pairing matched 117/117 with ZERO location mismatches.
+// Radius 2f: players in a detonation's hit list sit 0.01-1.66 from its centre, matching the enum's
+// "range 2 circle".
+// Modelled as static circles rather than a chasing AOE on purpose: only the SPAWN point tracks the
+// player; once spawned the puddle does not move, so there is nothing left to predict. It also avoids
+// guessing who is locked - these cast events carry a sentinel MainTargetID that resolves to no actor,
+// so a chasing component would have to infer the target from proximity instead of knowing it.
+class AratamaRain(BossModule module) : Components.GenericAOEs(module, default, "Keep moving!")
+{
+    private static readonly AOEShapeCircle circle = new(2f);
+    private readonly List<AOEInstance> _aoes = [];
+
+    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => CollectionsMarshal.AsSpan(_aoes);
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if (spell.Action.ID == (uint)AID.AratamaRainTelegraph)
+            _aoes.Add(new(circle, spell.TargetXZ.Quantized(), default, WorldState.FutureTime(6.07d)));
+        else if (spell.Action.ID == (uint)AID.Aratama2 && _aoes.Count != 0)
+            _aoes.RemoveAt(0); // FIFO, matching the measured pairing
+    }
+}
 
 class AratamaForce(BossModule module) : Components.Voidzone(module, 2f, GetVoidzones, 2)
 {
