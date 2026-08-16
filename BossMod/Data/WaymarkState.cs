@@ -44,8 +44,19 @@ public sealed class WaymarkState
         get => _setMarkers[(int)wm] ? _positions[(int)wm] : null;
         private set
         {
-            _setMarkers[(int)wm] = value != null;
-            _positions[(int)wm] = value ?? default;
+            // 🔴 這個 setter 的其中一個來源不受信任：ReplayParserLog.ParseWaymarkChange
+            //    直接把 replay 檔裡的一個 raw byte cast 成 Waymark（`(Waymark)_input.ReadByte(false)`），
+            //    完全不驗範圍。檔案壞掉／被截斷時只要那個 byte >= Waymark.Count，
+            //    這裡就是 IndexOutOfRangeException，把整份 replay 的載入打斷。
+            //    （遊戲內那條路徑是安全的：WorldStateGameSync.UpdateWaymarks 從 Waymark.A 逐一 ++，
+            //    走的是 MarkingController 固定長度的 FieldMarkers 陣列，永遠在界內。）
+            // ⇒ fail-safe：出界就整個跳過。少認一個航點只會讓 replay 少一個標記，
+            //    比整份載不進來好，而且不影響其他航點。
+            var idx = (int)wm;
+            if ((uint)idx >= (uint)_positions.Length)
+                return;
+            _setMarkers[idx] = value != null;
+            _positions[idx] = value ?? default;
         }
     }
 
