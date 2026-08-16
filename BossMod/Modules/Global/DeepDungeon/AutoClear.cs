@@ -178,15 +178,17 @@ public abstract class AutoClear : ZoneModule
     /// </summary>
     /// <remarks>
     /// 沿用原本平台函式的 25y，作用範圍完全不變 —— 這一版只把<b>形狀</b>從平台換成斜坡。
-    /// ⚠️ 2026-08-16 起 <see cref="AIHints.GoalProximity"/> 的衰減曲線由線性改成平方
-    /// （weight = 1 - (d/r)²，同步上游 abee5e9fe），斜坡在寶箱附近變平、在邊緣變陡：
-    /// 距離 1y 處每碼落差由 0.04 降到約 0.0032。梯度仍然處處非零，但若實機再度出現
-    /// 「靠近寶箱就不動」，這裡是第一嫌疑。
+    /// 📌 2026-08-16 起 <see cref="AIHints.GoalProximity"/> 同步上游 abee5e9fe 把衰減曲線
+    /// 由線性改成平方（weight = 1 - (d/r)²），斜坡在目的地附近變平：1y 處每碼落差由
+    /// 0.04 掉到約 0.0032（弱約 12.5 倍）。深牢寶箱這條路徑<b>刻意不吃那條曲線</b>，
+    /// 改用本檔自帶的 <see cref="GoalProximityLinear"/> 維持線性，避免 .57 修掉的
+    /// 「靠近寶箱就站著不動」因為梯度變弱而回歸。上游的平方曲線只用在一般戰鬥路徑的
+    /// 其餘呼叫點，本檔不受影響。
     /// </remarks>
     private const float TreasureApproachRadius = 25f;
 
     /// <summary>
-    /// 「走過去開寶箱」的最高權重（就在寶箱上，隨距離遞減到 <see cref="TreasureApproachRadius"/> 歸零）。
+    /// 「走過去開寶箱」的最高權重（就在寶箱上，隨距離線性遞減到 <see cref="TreasureApproachRadius"/> 歸零）。
     /// </summary>
     /// <remarks>
     /// 🔴 刻意維持原本平台的 1：新的權重在每一點都 ≤ 舊值，所以不可能壓過原本壓不過的目標區
@@ -194,6 +196,28 @@ public abstract class AutoClear : ZoneModule
     /// 調高它等於「開箱比趕路重要」，那是行為變更，要另外裁決。
     /// </remarks>
     private const float TreasureApproachWeight = 1f;
+
+    /// <summary>
+    /// 線性衰減的目標區：就在 <paramref name="destination"/> 上等於
+    /// <paramref name="maxWeight"/>，隨距離線性遞減，到
+    /// <paramref name="maxDistance"/> 歸零、之外恆為 0。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 這是 <see cref="AIHints.GoalProximity"/> 在 2026-08-16 之前的形狀，刻意複製一份留在
+    /// 深牢這邊。上游 abee5e9fe 把本體換成平方曲線之後，目的地附近的梯度會弱掉約 12.5 倍，
+    /// 而深牢趕路正是靠這段梯度才走得動（.57 修掉的「靠近寶箱就站著不動」）。
+    /// ⚠️ 要改這裡之前先確認症狀不會回歸；一般戰鬥路徑請照常用 <see cref="AIHints.GoalProximity"/>。
+    /// </remarks>
+    private static Func<WPos, float> GoalProximityLinear(WPos destination, float maxDistance, float maxWeight)
+    {
+        var invDist = 1f / maxDistance;
+        return p =>
+        {
+            var dist = (p - destination).Length();
+            var weight = 1f - Math.Clamp(invDist * dist, 0f, 1f);
+            return maxWeight * weight;
+        };
+    }
 
     protected struct PlayerImmuneState
     {
@@ -2016,7 +2040,7 @@ public abstract class AutoClear : ZoneModule
         //    玩家格 `HScore == 0`，`Execute()` 一步都不跑、直接回傳起點，`GetFirstWaypoints` 回
         //    `(null, null)` ⇒ **Destination 是 null ⇒ 角色不走、不畫標線、不報錯**。
         //    也就是說「走過去開寶箱」在人進入 25y 之後就會停住 —— 使用者回報的「走幾步就停」。
-        //    ⇒ 下面改用 GoalProximity（隨距離遞減的梯度），詳見那一行。
+        //    ⇒ 下面改用 GoalProximityLinear（隨距離線性遞減的梯度），詳見那一行。
         Actor? moveToCoffer = null;
         Actor? openCoffer = null;
         if (coffer is Actor t && !IsPlayerTransformed(player))
@@ -2075,15 +2099,18 @@ public abstract class AutoClear : ZoneModule
         //    而平台只要把玩家包進去，尋路就會回報「已經在最佳位置」、完全不移動（機制見上面那段註解）。
         //    症狀：寶箱在 25y 外時角色會走過去，一踏進 25y 就停住 —— 也就是使用者說的「走幾步就停」，
         //    而且一路上不報錯、連移動標線都不會畫。
-        //    ⇒ 改用 GoalProximity：距離愈近權重愈高（寶箱處 = TreasureApproachWeight，25y 處歸零），
+        //    ⇒ 改用線性遞減的目標區：距離愈近權重愈高（寶箱處 = TreasureApproachWeight，25y 處歸零），
         //      整段都有梯度，尋路每一幀都算得出「往寶箱再靠近一格」。
+        //    🔴 刻意用本檔自帶的 GoalProximityLinear，不是 AIHints.GoalProximity —— 後者從
+        //      2026-08-16 起同步上游改成平方曲線，寶箱附近的梯度會弱掉約 12.5 倍，那正好就是
+        //      上面那個症狀的成因。詳見 TreasureApproachRadius 的註解。
         //    📌 這個換法對其他目標區是**保守**的：新的權重在每一點都 ≤ 舊的平台值（同樣的最大值、
         //      同樣的作用半徑），所以不可能壓過原本壓不過的東西；差別只在平台變成斜坡。
         //    📌 對照組：同一份 hints 裡的坦克拉怪用的是 `GoalSingleTarget(target, 2.6y, 12)`，
         //      那個小圈**不會包住玩家**（拉怪距離十幾碼），所以它一直都是好的 —— 實機 23:29:34
         //      拉怪會動、趕路不動，差別就在這裡，不是擁有權、也不是座標。
         if (moveToCoffer is Actor moveTarget)
-            hints.GoalZones.Add(hints.GoalProximity(moveTarget.Position, TreasureApproachRadius, TreasureApproachWeight));
+            hints.GoalZones.Add(GoalProximityLinear(moveTarget.Position, TreasureApproachRadius, TreasureApproachWeight));
 
         // 🔑 寶箱優先於傳送裝置，而且這正好就是既有的優先度：傳送裝置比寶箱近而且沒勾
         //    「優先開啟寶箱」時，上面已經把 openCoffer 清成 null 了 ⇒ 那種情況輪得到傳送裝置。
