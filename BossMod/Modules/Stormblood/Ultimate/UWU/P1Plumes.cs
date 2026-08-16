@@ -15,3 +15,18 @@ class P1Plumes(BossModule module) : BossComponent(module)
         Arena.Actors(_satin);
     }
 }
+
+// shows shield as a safezone -- this isn't how the mechanic works entirely but is intuitive.
+sealed class P1PlumeShield(BossModule module) : BossComponent(module)
+{
+    private readonly List<Actor> _shield = module.Enemies((uint)OID.SpinyShield);
+
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        if (_shield.Count != 0)
+        {
+            var shieldPos = _shield[0].Position;
+            Arena.AddCircle(shieldPos, 6f, (pc.Position - shieldPos).LengthSq() <= 36f ? Colors.Safe : Colors.Danger);
+        }
+    }
+}
