@@ -509,7 +509,7 @@ sealed class WorldStateGameSync : IDisposable
                 // player not logged in, just do some sanity checks
                 if (pc != null)
                     Service.Log($"[WSG] Object #0 is valid ({pc->AccountId:X}.{pc->ContentId:X}, {pc->EntityId:X8} '{pc->NameString}') while player is not logged in");
-                if (group->MemberCount > 0)
+                if (group != null && group->MemberCount > 0)
                     Service.Log($"[WGS] Group is non-empty while player is not logged in");
             }
         }
@@ -523,7 +523,7 @@ sealed class WorldStateGameSync : IDisposable
             // else: just assume there's no player for now...
         }
 
-        var member = player.InstanceId != default ? group->GetPartyMemberByEntityId((uint)player.InstanceId) : null;
+        var member = player.InstanceId != default && group != null ? group->GetPartyMemberByEntityId((uint)player.InstanceId) : null;
         if (member != null)
             player.InCutscene |= (member->Flags & 0x10) != default;
         UpdatePartySlot(PartyState.PlayerSlot, player);
@@ -532,6 +532,9 @@ sealed class WorldStateGameSync : IDisposable
 
     private unsafe void UpdatePartyNormal(GroupManager.Group* group, PartyMember* player)
     {
+        if (group == null)
+            return;
+
         // first iterate over previous members, search for match in game state, and reconcile differences - update or remove
         for (var i = PartyState.PlayerSlot + 1; i < PartyState.MaxPartySize; ++i)
         {
@@ -556,7 +559,7 @@ sealed class WorldStateGameSync : IDisposable
         for (var i = 0; i < group->MemberCount; ++i)
         {
             var member = group->PartyMembers.GetPointer(i);
-            if (member->ContentId != player->ContentId && Array.FindIndex(_ws.Party.Members, m => m.ContentId == member->ContentId) < 0)
+            if ((player == null || member->ContentId != player->ContentId) && Array.FindIndex(_ws.Party.Members, m => m.ContentId == member->ContentId) < 0)
                 AddPartyMember(BuildPartyMember(member));
             // else: member is either a player (it was handled by a different function) or already exists in party state
         }
@@ -577,6 +580,9 @@ sealed class WorldStateGameSync : IDisposable
 
     private unsafe void UpdatePartyAlliance(GroupManager.Group* group)
     {
+        if (group == null)
+            return;
+
         // note: we don't support small-group alliance (should we?)
         // unlike normal party, game's alliance slots never change, so we just keep 1:1 mapping
         var isNormalAlliance = group->IsAlliance && !group->IsSmallGroupAlliance;
