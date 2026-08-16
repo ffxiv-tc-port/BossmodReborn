@@ -95,13 +95,18 @@ public sealed record class RotationModuleDefinition(string DisplayName, string D
 
     public DefineRef Define<Index>(Index expectedIndex) where Index : Enum => new(Configs, (int)(object)expectedIndex);
 
-    public void DefineFloat<Index>(Index expectedIndex, string displayName = "", float minValue = 0, float maxValue = float.MaxValue, float uiPriority = 0) where Index : Enum
+    /// <param name="defaultValue">
+    /// 使用者沒動過這條軌時拿到的值。省略＝沿用 <paramref name="minValue"/>（解耦前的行為）。
+    /// 🔴 想把 <paramref name="minValue"/> 調低時<b>一定要同時明寫這個</b>，否則等於把所有既有
+    /// 使用者的預設值一起改掉，而且完全不報錯 —— 見 <see cref="StrategyConfigFloat.Default"/>。
+    /// </param>
+    public void DefineFloat<Index>(Index expectedIndex, string displayName = "", float minValue = 0, float maxValue = float.MaxValue, float uiPriority = 0, float? defaultValue = null) where Index : Enum
     {
         var idx = (int)(object)expectedIndex;
         var internalName = expectedIndex.ToString();
         if (Configs.Count != idx)
             throw new ArgumentException($"Unexpected index value for {internalName}: expected {idx}, cur size {Configs.Count}");
-        Configs.Add(new StrategyConfigFloat(internalName, displayName, minValue, maxValue, uiPriority, typeof(FloatRenderer)));
+        Configs.Add(new StrategyConfigFloat(internalName, displayName, minValue, maxValue, uiPriority, typeof(FloatRenderer), DefaultValue: defaultValue));
     }
 
     public void DefineInt<Index>(Index expectedIndex, string displayName = "", long minValue = 0, long maxValue = long.MaxValue, float uiPriority = 0) where Index : Enum

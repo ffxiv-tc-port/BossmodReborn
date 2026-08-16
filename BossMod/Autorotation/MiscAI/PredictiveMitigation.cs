@@ -146,11 +146,18 @@ public sealed class PredictiveMitigation(RotationModuleManager manager, Actor pl
         def.AbilityTrack(Track.Emergency, "Emergency", "Emergency self-preservation", 80)
             .AddAssociatedActions(ClassShared.AID.SecondWind);
 
-        // ⚠️ StrategyConfigFloat.CreateEmpty() 回的是 MinValue ⇒ 這三條滑桿的「預設值就是 MinValue」。
-        //    所以最小值刻意設成我們要的預設，範圍只往「更積極」的方向開。
-        def.DefineFloat(Track.RaidwideLead, "Raidwide lead time (s)", 5, 20, 10);
-        def.DefineFloat(Track.TankbusterLead, "Tankbuster lead time (s)", 4, 15, 9);
-        def.DefineFloat(Track.EmergencyHP, "Emergency HP threshold (%)", 30, 90, 8);
+        // 📌 這三條以前受限於「CreateEmpty() 回 MinValue ⇒ 預設值只能等於下限」，所以下限是被當成
+        //    預設值在用的、範圍只能往單邊開。DefineFloat 現在收 defaultValue，兩者已經解耦。
+        // 🔴 defaultValue 一律明寫成解耦前的舊 MinValue（5 / 4 / 30）：沒設過這幾條軌的使用者拿到的
+        //    值必須與解耦前逐位元組相同，這是這次改動的回歸錨，不要「順手」跟著範圍一起改。
+        //    要調整可選範圍就只動 minValue / maxValue。
+        // ⚠️ 提前秒數往下開到 1 秒。刻意不開到 0：0 秒＝命中的那一瞬間才按，動畫鎖加伺服器往返一定
+        //    來不及，減傷會落在傷害之後＝等於沒開。
+        def.DefineFloat(Track.RaidwideLead, "Raidwide lead time (s)", 1, 20, 10, defaultValue: 5);
+        def.DefineFloat(Track.TankbusterLead, "Tankbuster lead time (s)", 1, 15, 9, defaultValue: 4);
+        // 血量門檻沒有「要更低」的訴求，範圍維持不動；仍然明寫 defaultValue，免得下次有人調了下限
+        // 卻沒注意到預設值會跟著跑掉。
+        def.DefineFloat(Track.EmergencyHP, "Emergency HP threshold (%)", 30, 90, 8, defaultValue: 30);
 
         // ⚠️ 這條軌道刻意加在最後面：Define/AddOption 都會斷言「索引 == 列舉值」，而軌道的
         //    InternalName 是 preset 的序列化鍵 —— 插在中間會把既有 preset 的軌道對應整個錯開。

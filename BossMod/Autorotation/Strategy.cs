@@ -158,13 +158,27 @@ public record class StrategyConfigFloat(
     float UIPriority,
     Type Renderer,
     bool Drag = true,
-    float Speed = 1
+    float Speed = 1,
+    float? DefaultValue = null
 ) : StrategyConfig(InternalName, DisplayName, UIPriority, Renderer)
 {
-    public override StrategyValueFloat CreateEmpty() => new() { Value = MinValue };
-    public override StrategyValueFloat CreateForEditor() => new() { Value = MinValue };
+    /// <summary>使用者從沒動過這條軌道時拿到的值。</summary>
+    /// <remarks>
+    /// 🔴 這個欄位存在的理由是「預設值」與「下限」以前是同一個東西：<see cref="CreateEmpty"/>
+    /// 原本回 <see cref="MinValue"/>，所以想要某個預設值就只能把下限設成它、範圍只往單邊開。
+    /// 結果是<b>下限不能調低，一調低就等於把所有沒設過這條軌的使用者預設一起改掉</b>，而且是靜默的。
+    /// ⇒ 解耦之後，調整可選範圍不再動到既有使用者的行為。
+    /// 📌 省略時回落到 <see cref="MinValue"/>，與解耦前逐位元組一致 —— 既有呼叫端不必跟著改。
+    /// </remarks>
+    public float Default => DefaultValue ?? MinValue;
 
-    public override bool IsDefault(StrategyValue val) => (((StrategyValueFloat)val).Value - MinValue) < 1e-8;
+    public override StrategyValueFloat CreateEmpty() => new() { Value = Default };
+    public override StrategyValueFloat CreateForEditor() => new() { Value = Default };
+
+    // ⚠️ 這裡必須取絕對值。原本是 `(Value - MinValue) < 1e-8`，在「預設值＝下限」的年代剛好沒事
+    //    （滑桿夾在下限以上，差值不可能是負的）；但預設值一旦離開下限，任何**低於預設值**的設定
+    //    都會讓沒有絕對值的判斷式回 true ⇒ 使用者明明調過卻被當成沒調過。
+    public override bool IsDefault(StrategyValue val) => MathF.Abs(((StrategyValueFloat)val).Value - Default) < 1e-8f;
     public override string ToDisplayString(StrategyValue val) => ((StrategyValueFloat)val).Value.ToString("f1");
     public override void SerializeValue(Utf8JsonWriter writer, StrategyValue val)
     {
