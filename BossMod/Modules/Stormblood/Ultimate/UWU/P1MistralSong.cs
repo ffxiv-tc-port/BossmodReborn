@@ -52,7 +52,7 @@ class P1MistralSongAdds(BossModule module) : Components.CastCounter(module, (uin
     public override void DrawArenaForeground(int pcSlot, Actor pc)
     {
         Arena.Actors(_sisters, Colors.Object, true);
-        // 第二次疾風高歌的固定集合點：非坦克踩進去才算安全
+        // 第二次寒風之歌的固定集合點：非坦克踩進去才算安全
         if (_config.P1MistralSongFixedLocation && pc.Role != Role.Tank)
         {
             var loc = new WPos(107f, 107f);
