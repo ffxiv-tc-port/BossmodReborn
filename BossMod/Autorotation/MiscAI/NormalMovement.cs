@@ -231,7 +231,7 @@ public sealed class NormalMovement : RotationModule
                 return; // pyretic is imminent, do not move
             }
 
-            if (Hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Freezing && Hints.ImminentSpecialMode.activation <= World.FutureTime(0.5f))
+            if (Hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Freezing && Hints.ImminentSpecialMode.activation <= World.FutureTime(0.5d))
                 Hints.WantJump = true;
 
             if (Hints.InteractWithTarget != null)
@@ -459,7 +459,7 @@ public sealed class NormalMovement : RotationModule
         Hints.ForceCancelCast |= castStrategy == CastStrategy.DropMove;
         if (castStrategy is CastStrategy.Leeway && Player.CastInfo is { } castInfo)
         {
-            var effectiveCastRemaining = Math.Max(0, castInfo.RemainingTime - 0.5f);
+            var effectiveCastRemaining = Math.Max(0, castInfo.RemainingTime - 0.5d);
             if (Hints.MaxCastTime < effectiveCastRemaining)
             {
                 Hints.ForceCancelCast = true;
