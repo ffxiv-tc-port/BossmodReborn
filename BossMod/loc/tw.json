@@ -143,9 +143,6 @@
   "PRC_AllGood": {
     "message": "設定正確！"
   },
-  "AI_Title_Off": {
-    "message": "AI：關閉"
-  },
   "AI_ForbidActions": {
     "message": "禁止技能"
   },
@@ -542,9 +539,6 @@
   "Bait far!": {
     "message": "引導至遠處！"
   },
-  "Press invuln!": {
-    "message": "開無敵！"
-  },
   "Levitate": {
     "message": "浮空"
   },
@@ -820,9 +814,6 @@
   },
   "Target everything if not at level cap, otherwise stop when passage opens": {
     "message": "未達等級上限時攻擊所有怪物，達到後通道開啟即停止"
-  },
-  "Max number of mobs to pull before pausing navigation (set to 0 to disable navigation while in combat)": {
-    "message": "暫停導航前可拉取的最大怪物數（設為 0 則戰鬥中停止導航）"
   },
   "Try to use terrain to LOS attacks": {
     "message": "嘗試利用地形進行視線遮擋攻擊"
@@ -4081,9 +4072,6 @@
   },
   "No": {
     "message": "否"
-  },
-  "Work in progress - expect it to break a lot (or just be straight broken)": {
-    "message": "開發中——預期會經常出問題（或根本就是壞的）"
   },
   "CFG_SearchHint": {
     "message": "搜尋設定……"
