@@ -194,7 +194,7 @@ public struct NavigationDecision
                 for (var i = 0; i < localForbiddenZones.Length; i++)
                     localForbiddenZones[i] = (localForbiddenZones[i].Item1, now, localForbiddenZones[i].Item3);
             }
-            RasterizeForbiddenZones(ctx.Map, localForbiddenZones, ws.CurrentTime, ctx.Scratch, activationTimeCushion);
+            RasterizeForbiddenZones(ctx.Map, localForbiddenZones, ws.CurrentTime, ref ctx.Scratch, activationTimeCushion);
         }
         // WorldToGrid 不做夾限，玩家在格線外時 x/y 會是負數，GridToIndex 因此算出負的索引。
         // 原本的守衛只檢查上界（Length > index），任何負索引都會通過 → IndexOutOfRangeException。
@@ -293,7 +293,7 @@ public struct NavigationDecision
         }
     }
 
-    public static void RasterizeForbiddenZones(Map map, (Func<WPos, float> shapeDistance, DateTime activation, ulong source)[] zones, DateTime current, float[] scratch, float activationTimeCushion = ActivationTimeCushion)
+    public static void RasterizeForbiddenZones(Map map, (Func<WPos, float> shapeDistance, DateTime activation, ulong source)[] zones, DateTime current, ref float[] scratch, float activationTimeCushion = ActivationTimeCushion)
     {
         // 1) Cluster activation times
         // very slight difference in activation times cause issues for pathfinding - cluster them together
@@ -321,9 +321,24 @@ public struct NavigationDecision
         var cushion = resolution * 0.5f;
         map.MaxG = clusterG;
 
+        // 🔴 `ref` 不能省。原本是傳值，下面的 `scratch = new float[...]` 只改到本地參數，
+        //    呼叫端的 ctx.Scratch 永遠停在 `[]`（Context 的初值）⇒ 這個條件**每次都成立**，
+        //    等於每幀白配一個 lenPixelMaxG 大小的 float 陣列（120x120 的地圖＝14400 float／57.6KB）
+        //    再整個丟掉。改成 ref 之後緩衝區長在 Context 上，只在地圖變大時重配一次。
+        // ⚠️ 這**不會製造新的資料競態**：同一個 Context 的 map.PixelMaxG／PixelPriority
+        //    本來就是同樣「只增不減、跨呼叫重複使用」的緩衝區（Map.Init 就是這個寫法），
+        //    所以若真有兩次 Build 在同一個 Context 上重疊，權重場早就先被寫壞了，
+        //    scratch 變成常駐並沒有新增任何共用面。
+        //    單次呼叫之內也安全：Parallel.For 會等全部工作完成才返回，
+        //    pass #1 寫、pass #2 才讀，兩者之間有隱含的屏障。
         if (scratch.Length < lenPixelMaxG)
             scratch = new float[lenPixelMaxG];
-        Array.Fill(scratch, float.MaxValue);
+        // ref 參數不能被 lambda 捕捉（CS1628），所以取一個本地別名給下面的 Parallel.For 用。
+        // 它與 scratch 指向**同一個陣列**，而成長過的那份在上一行已經回寫給呼叫端了。
+        var buf = scratch;
+        // 只填這次真的會用到的前段（與 Map.Init 對 PixelMaxG 的做法一致）：
+        // 緩衝區可能比這次的地圖大，尾段不會被任何一個 pass 讀到。
+        Array.Fill(buf, float.MaxValue, 0, lenPixelMaxG);
 
         var dy = map.LocalZDivRes * resolution * resolution;
         var dx = dy.OrthoL();
@@ -354,7 +369,7 @@ public struct NavigationDecision
             {
                 var rightPos = leftPos + dx;
                 var rightG = CalculateMaxG(ref zonesFixed, rightPos);
-                scratch[rowStart + x] = Math.Min(leftG, rightG);
+                buf[rowStart + x] = Math.Min(leftG, rightG);
                 leftPos = rightPos;
                 leftG = rightG;
             }
@@ -391,7 +406,7 @@ public struct NavigationDecision
             {
                 var jCell = columnStart + y * width;
                 // top corner from pass #1
-                var topG = scratch[jCell];
+                var topG = buf[jCell];
                 ref var pixelMaxG = ref map.PixelMaxG[jCell];
                 var cellG = Math.Min(Math.Min(topG, bottomG), pixelMaxG);
 
