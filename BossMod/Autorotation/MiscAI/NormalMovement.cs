@@ -1,4 +1,5 @@
-﻿using BossMod.Pathfinding;
+﻿using System.Threading;
+using BossMod.Pathfinding;
 
 namespace BossMod.Autorotation.MiscAI;
 
@@ -102,8 +103,21 @@ public sealed class NormalMovement : RotationModule
     // 時序：Execute 由 Plugin.DrawUI 的 _rotation.Update() 呼叫，繪製端是同一個 DrawUI 裡稍後的
     // WindowSystem.Draw() → UIRotationWindow.PreOpenCheck()。兩者同在 UiBuilder.Draw 這一個回呼中
     // 依序執行（Plugin.cs 的 _rotation.Update() 在 Service.WindowSystem.Draw() 之前），
-    // 所以這裡不需要任何執行緒同步。
-    public readonly record struct MovementVisualization(WPos Destination, WPos? NextWaypoint, bool Urgent);
+    // 所以 Execute 與繪製端兩者之間確實不需要同步。
+    // 🔴 但**第三個寫入端 Dispose 不在那條時序上**：AIManager.Update 是
+    //    `_ = Beh.Execute(player, master)` 的射後不理，而 AIBehaviour.Execute 在
+    //    `await BuildNavigationDecision(...)`（ConfigureAwait(false)，外掛沒有 SynchronizationContext）
+    //    之後整段跑在**執行緒集區**上，而其中 AIBehaviour.cs 的 `autorot.Preset = ...`
+    //    會走 RotationModuleManager.DirtyActiveModules → ActiveModules[i].Module.Dispose()
+    //    ⇒ 本模組的 Dispose 會在**集區執行緒**上清這個欄位，
+    //    與主執行緒的寫入／消費同時發生。症狀就是「標線偶爾閃沒」。
+    // ⇒ 所以這個欄位必須是**單一引用**：record class 而不是 record struct。
+    //    原本的 `MovementVisualization?` 是可空結構（WPos + WPos? + bool，遠超過 8 bytes），
+    //    指派不是原子操作 —— 跨執行緒讀得到「HasValue 已經是 true、座標還是舊的」這種撕裂值。
+    //    改成類別之後所有讀寫都是一次引用存取，撕裂在原理上就不可能；
+    //    再用 Interlocked.Exchange 讓「讀取後清空」也變成不可分割的一步。
+    //    代價是 showPath 開著時每幀多配一個小物件，比撕裂的座標便宜得多。
+    public sealed record class MovementVisualization(WPos Destination, WPos? NextWaypoint, bool Urgent);
 
     private static MovementVisualization? _pendingVisualization;
 
@@ -111,12 +125,8 @@ public sealed class NormalMovement : RotationModule
     // Execute 有多條提早 return 的路徑（移動被別的模組接管、沒有目的地、已經站到位、擊退尚未結算、
     // Pyretic 將至…），而且這個模組不在啟用中的預設集裡時根本不會被呼叫。
     // 若沿用舊值，上述每一種情況都會讓上一幀的線繼續畫在早已過期的位置上。
-    public static MovementVisualization? ConsumeVisualization()
-    {
-        var res = _pendingVisualization;
-        _pendingVisualization = null;
-        return res;
-    }
+    // Interlocked.Exchange：讀取與清空是不可分割的一步，沒有「讀完到寫 null 之間被 Execute 插進來」的遺失更新。
+    public static MovementVisualization? ConsumeVisualization() => Interlocked.Exchange(ref _pendingVisualization, null);
 
     // LeewaySeconds 低於這個值就換成危險色。取 1 秒是對齊 NavigationDecision.ActivationTimeCushion
     // 的預設值（同樣是 1 秒）—— 那是尋路自己認定的安全緩衝，低於它代表已經在吃緩衝了。
@@ -136,7 +146,8 @@ public sealed class NormalMovement : RotationModule
     public override void Dispose()
     {
         Instance = null;
-        _pendingVisualization = null;
+        // 這一行可能跑在執行緒集區上（見上方 MovementVisualization 的說明）。
+        Interlocked.Exchange(ref _pendingVisualization, null);
         base.Dispose();
     }
 
@@ -402,7 +413,7 @@ public sealed class NormalMovement : RotationModule
             // ⚠️ 只有 Pathfind 會產生有意義的 LeewaySeconds：Explicit 分支沒有設這個欄位（結構預設 0），
             // 直接拿去比會讓明明不趕時間的手動指定座標永遠顯示成急迫。
             var urgent = destinationStrategy == DestinationStrategy.Pathfind && navi.LeewaySeconds < UrgentLeewaySeconds;
-            _pendingVisualization = new(navi.Destination.Value, navi.Destination == preRangeDestination ? navi.NextWaypoint : null, urgent);
+            Volatile.Write(ref _pendingVisualization, new(navi.Destination.Value, navi.Destination == preRangeDestination ? navi.NextWaypoint : null, urgent));
         }
 
         // we want to move somewhere, check whether we're allowed to
