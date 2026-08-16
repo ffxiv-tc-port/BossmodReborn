@@ -178,11 +178,15 @@ public abstract class AutoClear : ZoneModule
     /// </summary>
     /// <remarks>
     /// 沿用原本平台函式的 25y，作用範圍完全不變 —— 這一版只把<b>形狀</b>從平台換成斜坡。
+    /// ⚠️ 2026-08-16 起 <see cref="AIHints.GoalProximity"/> 的衰減曲線由線性改成平方
+    /// （weight = 1 - (d/r)²，同步上游 abee5e9fe），斜坡在寶箱附近變平、在邊緣變陡：
+    /// 距離 1y 處每碼落差由 0.04 降到約 0.0032。梯度仍然處處非零，但若實機再度出現
+    /// 「靠近寶箱就不動」，這裡是第一嫌疑。
     /// </remarks>
     private const float TreasureApproachRadius = 25f;
 
     /// <summary>
-    /// 「走過去開寶箱」的最高權重（就在寶箱上，隨距離線性遞減到 <see cref="TreasureApproachRadius"/> 歸零）。
+    /// 「走過去開寶箱」的最高權重（就在寶箱上，隨距離遞減到 <see cref="TreasureApproachRadius"/> 歸零）。
     /// </summary>
     /// <remarks>
     /// 🔴 刻意維持原本平台的 1：新的權重在每一點都 ≤ 舊值，所以不可能壓過原本壓不過的目標區
