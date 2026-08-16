@@ -157,7 +157,14 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
                 if (_config.MoveDelay != 0d && !hadNavi && _naviDecision.Destination != null)
                     _navStartTime = WorldState.FutureTime(_config.MoveDelay);
 
-                if (!forbidTargeting && !cancel)
+                // 📌 這整段是否執行本身就是一個診斷缺口：它不執行時 autorot.Preset 完全不被碰，
+                //    使用者手動掛上的預設會原封不動留著，於是「有沒有目標」那個判斷根本不在路徑上。
+                //    2026-08-17 追一份實機 log 時就卡在這裡：同一次 Execute 裡 LogMovementOwnership
+                //    印了 114 行、LogPresetGate 卻是 0 行（而它第一次呼叫必定會印，欄位是 bool? 起始 null）
+                //    ⇒ 只能反推出這個 if 沒進來，但無從得知是被誰擋的。補一行讓下次直接看得出來。
+                var presetGateRuns = !forbidTargeting && !cancel;
+                LogPresetGateReachable(presetGateRuns, forbidTargeting, cancel);
+                if (presetGateRuns)
                 {
                     // 🔑 只掛預設，不影響走位/閃避/選目標——那些在這個判斷之外。
                     //    深牢判定用 DeepDungeon.DungeonId：它直接來自遊戲的深牢 instance content director
@@ -442,6 +449,41 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
                 ? "沒有主要目標（脫戰趕路時場上的被動怪優先度是 -3，進不了 PriorityTargets）"
                 : "目前不允許出招（只在深牢出招的開關擋住）";
             Service.Logger.Information($"[AI] 自動循環預設已卸下：{why}。⚠️ 這代表預設集裡的「自動移動」模組**整段不執行** —— 不寫移動方向、也不畫移動目標標線，趕路完全交給 AI 自動走位處理。");
+        }
+    }
+
+    private bool? _loggedPresetGateReachable;
+
+    /// <summary>
+    /// 講出「掛／卸預設的那個判斷這一段到底有沒有被執行」。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <see cref="LogPresetGate"/> 沒印任何東西時有兩種完全不同的意思，而它們的修法相反：
+    /// <list type="number">
+    /// <item>閘門有跑、狀態一直沒變 —— 但這不可能靜默，<c>_loggedPresetGate</c> 是 <c>bool?</c>
+    /// 起始 <c>null</c>，<b>第一次呼叫必定會印</b>。</item>
+    /// <item>閘門<b>整段沒被執行</b>（<c>ForbidActions</c>／AFK／凝視／Pyretic／<c>cancel</c> 任一成立）
+    /// ⇒ <c>autorot.Preset</c> 這一段完全不被碰，使用者手動掛的預設原封不動留著，
+    /// 「有沒有主要目標」那個判斷根本不在執行路徑上。</item>
+    /// </list>
+    /// 2026-08-17 查「preset 開著卻不迴避」時就卡在這個分辨上：同一次 <c>Execute</c> 裡
+    /// <see cref="LogMovementOwnership"/> 印了 114 行、<see cref="LogPresetGate"/> 0 行，
+    /// 只能反推出是第 2 種，但無從得知是被哪個開關擋的。
+    /// 📌 走 <c>Information</c>：使用者的 LogLevel 是 2。只在翻轉時印。
+    /// </remarks>
+    private void LogPresetGateReachable(bool runs, bool forbidTargeting, bool cancelled)
+    {
+        if (_loggedPresetGateReachable == runs)
+            return;
+        _loggedPresetGateReachable = runs;
+        if (runs)
+        {
+            Service.Logger.Information("[AI] 預設掛載判斷恢復執行：從現在起由 AI 依「有沒有主要目標」決定要不要掛上自動循環預設。");
+        }
+        else
+        {
+            var why = cancelled ? "AI 正在停用/切換預設（cancel）" : "禁止出招／AFK／凝視或 Pyretic 將至（forbidTargeting）";
+            Service.Logger.Information($"[AI] 預設掛載判斷這一段不執行：{why}。⚠️ 這代表 autorot.Preset **完全不被 AI 碰** —— 手動掛上的預設會原封不動繼續跑，「沒有主要目標就卸下預設」那條規則在這個狀態下不成立。走位與閃避不受這裡影響（UpdateMovement 在這個判斷之外）。");
         }
     }
 
