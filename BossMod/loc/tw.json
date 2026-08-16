@@ -5774,9 +5774,6 @@
   "Do not use any GCDs": {
     "message": "不使用任何GCD技能"
   },
-  "Do not use any buffer in pathfinding": {
-    "message": "尋路時不使用任何緩衝距離"
-  },
   "Do not use any lost actions automatically": {
     "message": "不自動使用任何遺失技"
   },
@@ -6662,15 +6659,6 @@
   "Precast Dragon Kick from melee range": {
     "message": "在近戰距離內預先施放雙龍腳"
   },
-  "Prefer to stay 0.5y away from forbidden zones": {
-    "message": "傾向與禁區保持0.5公尺距離"
-  },
-  "Prefer to stay 1.5y away from forbidden zones": {
-    "message": "傾向與禁區保持1.5公尺距離"
-  },
-  "Prefer to stay 3y away from forbidden zones": {
-    "message": "傾向與禁區保持3公尺距離"
-  },
   "Prevent Addersgall overcap by using Druochole on lowest-HP ally": {
     "message": "對HP最低的隊友使用靈橡清汁,以避免蛇之膽溢出"
   },
@@ -6733,9 +6721,6 @@
   },
   "Start moving asap, interrupting casts if necessary, use instants until destination is reached": {
     "message": "盡快開始移動,必要時中斷詠唱,在抵達目的地前使用即發技能"
-  },
-  "Stay on edge of hitbox (+/- 1 unit)": {
-    "message": "停留在受擊框邊緣(±1單位)"
   },
   "Stay within effective range as long as possible; try to ensure safety is reached before mechanic resolves": {
     "message": "盡量停留在有效距離內;盡力確保在機制結算前抵達安全處"

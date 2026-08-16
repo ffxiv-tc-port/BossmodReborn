@@ -100,13 +100,17 @@ public sealed record class RotationModuleDefinition(string DisplayName, string D
     /// 🔴 想把 <paramref name="minValue"/> 調低時<b>一定要同時明寫這個</b>，否則等於把所有既有
     /// 使用者的預設值一起改掉，而且完全不報錯 —— 見 <see cref="StrategyConfigFloat.Default"/>。
     /// </param>
-    public void DefineFloat<Index>(Index expectedIndex, string displayName = "", float minValue = 0, float maxValue = float.MaxValue, float uiPriority = 0, float? defaultValue = null) where Index : Enum
+    /// <param name="speed">
+    /// 拖曳滑桿一格的增量（<c>ImGui.DragFloat</c> 的 speed）。距離／秒數這類需要細調的軌道要明寫，
+    /// 預設的 1 對它們太粗。
+    /// </param>
+    public void DefineFloat<Index>(Index expectedIndex, string displayName = "", float minValue = 0, float maxValue = float.MaxValue, float uiPriority = 0, float? defaultValue = null, float speed = 1) where Index : Enum
     {
         var idx = (int)(object)expectedIndex;
         var internalName = expectedIndex.ToString();
         if (Configs.Count != idx)
             throw new ArgumentException($"Unexpected index value for {internalName}: expected {idx}, cur size {Configs.Count}");
-        Configs.Add(new StrategyConfigFloat(internalName, displayName, minValue, maxValue, uiPriority, typeof(FloatRenderer), DefaultValue: defaultValue));
+        Configs.Add(new StrategyConfigFloat(internalName, displayName, minValue, maxValue, uiPriority, typeof(FloatRenderer), Speed: speed, DefaultValue: defaultValue));
     }
 
     public void DefineInt<Index>(Index expectedIndex, string displayName = "", long minValue = 0, long maxValue = long.MaxValue, float uiPriority = 0) where Index : Enum

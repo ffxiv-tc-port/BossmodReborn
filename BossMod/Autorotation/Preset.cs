@@ -112,7 +112,10 @@ public class JsonPresetConverter : JsonConverter<Preset>
                 s.Track = md.Definition.Configs.FindIndex(s => s.InternalName == trackName);
                 if (s.Track < 0)
                 {
-                    Service.Log($"Error while deserializing preset {res.Name}: failed to find track {trackName} in module {jm.Name}");
+                        // 📌 走 Information：使用者跑 LogLevel 2，Service.Log 是 Debug 級收不到。
+                    //    這一行代表「使用者存好的某一項設定被丟掉了」——軌道被改名或改型別時就會走到，
+                    //    UI 上只會看到設定憑空少一項，沒有這行的話完全查不出原因。
+                    Service.Logger.Information($"[Autorotation] 預設集「{res.Name}」的模組 {jm.Name} 找不到軌道 {trackName}，該項設定已略過（其餘設定不受影響）");
                     continue;
                 }
 
@@ -128,7 +131,8 @@ public class JsonPresetConverter : JsonConverter<Preset>
 
                         if (t.Option < 0)
                         {
-                            Service.Log($"Error while deserializing preset {res.Name}: failed to find option {optionName} in track {trackName} in module {jm.Name}");
+                            // 📌 同上，走 Information：選項被改名或移除時使用者要看得到原因。
+                            Service.Logger.Information($"[Autorotation] 預設集「{res.Name}」的軌道 {trackName}（模組 {jm.Name}）找不到選項 {optionName}，該項設定已略過");
                             continue;
                         }
                         break;

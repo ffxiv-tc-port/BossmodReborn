@@ -9,7 +9,8 @@ public sealed class NormalMovement : RotationModule
     public enum DestinationStrategy { None, Pathfind, Explicit }
     public enum RangeStrategy { Any, MaxRange, GreedGCDExplicit, GreedLastMomentExplicit, GreedAutomatic }
     public enum CastStrategy { Leeway, Explicit, Greedy, FinishMove, DropMove, FinishInstants, DropInstants }
-    public enum ForbiddenZoneCushionStrategy { None, Small, Medium, Large }
+    // ForbiddenZoneCushionStrategy 已移除：那條軌道改成公尺數滑桿（見 Definition()）。
+    // Track 列舉本身刻意不動 —— 成員名是 preset 的序列化鍵，而且索引要對得上 Configs 順序。
     public enum SpecialModesStrategy { Automatic, Ignore }
 
     public const float GreedTolerance = 0.15f;
@@ -179,11 +180,13 @@ public sealed class NormalMovement : RotationModule
         res.Define(Track.SpecialModes).As<SpecialModesStrategy>("SpecialModes", "Special", -1)
             .AddOption(SpecialModesStrategy.Automatic, "Automatically deal with special conditions (knockbacks, pyretics, etc)")
             .AddOption(SpecialModesStrategy.Ignore, "Ignore any special conditions (knockbacks, pyretics, etc)");
-        res.Define(Track.ForbiddenZoneCushion).As<ForbiddenZoneCushionStrategy>("ForbiddenZoneCushion", "Overdodge", 25)
-            .AddOption(ForbiddenZoneCushionStrategy.None, "Do not use any buffer in pathfinding")
-            .AddOption(ForbiddenZoneCushionStrategy.Small, "Prefer to stay 0.5y away from forbidden zones")
-            .AddOption(ForbiddenZoneCushionStrategy.Medium, "Prefer to stay 1.5y away from forbidden zones")
-            .AddOption(ForbiddenZoneCushionStrategy.Large, "Prefer to stay 3y away from forbidden zones");
+        // 以前是 4 個固定檔位（0 / 0.5 / 1.5 / 3 公尺），使用者要連續控制，換成真滑桿。
+        // 🔴 defaultValue 明寫 0：舊的第一個選項是 None，而列舉軌道的空值就是 Option = 0
+        //    ⇒ **改動前沒設過這條軌的人拿到的是「不使用緩衝」**，不是中間檔。這是回歸錨。
+        //    （簡報寫的是「預設＝舊 Medium 1.5」，但實際查證第一個選項是 None，所以照實測走 0。）
+        // ⚠️ 上限 5 公尺是有意義的界限而不是隨手取：緩衝是加在禁區半徑上的，開太大會讓可站位置
+        //    在小場地整個消失，尋路就回不出目的地 —— 那正是「算不出目的地＝角色站著不動」那條路徑。
+        res.DefineFloat(Track.ForbiddenZoneCushion, "Overdodge", 0f, 5f, 25f, defaultValue: 0f, speed: 0.1f);
         return res;
     }
 
@@ -261,14 +264,8 @@ public sealed class NormalMovement : RotationModule
         }
 
         var speed = World.Client.MoveSpeed;
-        var cushionStrategy = strategy.Option(Track.ForbiddenZoneCushion).As<ForbiddenZoneCushionStrategy>();
-        var cushionSize = cushionStrategy switch
-        {
-            ForbiddenZoneCushionStrategy.Small => 0.5f,
-            ForbiddenZoneCushionStrategy.Medium => 1.5f,
-            ForbiddenZoneCushionStrategy.Large => 3.0f,
-            _ => 0f
-        };
+        // 滑桿值直接就是公尺數，舊的四檔對照表已經不需要了（滑桿拉到 0.5 / 1.5 / 3 時與舊檔位等價）。
+        var cushionSize = strategy.GetFloat(Track.ForbiddenZoneCushion);
         var navi = destinationStrategy switch
         {
             DestinationStrategy.Pathfind => NavigationDecision.Build(_navCtx, World, Hints, Player, speed, forbiddenZoneCushion: cushionSize),
