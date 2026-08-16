@@ -9,6 +9,9 @@ public enum OID : uint
     Hakutei1 = 0x20F8, // R4.750, x1
     Hakutei2 = 0x2162, // R4.750, x0 (spawn during fight)
     Helper = 0x18D6, // R0.500, x29, mixed types
+    // 場地本身的 EventObj。它的動畫事件就是空中階段場地縮小／還原的訊號（見 ArenaChange）。
+    // 值與 Ex6Byakko 的 ArenaFeatures 相同，並已在台服重播裡實際觀察到（0x00040008 / 0x00100020）。
+    ArenaFeatures = 0x1EA1A1, // R2.0
 }
 
 public enum AID : uint

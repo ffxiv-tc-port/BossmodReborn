@@ -149,5 +149,42 @@ class HundredfoldHavoc(BossModule module) : Components.Exaflare(module, 5f)
 // ModuleViewer to label the entry, so the module list showed this trial under the wrong boss name.
 // 7092 is verified three ways: BNpcName row 7092 is 白虎 while 6221 is 須佐之男 in the TC sheet, the live
 // TC replays report nameId 7092 on the primary actor (OID 0x20F7), and Ex6Byakko already uses 7092.
+// 空中階段場地會縮小。切換依據是 ArenaFeatures（OID 0x1EA1A1）的 EventObj 動畫事件，用的狀態值
+// 與 Ex6Byakko 的 Intermission 元件完全相同 —— 這不是猜的：15 份台服重播裡 0x00040008（縮小）與
+// 0x00100020（還原）各出現一次、間隔穩定 75.1~75.3 秒。
+// 🔴 刻意用這個事件而不是「王不可鎖定」：縮小窗只是不可鎖定窗的子區間（例如 62.5~210.1 的不可鎖定
+//    期間，縮小其實只有 106.8~182.0），拿可鎖定狀態當判準會在階段兩端把小場地畫成大場地。
+class ArenaChange(BossModule module) : BossComponent(module)
+{
+    public override void OnActorEAnim(Actor actor, uint state)
+    {
+        if (actor.OID != (uint)OID.ArenaFeatures)
+            return;
+        if (state == 0x00040008u)
+            Module.Arena.Bounds = T07Byakko.IntermissionBounds;
+        else if (state == 0x00100020u)
+            Module.Arena.Bounds = T07Byakko.NormalBounds;
+    }
+}
+
+// NameID was 6221, which is Susano's BNpcName row (T01Susano declares the same value); it is only used by
+// ModuleViewer to label the entry, so the module list showed this trial under the wrong boss name.
+// 7092 is verified three ways: BNpcName row 7092 is 白虎 while 6221 is 須佐之男 in the TC sheet, the live
+// TC replays report nameId 7092 on the primary actor (OID 0x20F7), and Ex6Byakko already uses 7092.
 [ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 290, NameID = 7092)]
-public class T07Byakko(WorldState ws, Actor primary) : BossModule(ws, primary, default, new ArenaBoundsCircle(20f));
+public class T07Byakko(WorldState ws, Actor primary) : BossModule(ws, primary, default, NormalBounds)
+{
+    // 邊界改成量測值。原本宣告的是 ArenaBoundsCircle(20)，比真實地板大：地面階段大 0.5 碼，
+    // 空中階段大 5 碼 —— AI 以模組宣告的邊界當可走範圍，所以躲荒彈時會被帶進那圈不存在的地板摔死。
+    // 量法（15 份台服重播、依 ArenaFeatures 事件分桶，只採「玩家佔據過且活著」的座標）：
+    //   全場地：玩家中心最遠 19.498，且 12 個角度分桶的最大值都落在 19.472~19.498 ⇒ 近似圓
+    //           （5604 個樣本壓在最大值 0.3 碼內＝真的頂到牆，不是剛好沒走過去）
+    //   縮小後：玩家中心最遠 14.990
+    // 兩者分別落在 Polygon(19.5,48)（頂點 19.5／邊心 19.458）與 Polygon(15,48)（頂點 15／邊心 14.968）
+    // 的可達範圍內，與 Ex6Byakko 宣告的兩組數值一致，所以直接沿用同樣的多邊形。
+    // ⚠️ 分桶一定要用 ArenaFeatures 事件而不是王的可鎖定狀態，否則會把階段交界的移動算進來：
+    //    縮小開始後 5 秒內還有 r=19.33 的座標，那是玩家從舊場地往內跑的路徑（半徑逐幀單調遞減），
+    //    不是「小場地能走到 19.33」。
+    public static readonly ArenaBoundsComplex NormalBounds = new([new Polygon(default, 19.5f, 48)]);
+    public static readonly ArenaBoundsComplex IntermissionBounds = new([new Polygon(default, 15f, 48)]);
+}

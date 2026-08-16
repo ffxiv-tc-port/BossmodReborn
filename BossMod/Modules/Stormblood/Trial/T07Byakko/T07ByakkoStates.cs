@@ -5,6 +5,9 @@ class T07ByakkoStates : StateMachineBuilder
     public T07ByakkoStates(BossModule module) : base(module)
     {
         TrivialPhase()
+            // 🔴 場地邊界切換，放第一個：模組宣告的邊界就是 AI 認定的可走範圍，沒有它的話 AI 會在
+            //    空中階段把人帶進「模組以為有、實際沒有」的那 5 碼地板摔死（實機回報:躲荒彈時即死）。
+            .ActivateOnEnter<ArenaChange>()
             .ActivateOnEnter<StormPulse>()
             .ActivateOnEnter<HeavenlyStrike>()
             .ActivateOnEnter<HeavenlyStrikeSpread>()
