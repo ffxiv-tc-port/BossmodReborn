@@ -9,6 +9,15 @@ class TheRoarOfThunder(BossModule module) : Components.RaidwideCast(module, (uin
 class ImperialGuard(BossModule module) : Components.SimpleAOEs(module, (uint)AID.ImperialGuard, new AOEShapeRect(44.75f, 2.5f));
 class FireAndLightning(BossModule module) : Components.SimpleAOEGroups(module, [(uint)AID.FireAndLightning1, (uint)AID.FireAndLightning2], new AOEShapeRect(50f, 10f));
 
+// 白帝的鐵爪斬。AID 一直在列舉裡卻沒有任何元件 ⇒ 完全不產生禁區，而它正好落在空中階段的白帝段
+// （實測 t=60.5 / 67.5 / 69.5…），那段時間玩家正在近身打白帝。這是「開 preset 時空中階段不迴避」
+// 的一個實際缺口：開著 preset 時走位由 NormalMovement 依禁區尋路，沒有禁區就沒有理由移動；
+// 關掉 preset 時是 AI 自己的站位偏好在動，順帶就閃開了 —— 兩者的差分就在這裡。
+// 半徑 17.75 不是抄的：列舉註解寫「range 13+R」，而白帝（Hakutei1）受擊半徑 4.75 ⇒ 13+4.75=17.75，
+// 與 Ex6Byakko 同機制的宣告值一致。角度沿用 Ex6 的 60 度（列舉註解是「?-degree」，台服無實測依據）。
+// ⚠️ 沿用 Cleave 預設的 activeForUntargetable=false：三份重播共 6 次鐵爪斬，白帝當下全都是可鎖定的。
+class SteelClaw(BossModule module) : Components.Cleave(module, (uint)AID.SteelClaw, new AOEShapeCone(17.75f, 60f.Degrees()), [(uint)OID.Hakutei1]);
+
 // Upstream had AOEShapeDonut(5f, 3f): outer smaller than inner. AOEShapeDonut.Check() forwards to
 // InDonut(inner, outer), which can never be true when outer < inner, so the component was inert.
 // Both radii are now measured from TC replays rather than guessed. Method: a CST! target list only

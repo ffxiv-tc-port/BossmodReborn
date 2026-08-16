@@ -14,6 +14,8 @@ class T07ByakkoStates : StateMachineBuilder
             .ActivateOnEnter<SweepTheLeg1>()
             .ActivateOnEnter<SweepTheLeg3>()
             .ActivateOnEnter<TheRoarOfThunder>()
+            // 空中階段白帝段唯一會動的近身危險，之前完全沒有元件 —— 見 T07Byakko.cs 的說明。
+            .ActivateOnEnter<SteelClaw>()
             .ActivateOnEnter<ImperialGuard>()
             // re-enabled 2026-08-16: the "stack marker not being removed properly" note was a symptom of
             // using StackWithIcon (a component for icons that land on PLAYERS) for an icon that lands on a
@@ -35,7 +37,7 @@ class T07ByakkoStates : StateMachineBuilder
         // NOT covered, deliberately, because the replays give no basis for drawing them:
         //  - AratamaForce (OID 0x20F9) never spawns in any of the 11 TC replays, so the Voidzone above
         //    is currently dead code on TC. Left in place: absence is not proof it cannot happen.
-        //  - StateOfShock (10070/10208), SteelClaw (10802), WhiteHerald (10828), FellSwoop (10829),
+        //  - StateOfShock (10070/10208), WhiteHerald (10828), FellSwoop (10829),
         //    Bombogenesis2 (10811) and UnrelentingAnguish (10221) still have no component.
     }
 }
