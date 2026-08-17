@@ -510,6 +510,8 @@ public abstract class AutoClear : ZoneModule
         _trapsHidden = true;
         _hoardFound = false;
         _pullLoggedFloor = 255;
+        _lastTargetCorrection = default;
+        _openerLoggedFloor = 255;
         _openedChests.Clear();
         _fakeExits.Clear();
         // 🔴 寶箱累積值是「本層看過什麼」，換層一定要歸零，否則上一層的標記會跟著下來。
@@ -2136,6 +2138,23 @@ public abstract class AutoClear : ZoneModule
             _ => false
         };
 
+        // 🔴 目標修正必須放在下面那個提早返回**之前**。
+        //    `player.InCombat` 一成立，下面整段選目標邏輯就完全不執行 —— 這正是
+        //    「交戰前鎖定的怪，被別的怪視線仇恨引起來之後不會改目標」的直接成因：
+        //    ForcedTarget 每幀都被 AIHints.Clear() 清成 null，而這裡提早返回、不重設它，
+        //    於是 ExecuteHints 那條路徑整幀不碰硬目標，遊戲裡的鎖定就一直停在交戰前選的那一隻；
+        //    輸出（WrathCombo 打的是當前硬目標）與跟著目標走的走位一起指過去，
+        //    把原本還沒醒的那隻也拉起來 ＝ 同時引戰多隻。
+        if (CorrectTargetToAggroedEnemy(player, hints))
+            return;
+
+        // 🔴 開怪第一擊也必須放在提早返回之前，而且刻意<b>不</b>放在 TryPullTarget 裡：
+        //    TryPullTarget 只有在「玩家手上沒有敵性目標」的那些幀才跑得到（下面那個提早返回
+        //    在鎖定目標之後就成立了），也就是每次選定目標大約只執行一幀；
+        //    而「走到射程內」是選定目標之後好幾秒的事，放在那裡等於永遠等不到射程。
+        //    這裡每幀都會評估，走進 20y 的那一幀就會推出去。
+        TryOpenerShot(player, hints, shouldTargetMobs);
+
         if (player.InCombat || World.Actors.Find(player.TargetID) is Actor t2 && !t2.IsAlly)
             return;
 
@@ -2264,6 +2283,250 @@ public abstract class AutoClear : ZoneModule
             Service.Logger.Information(
                 $"[DD] 坦克拉怪：樓層 {Palace.Floor} 首次主動接近目標「{target.Name}」（OID {target.OID:X}），" +
                 $"距離 {player.DistanceToHitbox(target):f1}y、目標區權重 {PullWeight}、接近距離 {PullRange}y。");
+        }
+    }
+
+    #endregion
+
+    #region 已仇恨目標修正
+
+    /// <summary>
+    /// 上一次修正過的「原鎖定目標 → 新目標」配對，存 <c>InstanceID</c>。
+    /// </summary>
+    /// <remarks>
+    /// 只用來讓診斷「一次事件印一行」，<b>不參與任何判斷</b>——就算它是髒的，最壞也只是少印／多印一行。
+    /// 🔴 刻意存 <c>ulong</c> 而不是 <c>Actor</c>：跨幀保存原生物件參考是紅線，
+    /// 而這個欄位活得比任何一隻怪都久（換層才歸零）。
+    /// </remarks>
+    private (ulong From, ulong To) _lastTargetCorrection;
+
+    /// <summary>
+    /// 交戰前鎖定的怪還沒仇恨我、卻已經被<b>別的</b>怪引戰時，把鎖定改成已經打起來的那一隻。
+    /// </summary>
+    /// <returns>
+    /// 有做修正時回 <see langword="true"/>；此時呼叫端必須<b>立刻返回</b>，
+    /// 不要讓後面的選目標邏輯把 <c>ForcedTarget</c> 覆寫掉。
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// 🔴 <b>為什麼一定要做在 <c>ForcedTarget</c> 這條路徑上</b>：
+    /// <c>AIBehaviour.SelectPrimaryTarget</c> 本身有「不必要就不換目標」的黏著行為，
+    /// 但它整段掛在 <c>forbidTargeting</c>（<c>AIConfig.ForbidActions</c>）之後——
+    /// 開著 ForbidActions 讓 BMR 只負責走位、輸出交給 WrathCombo 的玩法下，那條分支從不執行。
+    /// 相對地 <c>Hints.ForcedTarget</c> 是由 <c>Plugin.ExecuteHints</c> <b>無條件</b>寫進
+    /// <c>TargetSystem->Target</c> 的（見 <c>Config</c> 的 DrawHeader 註解），兩種玩法都會生效。
+    /// </para>
+    /// <para>
+    /// 🔑 <b>「已經仇恨我」的判準用 <c>Actor.AggroPlayer</c></b>，與上面 MaxPull 閘門同源：
+    /// 它來自 <c>UIState.Hater</c>（玩家 UI 上的敵人列表），也就是遊戲自己已經解析好的仇恨列表，
+    /// 不需要另外猜。<c>AIHintsBuilder.FillEnemies</c> 也正是用它把怪的優先度從
+    /// <c>PriorityUndesirable</c> 拉到 0 的，所以這裡選出來的怪對自動循環一定是合法目標。
+    /// </para>
+    /// <para>
+    /// 🔴 <b>防 ping-pong</b>：只在「當前目標還沒跟我打起來」時才修正。
+    /// 一旦改成已仇恨的那隻，下一幀 <c>current.AggroPlayer</c> 就是 <see langword="true"/>，
+    /// 這裡直接返回 ＝ 修正最多發生一次，不會在兩隻怪之間來回跳。
+    /// 「已經打起來」刻意用 <c>AggroPlayer || InCombat</c> 兩個條件的<b>聯集</b>：
+    /// 仇恨列表是每幀從 UI 狀態重讀的，剛開打那一瞬間可能還沒進列表，
+    /// 光看 <c>AggroPlayer</c> 會在那一幀把鎖定從正在打的怪身上拔走。
+    /// 組隊時也順帶保守：隊友拉著、還沒轉到我身上的怪 <c>InCombat</c> 為真，一樣不動它。
+    /// </para>
+    /// <para>
+    /// 📌 <b>與石化／自癒懲罰那兩個「一下就死」分支的優先級</b>：兩者實際上不會相遇。
+    /// 那兩個分支住在 <c>player.InCombat</c> 提早返回的<b>後面</b>，只有「不在戰鬥中而且沒有敵性目標」
+    /// 時才跑得到；而本修正成立的前提是有怪對我有仇恨 ⇒ 必定在戰鬥中 ⇒ 那兩個分支今天本來就被跳過。
+    /// 因此把本修正排在最前面不會奪走它們任何一次執行機會。
+    /// 反過來說，本修正<b>刻意不</b>在已仇恨的怪之間再按石化／瀕死排序，只取最近的：
+    /// 那兩個分支是替「反正要走過去」的非戰鬥選怪服務的，戰鬥中把近戰從貼臉的怪身上
+    /// 支開去打半場外的石化怪，代價遠大於省下的那一刀。
+    /// </para>
+    /// <para>
+    /// 📌 <b>沒有設定開關</b>：深牢自動化裡「放著已經咬住我的怪不管，去把新的怪引起來」
+    /// 沒有任何合法用途，這是純缺陷修正。唯一連帶的行為改變是：戰鬥中手動點一隻<b>還沒仇恨</b>的怪，
+    /// 下一幀會被拉回正在打的那隻——那與缺陷本身是同一個形狀，刻意不留例外。
+    /// </para>
+    /// </remarks>
+    private bool CorrectTargetToAggroedEnemy(Actor player, AIHints hints)
+    {
+        // 只處理「已經鎖定了一隻敵人」的情況。沒有目標時不插手：那是既有選目標邏輯
+        // 與 AI 的地盤，在這裡替它決定會把「戰鬥中不自動選怪」整個換掉，超出本修正的範圍。
+        if (World.Actors.Find(player.TargetID) is not Actor current || current.IsAlly)
+            return false;
+
+        // 目標自己也已經打起來了 ⇒ 這就是正在交戰的那隻，不要換。
+        // 目標已死時刻意放行：那時候把鎖定接到還活著的仇恨怪身上正是我們要的。
+        if ((current.AggroPlayer || current.InCombat) && !current.IsDeadOrDestroyed)
+            return false;
+
+        // PotentialTargets 由 AIHintsBuilder.FillEnemies 在本模組之前填好，
+        // 已經濾掉不可選取／友方／死亡的 actor ⇒ 這裡挑出來的必定通得過 ExecuteHints 的
+        // IsTargetable 檢查，不會出現「設了 ForcedTarget 卻靜默沒生效、然後每幀重試」。
+        Actor? best = null;
+        var bestDist = float.MaxValue;
+        var count = hints.PotentialTargets.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var candidate = hints.PotentialTargets[i].Actor;
+            if (!candidate.AggroPlayer || candidate.IsDeadOrDestroyed || candidate.InstanceID == current.InstanceID)
+                continue;
+
+            var dist = player.DistanceToHitbox(candidate);
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                best = candidate;
+            }
+        }
+
+        if (best == null)
+            return false;
+
+        hints.ForcedTarget = best;
+
+        // 診斷：一次修正事件印一行。頻率天然很低（只在被引戰／原目標倒下時發生），
+        // 配對去重是為了擋住「硬目標因為任何理由沒被套用」時可能出現的每幀重印。
+        var key = (current.InstanceID, best.InstanceID);
+        if (_lastTargetCorrection != key)
+        {
+            _lastTargetCorrection = key;
+            Service.Logger.Information(
+                $"[DD] 目標修正：樓層 {Palace.Floor}，原鎖定「{current.Name}」（OID {current.OID:X}、" +
+                $"距離 {player.DistanceToHitbox(current):f1}y、尚未仇恨）改為已仇恨的「{best.Name}」" +
+                $"（OID {best.OID:X}、距離 {bestDist:f1}y）。");
+        }
+
+        return true;
+    }
+
+    #endregion
+
+    #region 開怪第一擊
+
+    /// <summary>這一層已經記過一次「開怪第一擊」診斷；255＝還沒記過。</summary>
+    private byte _openerLoggedFloor = 255;
+
+    /// <summary>
+    /// 各坦克職業的遠程開怪技；沒有對應的職業回 <c>default</c>（＝不出手）。
+    /// </summary>
+    /// <remarks>
+    /// 📌 四個都是 L15、瞬發、GCD、射程 20y 的單體敵對技，而且都已經在
+    /// <c>ActionDefinitions</c> 註冊過（各職業的 <c>RegisterSpell</c>）⇒ 職業、等級、冷卻、射程
+    /// 全部由 <c>ActionQueue.FindBest</c>／<c>CanExecute</c> 自己查，這裡不重複實作也不寫死。
+    /// <para>
+    /// ⚠️ 刻意連基礎職（<c>GLA</c>／<c>MRD</c>）一起列：深牢從 1 級打起，L15~L29 這段
+    /// 玩家的 <c>Class</c> 是劍術士／斧術士而不是騎士／戰士，只寫進階職會在那一段靜默不出手。
+    /// </para>
+    /// </remarks>
+    private static ActionID OpenerShot(Class c) => c switch
+    {
+        Class.GLA or Class.PLD => ActionID.MakeSpell(PLD.AID.ShieldLob),
+        Class.MRD or Class.WAR => ActionID.MakeSpell(WAR.AID.Tomahawk),
+        Class.DRK => ActionID.MakeSpell(DRK.AID.Unmend),
+        Class.GNB => ActionID.MakeSpell(GNB.AID.LightningShot),
+        _ => default
+    };
+
+    /// <summary>
+    /// 走到定位之後真的按下第一顆技能，把選好的被動怪拉起來。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 🔴 <b>這是「開拉」缺的另一半</b>：<see cref="TryPullTarget"/> 只做兩件事——
+    /// <c>SetPriority(target, 0)</c> 與加一個目標區。前者只對「有開 BMR 自動循環」的人有意義，
+    /// 後者只是走過去。使用者常態是 <c>ForbidActions</c>（BMR 只走位、不出招）＋ WrathCombo 出招，
+    /// 而 WrathCombo 的自動循環有自己的「只在戰鬥中」閘門
+    /// （<c>AutoRotationController.Run</c>：<c>if (cfg.InCombatOnly &amp;&amp; NotInCombat &amp;&amp; !CombatBypass) return;</c>）
+    /// ⇒ <b>被動怪身上沒有任何一方會按第一下</b>，表現就是走到怪旁邊站著對看。
+    /// 主動怪因為靠近就自己撲上來，所以看起來正常——這個缺口只在被動怪身上顯形。
+    /// 設定的字面承諾是「開拉」，所以把第一擊補上。
+    /// </para>
+    /// <para>
+    /// 🔑 <b>為什麼推 <c>Hints.ActionsToExecute</c> 就會生效</b>：這條佇列由
+    /// <c>Plugin.DrawUI</c> → <c>ActionManagerEx.FinishActionGather()</c> 每幀<b>無條件</b>消費，
+    /// 再由 <c>ActionManagerEx.UpdateDetour</c> 送出，<b>完全不看 <c>ForbidActions</c></b>。
+    /// （<c>AIBehaviour.Execute</c> 那個 <c>!forbidTargeting ? …ActionsToExecute : null</c>
+    /// 是傳給 <c>UpdateMovement</c> 判斷要不要為了施法停下來的，<b>不是</b>執行端——
+    /// 看到它就以為 ForbidActions 會擋掉出招是會誤判的。）
+    /// 同一條路正是本模組保命藥水（<see cref="UpdateEmergencyPotion"/>）在用的。
+    /// </para>
+    /// <para>
+    /// 🔴 <b>安全設計：最壞情況是「不按」，不會是「亂按」。</b>
+    /// ①只有四個坦克職業有對應技能，其餘職業直接不推；
+    /// ②職業／等級／冷卻／射程<b>全部交給 <c>ActionQueue</c> 自己查</b>
+    /// （<c>IsUnlocked</c>＋<c>ReadyIn</c>＋<c>CanExecute</c> 的 <c>Range</c> 比對），不自己重寫；
+    /// ③優先級用 <c>VeryLow</c>＝「沒別的可按才按」，排在保命藥水（<c>VeryHigh</c>）與任何
+    /// 自動循環之後，不可能延遲到它們（<c>FindBest</c> 依優先度由高而低掃，低優先度的候選
+    /// 進不了別人的 deadline）；
+    /// ④只打「已經鎖定、還沒仇恨我、而且不帶危險增益」的那一隻——
+    /// 危險增益那條與 <c>CalculateAIHints</c> 選怪時的排除條件同源，
+    /// 否則會出現「選怪時刻意跳過它、開拉卻去把它叫醒」的自相矛盾。
+    /// </para>
+    /// <para>
+    /// 📌 <b>與其他兩段邏輯的分工</b>：這一擊打下去之後目標就會進仇恨列表，
+    /// <see cref="CorrectTargetToAggroedEnemy"/> 的「目標已仇恨就不換」條件隨即成立、不會來搶；
+    /// 同時 <c>player.InCombat</c> 變真，本函式與 <see cref="TryPullTarget"/> 的閘門一起關上
+    /// （MaxPull=0 時 <c>canNavigate</c> 也直接變 false），不會出現「打了一下又跑去拉下一隻」。
+    /// </para>
+    /// </remarks>
+    private void TryOpenerShot(Actor player, AIHints hints, bool shouldTargetMobs)
+    {
+        // 沿用「坦克主動拉怪」這個開關：它的字面承諾就是「選好目標之後也主動走過去開拉」。
+        // shouldTargetMobs 一起看，是為了尊重「通道開啟後停止清怪」那類設定——
+        // 那些模式下 AutoClear 本來就不選怪，開拉當然也不該自己去點火。
+        if (!Config.TankPull || !shouldTargetMobs)
+            return;
+
+        // 與 TryPullTarget 完全同一組前置條件。
+        // 📌 canNavigate 不必再看：它在戰鬥外恆為 true（MaxPull=0 時就是 !InCombat，
+        //    MaxPull>0 時戰鬥外的仇恨數是 0），而 InCombat 這裡已經擋掉了。
+        if (player.Role != Role.Tank || player.InCombat || IsPlayerTransformed(player))
+            return;
+
+        if (TravelBlockedByHP(player))
+            return;
+
+        // 開拉的對象＝目前鎖定的那隻，也就是上面的選怪邏輯挑出來、正走過去的那一隻。
+        if (World.Actors.Find(player.TargetID) is not Actor target || target.IsAlly || target.IsDeadOrDestroyed)
+            return;
+
+        // 已經咬住我的怪不用再開一次（InCombat 一起看，理由同目標修正那邊的仇恨列表落差）。
+        if (target.AggroPlayer || target.InCombat)
+            return;
+
+        // 選怪時刻意跳過的危險增益怪，開拉也一樣不碰。
+        var lenStatuses = target.Statuses.Length;
+        ref var statuses = ref target.Statuses;
+        for (var i = 0; i < lenStatuses; ++i)
+        {
+            if (IsDangerousOutOfCombatStatus(statuses[i].ID))
+                return;
+        }
+
+        var aid = OpenerShot(player.Class);
+        if (!aid)
+            return;
+
+        var def = ActionDefinitions.Instance[aid];
+        if (def == null)
+            return;
+
+        // 射程沒到就先不推。佇列自己也會擋（CanExecute 的 Range 比對用的是同一個式子：
+        // 中心距離 > Range + 兩邊 hitbox ⇔ DistanceToHitbox > Range），這裡先擋一次
+        // 純粹是為了讓下面的診斷不要在還在跑路的時候就宣稱開了火。
+        var dist = player.DistanceToHitbox(target);
+        if (def.Range > 0f && dist > def.Range)
+            return;
+
+        hints.ActionsToExecute.Push(aid, target, ActionQueue.Priority.VeryLow);
+
+        // 每層記一行：要的是「這個功能今天真的有動」，不是逐隻怪的流水帳（與坦克拉怪同慣例）。
+        if (_openerLoggedFloor != Palace.Floor)
+        {
+            _openerLoggedFloor = Palace.Floor;
+            Service.Logger.Information(
+                $"[DD] 開怪第一擊：樓層 {Palace.Floor}，對「{target.Name}」（OID {target.OID:X}、" +
+                $"距離 {dist:f1}y）推送 {aid}（職業 {player.Class}、射程 {def.Range}y）。" +
+                $"最終是否送出仍由動作佇列的職業／等級／冷卻檢查決定。");
         }
     }
 
