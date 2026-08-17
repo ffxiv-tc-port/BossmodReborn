@@ -514,6 +514,8 @@ public abstract class AutoClear : ZoneModule
         _openerLoggedFloor = 255;
         _aggroAvoidLoggedFloor = 255;
         _aggroCrossLoggedFloor = 255;
+        _aggroSuppressUntil = default;
+        _aggroProgressSample = null;
         _openedChests.Clear();
         _fakeExits.Clear();
         // 🔴 寶箱累積值是「本層看過什麼」，換層一定要歸零，否則上一層的標記會跟著下來。
@@ -3810,51 +3812,99 @@ public abstract class AutoClear : ZoneModule
     private const int MaxAggroCircles = 6;
 
     /// <summary>
-    /// 趕路時把「還沒發現我的怪」的仇恨圈畫成<b>軟成本</b>，讓路線儘可能繞開。
+    /// 視覺怪扇形的<b>半角</b>（弧度）＝45°。
+    /// </summary>
+    /// <remarks>
+    /// 🔑 NecroLens 的 <c>ESPObject.SightRadian</c> 是 <c>1.571</c>（π/2），那是<b>全角</b>：
+    /// 它的 <c>DrawConeFromCenterPoint</c> 從 <c>Rotation + π/4</c> 掃到
+    /// <c>Rotation + π/4 - 1.571</c> ＝ <c>Rotation - π/4</c>，所以中心線是 <c>Rotation</c>、
+    /// 半角是 π/4。**照抄 1.571 當半角會畫出兩倍寬的扇形**，而那個錯誤是靜默的
+    /// （只會表現成「繞得比預期遠」）。
+    /// </remarks>
+    private static readonly Angle SightHalfAngle = 45f.Degrees();
+
+    /// <summary>
+    /// 迴避形狀被抑制多久（秒）。見 <see cref="_aggroSuppressUntil"/>。
+    /// </summary>
+    private const double AggroSuppressSeconds = 6d;
+
+    /// <summary>「原地不動」判定：這麼多秒內位移不到 <see cref="AggroStuckDistance"/> 就算卡住。</summary>
+    private const double AggroStuckSeconds = 2.5d;
+
+    /// <summary>「原地不動」判定的位移門檻（碼）。</summary>
+    private const float AggroStuckDistance = 1.5f;
+
+    /// <summary>抑制到這個時間點之前都不加迴避形狀；<c>default</c>＝沒在抑制。</summary>
+    private DateTime _aggroSuppressUntil;
+
+    /// <summary>上次取樣的位置與時間，用來判「有沒有真的在前進」。</summary>
+    private (WPos Pos, DateTime At)? _aggroProgressSample;
+
+    /// <summary>
+    /// 趕路時把「還沒發現我的怪」的偵測範圍畫成<b>禁區</b>，讓路線真的繞開。
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 🔴🔴 <b>絕對不用 <c>AddForbiddenZone</c>。</b>硬禁區會踩到 <c>NavigationDecision.Build</c>
-    /// 裡這一行：<c>if (playerInWindow &amp;&amp; PixelMaxG[playerCell] is &gt;= 1f or &lt; 0f)</c> 才會
-    /// <c>RasterizeGoalZones</c> —— 也就是玩家<b>自己站在禁區裡時所有目標區整批不畫</b>，
-    /// 導航退成純逃離模式。而「非戰鬥時站在某隻被動怪的 10y 圈內」在深牢走廊是常態，
-    /// 所以硬禁區的實際表現會是「逃出圈外」與「恢復趕路」每幀震盪。
+    /// 🔴🔴 <b>2026-08-17 全部重寫：上一版用負權重 <c>GoalZones</c>，實機證明是死碼。</b>
+    /// 實機 log（天之御柱 31~39 層）九層全中、進圈距離清一色 9.4~9.5y ＝路線一度都沒彎過。
+    /// 根因：<c>PixelPriority</c> <b>完全不參與路徑成本</b>。它只出現在兩個地方——
+    /// <c>ThetaStar.CalculateScore</c> 的<b>目的地</b>分級，以及 <c>PrefillH</c> 把
+    /// 「權重 ＝ <c>MaxPriority</c> 的格子」當成 A* 的目標集合（H=0）。
+    /// 每一步的成本 <c>VisitNeighbour</c> 用的是純幾何的 <c>_deltaGSide</c>／<c>_deltaGDiag</c>。
+    /// ⇒ 負權重只能改變「瞄哪一格」，改不了「怎麼走過去」，而走法永遠是最短路徑。
     /// </para>
     /// <para>
-    /// 🔑 <b>為什麼負權重有效，而且量級不用很準</b>：趕路目標區是一個<b>二元平台</b>
-    /// （<c>improvement &gt; 10f ? travelWeight : 0f</c>，非戰鬥時 <c>travelWeight</c> 是 10），
-    /// 而 <c>ThetaStar.CalculateScore</c> 對安全格子的分級是：<c>prio == MaxPriority</c> →
-    /// <c>SafeMaxPrio</c>；<c>prio &gt; startPrio</c> → <c>SafeBetterPrio</c>；否則 <c>Safe</c>。
-    /// 因此只要減了<b>任何</b>一點，圈內的趕路格子就摸不到 <c>MaxPriority</c>（圈外還有格子是 10）
-    /// ⇒ 分級直接掉到第二檔，路線就會向外偎。量級影響的不是「會不會繞」，
-    /// 而是「圈內格子有沒有掉到 <c>startPrio</c> 之下」。
+    /// 🔑 <b>唯一能讓路徑偏折的機制是 <c>PixelMaxG</c>（也就是禁區）</b>，因為只有它會沿路徑
+    /// 累積：<c>VisitNeighbour</c> 把 <c>PathLeeway = min(父的 leeway, min(destG, parentG) - 累積G)</c>
+    /// 一路帶下去，<c>leeway &lt;= 0</c> 就讓 <c>CalculateScore</c> 從 <c>SafeMaxPrio</c>(9)
+    /// 掉到 <c>UltimatelySafe</c>(2)。分級是 <c>CompareNodeScores</c> 的第一比較鍵，
+    /// 壓過距離 ⇒ <b>繞得過去時一定選繞的</b>。這就是既有 AOE 閃避讓路徑彎曲的同一條路。
     /// </para>
     /// <para>
-    /// 🔴 <b>不可能堵死的保證就是「罰則 &lt; 趕路權重」</b>：玩家自己那格的 improvement 是 0，
-    /// 所以在圈外時 <c>startPrio</c> 是 0。只要罰則 &lt; 10，圈內的趕路格子仍然是
-    /// <c>10 - 罰則 &gt; 0 = startPrio</c> ⇒ 永遠還是 <c>SafeBetterPrio</c>（「比站著不動好」）
-    /// ⇒ 避不開的時候它<b>照走</b>，退回今天的行為。滑條上限囚在 9（&lt; 10）就是在執行這個不等式。
+    /// 🔴 <b>三個安全裝置，缺一個就會踩到已知的壞行為</b>：
+    /// <list type="number">
+    /// <item><b>玩家已經在裡面的形狀一律不加</b>。這是為了 <c>NavigationDecision.Build</c> 的
+    /// <c>if (playerInWindow &amp;&amp; PixelMaxG[playerCell] is &gt;= 1f or &lt; 0f)</c>——
+    /// 玩家格落在禁區（g=0）時<b>所有目標區整批不畫</b>，導航退成純逃離模式，
+    /// 表現是「不趕路了，自己往後跑」。跳過含玩家的形狀讓玩家格永遠是 <c>float.MaxValue</c>，
+    /// 這條分支<b>結構上</b>進不去。副作用剛好也是想要的語意：<b>已經站在人家眼皮下就別再閃，直接走</b>。</item>
+    /// <item><b>卡住就抑制</b>。禁區是硬的，所以「繞不過去」的自然結果是走到邊緣停住——
+    /// 那違反「繞不開必須照走」。所以量「有沒有真的在前進」：<see cref="AggroStuckSeconds"/> 秒內
+    /// 位移不到 <see cref="AggroStuckDistance"/>y 就把迴避整個關掉 <see cref="AggroSuppressSeconds"/> 秒，
+    /// 讓它照舊行為直穿。抑制期間有滯後（一次關滿 6 秒）所以不會逐幀開關 ＝ 不震盪。</item>
+    /// <item><b>只在趕路的那些幀</b>（<see cref="_travelGoalAdded"/>）而且非戰鬥。
+    /// 戰鬥中一根汗毛都不動，陷阱迴避與風箏不受影響。</item>
+    /// </list>
     /// </para>
     /// <para>
-    /// 🔴 <b>多圈重疊不累加</b>：整批怪只加<b>一個</b>目標區函式，落在任何一個圈內一律只減一份。
-    /// 若改成每隻怪各加一個，<c>GoalZones</c> 是相加的，三圈重疊就是 -12，
-    /// 上面那個不等式立刻破功——這是安靜失效的那種破功。
+    /// 🔑 <b>形狀分兩種，這才是使用者點出「怪物有面對方向」的價值</b>：視覺怪
+    /// （<c>MobAggroKind.Sight</c>，表裡 439/695）用<b>面向扇形</b>——頂點在怪身上、
+    /// 中心線就是牠的朝向、<b>半角 45°</b>（NecroLens 的 <c>SightRadian</c> 1.571 是<b>全角</b>，
+    /// 它的繪製碼從 <c>Rotation + π/4</c> 掃到 <c>Rotation - π/4</c>，所以中心線是 <c>Rotation</c>）。
+    /// 聽覺與接近用整個圓。表裡查不到的退回整個圓（保守）。
+    /// 扇形的面積只有圓的四分之一，所以走廊裡「貼牆／繞背」變成可行解——
+    /// 這同時也大幅降低上面第 2 個裝置被觸發的機率。
     /// </para>
     /// <para>
-    /// 📌 <b>資料來源只有一個半徑常數</b>（hitbox + 設定值，預設 10y，與 NecroLens 的
-    /// <c>AggroDistance()</c> 同式）。這一版<b>沒有</b>逐怪的仇恨型別，所以分不出視覺錐形與
-    /// 接近圓，一律當成整個圓（偏保守）。
+    /// 📌 <b>每幀成本</b>：禁區函式被 <c>RasterizeForbiddenZones</c> 對每個像素的兩個角各呼叫一次
+    /// （兩輪 pass），與目標區同量級。扇形比圓多一次 <c>atan2</c>／角度正規化，
+    /// 大約是圓的兩到三倍常數成本，所以 <see cref="MaxAggroCircles"/> 維持 6 不放寬。
     /// </para>
     /// </remarks>
     private void AddAggroAvoidance(Actor player, AIHints hints)
     {
-        var weight = Config.AggroAvoidWeight;
-        // 0 ＝停用，而且是逐字退回舊行為（預設就是 0）。
-        if (weight <= 0f || !_travelGoalAdded || player.InCombat)
+        if (Config.AggroAvoidRadius <= 0f || !Config.AggroAvoid || !_travelGoalAdded || player.InCombat)
+        {
+            _aggroProgressSample = null;
             return;
+        }
 
-        // 正在拉的那隻要排除：我們正要走過去打它，把它畫成軟成本是自相矛盾。
+        var now = World.CurrentTime;
+        if (_aggroSuppressUntil != default && now < _aggroSuppressUntil)
+            return; // 抑制期間：完全不加形狀＝逐字照舊行為
+
         var pullTargetId = player.TargetID;
+        var radius = Config.AggroAvoidRadius;
 
         Span<int> picked = stackalloc int[MaxAggroCircles];
         Span<float> pickedDist = stackalloc float[MaxAggroCircles];
@@ -3869,7 +3919,6 @@ public abstract class AutoClear : ZoneModule
                 continue;
             if (a.InstanceID == pullTargetId)
                 continue;
-            // 尋路視窗外的怪根本不在權重場上，加了也只是白花每幀成本。
             if (!hints.PathfindMapBounds.Contains(a.Position - hints.PathfindMapCenter))
                 continue;
 
@@ -3882,7 +3931,6 @@ public abstract class AutoClear : ZoneModule
             }
             else
             {
-                // 找出目前最遠的一隻，比它近就換掉。
                 var worst = 0;
                 for (var j = 1; j < MaxAggroCircles; ++j)
                 {
@@ -3897,59 +3945,94 @@ public abstract class AutoClear : ZoneModule
             }
         }
 
-        if (pickedCount == 0)
-            return;
+        int cones = 0, circles = 0, unknown = 0, skippedInside = 0;
+        var pp = player.Position;
 
-        // 🔴 只捕捉<b>值型快照</b>（座標＋半徑平方），不把 Actor 帶進 closure：
-        //    目標區函式會被 Parallel.For 裡的別的執行緒呼叫（RasterizeGoalZones），
-        //    而 Actor 的欄位每幀會被 WorldStateGameSync 改寫 ⇒ 讀到一半新一半舊的座標。
-        //    快照也順便讓每一次呼叫只做算術，不碰任何引用型別。
-        var radius = Config.AggroAvoidRadius;
-        var circles = new (WPos Pos, float RadiusSq)[pickedCount];
         for (var i = 0; i < pickedCount; ++i)
         {
             var a = hints.PotentialTargets[picked[i]].Actor;
             var r = a.HitboxRadius + radius;
-            circles[i] = (a.Position, r * r);
+            var kind = MobAggroData.Lookup(a.NameID);
+
+            Func<WPos, float> shape;
+            if (kind == MobAggroKind.Sight)
+            {
+                // 半角 45°：NecroLens 的 SightRadian(1.571) 是全角，中心線是怪的朝向。
+                shape = ShapeDistance.Cone(a.Position, r, a.Rotation, SightHalfAngle);
+            }
+            else
+            {
+                shape = ShapeDistance.Circle(a.Position, r);
+            }
+
+            // 🔴 安全裝置 #1：玩家已經在裡面就不要加這一個形狀（理由見 remarks）。
+            //    ShapeDistance 的慣例是「負值＝在裡面」。
+            if (shape(pp) <= 0f)
+            {
+                ++skippedInside;
+                continue;
+            }
+
+            if (kind == MobAggroKind.Sight)
+                ++cones;
+            else if (kind == null)
+                ++unknown;
+            else
+                ++circles;
+
+            // activation 用預設值：RasterizeForbiddenZones 會把它夾到 current ⇒ g = 0 ⇒ 真的擋。
+            hints.AddForbiddenZone(shape, default, a.InstanceID);
         }
 
-        hints.GoalZones.Add(p =>
+        var added = cones + circles + unknown;
+        if (added == 0)
         {
-            for (var i = 0; i < circles.Length; ++i)
+            _aggroProgressSample = null;
+            return;
+        }
+
+        // 🔴 安全裝置 #2：量「有沒有真的在前進」，卡住就抑制（不是偵測不可達，是偵測結果）。
+        if (_aggroProgressSample is { } sample)
+        {
+            if ((pp - sample.Pos).LengthSq() >= AggroStuckDistance * AggroStuckDistance)
             {
-                if ((p - circles[i].Pos).LengthSq() <= circles[i].RadiusSq)
-                    return -weight; // 落在任何一圈內只減一份，不累加
+                _aggroProgressSample = (pp, now); // 有前進，重新起算
             }
-            return 0f;
-        });
+            else if ((now - sample.At).TotalSeconds >= AggroStuckSeconds)
+            {
+                _aggroSuppressUntil = now.AddSeconds(AggroSuppressSeconds);
+                _aggroProgressSample = null;
+                Service.Logger.Information(
+                    $"[DD] 仇恨迴避讓路：樓層 {Palace.Floor}，{AggroStuckSeconds:f1} 秒內只移動了不到 " +
+                    $"{AggroStuckDistance:f1}y（本幀 {added} 個迴避形狀）⇒ 判定繞不過去，" +
+                    $"接下來 {AggroSuppressSeconds:f0} 秒不迴避、照舊行為直穿。");
+                return;
+            }
+        }
+        else
+        {
+            _aggroProgressSample = (pp, now);
+        }
+
+        // 「避不開」的實證資料：趕路中我方已經站在某隻未仇恨怪的偵測範圍內。
+        // 🔑 這一版它不再是失敗（形狀被跳過是刻意的安全裝置 #1），但它仍然是
+        //    「這一層有沒有真的閃得開」的觀測值，也是 v2 決定門檻的依據，所以保留。
+        //    每層一行，不每幀洗版。
+        if (skippedInside > 0 && _aggroCrossLoggedFloor != Palace.Floor)
+        {
+            _aggroCrossLoggedFloor = Palace.Floor;
+            Service.Logger.Information(
+                $"[DD] 仇恨迴避避不開：樓層 {Palace.Floor}，趕路中已經站在 {skippedInside} 隻未仇恨怪的" +
+                $"偵測範圍內（那些形狀本幀刻意跳過，避免玩家格落進禁區讓目標區整批消失）。");
+        }
 
         if (_aggroAvoidLoggedFloor != Palace.Floor)
         {
             _aggroAvoidLoggedFloor = Palace.Floor;
             Service.Logger.Information(
-                $"[DD] 仇恨迴避啟用：樓層 {Palace.Floor}，半徑 hitbox+{radius:f1}y、軟成本權重 {weight:f1}" +
-                $"（趕路權重 10）、本幀納入 {pickedCount} 圈（上限 {MaxAggroCircles}）。");
-        }
-
-        // 「被迫穿越」：玩家自己已經在某一圈內——也就是軟成本沒成功把路線拉開。
-        // 🔑 這行就是 v2（避不開就停下來等人工／自動清開阻路怪）的觸發面實證資料：
-        //    它出現的頻率與場景決定 v2 該用什麼門檻，而不是拍腦子決定。
-        //    每層一行（與其餘診斷同慣例），不每幀洗版。
-        if (_aggroCrossLoggedFloor != Palace.Floor)
-        {
-            var pp = player.Position;
-            for (var i = 0; i < pickedCount; ++i)
-            {
-                if ((pp - circles[i].Pos).LengthSq() > circles[i].RadiusSq)
-                    continue;
-                var a = hints.PotentialTargets[picked[i]].Actor;
-                _aggroCrossLoggedFloor = Palace.Floor;
-                Service.Logger.Information(
-                    $"[DD] 仇恨迴避避不開：樓層 {Palace.Floor}，趕路中進入了「{a.Name}」" +
-                    $"（OID {a.OID:X}）的仇恨圈（距離 {player.DistanceToHitbox(a):f1}y、" +
-                    $"圈半徑 hitbox+{radius:f1}y）。軟成本沒能把路線拉開，已照舊行為直穿。");
-                break;
-            }
+                $"[DD] 仇恨迴避啟用：樓層 {Palace.Floor}，半徑 hitbox+{radius:f1}y（禁區，非軟成本）、" +
+                $"本幀 {added} 個形狀＝扇形 {cones} 隻／圓 {circles} 隻／表外退回圓 {unknown} 隻" +
+                $"，另有 {skippedInside} 隻因為玩家已在其範圍內而跳過（上限 {MaxAggroCircles}）。");
         }
     }
 

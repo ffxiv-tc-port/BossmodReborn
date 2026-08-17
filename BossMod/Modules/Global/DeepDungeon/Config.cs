@@ -252,16 +252,15 @@ public sealed class AutoDDConfig : ConfigNode
     // 🔴 預設 0（opt-in），理由跟 TankPull 一模一樣：這是新的**移動**行為，
     //    而 BMR 的設定反序列化是遍歷 JSON 鍵（跟 EzConfig 相反）⇒ 新預設**既有使用者拿得到**。
     //    沒實機驗過的移動改動不該自己開起來，尤其是疊在剛驗證過的陷阱迴避／風箏／開拉之上。
-    [PropertyDisplay("Route around mobs that have not noticed you yet (0 = off)",
-        tooltip: "While travelling to the destination room and out of combat, mobs that have not aggroed you yet get a soft penalty on the pathfinding weight map, so the route prefers to go around their aggro range instead of straight through it.\n\nThis is a preference, not a wall: if going around is not possible the character still walks through rather than standing still. It never blocks a route and it cannot deadlock.\n\nSuggested value 4. It has to stay below the travelling weight (10) - that is what guarantees \"walk through anyway\" instead of \"refuse to move\". 0 disables it entirely and restores the old behaviour exactly.\n\nThe mob you are currently pulling is always excluded, and mobs that already have aggro are ignored - that is a fight, not something to avoid.")]
-    [PropertySlider(0f, 9f, Speed = 0.1f)]
-    public float AggroAvoidWeight = 0f;
+    [PropertyDisplay("Route around mobs that have not noticed you yet",
+        tooltip: "While travelling to the destination room and out of combat, mobs that have not noticed you yet get their detection range marked as a no-go area for pathfinding, so the route actually bends around it instead of walking straight through.\n\nSight mobs use a 90-degree cone along the direction they are facing, so hugging a wall or slipping behind them is a valid route. Sound and proximity mobs use a full circle, and so does any mob not in the data table.\n\nIt never traps you: shapes you are already standing in are skipped, and if you stop making progress for a couple of seconds the whole thing switches off for 6 seconds so you walk through anyway. Off by default.")]
+    public bool AggroAvoid = false;
 
     // 🔴 滑條上限 9 不是隨手取的：它必須 < 非戰鬥趕路權重 10。
     //    等號成立時圈內的趕路格子會掉到 startPrio(0) 之下，角色就會寧可站著不動也不進圈
     //    —— 那正是我們不要的「堵死」。上限囚在 9 是用 UI 去執行這個不等式。
     [PropertyDisplay("Assumed aggro radius (yalms, added to the mob's hitbox)",
-        tooltip: "How far a mob is assumed to notice you. Used only by the option above.\n\n10 is the value NecroLens uses for deep dungeon mobs. This build applies one radius to every mob - it does not know per-mob aggro types, so it cannot tell a sight cone from a proximity circle and deliberately assumes the whole circle.")]
+        tooltip: "How far a mob is assumed to notice you - the radius of the cone or circle above, measured from the mob plus its hitbox.\n\n10 is the value NecroLens uses for deep dungeon mobs. 0 disables the whole feature.")]
     [PropertySlider(0f, 20f, Speed = 0.5f)]
     public float AggroAvoidRadius = 10f;
 
