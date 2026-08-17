@@ -248,6 +248,23 @@ public sealed class AutoDDConfig : ConfigNode
     [PropertySlider(0.01f, 1f, Speed = 0.01f)]
     public float KiteWeight = 0.05f;
 
+    // ── 仇恨迴避 ──────────────────────────────────────────────────────
+    // 🔴 預設 0（opt-in），理由跟 TankPull 一模一樣：這是新的**移動**行為，
+    //    而 BMR 的設定反序列化是遍歷 JSON 鍵（跟 EzConfig 相反）⇒ 新預設**既有使用者拿得到**。
+    //    沒實機驗過的移動改動不該自己開起來，尤其是疊在剛驗證過的陷阱迴避／風箏／開拉之上。
+    [PropertyDisplay("Route around mobs that have not noticed you yet (0 = off)",
+        tooltip: "While travelling to the destination room and out of combat, mobs that have not aggroed you yet get a soft penalty on the pathfinding weight map, so the route prefers to go around their aggro range instead of straight through it.\n\nThis is a preference, not a wall: if going around is not possible the character still walks through rather than standing still. It never blocks a route and it cannot deadlock.\n\nSuggested value 4. It has to stay below the travelling weight (10) - that is what guarantees \"walk through anyway\" instead of \"refuse to move\". 0 disables it entirely and restores the old behaviour exactly.\n\nThe mob you are currently pulling is always excluded, and mobs that already have aggro are ignored - that is a fight, not something to avoid.")]
+    [PropertySlider(0f, 9f, Speed = 0.1f)]
+    public float AggroAvoidWeight = 0f;
+
+    // 🔴 滑條上限 9 不是隨手取的：它必須 < 非戰鬥趕路權重 10。
+    //    等號成立時圈內的趕路格子會掉到 startPrio(0) 之下，角色就會寧可站著不動也不進圈
+    //    —— 那正是我們不要的「堵死」。上限囚在 9 是用 UI 去執行這個不等式。
+    [PropertyDisplay("Assumed aggro radius (yalms, added to the mob's hitbox)",
+        tooltip: "How far a mob is assumed to notice you. Used only by the option above.\n\n10 is the value NecroLens uses for deep dungeon mobs. This build applies one radius to every mob - it does not know per-mob aggro types, so it cannot tell a sight cone from a proximity circle and deliberately assumes the whole circle.")]
+    [PropertySlider(0f, 20f, Speed = 0.5f)]
+    public float AggroAvoidRadius = 10f;
+
     // 🔴 預設 true。這個開關修的是一個靜默失效，完整說明見 AIHints.WantKiting。
     [PropertyDisplay("Kite: allow backing away while dodging",
         tooltip: "Whenever anything dangerous is telegraphed, the AI normally penalises any spot further from your target than where you stand now, so it does not drift away. That penalty is far stronger than the kiting preference, so without this, kiting silently does nothing while an AOE is up - which in a deep dungeon is most of the time.\n\nTicked, that one penalty is skipped while kiting is actually active. Dodging itself is completely unaffected - no dangerous spot ever becomes acceptable.\n\nUntick for the old behaviour.")]

@@ -512,6 +512,8 @@ public abstract class AutoClear : ZoneModule
         _pullLoggedFloor = 255;
         _lastTargetCorrection = default;
         _openerLoggedFloor = 255;
+        _aggroAvoidLoggedFloor = 255;
+        _aggroCrossLoggedFloor = 255;
         _openedChests.Clear();
         _fakeExits.Clear();
         // 🔴 寶箱累積值是「本層看過什麼」，換層一定要歸零，否則上一層的標記會跟著下來。
@@ -1880,8 +1882,12 @@ public abstract class AutoClear : ZoneModule
         }
 
         // 血量低於門檻就不趕路（只擋趕路，戰鬥走位與閃避不受影響）；按住強制趕路鍵時一併放行
+        _travelGoalAdded = false;
         if (canNavigate && (forceTravel || !TravelBlockedByHP(player)))
             HandleFloorPathfind(player, hints);
+
+        // 仇恨迴避只在「這一幀真的有加趕路目標區」時才疊。見 AddAggroAvoidance。
+        AddAggroAvoidance(player, hints);
 
         DrawAOEs(playerSlot, player, hints);
         CalculateExtraHints(playerSlot, player, hints);
@@ -3753,6 +3759,8 @@ public abstract class AutoClear : ZoneModule
         //    讓它退成一個溫和的方向偏好，戰鬥走位重新拿回主導權。
         //    ⚠️ MaxPull == 0 的人完全不受影響：那種設定下戰鬥中根本不會走到這裡。
         var travelWeight = player.InCombat ? 0.5f : 10f;
+        // 仇恨迴避的前提就是「真的在趕路」，而能跑到這裡就代表所有趕路閘門都過了。
+        _travelGoalAdded = true;
         hints.GoalZones.Add(p =>
         {
             var pp = player.Position;
@@ -3769,6 +3777,183 @@ public abstract class AutoClear : ZoneModule
 
         AddDoorWaypoints(player, hints, playerRoom, next, d, travelWeight);
     }
+
+    #region 仇恨迴避
+
+    /// <summary>這一幀 <see cref="HandleFloorPathfind"/> 真的加了趕路目標區。</summary>
+    /// <remarks>
+    /// 🔴 仇恨迴避必須靠在這上面，不能只看 <c>canNavigate</c>：沒有趕路目標區的時候，
+    /// 負權重是場上唯一非零的東西，於是「站在圈內」會變成唯一的減分項 ⇒ 角色會在原地
+    /// 漂走去遠離被動怪。那是一個沒人要求的行為，而且它的失敗形式是「不聲不響自己走掉」。
+    /// </remarks>
+    private bool _travelGoalAdded;
+
+    /// <summary>這一層已經記過仇恨迴避的啟用診斷；255＝還沒記過。</summary>
+    private byte _aggroAvoidLoggedFloor = 255;
+
+    /// <summary>這一層已經記過「避不開」的診斷；255＝還沒記過。</summary>
+    private byte _aggroCrossLoggedFloor = 255;
+
+    /// <summary>
+    /// 同一幀最多納入幾隻怪的仇恨圈。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 這是<b>每幀成本</b>的閘門，不是美觀問題。目標區函式會被 <c>RasterizeGoalZones</c>
+    /// 對<b>每一個像素的兩個角</b>各呼叫一次（而且分兩輪 pass），120×120 的圖就是每幀幾萬次；
+    /// 乘上怪數就是直接的倍數。一層不乏 20~30 隻怪，全部加進去是每幀百萬次距離運算。
+    /// <para>
+    /// 🔑 取 6 的理由：尋路視窗只有 ±30y，能真正堵住路線的就是最近那幾隻；比較遠的那些
+    /// 在走到之前每幀都會重新排序，所以並不會被永久忽略。漏掉的失敗方向也是安全的：
+    /// 沒包到的怪就退回今天的行為（直穿）。
+    /// </para>
+    /// </remarks>
+    private const int MaxAggroCircles = 6;
+
+    /// <summary>
+    /// 趕路時把「還沒發現我的怪」的仇恨圈畫成<b>軟成本</b>，讓路線儘可能繞開。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 🔴🔴 <b>絕對不用 <c>AddForbiddenZone</c>。</b>硬禁區會踩到 <c>NavigationDecision.Build</c>
+    /// 裡這一行：<c>if (playerInWindow &amp;&amp; PixelMaxG[playerCell] is &gt;= 1f or &lt; 0f)</c> 才會
+    /// <c>RasterizeGoalZones</c> —— 也就是玩家<b>自己站在禁區裡時所有目標區整批不畫</b>，
+    /// 導航退成純逃離模式。而「非戰鬥時站在某隻被動怪的 10y 圈內」在深牢走廊是常態，
+    /// 所以硬禁區的實際表現會是「逃出圈外」與「恢復趕路」每幀震盪。
+    /// </para>
+    /// <para>
+    /// 🔑 <b>為什麼負權重有效，而且量級不用很準</b>：趕路目標區是一個<b>二元平台</b>
+    /// （<c>improvement &gt; 10f ? travelWeight : 0f</c>，非戰鬥時 <c>travelWeight</c> 是 10），
+    /// 而 <c>ThetaStar.CalculateScore</c> 對安全格子的分級是：<c>prio == MaxPriority</c> →
+    /// <c>SafeMaxPrio</c>；<c>prio &gt; startPrio</c> → <c>SafeBetterPrio</c>；否則 <c>Safe</c>。
+    /// 因此只要減了<b>任何</b>一點，圈內的趕路格子就摸不到 <c>MaxPriority</c>（圈外還有格子是 10）
+    /// ⇒ 分級直接掉到第二檔，路線就會向外偎。量級影響的不是「會不會繞」，
+    /// 而是「圈內格子有沒有掉到 <c>startPrio</c> 之下」。
+    /// </para>
+    /// <para>
+    /// 🔴 <b>不可能堵死的保證就是「罰則 &lt; 趕路權重」</b>：玩家自己那格的 improvement 是 0，
+    /// 所以在圈外時 <c>startPrio</c> 是 0。只要罰則 &lt; 10，圈內的趕路格子仍然是
+    /// <c>10 - 罰則 &gt; 0 = startPrio</c> ⇒ 永遠還是 <c>SafeBetterPrio</c>（「比站著不動好」）
+    /// ⇒ 避不開的時候它<b>照走</b>，退回今天的行為。滑條上限囚在 9（&lt; 10）就是在執行這個不等式。
+    /// </para>
+    /// <para>
+    /// 🔴 <b>多圈重疊不累加</b>：整批怪只加<b>一個</b>目標區函式，落在任何一個圈內一律只減一份。
+    /// 若改成每隻怪各加一個，<c>GoalZones</c> 是相加的，三圈重疊就是 -12，
+    /// 上面那個不等式立刻破功——這是安靜失效的那種破功。
+    /// </para>
+    /// <para>
+    /// 📌 <b>資料來源只有一個半徑常數</b>（hitbox + 設定值，預設 10y，與 NecroLens 的
+    /// <c>AggroDistance()</c> 同式）。這一版<b>沒有</b>逐怪的仇恨型別，所以分不出視覺錐形與
+    /// 接近圓，一律當成整個圓（偏保守）。
+    /// </para>
+    /// </remarks>
+    private void AddAggroAvoidance(Actor player, AIHints hints)
+    {
+        var weight = Config.AggroAvoidWeight;
+        // 0 ＝停用，而且是逐字退回舊行為（預設就是 0）。
+        if (weight <= 0f || !_travelGoalAdded || player.InCombat)
+            return;
+
+        // 正在拉的那隻要排除：我們正要走過去打它，把它畫成軟成本是自相矛盾。
+        var pullTargetId = player.TargetID;
+
+        Span<int> picked = stackalloc int[MaxAggroCircles];
+        Span<float> pickedDist = stackalloc float[MaxAggroCircles];
+        var pickedCount = 0;
+
+        var countTargets = hints.PotentialTargets.Count;
+        for (var i = 0; i < countTargets; ++i)
+        {
+            var a = hints.PotentialTargets[i].Actor;
+            // 已仇恨的不畫：那是戰鬥，不是要迴避的東西。
+            if (a.AggroPlayer || a.InCombat || a.IsDeadOrDestroyed)
+                continue;
+            if (a.InstanceID == pullTargetId)
+                continue;
+            // 尋路視窗外的怪根本不在權重場上，加了也只是白花每幀成本。
+            if (!hints.PathfindMapBounds.Contains(a.Position - hints.PathfindMapCenter))
+                continue;
+
+            var d = player.DistanceToHitbox(a);
+            if (pickedCount < MaxAggroCircles)
+            {
+                picked[pickedCount] = i;
+                pickedDist[pickedCount] = d;
+                ++pickedCount;
+            }
+            else
+            {
+                // 找出目前最遠的一隻，比它近就換掉。
+                var worst = 0;
+                for (var j = 1; j < MaxAggroCircles; ++j)
+                {
+                    if (pickedDist[j] > pickedDist[worst])
+                        worst = j;
+                }
+                if (d < pickedDist[worst])
+                {
+                    picked[worst] = i;
+                    pickedDist[worst] = d;
+                }
+            }
+        }
+
+        if (pickedCount == 0)
+            return;
+
+        // 🔴 只捕捉<b>值型快照</b>（座標＋半徑平方），不把 Actor 帶進 closure：
+        //    目標區函式會被 Parallel.For 裡的別的執行緒呼叫（RasterizeGoalZones），
+        //    而 Actor 的欄位每幀會被 WorldStateGameSync 改寫 ⇒ 讀到一半新一半舊的座標。
+        //    快照也順便讓每一次呼叫只做算術，不碰任何引用型別。
+        var radius = Config.AggroAvoidRadius;
+        var circles = new (WPos Pos, float RadiusSq)[pickedCount];
+        for (var i = 0; i < pickedCount; ++i)
+        {
+            var a = hints.PotentialTargets[picked[i]].Actor;
+            var r = a.HitboxRadius + radius;
+            circles[i] = (a.Position, r * r);
+        }
+
+        hints.GoalZones.Add(p =>
+        {
+            for (var i = 0; i < circles.Length; ++i)
+            {
+                if ((p - circles[i].Pos).LengthSq() <= circles[i].RadiusSq)
+                    return -weight; // 落在任何一圈內只減一份，不累加
+            }
+            return 0f;
+        });
+
+        if (_aggroAvoidLoggedFloor != Palace.Floor)
+        {
+            _aggroAvoidLoggedFloor = Palace.Floor;
+            Service.Logger.Information(
+                $"[DD] 仇恨迴避啟用：樓層 {Palace.Floor}，半徑 hitbox+{radius:f1}y、軟成本權重 {weight:f1}" +
+                $"（趕路權重 10）、本幀納入 {pickedCount} 圈（上限 {MaxAggroCircles}）。");
+        }
+
+        // 「被迫穿越」：玩家自己已經在某一圈內——也就是軟成本沒成功把路線拉開。
+        // 🔑 這行就是 v2（避不開就停下來等人工／自動清開阻路怪）的觸發面實證資料：
+        //    它出現的頻率與場景決定 v2 該用什麼門檻，而不是拍腦子決定。
+        //    每層一行（與其餘診斷同慣例），不每幀洗版。
+        if (_aggroCrossLoggedFloor != Palace.Floor)
+        {
+            var pp = player.Position;
+            for (var i = 0; i < pickedCount; ++i)
+            {
+                if ((pp - circles[i].Pos).LengthSq() > circles[i].RadiusSq)
+                    continue;
+                var a = hints.PotentialTargets[picked[i]].Actor;
+                _aggroCrossLoggedFloor = Palace.Floor;
+                Service.Logger.Information(
+                    $"[DD] 仇恨迴避避不開：樓層 {Palace.Floor}，趕路中進入了「{a.Name}」" +
+                    $"（OID {a.OID:X}）的仇恨圈（距離 {player.DistanceToHitbox(a):f1}y、" +
+                    $"圈半徑 hitbox+{radius:f1}y）。軟成本沒能把路線拉開，已照舊行為直穿。");
+                break;
+            }
+        }
+    }
+
+    #endregion
 
     #region 門口路點鏈
 

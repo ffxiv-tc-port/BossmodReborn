@@ -8530,5 +8530,17 @@
   },
   "\"Automatic mob targeting\" above only picks a target - it never moves you, so passive mobs are targeted and then ignored. With this on, your character also moves into range of that target and fires an opener to actually start the pull.\n\nTanks and melee walk into melee range; ranged, casters and healers stop about 15y away and open from there, so they are not sent into melee. Monk is the only job with no ranged opener, so it walks in.\n\nOnly while out of combat: it stops as soon as anything has aggro (see the pull limit below), while transformed, and while your HP is under the \"stop travelling below\" threshold. It never overrides trap avoidance or AOE dodging.\n\nOff by default; with it off nothing about targeting changes.": {
     "message": "上面的「自動怪物目標選取方式」只會選目標、不會移動你，所以沒有主動攻擊的怪被選起來之後就這樣放著。打開這個之後，角色會再走進那個目標的射程並打出開怪技，真的把它拉起來。\n\n坦克與近戰會走進近戰距離；遠程、法系與治療停在大約 15 碼外開火，不會被送到怪臉上。武僧是唯一沒有遠程開怪技的職業，所以它會走近。\n\n只在非戰鬥狀態下動作：只要有任何東西咬住你就停（見下面的拉怪上限）、變身期間停、血量低於「血量低於這個百分比時停止趕路」的門檻時也停。它永遠不會蓋過陷阱迴避與範圍攻擊閃避。\n\n預設關閉；關著的時候目標選取的行為完全不變。"
+  },
+  "Route around mobs that have not noticed you yet (0 = off)": {
+    "message": "繞開還沒發現你的怪（0＝停用）"
+  },
+  "While travelling to the destination room and out of combat, mobs that have not aggroed you yet get a soft penalty on the pathfinding weight map, so the route prefers to go around their aggro range instead of straight through it.\n\nThis is a preference, not a wall: if going around is not possible the character still walks through rather than standing still. It never blocks a route and it cannot deadlock.\n\nSuggested value 4. It has to stay below the travelling weight (10) - that is what guarantees \"walk through anyway\" instead of \"refuse to move\". 0 disables it entirely and restores the old behaviour exactly.\n\nThe mob you are currently pulling is always excluded, and mobs that already have aggro are ignored - that is a fight, not something to avoid.": {
+    "message": "在非戰鬥狀態下趕往目標房間時，還沒仇恨你的怪會在尋路權重圖上被加上一份軟成本，於是路線會傾向繞過牠們的仇恨範圍，而不是直接穿過去。\n\n這是「偏好」不是「牆」：繞不過去的時候角色照樣走過去，不會站在原地。它不會封死任何路線，也不可能把自己卡死。\n\n建議值 4。它必須小於趕路權重（10）——那個不等式就是「避不開就照走」而不是「乾脆不動」的保證。0 就是完全停用，逐字回到舊行為。\n\n你正要拉的那隻永遠會被排除；已經仇恨你的怪也不算——那是戰鬥，不是要迴避的東西。"
+  },
+  "Assumed aggro radius (yalms, added to the mob's hitbox)": {
+    "message": "假定的仇恨半徑（碼，加在怪的 hitbox 上）"
+  },
+  "How far a mob is assumed to notice you. Used only by the option above.\n\n10 is the value NecroLens uses for deep dungeon mobs. This build applies one radius to every mob - it does not know per-mob aggro types, so it cannot tell a sight cone from a proximity circle and deliberately assumes the whole circle.": {
+    "message": "假定怪在多遠之內會發現你。只有上面那個選項會用到。\n\n10 是 NecroLens 對深牢怪採用的值。這一版對每一隻怪都套用同一個半徑——它不知道逐怪的仇恨型別，所以分不出視覺錐形與接近圓，一律當成整個圓。"
   }
 }
