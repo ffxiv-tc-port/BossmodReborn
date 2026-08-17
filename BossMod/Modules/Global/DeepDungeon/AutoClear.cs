@@ -2204,7 +2204,7 @@ public abstract class AutoClear : ZoneModule
         TryPullTarget(player, hints, bestTarget, canNavigate);
     }
 
-    #region 坦克主動拉怪
+    #region 主動走過去開拉
 
     /// <summary>
     /// 走到目標旁邊的距離（碼，量到 hitbox）。
@@ -2214,6 +2214,38 @@ public abstract class AutoClear : ZoneModule
     /// 這樣「拉怪走過去」與「打起來之後 AI 自己維持的距離」不會互相拉扯。
     /// </remarks>
     private const float PullRange = 2.6f;
+
+    /// <summary>
+    /// 遠程／法系／治療的接近距離（碼，量到 hitbox）。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>脆皮不能用 2.6y</b>：那個值是給坦克與近戰的（他們本來就要貼臉）。
+    /// 遠程職業只要進得了開怪技的射程就夠了，走到臉上等於白白挨第一輪平砍。
+    /// <para>
+    /// 🔑 取 15y 的理由：所有遠程／法系／治療的開怪技射程都是 25y（見 <see cref="OpenerShots"/>），
+    /// 留 10y 餘裕吸收「怪會動」與深牢轉角擋視線；同時 15y 落在風箏環
+    /// （<c>KiteMinDistance</c> 9y ~ <c>KiteMaxDistance</c> 25y，見 <c>xan/AI/DeepDungeon.cs</c>）
+    /// <b>之內</b>，所以開打之後風箏接手時不會立刻把人往回拉，兩段是連續的。
+    /// </para>
+    /// <para>
+    /// 📌 實際上多數情況根本走不到這裡就開火了：<see cref="TryOpenerShot"/> 是<b>照技能自己的射程</b>
+    /// 判斷的（25y），所以怪一進 25y 就會出手，這個 15y 只是提供「往那邊走」的梯度。
+    /// </para>
+    /// </remarks>
+    private const float RangedPullRange = 15f;
+
+    /// <summary>
+    /// 這個職業該走到離目標多近。坦克／近戰維持 <see cref="PullRange"/>，其餘用 <see cref="RangedPullRange"/>。
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ <c>Role.None</c>（理論上進不了深牢）落在遠程那一側；那種情況 <see cref="OpenerShots"/>
+    /// 回空陣列＝不會出手，最多只是站遠一點，不會有動作。
+    /// </remarks>
+    private static float PullApproachRange(Actor player) => player.Role switch
+    {
+        Role.Tank or Role.Melee => PullRange,
+        _ => RangedPullRange
+    };
 
     /// <summary>
     /// 拉怪目標區的權重。
@@ -2231,7 +2263,7 @@ public abstract class AutoClear : ZoneModule
     private byte _pullLoggedFloor = 255;
 
     /// <summary>
-    /// 坦克主動走過去把選好的目標拉起來。
+    /// 主動走過去把選好的目標拉起來（全職業）。
     /// </summary>
     /// <remarks>
     /// <para>
@@ -2245,9 +2277,15 @@ public abstract class AutoClear : ZoneModule
     /// ⇒ 主動接近只能由本模組自己加目標區，不能指望 AI 那邊。
     /// </para>
     /// <para>
-    /// 🔴 <b>閘門全部是「不成立就什麼都不做」</b>：關掉、不是坦克、已經在戰鬥、變身中、
+    /// 🔴 <b>閘門全部是「不成立就什麼都不做」</b>：關掉、已經在戰鬥、變身中、
     /// 已經拉滿（<c>canNavigate</c>）、血量低於門檻、目標不在尋路視窗內——任一成立就直接退出，
     /// 退回今天的行為（只設 <c>ForcedTarget</c>、不移動）。沒有任何一條的失敗方向是「亂走」。
+    /// </para>
+    /// <para>
+    /// 📌 <b>2026-08-17 起不再限定坦克。</b>原本硬性限定坦克的理由是「非坦克走過去是送死」，
+    /// 但那個顧慮的真正來源是<b>距離</b>不是職業：現在接近距離改成看職能
+    /// （<see cref="PullApproachRange"/>），遠程／法系／治療停在 15y 開火而不是走到臉上，
+    /// 顧慮就不成立了。深牢單人清怪本來就每個職業都要打，治療也一樣。
     /// </para>
     /// <para>
     /// 📌 <c>SetPriority(target, 0)</c> 是為了讓這隻怪對「有開自動循環」的使用者變成合法目標
@@ -2265,7 +2303,7 @@ public abstract class AutoClear : ZoneModule
         if (!canNavigate || TravelBlockedByHP(player))
             return;
 
-        if (player.Role != Role.Tank || player.InCombat || IsPlayerTransformed(player))
+        if (player.InCombat || IsPlayerTransformed(player))
             return;
 
         // 目標不在尋路視窗（預設 ArenaBoundsSquare(30)）裡時，目標區在整張圖上恆為 0 ＝完全沒有效果。
@@ -2273,16 +2311,18 @@ public abstract class AutoClear : ZoneModule
         if (!hints.PathfindMapBounds.Contains(target.Position - hints.PathfindMapCenter))
             return;
 
+        var approach = PullApproachRange(player);
         hints.SetPriority(target, 0);
-        hints.GoalZones.Add(hints.GoalSingleTarget(target, PullRange, PullWeight));
+        hints.GoalZones.Add(hints.GoalSingleTarget(target, approach, PullWeight));
 
         // 每層記一行就好：要的是「這個功能今天真的有動」，不是逐隻怪的流水帳。
         if (_pullLoggedFloor != Palace.Floor)
         {
             _pullLoggedFloor = Palace.Floor;
             Service.Logger.Information(
-                $"[DD] 坦克拉怪：樓層 {Palace.Floor} 首次主動接近目標「{target.Name}」（OID {target.OID:X}），" +
-                $"距離 {player.DistanceToHitbox(target):f1}y、目標區權重 {PullWeight}、接近距離 {PullRange}y。");
+                $"[DD] 主動開拉：樓層 {Palace.Floor} 首次主動接近目標「{target.Name}」（OID {target.OID:X}），" +
+                $"距離 {player.DistanceToHitbox(target):f1}y、職能 {player.Role}、" +
+                $"目標區權重 {PullWeight}、接近距離 {approach}y。");
         }
     }
 
@@ -2405,25 +2445,78 @@ public abstract class AutoClear : ZoneModule
     /// <summary>這一層已經記過一次「開怪第一擊」診斷；255＝還沒記過。</summary>
     private byte _openerLoggedFloor = 255;
 
+    // 逐職業的開怪技候選，**依序**嘗試：先遠程、再退回近戰基本 GCD。
+    // 執行期用 ActionDefinition.IsUnlocked 挑第一個「這個等級真的會了」的，
+    // 所以同一張表同時涵蓋 L1 與 L100（例如龍騎 L15 以下沒有貫穿尖，就退回蒼天龍尾）。
+    private static readonly ActionID[] OpenerPLD = [ActionID.MakeSpell(PLD.AID.ShieldLob), ActionID.MakeSpell(PLD.AID.FastBlade)];
+    private static readonly ActionID[] OpenerWAR = [ActionID.MakeSpell(WAR.AID.Tomahawk), ActionID.MakeSpell(WAR.AID.HeavySwing)];
+    private static readonly ActionID[] OpenerDRK = [ActionID.MakeSpell(DRK.AID.Unmend), ActionID.MakeSpell(DRK.AID.HardSlash)];
+    private static readonly ActionID[] OpenerGNB = [ActionID.MakeSpell(GNB.AID.LightningShot), ActionID.MakeSpell(GNB.AID.KeenEdge)];
+    private static readonly ActionID[] OpenerMNK = [ActionID.MakeSpell(MNK.AID.Bootshine)];
+    private static readonly ActionID[] OpenerDRG = [ActionID.MakeSpell(DRG.AID.PiercingTalon), ActionID.MakeSpell(DRG.AID.TrueThrust)];
+    private static readonly ActionID[] OpenerNIN = [ActionID.MakeSpell(NIN.AID.ThrowingDagger), ActionID.MakeSpell(NIN.AID.SpinningEdge)];
+    private static readonly ActionID[] OpenerSAM = [ActionID.MakeSpell(SAM.AID.Enpi), ActionID.MakeSpell(SAM.AID.Hakaze)];
+    private static readonly ActionID[] OpenerRPR = [ActionID.MakeSpell(RPR.AID.Harpe), ActionID.MakeSpell(RPR.AID.Slice)];
+    private static readonly ActionID[] OpenerVPR = [ActionID.MakeSpell(VPR.AID.WrithingSnap), ActionID.MakeSpell(VPR.AID.SteelFangs)];
+    private static readonly ActionID[] OpenerBRD = [ActionID.MakeSpell(BRD.AID.HeavyShot)];
+    private static readonly ActionID[] OpenerMCH = [ActionID.MakeSpell(MCH.AID.SplitShot)];
+    private static readonly ActionID[] OpenerDNC = [ActionID.MakeSpell(DNC.AID.Cascade)];
+    private static readonly ActionID[] OpenerBLM = [ActionID.MakeSpell(BLM.AID.Blizzard1)];
+    private static readonly ActionID[] OpenerSMN = [ActionID.MakeSpell(SMN.AID.Ruin1)];
+    private static readonly ActionID[] OpenerRDM = [ActionID.MakeSpell(RDM.AID.Jolt), ActionID.MakeSpell(RDM.AID.Riposte)];
+    private static readonly ActionID[] OpenerPCT = [ActionID.MakeSpell(PCT.AID.FireInRed)];
+    private static readonly ActionID[] OpenerWHM = [ActionID.MakeSpell(WHM.AID.Stone)];
+    private static readonly ActionID[] OpenerSCH = [ActionID.MakeSpell(SCH.AID.Ruin1)];
+    private static readonly ActionID[] OpenerAST = [ActionID.MakeSpell(AST.AID.Malefic)];
+    private static readonly ActionID[] OpenerSGE = [ActionID.MakeSpell(SGE.AID.Dosis)];
+
     /// <summary>
-    /// 各坦克職業的遠程開怪技；沒有對應的職業回 <c>default</c>（＝不出手）。
+    /// 這個職業的開怪技候選，<b>依偏好順序</b>（遠程優先，最後才是近戰基本 GCD）。
     /// </summary>
     /// <remarks>
-    /// 📌 四個都是 L15、瞬發、GCD、射程 20y 的單體敵對技，而且都已經在
-    /// <c>ActionDefinitions</c> 註冊過（各職業的 <c>RegisterSpell</c>）⇒ 職業、等級、冷卻、射程
-    /// 全部由 <c>ActionQueue.FindBest</c>／<c>CanExecute</c> 自己查，這裡不重複實作也不寫死。
     /// <para>
-    /// ⚠️ 刻意連基礎職（<c>GLA</c>／<c>MRD</c>）一起列：深牢從 1 級打起，L15~L29 這段
-    /// 玩家的 <c>Class</c> 是劍術士／斧術士而不是騎士／戰士，只寫進階職會在那一段靜默不出手。
+    /// 🔴 <b>這張表是算出來的，不是憑記憶寫的。</b>來源是
+    /// <c>~/.claude/tools/bmr_job_openers.py</c>：它同時解析 <c>BossMod/ActionQueue/*/&lt;JOB&gt;.cs</c> 的
+    /// <c>enum AID</c> 尾註（等級／射程／GCD／目標型別）與 <c>Definitions()</c> 裡真的
+    /// <c>RegisterSpell</c> 過的集合，取「已註冊 ∧ GCD ∧ 單體 ∧ 敵對」中等級最低的那一顆。
+    /// <b>沒註冊＝<c>ActionDefinitions.Instance[aid]</c> 回 null＝靜默不出手</b>，所以不能用猜的。
+    /// 21 顆 AID 另外用 <c>tools/exd/tc_action_names.py</c> 對台服 <c>Action.csv</c> 查過確實存在。
+    /// </para>
+    /// <para>
+    /// ⚠️ 刻意連基礎職一起對應（<c>GLA</c>/<c>MRD</c>/<c>PGL</c>/<c>LNC</c>/<c>ARC</c>/<c>THM</c>/
+    /// <c>CNJ</c>/<c>ACN</c>/<c>ROG</c>）：深牢從 1 級打起，L15~L29 這段玩家的 <c>Class</c>
+    /// 是基礎職而不是進階職，只寫進階職會在那一段靜默不出手。
+    /// </para>
+    /// <para>
+    /// 📌 <b>武僧／格鬥家是唯一沒有遠程開怪技的職業</b>（全職業唯一）——它每一招敵對技都是
+    /// <c>range 3</c>，L35 的疾風迅雷擊雖然是 20y 但那是<b>位移技</b>而且 <c>targets=party/hostile</c>，
+    /// 拿來開怪等於把自己丟過去。所以武僧走近戰距離用連擊開，和其他近戰在 L15 以下的處理一致。
     /// </para>
     /// </remarks>
-    private static ActionID OpenerShot(Class c) => c switch
+    private static ActionID[] OpenerShots(Class c) => c switch
     {
-        Class.GLA or Class.PLD => ActionID.MakeSpell(PLD.AID.ShieldLob),
-        Class.MRD or Class.WAR => ActionID.MakeSpell(WAR.AID.Tomahawk),
-        Class.DRK => ActionID.MakeSpell(DRK.AID.Unmend),
-        Class.GNB => ActionID.MakeSpell(GNB.AID.LightningShot),
-        _ => default
+        Class.GLA or Class.PLD => OpenerPLD,
+        Class.MRD or Class.WAR => OpenerWAR,
+        Class.DRK => OpenerDRK,
+        Class.GNB => OpenerGNB,
+        Class.PGL or Class.MNK => OpenerMNK,
+        Class.LNC or Class.DRG => OpenerDRG,
+        Class.ROG or Class.NIN => OpenerNIN,
+        Class.SAM => OpenerSAM,
+        Class.RPR => OpenerRPR,
+        Class.VPR => OpenerVPR,
+        Class.ARC or Class.BRD => OpenerBRD,
+        Class.MCH => OpenerMCH,
+        Class.DNC => OpenerDNC,
+        Class.THM or Class.BLM => OpenerBLM,
+        Class.ACN or Class.SMN => OpenerSMN,
+        Class.RDM => OpenerRDM,
+        Class.PCT => OpenerPCT,
+        Class.CNJ or Class.WHM => OpenerWHM,
+        Class.SCH => OpenerSCH,
+        Class.AST => OpenerAST,
+        Class.SGE => OpenerSGE,
+        _ => []
     };
 
     /// <summary>
@@ -2479,7 +2572,7 @@ public abstract class AutoClear : ZoneModule
         // 與 TryPullTarget 完全同一組前置條件。
         // 📌 canNavigate 不必再看：它在戰鬥外恆為 true（MaxPull=0 時就是 !InCombat，
         //    MaxPull>0 時戰鬥外的仇恨數是 0），而 InCombat 這裡已經擋掉了。
-        if (player.Role != Role.Tank || player.InCombat || IsPlayerTransformed(player))
+        if (player.InCombat || IsPlayerTransformed(player))
             return;
 
         if (TravelBlockedByHP(player))
@@ -2502,31 +2595,47 @@ public abstract class AutoClear : ZoneModule
                 return;
         }
 
-        var aid = OpenerShot(player.Class);
-        if (!aid)
-            return;
-
-        var def = ActionDefinitions.Instance[aid];
-        if (def == null)
-            return;
-
-        // 射程沒到就先不推。佇列自己也會擋（CanExecute 的 Range 比對用的是同一個式子：
-        // 中心距離 > Range + 兩邊 hitbox ⇔ DistanceToHitbox > Range），這裡先擋一次
-        // 純粹是為了讓下面的診斷不要在還在跑路的時候就宣稱開了火。
+        // 依序挑第一個「這個等級真的會了、而且射程也到了」的候選。
+        // 🔴 IsUnlocked 這一關不能省：不查的話 L1 龍騎會一直推還沒學會的貫穿尖，
+        //    FindBest 會把它整個丟掉（同樣的 IsUnlocked 檢查），而我們也就永遠不會
+        //    退回蒼天龍尾 —— 失敗形式是「低等級整段不開怪」，而且完全沒有訊息。
+        var defs = ActionDefinitions.Instance;
         var dist = player.DistanceToHitbox(target);
-        if (def.Range > 0f && dist > def.Range)
-            return;
-
-        hints.ActionsToExecute.Push(aid, target, ActionQueue.Priority.VeryLow);
-
-        // 每層記一行：要的是「這個功能今天真的有動」，不是逐隻怪的流水帳（與坦克拉怪同慣例）。
-        if (_openerLoggedFloor != Palace.Floor)
+        var candidates = OpenerShots(player.Class);
+        var countCand = candidates.Length;
+        for (var i = 0; i < countCand; ++i)
         {
-            _openerLoggedFloor = Palace.Floor;
-            Service.Logger.Information(
-                $"[DD] 開怪第一擊：樓層 {Palace.Floor}，對「{target.Name}」（OID {target.OID:X}、" +
-                $"距離 {dist:f1}y）推送 {aid}（職業 {player.Class}、射程 {def.Range}y）。" +
-                $"最終是否送出仍由動作佇列的職業／等級／冷卻檢查決定。");
+            var aid = candidates[i];
+            var def = defs[aid];
+            if (def == null)
+                continue;
+            if (!def.IsUnlocked(World, player))
+                continue;
+
+            // 射程沒到就換下一個候選（近戰退路的射程比較短，通常會在這裡被擋掉，
+            // 等走近了才輪到它）。佇列自己也會擋（CanExecute 的 Range 比對用的是同一個式子：
+            // 中心距離 > Range + 兩邊 hitbox ⇔ DistanceToHitbox > Range），這裡先擋一次
+            // 純粹是為了讓下面的診斷不要在還在跑路的時候就宣稱開了火。
+            if (def.Range > 0f && dist > def.Range)
+                continue;
+
+            // 🔑 castTime 要照實申報：法系開怪技是 1.5~2.5 秒讀條，申報之後
+            //    FindBest 的 `candidate.CastTime > hints.MaxCastTime` 才擋得住
+            //    「玩家自己按著方向鍵」那種必定被打斷的情況（moveImminent 時 MaxCastTime 是 0），
+            //    ActionManagerEx 的 PreventMovingWhileCasting 也才知道這一發需要停下來。
+            hints.ActionsToExecute.Push(aid, target, ActionQueue.Priority.VeryLow, castTime: def.CastTime);
+
+            // 每層記一行：要的是「這個功能今天真的有動」，不是逐隻怪的流水帳（與主動開拉同慣例）。
+            if (_openerLoggedFloor != Palace.Floor)
+            {
+                _openerLoggedFloor = Palace.Floor;
+                Service.Logger.Information(
+                    $"[DD] 開怪第一擊：樓層 {Palace.Floor}，對「{target.Name}」（OID {target.OID:X}、" +
+                    $"距離 {dist:f1}y）推送 {aid}（職業 {player.Class}、職能 {player.Role}、" +
+                    $"射程 {def.Range}y、讀條 {def.CastTime:f1}s、候選 #{i + 1}/{countCand}）。" +
+                    $"最終是否送出仍由動作佇列的冷卻與可用性檢查決定。");
+            }
+            return;
         }
     }
 
