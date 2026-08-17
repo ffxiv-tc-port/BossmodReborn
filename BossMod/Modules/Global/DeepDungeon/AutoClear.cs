@@ -2148,7 +2148,7 @@ public abstract class AutoClear : ZoneModule
         if (CorrectTargetToAggroedEnemy(player, hints))
             return;
 
-        // 🔴 開怪第一擊也必須放在提早返回之前，而且刻意<b>不</b>放在 TryPullTarget 裡：
+        // 🔴 開怪第一擊也必須放在提早返回之前，而且刻意不放在 TryPullTarget 裡：
         //    TryPullTarget 只有在「玩家手上沒有敵性目標」的那些幀才跑得到（下面那個提早返回
         //    在鎖定目標之後就成立了），也就是每次選定目標大約只執行一幀；
         //    而「走到射程內」是選定目標之後好幾秒的事，放在那裡等於永遠等不到射程。
