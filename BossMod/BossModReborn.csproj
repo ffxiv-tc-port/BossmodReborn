@@ -38,6 +38,7 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <CustomCS>false</CustomCS>
   </PropertyGroup>
   <ItemGroup>
     <Using Include="System" />
@@ -64,7 +65,6 @@
   <ItemGroup>
     <PackageReference Include="DalamudPackager" Version="13.0.0" />
     <PackageReference Include="SharpDX.Mathematics" Version="4.2.0" />
-    <ProjectReference Include="..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" />
     <Reference Include="TerraFX.Interop.Windows">
       <HintPath>$(DalamudLibPath)TerraFX.Interop.Windows.dll</HintPath>
       <Private>false</Private>
@@ -101,6 +101,29 @@
       <HintPath>$(DalamudLibPath)SharpDX.Direct3D11.dll</HintPath>
       <Private>false</Private>
     </Reference>
+  </ItemGroup>
+  <!-- FFXIVClientStructs 來源切換(與艦隊其他外掛一致)。
+       預設 CustomCS=false:吃 Dalamud 自帶的那份,原生層偏移與注入端同一份,
+       且產出的 zip 不再夾帶一份 CS 副本。
+       CustomCS=true:改走子模組,供需要自帶 CS 修補時的開發路徑使用;
+       此時才需要自行初始化 Resolver(見 Framework/Plugin.cs 的 #if CUSTOMCS)。 -->
+  <ItemGroup Condition="'$(CustomCS)' != 'true'">
+    <Reference Include="FFXIVClientStructs">
+      <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="InteropGenerator.Runtime">
+      <HintPath>$(DalamudLibPath)InteropGenerator.Runtime.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+  <PropertyGroup Condition="'$(CustomCS)'=='true'">
+    <DefineConstants>CUSTOMCS</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(CustomCS)'=='true'">
+    <ProjectReference Include="..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" />
+    <ProjectReference Include="..\FFXIVClientStructs\InteropGenerator.Runtime\InteropGenerator.Runtime.csproj" />
+    <ProjectReference Include="..\FFXIVClientStructs\InteropGenerator\InteropGenerator.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="DefaultRotationPresets.json">

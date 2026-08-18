@@ -67,9 +67,15 @@ public sealed class Plugin : IDalamudPlugin
                 GetMethod("Get")!.Invoke(null, BindingFlags.Default, null, [], null);
         var dalamudStartInfo = dalamudRoot?.GetType().GetProperty("StartInfo", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(dalamudRoot) as DalamudStartInfo;
         var gameVersion = dalamudStartInfo?.GameVersion?.ToString() ?? "unknown";
+#if CUSTOMCS
+        // 🔴 只有自帶 CS 副本(CustomCS=true)時才由我們初始化 Resolver。
+        // 預設吃 Dalamud/lib 那份 FFXIVClientStructs.dll,Dalamud 本體在載入外掛之前
+        // 就已經 Setup + Resolve 過同一個單例了;在這裡再跑一次等於對「已解析的單例」
+        // 重跑解析,不是無害的重入。
         InteropGenerator.Runtime.Resolver.GetInstance.Setup(sigScanner.SearchBase, gameVersion, new(dalamud.ConfigDirectory.FullName + "/cs.json"));
         FFXIVClientStructs.Interop.Generated.Addresses.Register();
         InteropGenerator.Runtime.Resolver.GetInstance.Resolve();
+#endif
 
         dalamud.Create<Service>();
         Loc.Load("tw");
