@@ -534,7 +534,21 @@ public abstract class AkechiTools<AID, TraitID>(RotationModuleManager manager, A
         var direction = offset / distance;
         RaycastHit hit;
         var flags = stackalloc int[] { 0x4000, 0, 0x4000, 0 };
-        return !Framework.Instance()->BGCollisionModule->RaycastMaterialFilter(&hit, &sourcePos, &direction, distance, 1, flags);
+        // 🔴 Framework.Instance() 是 [StaticAddress(…, isPointer: true)]（宣告在 Client/System/Framework/Framework.cs）
+        //    ——回傳的是全域指標槽的**內容**，遊戲還沒建好／正在拆掉 Framework 時合法為 null；
+        //    BGCollisionModule 也只是普通的指標欄位，場景載入前同樣可能是 null。
+        //    原本整條裸鏈解參考就是 AccessViolationException，而 AVE 在 .NET Core 是 corrupted-state
+        //    exception，try/catch 與 HookSafety 都攔不到，沒有第二道防線。
+        // 🔴 這支住在每幀跑的 rotation module 上（HasLOS 被目標篩選逐一呼叫），所以刻意不寫 log
+        //    ——真的發生時會是每幀每目標一筆。
+        //    fail-closed：拿不到碰撞模組就回 false＝「沒有視線」，這幀不把該目標選進來、不出手。
+        //    回 false 才是中性值：回 true 等於在零依據下宣稱「看得到」，會讓 rotation 對著牆後的目標放技能。
+        var fwk = Framework.Instance();
+        var collision = fwk != null ? fwk->BGCollisionModule : null;
+        if (collision == null)
+            return false;
+
+        return !collision->RaycastMaterialFilter(&hit, &sourcePos, &direction, distance, 1, flags);
     }
 
     /// <summary>Checks the <b>quantity of enemies</b> currently targeting the <b>Player</b></summary>

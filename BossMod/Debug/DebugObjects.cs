@@ -107,7 +107,18 @@ public sealed class DebugObjects
 
     public unsafe void DrawUIObjects()
     {
-        var module = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance()->UIModule->GetUI3DModule();
+        // 🔴 Framework.Instance() 是 [StaticAddress(…, isPointer: true)]，回傳全域指標槽的**內容**，合法可為 null；
+        //    UIModule 也是普通的指標欄位、GetUI3DModule() 同樣可能回 null。原本整條裸鏈解參考＝AccessViolation
+        //    （corrupted-state exception，try/catch 攔不到）。除錯視窗的中性行為＝顯示不可用、不畫表。
+        var fwk = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance();
+        var uiModule = fwk != null ? fwk->UIModule : null;
+        var module = uiModule != null ? uiModule->GetUI3DModule() : null;
+        if (module == null)
+        {
+            ImGui.TextUnformatted("UI3DModule 不可用");
+            return;
+        }
+
         ImGui.BeginTable("uiobj", 3, ImGuiTableFlags.Resizable);
         ImGui.TableSetupColumn("Index");
         ImGui.TableSetupColumn("GameObj");

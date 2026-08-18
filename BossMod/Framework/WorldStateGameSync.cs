@@ -85,7 +85,18 @@ sealed class WorldStateGameSync : IDisposable
         _ws = ws;
         _amex = amex;
         _startTime = DateTime.Now;
-        _startQPC = Framework.Instance()->PerformanceCounterValue;
+        // 🔴 Framework.Instance() 是 [StaticAddress(…, isPointer: true)]，回傳全域指標槽的**內容**，合法可為 null。
+        // 📌 判定：這裡是「外掛載入」路徑，不是每幀路徑。Dalamud 自己要先有 Framework 才跑得起外掛，
+        //    所以這一刻為 null 幾乎不可能發生；而 _startQPC 是整條世界狀態時間軸的錨點，沒有中性值可用
+        //    （拿 0 當錨會讓每一幀的時間戳都偏掉，是靜默的錯誤資料，比載入失敗糟）。
+        //    ⇒ 選擇擲出明確的受管理例外：Dalamud 會把它記成「外掛載入失敗」並顯示原因，遊戲照常跑；
+        //    原本的裸鏈解參考則是 AccessViolationException＝直接把遊戲帶走，而且沒有任何訊息。
+        //    （不選「延後到第一幀再取」是因為 _startTime／_startQPC 必須是同一刻的一對，
+        //      拆成兩個時機要動到兩個 readonly 欄位與所有使用點，對一個幾乎不會發生的情況不划算。）
+        var fwk = Framework.Instance();
+        if (fwk == null)
+            throw new InvalidOperationException("Client::System::Framework::Framework 尚未建立，無法取得世界狀態時間軸的起始 QPC。");
+        _startQPC = fwk->PerformanceCounterValue;
         _interceptor.ServerIPCReceived += ServerIPCReceived;
         _interceptor.ClientIPCSent += ClientIPCSent;
 
@@ -176,7 +187,16 @@ sealed class WorldStateGameSync : IDisposable
 
     public unsafe void Update(TimeSpan prevFramePerf)
     {
+        // 🔴 每幀路徑。Framework.Instance() 是 [StaticAddress(…, isPointer: true)]，回傳全域指標槽的**內容**，
+        //    登出／切換區域／外掛熱更新拆解過程中合法為 null。下面六個欄位原本是無防護的裸鏈解參考，
+        //    null 時直接 AccessViolationException——AVE 是 corrupted-state exception，攔不到。
+        //    fail-closed：這一幀整段不同步（時間戳沒有中性值可編，寫個假的會污染整條世界狀態時間軸）。
+        //    _globalOps 不清空、留到下一幀照樣執行，所以只是晚一幀，不會掉事件。
+        //    🔴 熱路徑，刻意不寫 log。
         var fwk = Framework.Instance();
+        if (fwk == null)
+            return;
+
         _ws.Execute(new WorldState.OpFrameStart
         (
             new(
@@ -195,10 +215,18 @@ sealed class WorldStateGameSync : IDisposable
         {
             _ws.Execute(new WorldState.OpZoneChange(Service.ClientState.TerritoryType, GameMain.Instance()->CurrentContentFinderConditionId));
         }
-        var proxy = fwk->NetworkModuleProxy->ReceiverCallback;
+        // ⚠️ proxy 這個區域變數在本方法裡**沒有任何使用點**（全檔唯一一次出現就是這行），
+        //    但它做的是 fwk->NetworkModuleProxy->ReceiverCallback 兩層裸解參考，網路模組還沒接起來時
+        //    兩層都可能是 null＝AccessViolation。沒有指示要刪既有程式碼，所以原樣留著、只補上判空；
+        //    要不要整行拿掉留給後續裁決。
+        var networkModuleProxy = fwk->NetworkModuleProxy;
+        var proxy = networkModuleProxy != null ? networkModuleProxy->ReceiverCallback : null;
+        _ = proxy;
+        // 📌 Get() 回 null＝「這一刻讀不到」，與「讀到全 0」不同：讀不到時什麼都不做，保留上一次讀到的
+        //    scramble，不要把它覆寫成 default（覆寫會讓後續每個封包都被解錯）。
         var scramble = Network.IDScramble.Get();
-        if (_ws.Network.IDScramble != scramble)
-            _ws.Execute(new NetworkState.OpIDScramble(scramble));
+        if (scramble is { } scrambleFields && _ws.Network.IDScramble != scrambleFields)
+            _ws.Execute(new NetworkState.OpIDScramble(scrambleFields));
 
         var count = _globalOps.Count;
         for (var i = 0; i < count; ++i)

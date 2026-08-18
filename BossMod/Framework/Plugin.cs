@@ -122,7 +122,16 @@ public sealed class Plugin : IDalamudPlugin
 
         ActionDefinitions.Instance.UnlockCheck = QuestUnlocked; // ensure action definitions are initialized and set unlock check functor (we don't really store the quest progress in clientstate, for now at least)
 
-        var qpf = (ulong)FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance()->PerformanceCounterFrequency;
+        // 🔴 Framework.Instance() 是 [StaticAddress(…, isPointer: true)]，回傳全域指標槽的**內容**，合法可為 null。
+        // 📌 判定：這裡是外掛建構子（載入路徑），不是每幀路徑。Dalamud 自己得先有 Framework 才載得動外掛，
+        //    這一刻為 null 幾乎不可能；而 qpf 是世界狀態所有時間戳的**除數**，沒有中性值可退
+        //    （退 0 會讓每個時間戳變成 Infinity／NaN，是靜默的錯誤資料）。
+        //    ⇒ 選擇擲明確的受管理例外：Dalamud 記成「外掛載入失敗」並顯示原因，遊戲照常跑；
+        //    原本的裸鏈解參考則是 AccessViolationException＝當場把遊戲帶走，且完全沒有訊息。
+        var framework = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance();
+        if (framework == null)
+            throw new InvalidOperationException("Client::System::Framework::Framework 尚未建立，無法取得效能計數器頻率，BossModReborn 無法初始化。");
+        var qpf = (ulong)framework->PerformanceCounterFrequency;
         _rotationDB = new(new(dalamud.ConfigDirectory.FullName + "/autorot"), new(dalamud.AssemblyLocation.DirectoryName! + "/DefaultRotationPresets.json"));
         _ws = new(qpf, gameVersion);
         _rsr = new(dalamud);

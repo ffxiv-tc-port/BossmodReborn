@@ -486,8 +486,11 @@ public sealed unsafe class ActionManagerEx : IDisposable
     //    裸指標一律靠判空處理，不靠 try。
     private void UpdateDetour(ActionManager* self)
     {
-        // 🔴 Framework.Instance() 是 [StaticAddress(isPointer: true)]（BMR 自己的 CS 子模組
-        //    FFXIVClientStructs/FFXIV/Client/System/Framework/Framework.cs:24），而 InteropGenerator 對
+        // 🔴 Framework.Instance() 是 [StaticAddress(isPointer: true)]。
+        //    ⚠️ 判定要讀**實際編進來的那份 CS**：本專案 CustomCS=false（見 BossModReborn.csproj），
+        //    吃的是 Dalamud 自帶的 lib/FFXIVClientStructs/FFXIVClientStructs/FFXIV/Client/System/Framework/Framework.cs；
+        //    repo 內的 FFXIVClientStructs/ 子模組只有 CustomCS=true 時才會被建置。兩份目前的宣告一致，
+        //    但要引述來源時請引前者。而 InteropGenerator 對
         //    isPointer 產生的是「位址解析失敗就 ThrowHelper.ThrowNullAddress，否則回 *ppInstance」——
         //    也就是**既會擲 InvalidOperationException、也會回 null**，兩種失效都存在。
         //    這一行原本寫在所有 try 之外：台服特徵碼一漂移就是「每幀擲一次、直接逸出到原生框架」＝遊戲當場沒了。
