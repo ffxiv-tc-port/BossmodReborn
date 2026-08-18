@@ -3828,6 +3828,53 @@ public abstract class AutoClear : ZoneModule
     private static readonly Angle SightHalfAngle = 45f.Degrees();
 
     /// <summary>
+    /// 死者宮殿擬態怪的偵測距離加成（碼）：在設定的半徑之上再加這麼多。
+    /// </summary>
+    /// <remarks>
+    /// 📌 移植 NecroLens <c>ESPObject.AggroDistance()</c>：
+    /// <c>HitboxRadius + (Type == ESPType.Mimic &amp;&amp; DeepDungeonUtil.InPotD ? 14f : 10f)</c>
+    /// —— 也就是<b>只有死者宮殿的擬態怪</b>是 hitbox+14，其餘一律 hitbox+10。
+    /// 上游的原始註解寫「Expect PotD Mimics ... 14.6」，14 是它取的保守值。
+    /// <para>
+    /// 🔑 這裡刻意寫成<b>加成 4</b> 而不是絕對值 14：使用者的半徑是可調的（0~20），
+    /// 寫死 14 會讓「把滑條調到 15 以上」的人得到<b>擬態怪比一般怪還寬鬆</b>的怪結果。
+    /// 半徑維持預設 10 時，這裡算出來就是 14，與 NecroLens 逐字相同。
+    /// </para>
+    /// <para>
+    /// ⚠️ 天之御柱與正統優雷卡<b>不吃</b>這個加成（NecroLens 也不吃）——
+    /// 上游只對死者宮殿量到 14.6 這個值。
+    /// </para>
+    /// </remarks>
+    private const float MimicExtraRadius = 4f;
+
+    /// <summary>
+    /// 這個 <see cref="Actor.OID"/> 是不是深牢的擬態怪。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 鍵是 <b><c>BNpcBase</c></b>（BMR 的 <c>Actor.OID</c> ＝ <c>GameObject.BaseId</c>），
+    /// <b>不是</b> <c>BNpcName</c>（那是 <c>Actor.NameID</c>，<see cref="MobAggroData"/> 用的鍵）。
+    /// 兩者搞混會靜默全 miss。
+    /// <para>
+    /// 📌 值逐字對應 NecroLens <c>DataIds.MimicIDs</c>（含它 2026-08-13 補滿整個區塊那次修正）。
+    /// 呼叫端有死者宮殿的閘門，所以實務上只有 5831~5835 那一段會命中；其餘區塊保留是為了
+    /// 兩邊的表能逐字對照，將來哪個副本也要加成時不必重新考古。
+    /// </para>
+    /// <para>
+    /// 📌 5831~5835 的 <c>ModelChara</c> 在台服 <c>exd-tc/7.20/BNpcBase.csv</c> 是
+    /// 648/648/648/1526/1527（寶箱模型，銀 1526、金 1527），與 NecroLens 記錄的驗證一致。
+    /// </para>
+    /// </remarks>
+    private static bool IsMimicOid(uint oid) => oid switch
+    {
+        2566u or 6362u or 6363u => true,        // 上游既有值（寶藏地圖迷宮一帶），來源不明
+        >= 5831u and <= 5835u => true,          // 死者宮殿
+        >= 9042u and <= 9051u => true,          // 天之御柱
+        >= 15996u and <= 16005u => true,        // 正統優雷卡
+        18889u or 18890u => true,               // 巡禮道
+        _ => false,
+    };
+
+    /// <summary>
     /// 迴避形狀被抑制多久（秒）。見 <see cref="_aggroSuppressUntil"/>。
     /// </summary>
     private const double AggroSuppressSeconds = 6d;
@@ -4026,14 +4073,20 @@ public abstract class AutoClear : ZoneModule
             }
         }
 
-        int cones = 0, circles = 0, unknown = 0, skippedInside = 0;
+        int cones = 0, circles = 0, unknown = 0, skippedInside = 0, mimics = 0;
         var pp = player.Position;
         _aggroInsideFrame.Clear();
+        // 死者宮殿的擬態怪偵測距離比別的怪遠，見 MimicExtraRadius。每幀算一次就好。
+        var inPotd = Palace.DungeonId == DeepDungeonState.DungeonType.POTD;
 
         for (var i = 0; i < pickedCount; ++i)
         {
             var a = hints.PotentialTargets[picked[i]].Actor;
-            var r = a.HitboxRadius + radius;
+            var isMimic = inPotd && IsMimicOid(a.OID);
+            if (isMimic)
+                ++mimics;
+            var effRadius = isMimic ? radius + MimicExtraRadius : radius;
+            var r = a.HitboxRadius + effRadius;
             var kind = MobAggroData.Lookup(a.NameID);
 
             Func<WPos, float> shape;
@@ -4067,7 +4120,8 @@ public abstract class AutoClear : ZoneModule
                     Service.Logger.Information(
                         $"[DD] 仇恨迴避進圈：樓層 {Palace.Floor}，趕路中進入了「{a.Name}」" +
                         $"（OID {a.OID:X}）的{shapeName}（距離 {pickedDist[i]:f1}y、" +
-                        $"半徑 hitbox+{radius:f1}y）。本幀起這個形狀被跳過（安全裝置 #1）。");
+                        $"半徑 hitbox+{effRadius:f1}y{(isMimic ? "，死者宮殿擬態怪加成" : "")}）。" +
+                        "本幀起這個形狀被跳過（安全裝置 #1）。");
                 }
                 continue;
             }
@@ -4180,7 +4234,8 @@ public abstract class AutoClear : ZoneModule
             Service.Logger.Information(
                 $"[DD] 仇恨迴避啟用：樓層 {Palace.Floor}，半徑 hitbox+{radius:f1}y（禁區，非軟成本）、" +
                 $"本幀 {added} 個形狀＝扇形 {cones} 隻／圓 {circles} 隻／表外退回圓 {unknown} 隻" +
-                $"，另有 {skippedInside} 隻因為玩家已在其範圍內而跳過（上限 {MaxAggroCircles}）。");
+                $"，另有 {skippedInside} 隻因為玩家已在其範圍內而跳過（上限 {MaxAggroCircles}）" +
+                $"；候選裡有 {mimics} 隻死者宮殿擬態怪（半徑另加 {MimicExtraRadius:f0}y）。");
         }
     }
 
