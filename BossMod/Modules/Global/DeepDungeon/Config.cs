@@ -256,9 +256,11 @@ public sealed class AutoDDConfig : ConfigNode
         tooltip: "While travelling to the destination room and out of combat, mobs that have not noticed you yet get their detection range marked as a no-go area for pathfinding, so the route actually bends around it instead of walking straight through.\n\nSight mobs use a 90-degree cone along the direction they are facing, so hugging a wall or slipping behind them is a valid route. Sound and proximity mobs use a full circle, and so does any mob not in the data table.\n\nIt never traps you: shapes you are already standing in are skipped, and if you stop making progress for a couple of seconds the whole thing switches off for 6 seconds so you walk through anyway. Off by default.")]
     public bool AggroAvoid = false;
 
-    // 🔴 滑條上限 9 不是隨手取的：它必須 < 非戰鬥趕路權重 10。
-    //    等號成立時圈內的趕路格子會掉到 startPrio(0) 之下，角色就會寧可站著不動也不進圈
-    //    —— 那正是我們不要的「堵死」。上限囚在 9 是用 UI 去執行這個不等式。
+    // 📌 這條滑條是**半徑**，不是權重。0 ＝整個功能關閉（AddAggroAvoidance 的第一道閘門就檢查它）。
+    //    ⚠️ 這裡原本掛著一段「滑條上限 9 必須 < 非戰鬥趕路權重 10」的註解，那是負權重版
+    //       （AggroAvoidWeight，已於改用禁區時刪除）留下來的，對半徑完全不適用：
+    //       禁區走的是 PixelMaxG／PathLeeway 那條路，**路徑成本根本不看目標區權重**，
+    //       所以那條不等式已經沒有對應的東西。上限 20 純粹是「想繞得更保守」的餘裕。
     [PropertyDisplay("Assumed aggro radius (yalms, added to the mob's hitbox)",
         tooltip: "How far a mob is assumed to notice you - the radius of the cone or circle above, measured from the mob plus its hitbox.\n\n10 is the value NecroLens uses for deep dungeon mobs. 0 disables the whole feature.")]
     [PropertySlider(0f, 20f, Speed = 0.5f)]
