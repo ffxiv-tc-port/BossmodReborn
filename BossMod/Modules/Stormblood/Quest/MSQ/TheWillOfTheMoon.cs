@@ -70,11 +70,16 @@ class AutoYshtola(BossModule module, WorldState ws) : QuestBattle.UnmanagedRotat
 {
     private Actor Magnai => module.Enemies((uint)OID.Magnai)[0];
     private Actor Hien => module.Enemies((uint)OID.Hien)[0];
-    private Actor Daidukul => module.Enemies((uint)OID.Daidukul)[0];
+    // 🔴 上游 f1abbed85 的防護部分：`Enemies(oid)[0]` 在清單空的時候是
+    //    ArgumentOutOfRangeException，而 Daidukul 在這場戰鬥裡並非全程存在。
+    //    它只被用來判「有沒有在詠唱 TranquilAnnihilation」，沒人時的正確答案
+    //    就是「沒在詠唱」，所以回 null 與原本的語意一致（hienMinHP 落回 10000）。
+    //    📌 Magnai / Hien 上游刻意沒改，這裡也不動。
+    private Actor? Daidukul { get { var b = module.Enemies((uint)OID.Daidukul); return b.Count != 0 ? b[0] : null; } }
 
     protected override void Exec(Actor? primaryTarget)
     {
-        var hienMinHP = Daidukul.CastInfo?.Action.ID == (uint)AID.TranquilAnnihilation
+        var hienMinHP = Daidukul?.CastInfo?.Action.ID == (uint)AID.TranquilAnnihilation
             ? 28000
             : 10000;
 
