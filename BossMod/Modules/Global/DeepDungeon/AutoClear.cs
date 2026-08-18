@@ -517,6 +517,9 @@ public abstract class AutoClear : ZoneModule
         _aggroSuppressUntil = default;
         _aggroProgressSample = null;
         _aggroInside.Clear();
+        _aggroInteractSince = default;
+        _aggroInteractFuseBlown = false;
+        _aggroInteractLoggedFloor = 255;
         _openedChests.Clear();
         _fakeExits.Clear();
         // 🔴 寶箱累積值是「本層看過什麼」，換層一定要歸零，否則上一層的標記會跟著下來。
@@ -3835,6 +3838,55 @@ public abstract class AutoClear : ZoneModule
     /// <summary>「原地不動」判定的位移門檻（碼）。</summary>
     private const float AggroStuckDistance = 1.5f;
 
+    /// <summary>
+    /// 「互動中暫停卡住計時」最多能連續暫停多久（秒）——保險絲，見 <see cref="IsInteracting"/>。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 這條保險絲修的是「我挑錯 Condition flag」這個風險：只要有任何一個旗標在深牢趕路時
+    /// 是<b>長期為真</b>的，暫停就會變成永久，<b>安全裝置 #2 直接死掉</b>而且完全沒有徵兆。
+    /// 有了上限，最壞情況退回成「抑制晚了 15 秒才生效」，仍然是有界的。
+    /// </remarks>
+    private const double AggroInteractPauseCap = 15d;
+
+    /// <summary>目前這一段「互動中」是什麼時候開始的；<c>default</c>＝現在不在互動。</summary>
+    private DateTime _aggroInteractSince;
+
+    /// <summary>這一段互動已經燒斷保險絲（超過 <see cref="AggroInteractPauseCap"/>）。</summary>
+    private bool _aggroInteractFuseBlown;
+
+    /// <summary>這一層已經記過「互動中暫停計時」的診斷；255＝還沒記過。</summary>
+    private byte _aggroInteractLoggedFloor = 255;
+
+    /// <summary>
+    /// 玩家現在是不是正在做一件「站著不動是正常的」的事（開寶箱、用魔陶器／魔石…）。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>2026-08-18 實機回報：22 次「讓路」裡有 15 次是互動誤判。</b>
+    /// 安全裝置 #2 量的是「有沒有真的在前進」，而開箱／用道具的那兩三秒位移正好是 0
+    /// ⇒ 被當成「繞不過去」，把迴避整個關掉 6 秒。那 6 秒剛好就是離開寶箱繼續趕路的那段。
+    /// <para>
+    /// 🔑 修法刻意選<b>暫停計時</b>而不是「互動中跳過抑制判定」：互動與卡死的因果方向
+    /// 目前<b>沒有離線證據</b>（也可能是先卡住、才順手去開箱）。暫停計時的最壞情況只是
+    /// <b>抑制晚幾秒才觸發</b>；「跳過判定」的最壞情況是<b>抑制永遠不觸發</b> ＝ 真的卡死時
+    /// 站在禁區邊緣不動。前者可回復，後者不可。
+    /// </para>
+    /// <para>
+    /// ⚠️ 旗標集合是<b>推定</b>的（見報告）：台服深牢開箱到底會亮哪幾個 <c>ConditionFlag</c>
+    /// 沒有離線證據。挑得太少＝誤判照舊（現況，不會更糟）；挑到一個長期為真的＝安全裝置死掉，
+    /// 所以另外有 <see cref="AggroInteractPauseCap"/> 這條保險絲兜底。
+    /// <c>CastInfo</c> 一併算進來，是因為魔陶器／魔石是走「使用道具」的詠唱，不是事件互動。
+    /// </para>
+    /// </remarks>
+    private static bool IsInteracting(Actor player)
+        => player.CastInfo != null
+        || Service.Condition[ConditionFlag.Occupied]
+        || Service.Condition[ConditionFlag.Occupied30]
+        || Service.Condition[ConditionFlag.OccupiedInEvent]
+        || Service.Condition[ConditionFlag.OccupiedInQuestEvent]
+        || Service.Condition[ConditionFlag.Occupied33]
+        || Service.Condition[ConditionFlag.Occupied38]
+        || Service.Condition[ConditionFlag.Occupied39];
+
     /// <summary>抑制到這個時間點之前都不加迴避形狀；<c>default</c>＝沒在抑制。</summary>
     private DateTime _aggroSuppressUntil;
 
@@ -3896,7 +3948,9 @@ public abstract class AutoClear : ZoneModule
     /// <item><b>卡住就抑制</b>。禁區是硬的，所以「繞不過去」的自然結果是走到邊緣停住——
     /// 那違反「繞不開必須照走」。所以量「有沒有真的在前進」：<see cref="AggroStuckSeconds"/> 秒內
     /// 位移不到 <see cref="AggroStuckDistance"/>y 就把迴避整個關掉 <see cref="AggroSuppressSeconds"/> 秒，
-    /// 讓它照舊行為直穿。抑制期間有滯後（一次關滿 6 秒）所以不會逐幀開關 ＝ 不震盪。</item>
+    /// 讓它照舊行為直穿。抑制期間有滯後（一次關滿 6 秒）所以不會逐幀開關 ＝ 不震盪。
+    /// ⚠️ <b>互動期間（開箱／用魔陶器…）暫停這個計時</b>，否則站著開箱的兩三秒會被當成卡死
+    /// （實機回報 22 次讓路裡 15 次是這樣來的）。見 <see cref="IsInteracting"/>。</item>
     /// <item><b>只在趕路的那些幀</b>（<see cref="_travelGoalAdded"/>）而且非戰鬥。
     /// 戰鬥中一根汗毛都不動，陷阱迴避與風箏不受影響。</item>
     /// </list>
@@ -3921,6 +3975,8 @@ public abstract class AutoClear : ZoneModule
         if (Config.AggroAvoidRadius <= 0f || !Config.AggroAvoid || !_travelGoalAdded || player.InCombat)
         {
             _aggroProgressSample = null;
+            _aggroInteractSince = default;
+            _aggroInteractFuseBlown = false;
             return;
         }
 
@@ -4044,7 +4100,47 @@ public abstract class AutoClear : ZoneModule
         }
 
         // 🔴 安全裝置 #2：量「有沒有真的在前進」，卡住就抑制（不是偵測不可達，是偵測結果）。
-        if (_aggroProgressSample is { } sample)
+        //    ⚠️ 互動期間（開箱／用魔陶器…）站著不動是正常的，那段時間不累積 stuck 時間，
+        //       互動結束從零重計。理由與取捨見 IsInteracting 的 remarks。
+        var interacting = IsInteracting(player);
+        if (interacting)
+        {
+            if (_aggroInteractSince == default)
+                _aggroInteractSince = now;
+            else if ((now - _aggroInteractSince).TotalSeconds >= AggroInteractPauseCap)
+            {
+                // 保險絲燒斷：訊號黏住了，不再暫停，讓安全裝置 #2 照常跑。
+                interacting = false;
+                if (!_aggroInteractFuseBlown)
+                {
+                    _aggroInteractFuseBlown = true;
+                    Service.Logger.Information(
+                        $"[DD] 仇恨迴避互動暫停逾時：樓層 {Palace.Floor}，" +
+                        $"「互動中」訊號已經連續為真超過 {AggroInteractPauseCap:f0} 秒 ⇒ " +
+                        "判定是旗標挑錯（黏住），停止暫停、恢復卡住偵測。");
+                }
+            }
+        }
+        else
+        {
+            _aggroInteractSince = default;
+            _aggroInteractFuseBlown = false;
+        }
+
+        if (interacting)
+        {
+            // 暫停＝把取樣基準推到現在，於是這段時間完全不計入「原地不動」。
+            _aggroProgressSample = (pp, now);
+            if (_aggroInteractLoggedFloor != Palace.Floor)
+            {
+                _aggroInteractLoggedFloor = Palace.Floor;
+                Service.Logger.Information(
+                    $"[DD] 仇恨迴避暫停卡住計時：樓層 {Palace.Floor}，偵測到互動中" +
+                    $"（開箱／用魔陶器之類），本層首次。互動期間不累積「{AggroStuckSeconds:f1} 秒內" +
+                    $"位移不足 {AggroStuckDistance:f1}y」的時間，互動結束從零重計。");
+            }
+        }
+        else if (_aggroProgressSample is { } sample)
         {
             if ((pp - sample.Pos).LengthSq() >= AggroStuckDistance * AggroStuckDistance)
             {
