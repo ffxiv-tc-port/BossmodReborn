@@ -65,8 +65,20 @@ public sealed class WaymarkState
         get => _setSigns[(int)sgn] ? _targets[(int)sgn] : 0;
         private set
         {
-            _setSigns[(int)sgn] = value is not (0 or 0xE0000000);
-            _targets[(int)sgn] = value;
+            // 🔴 與上面 Waymark 那個 setter 同一個洞,而且這裡原本沒補:
+            //    ReplayParserLog.ParseSignChange 同樣把 replay 檔的一個 raw byte 直接
+            //    cast 成 Sign(`(Sign)_input.ReadByte(false)`),完全不驗範圍。
+            //    檔案壞掉／被截斷時只要那個 byte >= Sign.Count(17),
+            //    `_targets[(int)sgn] = value` 就是 IndexOutOfRangeException,整份 replay 載不進來。
+            //    (BitMask 那一半是安全的 —— 它明文保證出界 get 回 0、set 是 no-op;
+            //    會擲的只有 _targets 這個定長陣列。)
+            //    遊戲內那條路徑安全:WorldStateGameSync.UpdateWaymarks 從 Sign 的固定列舉逐一走。
+            // ⇒ fail-safe 與 Waymark 那邊一致:出界就整個跳過,少認一個標記好過整份載不進來。
+            var idx = (int)sgn;
+            if ((uint)idx >= (uint)_targets.Length)
+                return;
+            _setSigns[idx] = value is not (0 or 0xE0000000);
+            _targets[idx] = value;
         }
     }
 
