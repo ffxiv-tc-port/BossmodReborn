@@ -97,7 +97,7 @@ sealed class ZuStates : StateMachineBuilder
     Category = BossModuleInfo.Category.Dungeon,
     GroupType = BossModuleInfo.GroupType.CFC,
     GroupID = 17u,
-    NameID = 2259u,
+    NameID = 2261u, // BNpcName 2261＝「祖」；上游寫 2259 是從 D171 複製貼上的（那是西蒙德）
     SortOrder = 2,
     PlanLevel = 0)]
 [SkipLocalsInit]
