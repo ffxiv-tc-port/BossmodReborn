@@ -158,7 +158,7 @@ public sealed class ColumnPlayerDetails : Timeline.ColumnGroup
             _planner.Modified = false;
         }
         ImGui.SameLine();
-        if (UIMisc.Button(Loc.T("New"), _planner != null && _planner.Modified, Loc.T("Current preset is modified, save or discard changes")) && _moduleInfo != null)
+        if (UIMisc.Button(Loc.T("New"), _planner != null && _planner.Modified, Loc.T("PRESETDB_ModifiedSaveOrDiscard", "Current preset is modified, save or discard changes")) && _moduleInfo != null)
         {
             var plans = _planDatabase.GetPlans(_moduleInfo.ModuleType, _playerClass);
             var plan = new Plan($"New {plans.Plans.Count + 1}", _moduleInfo.ModuleType) { Guid = Guid.NewGuid().ToString(), Class = _playerClass, Level = _moduleInfo.PlanLevel };
@@ -166,7 +166,7 @@ public sealed class ColumnPlayerDetails : Timeline.ColumnGroup
             selection = plans.Plans.Count - 1;
         }
         ImGui.SameLine();
-        if (UIMisc.Button(Loc.T("Delete"), 0, (!ImGui.GetIO().KeyShift, Loc.T("Hold shift to delete")), (_planner == null, Loc.T("No preset is selected"))) && _moduleInfo != null && _selectedPlan >= 0)
+        if (UIMisc.Button(Loc.T("Delete"), 0, (!ImGui.GetIO().KeyShift, Loc.T("PRESETDB_HoldShift", "Hold shift to delete")), (_planner == null, Loc.T("PRESETDB_NoneSelected", "No preset is selected"))) && _moduleInfo != null && _selectedPlan >= 0)
         {
             var plans = _planDatabase.GetPlans(_moduleInfo.ModuleType, _playerClass);
             _planDatabase.ModifyPlan(plans.Plans[_selectedPlan], null);
