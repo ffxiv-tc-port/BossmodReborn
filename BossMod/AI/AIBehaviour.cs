@@ -285,22 +285,32 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             || autorot.Hints.ImminentSpecialMode.mode == AIHints.SpecialMode.NoMovement && autorot.Hints.ImminentSpecialMode.activation <= WorldState.FutureTime(1d))
             return new() { LeewaySeconds = float.MaxValue };
 
-        // ⚠️ 下面那行的「玩家座標 × 亂數」看起來像筆誤,**已核對上游同形,刻意不改**。
-        //    upstream/main 的同一段是 `new WPos(pos.X * randomO1, pos.Z * randomO2)`(只多存了一個
-        //    pos 區域變數),來歷是上游 7e4a09070(2025-05-03,同一顆把這個閘門從 0.5s 放寬到 2s)。
-        //    【為什麼照舊仍然可用】這個欄位的語意是**方向**不是座標(AIHints.ForcedMovement 的註解:
-        //    「character will move in specified direction」),而 MovementOverride.DirectionToDestination
+        // 📌 下面那行的「玩家座標 × 亂數」看起來像筆誤，**已核對上游同形，主體刻意不改**。
+        //    upstream/main 的同一段是 `new WPos(pos.X * randomO1, pos.Z * randomO2)`（只多存了一個
+        //    pos 區域變數），來歷是上游 7e4a09070（2025-05-03，同一顆把這個閘門從 0.5s 放寬到 2s）。
+        //    【為什麼照舊可用】這個欄位的語意是**方向**不是座標（AIHints.ForcedMovement 的註解：
+        //    「character will move in specified direction」），而 MovementOverride.DirectionToDestination
         //    只取 Angle.FromDirection(X, Z)、長度整個丟掉 ⇒ 乘出來的值實際效果仍是「每幀換一個亂數
-        //    方向」,冰結需要的「持續移動」有被滿足。
-        //    🔴 但退化情形是真的:兩個分量隨玩家離**世界原點**的距離縮放,站在 (0,0) 時整個向量
-        //    等於 default,而 DirectionToDestination 對 default 是 `return null`＝**原地不動**,
-        //    正好是冰結期間最不該發生的事。真要修,正解是與站位無關的 `new WDir(randomO1, randomO2)`,
-        //    但那會與上游分岔且無法離線驗證,留待上游修或使用者裁決。
+        //    方向」，冰結需要的「持續移動」有被滿足。
+        //    ✅ 唯一真正會壞的退化情形（玩家站在世界原點 ⇒ 零向量 ⇒ 原地不動）已在下方單獨擋下，
+        //    非退化情形一律與上游逐位元相同。
         if (autorot.Hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Freezing && autorot.Hints.ImminentSpecialMode.activation <= WorldState.FutureTime(2.1d))
         {
             var randomO1 = random.NextSingle() * 2f - 1f;
             var randomO2 = random.NextSingle() * 2f - 1f;
-            autorot.Hints.ForcedMovement = new WPos(player.Position.X * randomO1, player.Position.Z * randomO2).ToVec3();
+            var dir = new WPos(player.Position.X * randomO1, player.Position.Z * randomO2).ToVec3();
+            // 🔴 退化防護：上面那個乘法在玩家剛好站在世界原點（X==0 且 Z==0）時會得到零向量，
+            //    而 MovementOverride.DirectionToDestination 對 `DesiredDirection.Value == default` 是 `return null`
+            //    ＝AI 完全不動；同時 AIController.Update 又只在 `ForcedMovement == null` 時才接手，
+            //    所以寫進去的零向量會把平常的自動移動也一起壓掉 —— 正好是冰結期間最不該發生的事。
+            //    這個欄位的語意是**方向**不是座標（AIHints.ForcedMovement：「character will move in specified
+            //    direction」），DirectionToDestination 也只取 Angle.FromDirection(X, Z)、長度整個丟掉，
+            //    所以退回純亂數方向與原意（每幀換一個亂數方向）完全一致。
+            // ⚠️ 刻意只擋「剛好等於 default」這一個情形：其餘一律照舊，與上游（同形，來歷 7e4a09070）
+            //    逐位元相同，不製造新的分岔。
+            if (dir == default)
+                dir = new WDir(randomO1, randomO2) is var d && d != default ? d.ToVec3() : new WDir(1f, default).ToVec3();
+            autorot.Hints.ForcedMovement = dir;
             return new() { LeewaySeconds = float.MaxValue };
         }
 
