@@ -3950,6 +3950,21 @@
   "Module for use with other rotation plugins.": {
     "message": "供其他循環外掛搭配使用的模組。"
   },
+  "Edge buffer": {
+    "message": "邊界緩衝"
+  },
+  "Stand at positional edges": {
+    "message": "站在方位分界線上"
+  },
+  "Prefer staying 0.5y inside from the edges": {
+    "message": "偏好從分界線往內站 0.5 碼"
+  },
+  "Prefer staying 1.5y inside from the edges": {
+    "message": "偏好從分界線往內站 1.5 碼"
+  },
+  "Prefer staying 3y inside from the edges": {
+    "message": "偏好從分界線往內站 3 碼"
+  },
   "Misc AI: Stay within range of party role": {
     "message": "雜項 AI：與指定隊伍職能保持距離"
   },

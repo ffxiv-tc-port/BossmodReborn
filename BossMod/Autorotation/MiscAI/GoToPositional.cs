@@ -4,8 +4,28 @@ public sealed partial class GoToPositional(RotationModuleManager manager, Actor 
 {
     public enum Tracks
     {
-        Positional
+        Positional,
+        EdgeBuffer
     }
+
+    /// <summary>
+    /// 站位要離方位分界線多遠才算「站對」。
+    /// </summary>
+    /// <remarks>
+    /// 移植自上游 <c>1f12f5f96</c>（"Added an edge cushion to allow more margin for positionals and
+    /// boss movements"）。實際的收緊算式在 <c>AIHints.GoalSingleTarget</c> 的 <c>cushion</c> 參數，
+    /// 那一半已經先併進來了（見 <c>c8cc348be</c>），在這一軌出現之前<b>沒有任何呼叫端傳非 0 值</b>。
+    /// <para>
+    /// 🔴 <see cref="None"/> 必須是索引 0：<c>StrategyConfigTrack.CreateEmpty()</c> 回
+    /// <c>Option = 0</c>，所以「使用者沒動過這一軌」拿到的就是它。
+    /// <c>None</c> ＝ <c>cushion 0f</c> ＝ 逐位元組的舊行為，既有使用者不會被這個新軌道改到。
+    /// </para>
+    /// <para>
+    /// 📌 選項名（<c>InternalName</c>）是 preset／plan 的序列化鍵，不可改也不可翻譯；
+    /// 顯示名走 <c>StrategyOption.UIName</c> ＝ <c>Loc.T(DisplayName)</c>，譯文在 <c>loc/tw.json</c>。
+    /// </para>
+    /// </remarks>
+    public enum EdgeBufferStrategy { None, Small, Medium, Large }
 
     // Positional 的超集,多了一個「交給模組自己判斷」的選項。
     // 🔴 preset/plan 是用「選項名字串」序列化的(Strategy.cs 的 SerializeValue 寫 InternalName,
@@ -34,6 +54,14 @@ public sealed partial class GoToPositional(RotationModuleManager manager, Actor 
             .AddOption(PositionalStrategy.Rear, "Rear")
             .AddOption(PositionalStrategy.Front, "Front")
             .AddOption(PositionalStrategy.Automatic, "Automatic");
+
+        // 上游 1f12f5f96 的 uiPriority 20 照抄（軌道是由大到小排，所以它會排在 Positional 上面）。
+        def.Define(Tracks.EdgeBuffer).As<EdgeBufferStrategy>("EdgeBuffer", "Edge buffer", 20)
+            .AddOption(EdgeBufferStrategy.None, "Stand at positional edges")
+            .AddOption(EdgeBufferStrategy.Small, "Prefer staying 0.5y inside from the edges")
+            .AddOption(EdgeBufferStrategy.Medium, "Prefer staying 1.5y inside from the edges")
+            .AddOption(EdgeBufferStrategy.Large, "Prefer staying 3y inside from the edges");
+
         return def;
     }
 
@@ -77,7 +105,17 @@ public sealed partial class GoToPositional(RotationModuleManager manager, Actor 
             _ => true
         };
 
+        // 上游 1f12f5f96：把方位區的判定往中心收緊 cushion 碼，避免緊貼分界線站位、
+        // 目標稍微一轉就掉出方位。None（預設）＝ 0f ＝ 舊行為。
+        var cushion = strategy.Option(Tracks.EdgeBuffer).As<EdgeBufferStrategy>() switch
+        {
+            EdgeBufferStrategy.Small => 0.5f,
+            EdgeBufferStrategy.Medium => 1.5f,
+            EdgeBufferStrategy.Large => 3f,
+            _ => 0f
+        };
+
         Hints.RecommendedPositional = (primaryTarget, positional, true, correct);
-        Hints.GoalZones.Add(Hints.GoalSingleTarget(primaryTarget, positional));
+        Hints.GoalZones.Add(Hints.GoalSingleTarget(primaryTarget, positional, cushion: cushion));
     }
 }

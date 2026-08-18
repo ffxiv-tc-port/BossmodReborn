@@ -352,9 +352,9 @@ public sealed class AIHints
     //    讓呼叫端可以要求距離方位邊界 cushion 碼以上才算數（避免緊貼邊界站位、
     //    目標微轉一下就掉出方位）。sqrt2 是把「到方位分界線的垂直距離」換算成
     //    front/side 這兩個投影量的差值所需的係數（分界線是 45度斜線）。
-    // ⚠️ 預設 cushion = 0f ≡ 舊行為（0 乘任何數都是 0，三個比較式退回原式），
-    //    目前艦隊內沒有呼叫端傳非 0 值；上游的使用者是 GoToPositional 的 EdgeBuffer 設定軌，
-    //    那一項會新增使用者設定項與在地化條目，不在本次範圍。
+    // ⚠️ 預設 cushion = 0f ≡ 舊行為（0 乘任何數都是 0，三個比較式退回原式）。
+    //    唯一的呼叫端是 GoToPositional 的 EdgeBuffer 設定軌（上游 1f12f5f96，已併入），
+    //    而它的預設選項 None 也是 0f ⇒ 沒動過設定的使用者拿到的仍然是舊行為。
     public Func<WPos, float> GoalSingleTarget(WPos target, Angle rotation, Positional positional, float radius, float cushion = 0f)
     {
         if (positional == Positional.Any)
