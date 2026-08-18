@@ -516,6 +516,7 @@ public abstract class AutoClear : ZoneModule
         _aggroCrossLoggedFloor = 255;
         _aggroSuppressUntil = default;
         _aggroProgressSample = null;
+        _aggroInside.Clear();
         _openedChests.Clear();
         _fakeExits.Clear();
         // 🔴 寶箱累積值是「本層看過什麼」，換層一定要歸零，否則上一層的標記會跟著下來。
@@ -3841,6 +3842,30 @@ public abstract class AutoClear : ZoneModule
     private (WPos Pos, DateTime At)? _aggroProgressSample;
 
     /// <summary>
+    /// 上一次真的評估過的那一幀，玩家人在誰的偵測形狀裡（<c>InstanceID</c>）。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 這份名單存在的唯一理由是<b>讓 v2/v3 可以被證偽</b>。<c>.77</c>（負權重版）有一行
+    /// 「趕路中進入了『某某』的仇恨圈（距離 X）」的 Information，那行就是證明負權重是死碼的
+    /// 唯一證據（九層全中、進圈距離清一色 9.4~9.5y ＝ 路線一度都沒彎過）。
+    /// <c>.78</c> 改禁區時連同整段判定一起刪掉，於是「禁區到底有沒有讓路線彎」變成無法觀測。
+    /// <para>
+    /// ⚠️ 這裡刻意用 <see cref="List{T}"/> 而不是 <c>HashSet</c>：元素最多
+    /// <see cref="MaxAggroCircles"/> 個，線性掃比雜湊便宜，而且
+    /// <c>HashSet.RemoveWhere</c> 需要一個捕捉 <c>this</c> 的 lambda ＝ <b>每幀一次委派配置</b>。
+    /// </para>
+    /// <para>
+    /// ⚠️ 早退的那幾條路徑（設定關閉／不在趕路／抑制中）<b>刻意不清空這份名單</b>：
+    /// <see cref="_travelGoalAdded"/> 在正常一趟裡本來就會斷斷續續（例如走去開箱那幾幀），
+    /// 清空會讓同一隻怪反覆重印 ＝ 洗版。只有換層（<c>ResetFloorState</c>）才歸零。
+    /// </para>
+    /// </remarks>
+    private readonly List<ulong> _aggroInside = [];
+
+    /// <summary>本幀重算的「人在誰的形狀裡」，用來和 <see cref="_aggroInside"/> 對帳。</summary>
+    private readonly List<ulong> _aggroInsideFrame = [];
+
+    /// <summary>
     /// 趕路時把「還沒發現我的怪」的偵測範圍畫成<b>禁區</b>，讓路線真的繞開。
     /// </summary>
     /// <remarks>
@@ -3947,6 +3972,7 @@ public abstract class AutoClear : ZoneModule
 
         int cones = 0, circles = 0, unknown = 0, skippedInside = 0;
         var pp = player.Position;
+        _aggroInsideFrame.Clear();
 
         for (var i = 0; i < pickedCount; ++i)
         {
@@ -3970,6 +3996,23 @@ public abstract class AutoClear : ZoneModule
             if (shape(pp) <= 0f)
             {
                 ++skippedInside;
+                // 📌 進圈量測：每隻怪每次「進入」只印一行，離開之後再進去才會再印。
+                //    這是唯一能證偽「禁區真的讓路線彎開了」的觀測值 —— 見 _aggroInside 的 remarks。
+                _aggroInsideFrame.Add(a.InstanceID);
+                if (!_aggroInside.Contains(a.InstanceID))
+                {
+                    _aggroInside.Add(a.InstanceID);
+                    var shapeName = kind switch
+                    {
+                        MobAggroKind.Sight => "扇形偵測範圍（半角 45°／全角 90°）",
+                        null => "圓形偵測範圍（表外退回圓）",
+                        _ => "圓形偵測範圍",
+                    };
+                    Service.Logger.Information(
+                        $"[DD] 仇恨迴避進圈：樓層 {Palace.Floor}，趕路中進入了「{a.Name}」" +
+                        $"（OID {a.OID:X}）的{shapeName}（距離 {pickedDist[i]:f1}y、" +
+                        $"半徑 hitbox+{radius:f1}y）。本幀起這個形狀被跳過（安全裝置 #1）。");
+                }
                 continue;
             }
 
@@ -3982,6 +4025,15 @@ public abstract class AutoClear : ZoneModule
 
             // activation 用預設值：RasterizeForbiddenZones 會把它夾到 current ⇒ g = 0 ⇒ 真的擋。
             hints.AddForbiddenZone(shape, default, a.InstanceID);
+        }
+
+        // 「離開了就重置」：本幀沒再算到人在裡面的，從名單移除，下次再進去會重新印一行。
+        // ⚠️ 怪死掉／離開尋路視窗／被更近的六隻擠出候選名單，在這裡都算「離開」——
+        //    最壞情況只是同一隻怪多印一行，不會漏印。
+        for (var i = _aggroInside.Count - 1; i >= 0; --i)
+        {
+            if (!_aggroInsideFrame.Contains(_aggroInside[i]))
+                _aggroInside.RemoveAt(i);
         }
 
         var added = cones + circles + unknown;
