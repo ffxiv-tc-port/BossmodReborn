@@ -186,7 +186,10 @@ sealed unsafe class DebugAction : IDisposable
 
     public void DrawDutyActions()
     {
-        var cd = EventFramework.Instance()->DirectorModule.ActiveContentDirector;
+        // 🔴 EventFramework.Instance() 是 [StaticAddress(…, isPointer: true)]，合法可為 null；
+        //    直接 ->DirectorModule 會 AccessViolation。當作「director 不可用」走既有分支。
+        var eventFramework = EventFramework.Instance();
+        var cd = eventFramework != null ? eventFramework->DirectorModule.ActiveContentDirector : null;
         if (cd == null)
         {
             ImGui.TextUnformatted("Content director is unavailable");

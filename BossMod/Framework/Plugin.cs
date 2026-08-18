@@ -454,7 +454,11 @@ public sealed class Plugin : IDalamudPlugin
         if (targetObj->ObjectKind is FFXIVClientStructs.FFXIV.Client.Game.Object.ObjectKind.Treasure)
             return player?.DistanceToHitbox(target) <= 2.09f;
 
-        return EventFramework.Instance()->CheckInteractRange(playerObj, targetObj, 1, false);
+        // 🔴 EventFramework.Instance() 是 [StaticAddress(…, isPointer: true)]，合法可為 null。
+        //    fail-closed：拿不到就回 false＝「不在互動範圍內」，於是這幀不會送出互動請求
+        //    （回 true 才危險：那會讓自動互動在不該互動時送封包）。
+        var eventFramework = EventFramework.Instance();
+        return eventFramework != null && eventFramework->CheckInteractRange(playerObj, targetObj, 1, false);
     }
 
     private unsafe FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject* GetActorObject(Actor? actor)

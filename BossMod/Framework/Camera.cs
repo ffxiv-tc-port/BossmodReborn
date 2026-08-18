@@ -23,6 +23,10 @@ sealed class Camera
 
     public unsafe void Update()
     {
+        // 📌 這裡的 CameraManager 是 Client.Game.Control.CameraManager，Instance() 展開成
+        //    (CameraManager*)Control.Instance()，而 Control.Instance() 的 [StaticAddress] 沒帶
+        //    isPointer（＝false，lea 取全域變數本身的位址）⇒ 恆非 null，判空是死碼。
+        //    可能為 null 的是 GetActiveCamera() 的回傳值，下面那行已經擋住了。
         var controlCamera = CameraManager.Instance()->GetActiveCamera();
         var renderCamera = controlCamera != null ? controlCamera->SceneCamera.RenderCamera : null;
         if (renderCamera == null)
@@ -43,8 +47,14 @@ sealed class Camera
 
         CameraAzimuth = MathF.Atan2(View.M13, View.M33);
         CameraAltitude = MathF.Asin(View.M23);
+        // 🔴 Device.Instance() 是 [StaticAddress(…, isPointer: true)]——回傳全域指標槽的內容，
+        //    合法可為 null（繪圖裝置重建期間）。原本直接 device->Width 就是 AccessViolation，
+        //    而 AVE 是 corrupted-state exception，try/catch 攔不到。
+        //    這幀拿不到裝置就沿用上一幀的 ViewportSize（中性值：世界疊加層頂多晚一幀對齊），
+        //    絕不寫入垃圾尺寸。
         var device = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Device.Instance();
-        ViewportSize = new(device->Width, device->Height);
+        if (device != null)
+            ViewportSize = new(device->Width, device->Height);
     }
 
     public void DrawWorldPrimitives()

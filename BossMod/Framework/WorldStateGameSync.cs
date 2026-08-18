@@ -726,7 +726,11 @@ sealed class WorldStateGameSync : IDisposable
         if (!MemoryExtensions.SequenceEqual(_ws.Client.ClassJobLevels.AsSpan(), levels))
             _ws.Execute(new ClientState.OpClassJobLevelsChange([.. levels]));
 
-        var curFate = FateManager.Instance()->CurrentFate;
+        // 🔴 FateManager.Instance() 是 [StaticAddress(…, isPointer: true)]，回傳的是全域指標槽的
+        //    內容，管理器還沒建好時合法為 null（原本直接 ->CurrentFate ＝ AccessViolation，
+        //    而 AVE 攔不到）。fail-closed：拿不到管理器就等同「目前沒有 FATE」。
+        var fateManager = FateManager.Instance();
+        var curFate = fateManager != null ? fateManager->CurrentFate : null;
         ClientState.Fate activeFate = curFate != null ? new(curFate->FateId, curFate->Location, curFate->Radius) : default;
         if (_ws.Client.ActiveFate != activeFate)
             _ws.Execute(new ClientState.OpActiveFateChange(activeFate));
@@ -777,7 +781,12 @@ sealed class WorldStateGameSync : IDisposable
 
     private unsafe void UpdateDeepDungeon()
     {
-        var dd = EventFramework.Instance()->GetInstanceContentDeepDungeon();
+        // 🔴 EventFramework.Instance() 是 [StaticAddress(…, isPointer: true)]，合法可為 null
+        //    （切換區域／登出過程中全域槽會是空的）。原本直接 -> 呼叫成員函式＝AccessViolation。
+        //    fail-closed：拿不到 EventFramework 就當作「不在深牢」，走下面既有的清理分支
+        //    ——與真的離開深牢語意一致，不會留下上一層的殘留狀態。
+        var eventFramework = EventFramework.Instance();
+        var dd = eventFramework != null ? eventFramework->GetInstanceContentDeepDungeon() : null;
         if (dd != null)
         {
             var currentId = (DeepDungeonState.DungeonType)dd->DeepDungeonId;

@@ -232,7 +232,11 @@ sealed class DebugGraphics
 
     public unsafe void DrawMatrices()
     {
-        var camera = CameraManager.Instance()->CurrentCamera;
+        // 🔴 這裡的 CameraManager 是 Client.Graphics.Scene.CameraManager（見檔頭 using），與
+        //    Game.Control 那個同名型別**不是同一個**：這個的 Instance() 是
+        //    [StaticAddress(…, isPointer: true)]，合法可為 null，直接 ->CurrentCamera 會 AVE。
+        var cameraManager = CameraManager.Instance();
+        var camera = cameraManager != null ? cameraManager->CurrentCamera : null;
         if (camera == null)
             return;
 
@@ -331,12 +335,14 @@ sealed class DebugGraphics
         ImGui.TableNextColumn();
         DrawMatrix(world);
 
+        // 🔴 Device.Instance() 是 [StaticAddress(…, isPointer: true)]，合法可為 null。
+        //    拿不到裝置時顯示 "?" 而不是 0 —— 0 會被誤讀成「視窗尺寸真的是 0」。
         var device = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Device.Instance();
         ImGui.TableNextRow();
         ImGui.TableNextColumn();
         ImGui.TextUnformatted("Viewport size");
         ImGui.TableNextColumn();
-        ImGui.TextUnformatted($"{device->Width:f6} {device->Height:f6}");
+        ImGui.TextUnformatted(device != null ? $"{device->Width:f6} {device->Height:f6}" : "? ?");
     }
 
     private void DrawMatrix(SharpDX.Matrix mtx)
