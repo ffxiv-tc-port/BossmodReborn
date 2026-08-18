@@ -5,7 +5,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.Control;
 namespace BossMod.Util;
 public static unsafe class PlayerEx
 {
-    public static IPlayerCharacter Object => Service.ClientState.LocalPlayer ?? throw new InvalidOperationException("LocalPlayer is null");
+    public static IPlayerCharacter Object => Service.ObjectTable.LocalPlayer ?? throw new InvalidOperationException("LocalPlayer is null");
     public static unsafe FFXIVClientStructs.FFXIV.Client.Game.Camera* Camera => CameraManager.Instance()->GetActiveCamera();
     public static unsafe CameraEx* CameraEx => (CameraEx*)CameraManager.Instance()->GetActiveCamera();
 
@@ -13,7 +13,7 @@ public static unsafe class PlayerEx
     {
         get
         {
-            var localPlayer = Service.ClientState.LocalPlayer;
+            var localPlayer = Service.ObjectTable.LocalPlayer;
             return localPlayer != null ? (CSGameObject*)localPlayer.Address : null;
         }
     }
@@ -22,7 +22,7 @@ public static unsafe class PlayerEx
     {
         get
         {
-            var localPlayer = Service.ClientState.LocalPlayer;
+            var localPlayer = Service.ObjectTable.LocalPlayer;
             return localPlayer?.Position;
         }
         set
@@ -38,7 +38,7 @@ public static unsafe class PlayerEx
     {
         get
         {
-            var localPlayer = Service.ClientState.LocalPlayer;
+            var localPlayer = Service.ObjectTable.LocalPlayer;
             return localPlayer != null ? localPlayer.Position : Vector3.Zero;
         }
     }
@@ -47,7 +47,7 @@ public static unsafe class PlayerEx
     {
         try
         {
-            if (Service.ClientState.LocalPlayer != null)
+            if (Service.ObjectTable.LocalPlayer != null)
             {
                 SetPosition = position;
                 Service.Log("Setting player position to: " + position.ToString());

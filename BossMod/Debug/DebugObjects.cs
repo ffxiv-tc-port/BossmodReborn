@@ -43,7 +43,7 @@ public sealed class DebugObjects
                 _tree.LeafNode($"Gimmick ID: {Utils.ReadField<uint>(internalObj, 0x7C):X}");
                 _tree.LeafNode($"Radius: {obj.HitboxRadius:f3}");
                 _tree.LeafNode($"Owner: {Utils.ObjectString(obj.OwnerId)}");
-                _tree.LeafNode($"BNpcBase/Name: {obj.DataId:X}/{Utils.GameObjectInternal(obj)->GetNameId()}");
+                _tree.LeafNode($"BNpcBase/Name: {obj.BaseId:X}/{Utils.GameObjectInternal(obj)->GetNameId()}");
                 _tree.LeafNode($"Targetable: {obj.IsTargetable}");
                 _tree.LeafNode($"Is character: {internalObj->IsCharacter()}");
                 _tree.LeafNode($"Event state: {Utils.GameObjectInternal(obj)->EventState}");
@@ -92,7 +92,7 @@ public sealed class DebugObjects
         if (selected != null)
         {
             var h = new Vector3(0, Utils.GameObjectInternal(selected)->Height, 0);
-            Camera.Instance?.DrawWorldLine(Service.ClientState.LocalPlayer?.Position ?? default, selected.Position, Colors.TextColor3);
+            Camera.Instance?.DrawWorldLine(Service.ObjectTable.LocalPlayer?.Position ?? default, selected.Position, Colors.TextColor3);
             Camera.Instance?.DrawWorldCircle(selected.Position, selected.HitboxRadius, Colors.TextColor4);
             Camera.Instance?.DrawWorldCircle(selected.Position + h, selected.HitboxRadius, Colors.TextColor4);
             Camera.Instance?.DrawWorldCircle(selected.Position - h, selected.HitboxRadius, Colors.TextColor4);

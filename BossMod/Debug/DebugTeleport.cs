@@ -55,7 +55,7 @@ sealed class DebugTeleport
     {
         try
         {
-            if (Service.ClientState.LocalPlayer != null)
+            if (Service.ObjectTable.LocalPlayer != null)
             {
                 // Assuming PlayerEx.SetPosition accepts a Vector3
                 PlayerEx.SetPosition = position;

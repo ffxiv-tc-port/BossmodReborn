@@ -118,7 +118,7 @@ sealed class DebugGraphics
         foreach (var v in _watchedRenderObjects)
         {
             var obj = (FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object*)v.Key;
-            Camera.Instance?.DrawWorldLine(Service.ClientState.LocalPlayer!.Position, obj->Position, Colors.TextColor3);
+            Camera.Instance?.DrawWorldLine(Service.ObjectTable.LocalPlayer!.Position, obj->Position, Colors.TextColor3);
         }
     }
 
@@ -357,7 +357,7 @@ sealed class DebugGraphics
 
     public void DrawOverlay()
     {
-        if (Camera.Instance == null || Service.ClientState.LocalPlayer == null)
+        if (Camera.Instance == null || Service.ObjectTable.LocalPlayer == null)
             return;
 
         ImGui.Checkbox("Circle", ref _overlayCircle);
@@ -373,7 +373,7 @@ sealed class DebugGraphics
 
         var mx = (int)(_overlayMaxOffset.X / _overlayStep.X);
         var mz = (int)(_overlayMaxOffset.Y / _overlayStep.Y);
-        var y = Service.ClientState.LocalPlayer.Position.Y;
+        var y = Service.ObjectTable.LocalPlayer.Position.Y;
 
         var rotationMatrix = Matrix3x2.CreateRotation(-_overlayRotation.Rad);
         Vector2 TransformPoint(Vector2 point) => Vector2.Transform(point - _overlayCenter, rotationMatrix) + _overlayCenter;
@@ -412,7 +412,7 @@ sealed class DebugGraphics
 
     public static unsafe FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object* FindSceneRoot()
     {
-        var player = Utils.GameObjectInternal(Service.ClientState.LocalPlayer);
+        var player = Utils.GameObjectInternal(Service.ObjectTable.LocalPlayer);
         if (player == null || player->DrawObject == null)
             return null;
 

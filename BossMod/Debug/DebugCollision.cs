@@ -406,7 +406,7 @@ public sealed unsafe class DebugCollision() : IDisposable
                 vertices.Add((transformedVertex, i, i < node->NumVertsRaw ? 'r' : 'c'));
             }
 
-            var playerPos = Service.ClientState.LocalPlayer!.Position;
+            var playerPos = Service.ObjectTable.LocalPlayer!.Position;
             // Sort vertices by distance to player position, ignore height
 
             vertices.Sort((a, b) =>

@@ -97,7 +97,7 @@ sealed unsafe class DebugAction : IDisposable
         var hover = Service.GameGui.HoveredAction;
         if (hover.ActionID != 0)
         {
-            var mnemonic = Service.ClientState.LocalPlayer?.ClassJob.ValueNullable?.Abbreviation.ToString();
+            var mnemonic = Service.ObjectTable.LocalPlayer?.ClassJob.ValueNullable?.Abbreviation.ToString();
             var rotationType = mnemonic != null ? Type.GetType($"BossMod.{mnemonic}Rotation")?.GetNestedType("AID") : null;
             ImGui.TextUnformatted($"Hover action: {hover.ActionKind} {hover.ActionID} (base={hover.BaseActionID}) ({mnemonic}: {rotationType?.GetEnumName(hover.ActionID)})");
 
@@ -213,7 +213,7 @@ sealed unsafe class DebugAction : IDisposable
     private void DrawStatus(string prompt, ActionID action, bool checkRecast, bool checkCasting)
     {
         uint extra;
-        var status = _amex.GetActionStatus(action, Service.ClientState.LocalPlayer?.TargetObjectId ?? 0xE0000000, checkRecast, checkCasting, &extra);
+        var status = _amex.GetActionStatus(action, Service.ObjectTable.LocalPlayer?.TargetObjectId ?? 0xE0000000, checkRecast, checkCasting, &extra);
         ImGui.TextUnformatted($"{prompt}: {status} [{extra}] '{Service.LuminaRow<Lumina.Excel.Sheets.LogMessage>(status)?.Text}'");
     }
 
