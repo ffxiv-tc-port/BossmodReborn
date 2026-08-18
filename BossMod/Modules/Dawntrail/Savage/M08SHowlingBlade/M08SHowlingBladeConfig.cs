@@ -21,7 +21,12 @@ public sealed class M08SHowlingBladeConfig() : ConfigNode()
         Standard,
         [PropertyDisplay("Assume G1 right, G2 left when looking at boss from arena center")]
         Inverse,
-        [PropertyDisplay("None")]
+        // 🔴 這裡原本是 "None"，與 ActionTweaksConfig.ModifierKey.None 共用同一個扁平翻譯鍵
+        //    （PropertyDisplay 標籤走 ConfigUI 的 Loc.T(label, label)，英文原句就是 key）。
+        //    那邊的 "None" 是「不指定輔助按鍵」＝「無」，這裡是「不顯示站位提示」，
+        //    一個 key 餵兩種語意 ⇒ 本選項在繁中會顯示成「無」而不是「不顯示任何提示」。
+        //    改用 DSW1Config／TEAConfig 對同型選項既有的措辭，撞名與誤譯一起消失。
+        [PropertyDisplay("Don't show any hints")]
         Disabled
     }
 

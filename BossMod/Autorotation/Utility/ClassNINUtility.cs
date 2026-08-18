@@ -15,7 +15,7 @@ public sealed class ClassNINUtility(RotationModuleManager manager, Actor player)
         DefineSimpleConfig(res, Track.ShadeShift, "Shade", "", 400, NIN.AID.ShadeShift, 20);
 
         res.Define(Track.Shukuchi).As<DashStrategy>("Shukuchi", "Dash", 20)
-            .AddOption(DashStrategy.None, "No use.")
+            .AddOption(DashStrategy.None, "No use")
             .AddOption(DashStrategy.GapClose, "Use as gapcloser if outside melee range", cooldown: 60, effect: 0, supportedTargets: ActionTargets.Area, minLevel: 45)
             .AddOption(DashStrategy.GapCloseHold1, "Use as gapcloser if outside melee range; conserves 1 charge for manual usage", cooldown: 60, effect: 0, supportedTargets: ActionTargets.Area, minLevel: 74)
             .AddAssociatedActions(NIN.AID.Shukuchi);

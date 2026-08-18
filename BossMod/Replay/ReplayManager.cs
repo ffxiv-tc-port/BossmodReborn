@@ -203,7 +203,10 @@ public sealed class ReplayManager : IDisposable
             }
 
             ImGui.TableNextColumn();
-            if (ImGui.Button(e.Replay.IsCompleted ? Loc.T("Unload") : Loc.T("Cancel"), new(50, 0)))
+            // 📌 這個「Cancel」是「中止還在解析中的重播載入」，與預設庫對話框的 PRESETDB_Cancel
+            //    （放棄切換預設）不是同一件事，卻曾共用「英文原句當 key」的同一個 "Cancel" 條目。
+            //    給它自己的 REPLAY_ 命名空間，之後要把它改寫成「中止」不會動到預設庫那顆按鈕。
+            if (ImGui.Button(e.Replay.IsCompleted ? Loc.T("Unload") : Loc.T("REPLAY_Cancel", "Cancel"), new(50, 0)))
             {
                 e.Dispose();
                 foreach (var a in _analysisEntries.Where(a => !a.Disposed && a.Replays.Contains(e)))

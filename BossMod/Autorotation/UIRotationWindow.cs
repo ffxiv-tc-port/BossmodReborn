@@ -89,7 +89,16 @@ public sealed class UIRotationWindow : UIWindow
                 {
                     ImGui.SameLine();
                     using var style = ImRaii.PushColor(ImGuiCol.Text, Colors.TextColor2);
-                    UIMisc.HelpMarker(() => "You have a preset activated, which fully overrides the CD plan!", FontAwesomeIcon.ExclamationTriangle);
+                    // 🔴 觸發條件是 Preset != null，而「停用」鈕塞進去的哨兵 ForceDisable 也是一個 Preset
+                    //    （RotationModuleManager.ForceDisable = new Preset("")），所以按下同一個視窗裡的
+                    //    「停用」之後也會跳這個警告 —— 原本的單一句子卻寫「你啟用了一個預設」，
+                    //    使用者明明什麼預設都沒選。兩種狀態抑制計劃的機制相同
+                    //    （RotationModuleManager.Update 只在 Preset == null 時才會用計劃的模組），
+                    //    但原因不同，訊息要分開講。順帶把這句接上在地化，原本是寫死英文。
+                    UIMisc.HelpMarker(() => _mgr.Preset == RotationModuleManager.ForceDisable
+                        ? Loc.T("ROT_PlanBlockedByDisable", "Autorotation is force-disabled, which also stops the CD plan from running!")
+                        : Loc.T("ROT_PlanBlockedByPreset", "You have a preset activated, which fully overrides the CD plan!"),
+                        FontAwesomeIcon.ExclamationTriangle);
                 }
             }
         }

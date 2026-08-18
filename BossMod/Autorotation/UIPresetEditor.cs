@@ -86,7 +86,9 @@ public sealed class UIPresetEditor
     {
         using (ImRaii.Disabled(_sourcePresetDefault))
         {
-            if (ImGui.InputText(Loc.T("Name"), ref Preset.Name, 256))
+            // 📌 預設名稱輸入框對稱於計劃名稱輸入框的 TL_Name（CooldownPlannerColumns），
+            //    本編輯器其餘標籤也都在 PRESET_ 命名空間；共用的 "Name" 留給各視窗的表格欄標。
+            if (ImGui.InputText(Loc.T("PRESET_Name", "Name"), ref Preset.Name, 256))
             {
                 Modified = true;
                 NameConflict = CheckNameConflict();

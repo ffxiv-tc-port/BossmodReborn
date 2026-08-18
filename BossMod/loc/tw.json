@@ -72,7 +72,7 @@
     "message": "為支援的 Boss 建立冷卻技能計劃。"
   },
   "ABOUT_CDPlanner_2": {
-    "message": "在特定戰鬥中取代自動循環。"
+    "message": "在特定戰鬥中取代自動循環，但僅限沒有啟用任何預設時。"
   },
   "ABOUT_CDPlanner_3": {
     "message": "允許在特定時間點施放特定技能。"
@@ -259,6 +259,12 @@
   },
   "ROT_TransientStrategies": {
     "message": "暫時策略："
+  },
+  "ROT_PlanBlockedByPreset": {
+    "message": "你已啟用預設，冷卻計劃會被完全覆蓋！"
+  },
+  "ROT_PlanBlockedByDisable": {
+    "message": "自動循環已強制停用，冷卻計劃也不會執行！"
   },
   "ROT_Presets": {
     "message": "預設："
@@ -1770,6 +1776,9 @@
     "message": "從剪貼簿匯入"
   },
   "TL_Name": {
+    "message": "名稱"
+  },
+  "PRESET_Name": {
     "message": "名稱"
   },
   "TL_HoldShiftToRemove": {
@@ -6533,9 +6542,6 @@
   "No use": {
     "message": "不使用"
   },
-  "No use.": {
-    "message": "不使用。"
-  },
   "Normal use Fight or Flight": {
     "message": "正常使用戰逃反應"
   },
@@ -8051,6 +8057,9 @@
   "MODCAT_Tanks": {
     "message": "坦克"
   },
+  "MODCAT_Ranged": {
+    "message": "遠程"
+  },
   "MODCAT_Utility (xan)": {
     "message": "xan 輔助"
   },
@@ -8162,6 +8171,9 @@
   "Current plan was not modified": {
     "message": "目前的計劃沒有變更。"
   },
+  "Current plan is modified, save or discard changes": {
+    "message": "目前的計劃已有變更，請先儲存或捨棄。"
+  },
   "No plan selected": {
     "message": "尚未選取任何計劃。"
   },
@@ -8195,7 +8207,7 @@
   "Unload": {
     "message": "卸載"
   },
-  "Cancel": {
+  "REPLAY_Cancel": {
     "message": "取消"
   },
   "Select all": {

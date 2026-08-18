@@ -158,7 +158,10 @@ public sealed class ColumnPlayerDetails : Timeline.ColumnGroup
             _planner.Modified = false;
         }
         ImGui.SameLine();
-        if (UIMisc.Button(Loc.T("New"), _planner != null && _planner.Modified, Loc.T("PRESETDB_ModifiedSaveOrDiscard", "Current preset is modified, save or discard changes")) && _moduleInfo != null)
+        // 🔴 這裡選的是「計劃」不是「預設」：閘門條件是 _planner.Modified（計劃有未存變更）。
+        //    上游的原句寫成 "Current preset is modified..."，名詞用錯——這個視窗裡根本沒有預設，
+        //    而同一個函式的儲存／還原鈕（下面幾行）用的是 "Current plan was not modified"。
+        if (UIMisc.Button(Loc.T("New"), _planner != null && _planner.Modified, Loc.T("Current plan is modified, save or discard changes")) && _moduleInfo != null)
         {
             var plans = _planDatabase.GetPlans(_moduleInfo.ModuleType, _playerClass);
             var plan = new Plan($"New {plans.Plans.Count + 1}", _moduleInfo.ModuleType) { Guid = Guid.NewGuid().ToString(), Class = _playerClass, Level = _moduleInfo.PlanLevel };
@@ -166,7 +169,10 @@ public sealed class ColumnPlayerDetails : Timeline.ColumnGroup
             selection = plans.Plans.Count - 1;
         }
         ImGui.SameLine();
-        if (UIMisc.Button(Loc.T("Delete"), 0, (!ImGui.GetIO().KeyShift, Loc.T("PRESETDB_HoldShift", "Hold shift to delete")), (_planner == null, Loc.T("PRESETDB_NoneSelected", "No preset is selected"))) && _moduleInfo != null && _selectedPlan >= 0)
+        // 🔴 同上：_planner == null 是「沒有選取計劃」，上游卻寫 "No preset is selected"。
+        //    改用同一個函式第 143 行既有的 "No plan selected"（閘門條件逐字相同）。
+        //    "Hold shift to delete" 不帶名詞，維持共用 PRESETDB_HoldShift。
+        if (UIMisc.Button(Loc.T("Delete"), 0, (!ImGui.GetIO().KeyShift, Loc.T("PRESETDB_HoldShift", "Hold shift to delete")), (_planner == null, Loc.T("No plan selected"))) && _moduleInfo != null && _selectedPlan >= 0)
         {
             var plans = _planDatabase.GetPlans(_moduleInfo.ModuleType, _playerClass);
             _planDatabase.ModifyPlan(plans.Plans[_selectedPlan], null);
