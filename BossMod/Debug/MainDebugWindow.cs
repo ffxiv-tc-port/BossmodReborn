@@ -1,4 +1,4 @@
-﻿using BossMod.Autorotation;
+using BossMod.Autorotation;
 using BossMod.Autorotation.xan;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.Utility.Raii;
@@ -303,8 +303,11 @@ sealed class MainDebugWindow(WorldState ws, RotationModuleManager autorot, ZoneM
         DrawTarget("GPose target", ts->GPoseTarget, selfPos, angle);
         DrawTarget("Mouseover", ts->MouseOverTarget, selfPos, angle);
         DrawTarget("Focus", ts->FocusTarget, selfPos, angle);
-        var mouseover = FFXIVClientStructs.FFXIV.Client.UI.Misc.PronounModule.Instance()->UiMouseOverTarget;
-        ImGui.TextUnformatted($"UI Mouseover: {Utils.ObjectString(mouseover != null ? mouseover->EntityId : 0)}");
+        // PronounModule.Instance() 是手寫包裝（UIModule 未建立時回 null）——判空顯示不可用。
+        var pronoun = FFXIVClientStructs.FFXIV.Client.UI.Misc.PronounModule.Instance();
+        ImGui.TextUnformatted(pronoun != null
+            ? $"UI Mouseover: {Utils.ObjectString(pronoun->UiMouseOverTarget != null ? pronoun->UiMouseOverTarget->EntityId : 0)}"
+            : "UI Mouseover: (PronounModule 不可用)");
 
         if (ImGui.Button("Target closest enemy"))
         {

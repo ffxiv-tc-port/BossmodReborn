@@ -53,7 +53,8 @@ public sealed unsafe class MovementOverride : IDisposable
         ActionTweaksConfig.ModifierKey.Ctrl => ImGui.GetIO().KeyCtrl,
         ActionTweaksConfig.ModifierKey.Alt => ImGui.GetIO().KeyAlt,
         ActionTweaksConfig.ModifierKey.Shift => ImGui.GetIO().KeyShift,
-        ActionTweaksConfig.ModifierKey.M12 => UIInputData.Instance()->UIFilteredCursorInputs.MouseButtonHeldFlags.HasFlag(MouseButtonFlags.LBUTTON | MouseButtonFlags.RBUTTON),
+        // UIInputData.Instance() 是手寫包裝（UIModule 未建立時回 null），不是 [StaticAddress] 產生碼——判空回「沒按住」。
+        ActionTweaksConfig.ModifierKey.M12 => UIInputData.Instance() is var input && input != null && input->UIFilteredCursorInputs.MouseButtonHeldFlags.HasFlag(MouseButtonFlags.LBUTTON | MouseButtonFlags.RBUTTON),
         _ => false,
     };
 
