@@ -58,6 +58,60 @@ public sealed class PresetDatabase
         BackupUserPresetsOnce();
         DefaultPresets = LoadPresetsFromFile(defaultPresets);
         UserPresets = LoadPresetsFromFile(_dbPath);
+        // 🔴 在 BackupUserPresetsOnce 之後才動:改名會 Save() 覆寫 db，原檔已先備份成 .v1-backup.json。
+        NormalizeBlankUserPresetNames();
+    }
+
+    /// <summary>
+    /// 載入後把「名稱為空白」的既有使用者 preset 自動改成不重複的預設名並存回。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>只動空白名的那些</b>（<c>IsNullOrWhiteSpace</c>）——非空一律不碰。空名 preset 是本次改動
+    /// 之前就存下來的：UI 端（CheckNameConflict）現在會擋新的空名，但擋不了舊資料，所以在載入處收口。
+    /// 空名會讓清單/下拉/深層迷宮設定的字串比對退化（見 <see cref="UIPresetEditor.CheckNameConflict"/> 註解）。
+    /// <para>
+    /// 改名沿用 UI 新增預設的同一個 <see cref="DefaultPresetName"/> 與 " (N)" 湊唯一規則，
+    /// 唯一性用 <see cref="NameComparison"/> 對 DefaultPresets＋UserPresets 一起判（與 CheckNameConflict 一致）。
+    /// </para>
+    /// <para>
+    /// 📌 冪等：改完 Save() 後檔內不再有空名，下次載入偵測不到、不會再動。
+    /// </para>
+    /// </remarks>
+    private void NormalizeBlankUserPresetNames()
+    {
+        var renamed = 0;
+        for (var i = 0; i < UserPresets.Count; ++i)
+        {
+            var p = UserPresets[i];
+            if (!string.IsNullOrWhiteSpace(p.Name))
+                continue;
+
+            // 逐號湊唯一：base 名先套 DefaultPresetName，被占用就往上加 " (N)"。
+            var newName = DefaultPresetName;
+            var n = 1;
+            while (NameTakenExcept(newName, i))
+                newName = $"{DefaultPresetName} ({n++})";
+
+            // 載入當下沒有任何 manager 持有這些物件（建構期），就地改 Name 是安全的。
+            p.Name = newName;
+            ++renamed;
+            // 使用者跑 LogLevel 2，Information 才看得到
+            Service.Logger.Information($"[BMR] 偵測到空名循環預設，已自動改名為「{newName}」。");
+        }
+        if (renamed > 0)
+            Save();
+    }
+
+    // 名字是否已被 DefaultPresets 或 UserPresets（排除 selfIndex 這一筆）占用 —— 與 CheckNameConflict 同語意、同比較器。
+    private bool NameTakenExcept(string name, int selfIndex)
+    {
+        for (var i = 0; i < DefaultPresets.Count; ++i)
+            if (string.Equals(DefaultPresets[i].Name, name, NameComparison))
+                return true;
+        for (var i = 0; i < UserPresets.Count; ++i)
+            if (i != selfIndex && string.Equals(UserPresets[i].Name, name, NameComparison))
+                return true;
+        return false;
     }
 
     /// <summary>
