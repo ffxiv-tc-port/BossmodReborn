@@ -42,7 +42,8 @@ sealed class IPCProvider : IDisposable
             var p = JsonSerializer.Deserialize<Preset>(presetSerialized, Serialization.BuildSerializationOptions());
             if (p == null)
                 return false;
-            var index = autorotation.Database.Presets.UserPresets.FindIndex(x => x.Name == p.Name);
+            // 查重用與 FindPresetByName/CheckNameConflict 同一個比較器（見 PresetDatabase.NameComparison）。
+            var index = autorotation.Database.Presets.UserPresets.FindIndex(x => string.Equals(x.Name, p.Name, PresetDatabase.NameComparison));
             if (index >= 0 && !overwrite)
                 return false;
             autorotation.Database.Presets.Modify(index, p);
@@ -50,7 +51,7 @@ sealed class IPCProvider : IDisposable
         });
         Register("Presets.Delete", (string name) =>
         {
-            var index = autorotation.Database.Presets.UserPresets.FindIndex(x => x.Name == name);
+            var index = autorotation.Database.Presets.UserPresets.FindIndex(x => string.Equals(x.Name, name, PresetDatabase.NameComparison));
             if (index < 0)
                 return false;
             autorotation.Database.Presets.Modify(index, null);

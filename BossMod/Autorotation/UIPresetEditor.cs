@@ -26,9 +26,9 @@ public sealed class UIPresetEditor
     private bool _showHiddenTracks;
     private bool _currentModuleHasHealerAI;
 
-    // 📌 新預設的預設名稱。這是會被寫進資料庫、並被 FindPresetByName／深層迷宮設定以字串比對的
-    //    **資料**，不是介面文字 —— 絕對不要包成 Loc.T，換語言會讓既有設定對不上而靜默失效。
-    private const string DefaultPresetName = "New";
+    // 📌 新預設的預設名稱常數已移到 PresetDatabase.DefaultPresetName —— 載入時的空名自動改名與 UI 新增
+    //    預設要沿用同一個常數，不能各寫各的。
+    private const string DefaultPresetName = PresetDatabase.DefaultPresetName;
 
     private static readonly Type THealerAI = typeof(xan.HealerAI);
     private static readonly Type[] _misleadingHealerRotations = [
@@ -403,11 +403,13 @@ public sealed class UIPresetEditor
         if (string.IsNullOrWhiteSpace(Preset.Name))
             return true;
 
-        if (_db.DefaultPresets.Any(p => p.Name == Preset.Name))
+        // 🔑 查重必須用與 FindPresetByName/IPC 查找同一個比較器（PresetDatabase.NameComparison），
+        //    否則 UI 會放行一個「IPC 端會視為重複」的名字，兩邊對同一主鍵得到不一致的答案。
+        if (_db.DefaultPresets.Any(p => string.Equals(p.Name, Preset.Name, PresetDatabase.NameComparison)))
             return true;
 
         for (var i = 0; i < _db.UserPresets.Count; ++i)
-            if (i != _sourcePresetIndex && _db.UserPresets[i].Name == Preset.Name)
+            if (i != _sourcePresetIndex && string.Equals(_db.UserPresets[i].Name, Preset.Name, PresetDatabase.NameComparison))
                 return true;
         return false;
     }

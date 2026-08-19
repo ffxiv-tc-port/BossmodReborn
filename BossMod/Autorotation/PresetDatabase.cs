@@ -6,6 +6,21 @@ namespace BossMod.Autorotation;
 // note: presets in the database are immutable (otherwise eg. manager won't see the changes in active preset)
 public sealed class PresetDatabase
 {
+    // 🔑 preset 名稱同一性的唯一比較器。preset 名是 7 個 IPC 端點的主鍵（跨外掛契約），過去三處
+    //    各用不同比較：FindPresetByName 查找用 CurrentCultureIgnoreCase、UIPresetEditor.CheckNameConflict
+    //    與 IPCProvider 的 Presets.Create/Delete 查重用 ordinal ==。同一個名字在不同端點得到不一致的
+    //    答案（Get 命中、Delete 卻不命中）。統一為 OrdinalIgnoreCase：大小寫不敏感（符合使用者對「同名」
+    //    的直覺）、且不隨系統地區改變比對結果（CurrentCulture 會）。
+    //    ⚠️ 既有行為變更：大小寫僅差的兩個既有 preset，統一後查找/查重只會命中先出現的那個。
+    //    這裡不改變任何**存進去**的字串，只統一「查找/查重時算不算同一個」。
+    public const StringComparison NameComparison = StringComparison.OrdinalIgnoreCase;
+
+    // 📌 新預設的預設名稱。這是會被寫進資料庫、並被 FindPresetByName／深層迷宮設定以字串比對的
+    //    **資料**，不是介面文字 —— 絕對不要包成 Loc.T，換語言會讓既有設定對不上而靜默失效。
+    //    放在 PresetDatabase 而非 UIPresetEditor，是因為載入時的空名自動改名（NormalizeBlankUserPresetNames）
+    //    與 UI 新增預設要沿用同一個常數，不能各寫各的。
+    public const string DefaultPresetName = "New";
+
     private readonly AutorotationConfig _cfg = Service.Config.Get<AutorotationConfig>();
 
     public readonly List<Preset> DefaultPresets; // default presets, distributed as part of the plugin
@@ -182,7 +197,7 @@ public sealed class PresetDatabase
         return presets;
     }
 
-    public Preset? FindPresetByName(ReadOnlySpan<char> name, StringComparison cmp = StringComparison.CurrentCultureIgnoreCase)
+    public Preset? FindPresetByName(ReadOnlySpan<char> name, StringComparison cmp = NameComparison)
     {
         foreach (var p in AllPresets)
             if (name.Equals(p.Name, cmp))
