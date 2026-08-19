@@ -399,7 +399,31 @@ sealed class MainDebugWindow(WorldState ws, RotationModuleManager autorot, ZoneM
 
     private unsafe void DrawCountdown()
     {
-        var agent = AgentCountDownSettingDialog.Instance();
+        // 🔴 AgentCountDownSettingDialog.Instance() 由
+        //    [Agent(AgentId.CountDownSettingDialog)] 產生:內部鏈
+        //    AgentModule -> UIModule -> Framework,任一層回 null 整條就回 null(登入前、
+        //    切場景、登出後都是常態),而底層 [StaticAddress]/[MemberFunction] 特徵碼失配時
+        //    改為擲 InvalidOperationException——兩種失效模式並存,只擋一種等於假防護。
+        //    裸解參考 null 原生指標是 AccessViolationException,在 .NET Core 屬
+        //    corrupted-state exception,try/catch 攔不到 ⇒ 只能事前判空。
+        //    這裡是除錯視窗的每幀繪製,不寫 log;但「取不到」本身要在畫面上看得見,
+        //    畫成 Active: False / Time left: 0.000 會被誤讀成「查過了,沒有倒數」。
+        AgentCountDownSettingDialog* agent;
+        try
+        {
+            agent = AgentCountDownSettingDialog.Instance();
+        }
+        catch
+        {
+            agent = null;
+        }
+
+        if (agent == null)
+        {
+            ImGui.TextUnformatted("AgentCountDownSettingDialog: ? (取不到 agent)");
+            return;
+        }
+
         ImGui.TextUnformatted($"Active: {agent->Active} (showing cd={agent->ShowingCountdown})");
         ImGui.TextUnformatted($"Initiator: {Utils.ObjectString(agent->InitiatorId)}");
         ImGui.TextUnformatted($"Time left: {agent->TimeRemaining:f3}");
