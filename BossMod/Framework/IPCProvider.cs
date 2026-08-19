@@ -42,6 +42,15 @@ sealed class IPCProvider : IDisposable
             var p = JsonSerializer.Deserialize<Preset>(presetSerialized, Serialization.BuildSerializationOptions());
             if (p == null)
                 return false;
+            // 🔴 外部 IPC 直接反序列化外部字串就寫入,繞過 UI 的空名閘門(CheckNameConflict 把空白名判為衝突)。
+            //    空名 preset 會讓清單/下拉/深層迷宮設定的字串比對全部退化(見 CheckNameConflict 註解),
+            //    必須在寫入前擋下。回傳 false 即失敗訊號(本端點回傳型別是 bool,呼叫端已在處理)。
+            if (string.IsNullOrWhiteSpace(p.Name))
+            {
+                // 使用者跑 LogLevel 2,要他看得到才有意義;具名說明是哪個 IPC 端點拒絕了什麼。
+                Service.Logger.Information("[BMR] IPC Presets.Create 被拒:preset 名稱為空白。");
+                return false;
+            }
             // 查重用與 FindPresetByName/CheckNameConflict 同一個比較器（見 PresetDatabase.NameComparison）。
             var index = autorotation.Database.Presets.UserPresets.FindIndex(x => string.Equals(x.Name, p.Name, PresetDatabase.NameComparison));
             if (index >= 0 && !overwrite)
