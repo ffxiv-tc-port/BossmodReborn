@@ -237,7 +237,9 @@ sealed class WorldStateGameSync : IDisposable
 
         _playerEnmity.Clear();
         var uiState = UIState.Instance();
-        for (var i = 0; i < uiState->Hater.HaterCount; ++i)
+        // HaterCount 是遊戲寫入的 int，Haters 是 FixedSizeArray32 —— 兩者無結構保證，夾到容量內。
+        var haterCount = Math.Min(uiState->Hater.HaterCount, uiState->Hater.Haters.Length);
+        for (var i = 0; i < haterCount; ++i)
             _playerEnmity.Add(uiState->Hater.Haters[i].EntityId);
 
         UpdateWaymarks();
@@ -417,7 +419,10 @@ sealed class WorldStateGameSync : IDisposable
         var sm = chr != null ? chr->GetStatusManager() : null;
         if (sm != null)
         {
-            for (var i = 0; i < sm->NumValidStatuses; ++i)
+            // NumValidStatuses 是遊戲寫入的 byte，Status 是 FixedSizeArray60（Actor.Statuses 同樣是 60）：
+            // 兩者無結構保證，夾到容量內，越界時安靜少讀。
+            var numStatuses = Math.Min((int)sm->NumValidStatuses, sm->Status.Length);
+            for (var i = 0; i < numStatuses; ++i)
             {
                 // note: sometimes (Ocean Fishing) remaining-time is weird (I assume too large?) and causes exception in AddSeconds - so we just clamp it to some reasonable range
                 // note: self-cast buffs with duration X will have duration -X until EffectResult (~0.6s later); see autorotation for more details
@@ -841,7 +846,10 @@ sealed class WorldStateGameSync : IDisposable
         var hate = uiState->Hate;
         var hatePrimary = hate.HateTargetId;
         var hateTargets = new ClientState.Hate[32];
-        for (var i = 0; i < hate.HateArrayLength; ++i)
+        // HateArrayLength 是遊戲寫入的 int，HateInfo 是 FixedSizeArray32（受端 hateTargets 也是 32）：
+        // 兩者無結構保證，夾到容量內。
+        var hateLen = Math.Min(hate.HateArrayLength, Math.Min(hate.HateInfo.Length, hateTargets.Length));
+        for (var i = 0; i < hateLen; ++i)
             hateTargets[i] = new(hate.HateInfo[i].EntityId, hate.HateInfo[i].Enmity);
 
         if (hatePrimary != _ws.Client.CurrentTargetHate.InstanceID || !MemoryExtensions.SequenceEqual(hateTargets, _ws.Client.CurrentTargetHate.Targets))

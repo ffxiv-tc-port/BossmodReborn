@@ -119,7 +119,10 @@ sealed class AIManager : IDisposable
             return -1;
         var group = GroupManager.Instance()->GetGroup();
         var slot = -1;
-        for (var i = 0; i < group->MemberCount; ++i)
+        // MemberCount 是遊戲寫入的 byte，PartyMembers 是 FixedSizeArray8 —— 兩者之間沒有結構
+        // 保證，Count 異常時原本會索引到陣列外。夾到容量內，越界時安靜少讀。
+        var memberCount = Math.Min((int)group->MemberCount, group->PartyMembers.Length);
+        for (var i = 0; i < memberCount; ++i)
         {
             if (group->PartyMembers[i].HomeWorld == source.World.RowId && group->PartyMembers[i].NameString == source.PlayerName)
             {

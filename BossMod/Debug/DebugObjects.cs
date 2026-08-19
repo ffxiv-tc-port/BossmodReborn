@@ -180,7 +180,9 @@ public sealed class DebugObjects
         }
         res.Append("\n--- cid/acid (P) ---");
         var gp = GroupManager.Instance()->GetGroup();
-        for (var i = 0; i < gp->MemberCount; ++i)
+        // MemberCount 由遊戲寫入，PartyMembers 是 FixedSizeArray8：夾到容量內。
+        var gpCount = Math.Min((int)gp->MemberCount, gp->PartyMembers.Length);
+        for (var i = 0; i < gpCount; ++i)
         {
             ref var member = ref gp->PartyMembers[i];
             res.Append($"\n{i}: {member.AccountId:X}.{member.ContentId:X} = {member.NameString} / {(member.NameOverride != null ? member.NameOverride->ToString() : "<null>")}");

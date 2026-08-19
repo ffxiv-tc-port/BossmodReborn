@@ -335,7 +335,9 @@ public sealed unsafe class MovementOverride : IDisposable
         var sm = player != null && player->IsCharacter() ? player->GetStatusManager() : null;
         if (sm == null)
             return false;
-        for (var i = 0; i < sm->NumValidStatuses; ++i)
+        // NumValidStatuses 是遊戲寫入的 byte，Status 是 FixedSizeArray60：夾到容量內。
+        var numStatuses = Math.Min((int)sm->NumValidStatuses, sm->Status.Length);
+        for (var i = 0; i < numStatuses; ++i)
             if (sm->Status[i].StatusId is 1422 or 2936 or 3694 or 3909)
                 return true;
         return false;
