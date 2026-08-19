@@ -26,6 +26,10 @@ public sealed class UIPresetEditor
     private bool _showHiddenTracks;
     private bool _currentModuleHasHealerAI;
 
+    // 📌 新預設的預設名稱。這是會被寫進資料庫、並被 FindPresetByName／深層迷宮設定以字串比對的
+    //    **資料**，不是介面文字 —— 絕對不要包成 Loc.T，換語言會讓既有設定對不上而靜默失效。
+    private const string DefaultPresetName = "New";
+
     private static readonly Type THealerAI = typeof(xan.HealerAI);
     private static readonly Type[] _misleadingHealerRotations = [
         typeof(xan.WHM),
@@ -45,10 +49,16 @@ public sealed class UIPresetEditor
         if (index >= 0)
         {
             Preset = (isDefaultPreset ? db.DefaultPresets : db.UserPresets)[index].MakeClone(false);
+            // 這個檢查加入之前就存進資料庫的空白名稱：載入當下就標成不可保存。
+            // 否則使用者只改模組、完全不碰名稱欄時 NameConflict 永遠是 false，空名會原封不動被寫回去。
+            // ⚠️ 這裡刻意只判空白、不跑完整的 CheckNameConflict —— 完整檢查會把「與內建預設同名的
+            // 既有使用者預設」也一併鎖死（內建預設清單是我們發版時加的，使用者沒做錯任何事），
+            // 那是回退既有行為。
+            NameConflict = string.IsNullOrWhiteSpace(Preset.Name);
         }
         else
         {
-            Preset = new("New");
+            Preset = new(DefaultPresetName);
             NameConflict = CheckNameConflict();
             MakeNameUnique();
             Modified = false; // don't bother...
@@ -116,6 +126,18 @@ public sealed class UIPresetEditor
     public void MakeNameUnique()
     {
         var baseName = Preset.Name;
+        if (string.IsNullOrWhiteSpace(baseName))
+        {
+            // 自動命名的路徑（複製／另存新檔）拿到空白基底名時，逐號湊唯一只會得到 " (1)" 這種
+            // 一樣不可辨識的名字；先換成與「新增」相同的預設名再往下湊。
+            // 🔴 另存新檔（SaveCurrentPresetAsCopy）不檢查 NameConflict，只靠這個函式收斂名稱，
+            //    所以這裡是那條路徑上唯一擋得住空名的地方。
+            baseName = DefaultPresetName;
+            Preset.Name = baseName;
+            Modified = true;
+            NameConflict = CheckNameConflict();
+        }
+
         var i = 1;
         while (NameConflict)
         {
@@ -371,6 +393,16 @@ public sealed class UIPresetEditor
 
     private bool CheckNameConflict()
     {
+        // 🔴 空白名稱要 fail-closed 擋在保存之前。保存按鈕的停用說明（PRESETDB_NameConflict）
+        //    一直寫著「名稱為空或與其他預設重複」，但這裡從來只比對重複、從沒檢查過空字串，
+        //    於是空名一路存得下去。它造成的不只是「清單裡不好認」：
+        //    ① 預設清單用 ImGui.Selectable(preset.Name) 畫，空標籤等於沒有 ID，
+        //       多筆空名會共用同一個 ID，點選行為變得不可預期；
+        //    ② 下拉預覽在「沒選任何預設」時也是空字串，兩種狀態長得一模一樣；
+        //    ③ 深層迷宮設定以空字串當「不切換」的哨兵值，選到空名預設等於靜默不切換。
+        if (string.IsNullOrWhiteSpace(Preset.Name))
+            return true;
+
         if (_db.DefaultPresets.Any(p => p.Name == Preset.Name))
             return true;
 
