@@ -552,10 +552,55 @@ sealed class WorldStateGameSync : IDisposable
         }
 
         var member = player.InstanceId != default && group != null ? group->GetPartyMemberByEntityId((uint)player.InstanceId) : null;
+        ReportPartyLookupMismatch(group, player, member);
         if (member != null)
             player.InCutscene |= (member->Flags & 0x10) != default;
         UpdatePartySlot(PartyState.PlayerSlot, player);
         return member;
+    }
+
+    // 台服診斷(只觀測、不改行為)。
+    // cycleapple 的 fork 主張「GroupManager 的 entity-id 查表在台服 API13 不可靠」並據此把這裡改成手動掃描,
+    // 但離線反組譯不支持那個主張:台服執行檔裡 GetPartyMemberByEntityId / GetPartyMemberByContentId
+    // 兩支的特徵碼各自唯一命中,函式語意也正確 —— 逐格比對 EntityId(+0x400)/ContentId(+0x3F8)、
+    // 上限取 MemberCount(+0x7FDC)、步長 0x490,全部與 FFXIVClientStructs 的宣告相符。
+    // 既然沒有離線證據,就不在每幀路徑上照抄那個改寫;改成在「真的發生」時留一筆 Information,
+    // 把不可證的假設變成可判定的問題(使用者跑 LogLevel 2,收得到 Information)。
+    private bool _reportedPartyLookupMismatch;
+
+    private unsafe void ReportPartyLookupMismatch(GroupManager.Group* group, PartyState.Member player, PartyMember* member)
+    {
+        // 查表成功,或根本沒有可查的前提(沒隊伍/沒 ContentId/沒 EntityId)都不算異常
+        if (member != null || group == null || group->MemberCount == 0 || player.ContentId == default || player.InstanceId == default)
+        {
+            _reportedPartyLookupMismatch = false;
+            return;
+        }
+
+        // entity-id 查表回 null —— 用 ContentId 手動掃一遍,確認玩家是不是真的在隊伍裡
+        var found = -1;
+        for (var i = 0; i < group->MemberCount; ++i)
+        {
+            if (group->PartyMembers.GetPointer(i)->ContentId == player.ContentId)
+            {
+                found = i;
+                break;
+            }
+        }
+
+        if (found < 0)
+        {
+            // 玩家確實不在這個 group 裡(單人、剛換區、跨區隊友),屬於正常狀態
+            _reportedPartyLookupMismatch = false;
+            return;
+        }
+
+        if (_reportedPartyLookupMismatch)
+            return; // 同一段狀態只回報一次,不要每幀刷
+
+        _reportedPartyLookupMismatch = true;
+        var m = group->PartyMembers.GetPointer(found);
+        Service.Logger.Information($"[BMR][隊伍同步] GetPartyMemberByEntityId 對玩家回 null,但以 ContentId 掃描在第 {found} 格找得到(隊伍人數 {group->MemberCount})。玩家 EntityId={player.InstanceId:X8}、該格 EntityId={m->EntityId:X8}、ContentId={player.ContentId:X}。若這行反覆出現,代表台服的 entity-id 查表確實不可靠,隊伍身分定位(坦克輪替/指向分配)會受影響,屆時再改成手動掃描。");
     }
 
     private unsafe void UpdatePartyNormal(GroupManager.Group* group, PartyMember* player)
