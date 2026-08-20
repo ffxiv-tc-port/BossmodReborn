@@ -69,7 +69,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         var count = presets.Count;
         for (var i = 0; i < count; ++i)
         {
-            if (presets[i].Name == name)
+            if (string.Equals(presets[i].Name, name, PresetDatabase.NameComparison))
             {
                 _ddPreset = presets[i];
                 _ddPresetMissingLogged = false;

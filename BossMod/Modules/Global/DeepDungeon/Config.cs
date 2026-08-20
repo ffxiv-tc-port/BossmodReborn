@@ -331,7 +331,7 @@ public sealed class AutoDDConfig : ConfigNode
         }
 
         // 設定裡有名字、但清單裡找不到（改名或刪除）—— 要看得見，不然表現只是「沒有切換」
-        if (!string.IsNullOrEmpty(current) && presets != null && !presets.Any(p => p.Name == current))
+        if (!string.IsNullOrEmpty(current) && presets != null && !presets.Any(p => string.Equals(p.Name, current, BossMod.Autorotation.PresetDatabase.NameComparison)))
             ImGui.TextColored(PrereqBadColor, string.Format(
                 Loc.T("DD_PresetMissing", "Preset \"{0}\" no longer exists - nothing will be switched. Pick another one."), current));
         else if (presets == null)

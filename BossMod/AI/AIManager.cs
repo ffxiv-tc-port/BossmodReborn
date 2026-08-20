@@ -102,7 +102,7 @@ sealed class AIManager : IDisposable
         for (var i = 0; i < count; ++i)
         {
             var p = Autorot.Database.Presets.AllPresets[i];
-            if (p.Name == _config.AIAutorotPresetName)
+            if (string.Equals(p.Name, _config.AIAutorotPresetName, PresetDatabase.NameComparison))
             {
                 preset = p;
                 break;
