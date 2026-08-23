@@ -65,6 +65,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
     private readonly MacroQueueTweak _macroQueueTweak = new();
     private readonly ActionQueueWindowTweak _queueWindowTweak = new();
     private readonly IgnoreLineOfSightTweak _lineOfSightTweak = new();
+    private readonly ChanneledMovementTweak _channelTweak = new();
     private readonly DashInterceptTweak _dashIntercept;
 
     private readonly HookAddress<ActionManager.Delegates.Update> _updateHook;
@@ -550,7 +551,15 @@ public sealed unsafe class ActionManagerEx : IDisposable
                 // check LoS on target; blocking movement can cause AI mode to get stuck behind a wall trying to cast a spell on an unreachable target forever
                 MoveMightInterruptCast |= CheckActionLoS(imminentAction, _inst->ActionQueued ? _inst->QueuedTargetId : (AutoQueue.Target?.InstanceID ?? 0));
             }
-            blockMovement = Config.PreventMovingWhileCasting && MoveMightInterruptCast && _ws.Party.Player()?.MountId == 0;
+            // 🔑 引導技（噴火／即興表演／武裝戍衛…）走的是另一條訊號：它們是瞬發，CastTimeRemaining
+            //    永遠是 0，所以 MoveMightInterruptCast 對它們結構性地不成立（見 ChanneledMovementTweak）。
+            //    每幀都呼叫 Update 讓它的追蹤狀態保持同步，設定關著時只是不把結果 OR 進來 ——
+            //    這樣使用者中途打開開關也不會拿到一個殘留的舊判斷。
+            var player = _ws.Party.Player();
+            var channelBlock = _channelTweak.Update(player, _ws.CurrentTime) && Config.PreventMovingWhileChanneling;
+            // 📌 子旗標刻意收在 PreventMovingWhileCasting 這個總開關底下：總開關關著時整個括號不論真假都不生效，
+            //    所以「引導技也封鎖」預設 false 加上總開關預設 false ⇒ 既有使用者的行為逐位元組不變。
+            blockMovement = Config.PreventMovingWhileCasting && (MoveMightInterruptCast || channelBlock) && player?.MountId == 0;
             blockMovement |= Config.PyreticThreshold > 0 && _hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Pyretic && _hints.ImminentSpecialMode.activation < _ws.FutureTime(Config.PyreticThreshold);
 
             // note: if we cancel movement and start casting immediately, it will be canceled some time later - instead prefer to delay for one frame
@@ -967,6 +976,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
         _manualQueue.Pop(action);
         _animLockTweak.RecordRequest(seq, _inst->AnimationLock);
         _restoreRotTweak.Preserve(prevRot, currRot);
+        _channelTweak.RecordRequest(action);
         MoveMightInterruptCast = CastTimeRemaining > 0 && !CanMoveWhileCasting(action);
 
         var recast = _inst->GetRecastGroupDetail(GetRecastGroup(action));

@@ -44,6 +44,15 @@ public sealed class ActionTweaksConfig : ConfigNode
     [PropertyDisplay("Key to hold to allow movement while casting", tooltip: "Requires the above setting checked as well")]
     public ModifierKey MoveEscapeHatch = ModifierKey.None;
 
+    // 📌 預設 false 是刻意的:這是新行為(以前引導技完全不在封鎖範圍內),既有使用者不該被它改到。
+    //    BMR 的 ConfigNode.Deserialize 只遍歷存檔 JSON 裡「已存在」的鍵,新欄位在既有存檔裡不存在,
+    //    所以會保留這裡的初始值 —— 也就是既有使用者拿到的就是 false。
+    // 🔴 這條是「Prevent movement while casting」的子旗標:總開關關著時它不論真假都不生效
+    //    (見 ActionManagerEx 算 blockMovement 那一行,兩者是 && 關係)。
+    [PropertyDisplay("Also prevent movement while channeling",
+        tooltip: "Extends the setting above to channeled abilities - the ones whose tooltip says the effect ends immediately if you move: Flamethrower, Improvisation, Passage of Arms, Collective Unconscious, Meditate, Chelonian Gate, Phantom Flurry and Apokalypsis.\n\nThese are instant abilities with no cast bar, so the normal cast protection never applied to them.\n\nMovement is only blocked when you yourself pressed one of those abilities AND the matching status is currently on you with yourself as its source - standing inside somebody else's Passage of Arms or Collective Unconscious will never block you. Your \"key to hold to allow movement\" still works as an escape hatch.")]
+    public bool PreventMovingWhileChanneling = false;
+
     [PropertyDisplay("Automatically cancel a cast when target is dead")]
     public bool CancelCastOnDeadTarget = false;
 
