@@ -171,6 +171,57 @@ sealed class IPCProvider : IDisposable
         Register("Hints.InteractWithTargetOID", () => hints.InteractWithTarget?.InstanceID ?? 0ul);
         Register("Hints.RecommendedPositional", () => (int)hints.RecommendedPositional.Pos);
 
+        // 打斷／暈眩目標：把 boss 模組與深宮樓層模組每幀寫進 AIHints.Enemy 的兩個旗標曝光給外部循環外掛。
+        //
+        // 🔑 資料源刻意選 hints.PotentialTargets 而不是 hints.Enemies[]，但兩者裝的是**同一批物件參考**：
+        //    AIHintsBuilder.cs 裡 `hints.Enemies[index] = new(...)` 的下一行就是 `PotentialTargets.Add(enemy)`，
+        //    而那是全樹唯一「產生 Enemy 物件」的地方（Clear() 的 Array.Fill 只把 Enemies[] 清成 null）；
+        //    旗標的寫入端（CastHint.AddAIHints、DeepDungeon/AutoClear 等）
+        //    走的 hints.FindEnemy() 就是在索引 Enemies[]。選 List 的那份是因為它沒有 null 洞，
+        //    而且 BMR 自己的 AI 消費這兩個旗標時讀的正是它（xan/AI/Ranged.cs、Tank.cs、Melee.cs）。
+        //
+        // 🔴 這裡**不做**「敵人在不在戰鬥中」「詠唱可不可打斷」「距離夠不夠」的過濾 ——
+        //    那些是呼叫端的職責，BMR 自己的 AI 也是拿到旗標後才各自加條件（見 AIBase.ShouldInterrupt：
+        //    旗標之外還要 `Actor.InCombat`）。端點語意就是逐字的「模組說這隻該被打斷／該被暈」；
+        //    在這裡多濾一層會把呼叫端要的判斷材料吃掉，而且濾掉的理由它看不見。
+        //
+        // 📌 沒有 active module 不必特別處理：旗標的唯一寫入端就是模組，沒模組就全是 false ⇒ 自然回空陣列。
+        // ⚠️ 執行緒語意沿用同檔其他讀 hints 的端點（Hints.NextDamageIn、Hints.ForbiddenZonesNextActivation
+        //    都是直接讀、不加鎖），假設呼叫端在 framework 執行緒上問。
+        static ulong[] flaggedEnemies(List<AIHints.Enemy> targets, Func<AIHints.Enemy, bool> flagged)
+        {
+            // 先數再填的兩趟掃描是為了讓「一個都沒有」這個絕大多數的情況完全不配置
+            // （`[]` 對陣列會被降階成 Array.Empty<ulong>()）。上限是敵人數，≤100。
+            var count = targets.Count;
+            var n = 0;
+            for (var i = 0; i < count; ++i)
+            {
+                if (flagged(targets[i]))
+                {
+                    ++n;
+                }
+            }
+            if (n == 0)
+            {
+                return [];
+            }
+
+            var res = new ulong[n];
+            var j = 0;
+            for (var i = 0; i < count && j < n; ++i)
+            {
+                var e = targets[i];
+                if (flagged(e))
+                {
+                    res[j++] = e.Actor.InstanceID;
+                }
+            }
+            return j == n ? res : res[..j];
+        }
+
+        Register("Hints.ShouldInterruptTargets", () => flaggedEnemies(hints.PotentialTargets, static e => e.ShouldBeInterrupted));
+        Register("Hints.ShouldStunTargets", () => flaggedEnemies(hints.PotentialTargets, static e => e.ShouldBeStunned));
+
         Register("Hints.SpecialModeIn", () => hints.ImminentSpecialMode == default
             ? float.MaxValue
             : (float)(hints.ImminentSpecialMode.activation - DateTime.Now).TotalSeconds);
