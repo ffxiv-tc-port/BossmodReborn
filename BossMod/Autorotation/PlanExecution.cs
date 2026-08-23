@@ -105,6 +105,75 @@ public sealed class PlanExecution
         return GetEntryAt(ForcedTargets, t, s)?.Value as StrategyValueTrack;
     }
 
+    // a single planned entry resolved (when possible) to a concrete game action, alongside the raw track/option data it came from
+    // ActionType/ActionId are 0 if the entry couldn't be resolved to an unambiguous action (in which case consumers should fall back to ModuleType/TrackName/OptionName)
+    public readonly record struct PlannedAction(
+        string ModuleType,
+        string TrackName,
+        string OptionName,
+        uint ActionType,
+        uint ActionId,
+        float ActivationIn,
+        float WindowEndIn,
+        int Target,
+        int TargetParam);
+
+    // returns planned entries within [now, now + lookAheadSeconds), resolved along the currently active branch of the plan
+    // only tracks where every non-default option maps 1:1 to an associated action are resolved to a concrete ActionId; others are skipped
+    // 📌 ws/playerSlot 目前用不到（上游同一支也沒用到），保留是為了與上游的簽名逐字一致 ——
+    //    未來同步上游時這支不會變成衝突點，也不必在兩邊各留一個轉接。
+    public List<PlannedAction> GetUpcomingPlannedActions(WorldState ws, int playerSlot, float lookAheadSeconds = 60)
+    {
+        var result = new List<PlannedAction>();
+        if (Plan == null)
+            return result;
+
+        var s = FindCurrentStateData();
+        var t = GetVirtualTime(s);
+        var maxT = t + lookAheadSeconds;
+
+        for (var mi = 0; mi < Strategies.Count; ++mi)
+        {
+            var module = Strategies[mi];
+            for (var ti = 0; ti < module.Tracks.Count; ++ti)
+            {
+                if (module.Definition.Configs[ti] is not StrategyConfigTrack config)
+                    continue;
+                // 🔴 只解析「非預設選項與 AssociatedActions 一對一」的軌道。對不上的軌道一律跳過，
+                //    不是硬挑一個 —— 猜錯會讓呼叫端拿到一個它會真的按下去的錯誤技能 id。
+                if (config.AssociatedActions.Count != config.Options.Count - 1)
+                    continue;
+
+                var entries = module.Tracks[ti];
+                for (var ei = 0; ei < entries.Count; ++ei)
+                {
+                    var e = entries[ei];
+                    if (e.WindowEnd < t || e.WindowStart > maxT)
+                        continue;
+                    if (!e.IntersectBranchRange(s.BranchID, s.NumBranches))
+                        continue;
+                    if (e.Value is not StrategyValueTrack stv || stv.Option <= 0)
+                        continue;
+
+                    var action = config.AssociatedActions[stv.Option - 1];
+                    result.Add(new(
+                        module.Type.FullName ?? module.Type.Name,
+                        config.InternalName,
+                        config.Options[stv.Option].InternalName,
+                        (uint)action.Type,
+                        action.ID,
+                        e.WindowStart - t,
+                        e.WindowEnd - t,
+                        (int)stv.Target,
+                        stv.TargetParam));
+                }
+            }
+        }
+
+        result.Sort((a, b) => a.ActivationIn.CompareTo(b.ActivationIn));
+        return result;
+    }
+
     private StateData ProcessState(StateMachineTree tree, StateMachineTree.Node curState, StateData? prev, StateData? nextPhaseStart)
     {
         var curPhase = tree.Phases[curState.PhaseID];

@@ -8,9 +8,245 @@ sealed class IPCProvider : IDisposable
 {
     private Action? _disposeActions;
 
-    public IPCProvider(RotationModuleManager autorotation, ActionManagerEx amex, MovementOverride movement, AIManager ai)
+    public IPCProvider(BossModuleManager bossmod, AIHints hints, RotationModuleManager autorotation, ActionManagerEx amex, MovementOverride movement, AIManager ai)
     {
         Register("HasModuleByDataId", (uint dataId) => BossModuleRegistry.FindByOID(dataId) != null);
+
+        #region 機制感知（回移自上游；端點名稱逐字對齊 upstream/main:BossMod/Framework/IPCProvider.cs）
+
+        // 🔑 這一整區都是**唯讀**端點，給外部循環外掛（RotationSolverReborn 之類）問
+        //    「接下來會發生什麼機制」。BMR 是唯一持有 boss 模組時間軸的一方，外部外掛看不到
+        //    StateMachine 與 AIHints，所以不開這些端點的話它們只能瞎猜。
+        //
+        // 🔴 失敗語意一律照上游：**沒有 active module／沒有資料 ⇒ float.MaxValue**（＝「沒有機制」），
+        //    絕不擲例外。IPC 端點擲出去的例外會在呼叫端變成 InvalidOperationException，
+        //    而呼叫端多半沒有 try/catch —— 等於我們把別人的外掛弄崩。
+        //
+        // ⚠️ 時間基準刻意沿用上游的 DateTime.Now（而不是 WorldState.CurrentTime），
+        //    因為那是既有呼叫端所依據的線上契約。兩者在正常遊玩時只差不到一幀
+        //    （WorldState.CurrentTime 就是該幀開始時取的 DateTime.Now）；差異只在重播回放時才顯著，
+        //    而重播時本來就沒有外部外掛在問這些端點。
+
+        Register("HasActiveModule", () => bossmod.ActiveModule?.StateMachine.ActiveState != null);
+        Register("ActiveModuleName", () => bossmod.ActiveModule?.PrimaryActor.Name.ToString());
+
+        // 走一遍狀態機並回報看到什麼；純診斷字串，沒有機器可讀契約。
+        Register("Debug.TimelineWalk", () =>
+        {
+            var module = bossmod.ActiveModule;
+            if (module == null)
+            {
+                return "No active module";
+            }
+
+            var sm = module.StateMachine;
+            if (sm.ActiveState == null)
+            {
+                return "ActiveState is null";
+            }
+
+            var sb = new StringBuilder();
+            sb.Append($"Phase={sm.ActivePhaseIndex} State={sm.ActiveState.ID:X}({sm.ActiveState.Name}) Dur={sm.ActiveState.Duration:F1}s Hint={sm.ActiveState.EndHint}");
+            var count = 0;
+            var next = sm.ActiveState;
+            var foundRW = false;
+            var foundTB = false;
+            while (next != null && count < 20)
+            {
+                if (!foundRW && next.EndHint.HasFlag(StateMachine.StateHint.Raidwide))
+                {
+                    foundRW = true;
+                    sb.Append($" | RW@{next.ID:X}({next.Name})");
+                }
+                if (!foundTB && next.EndHint.HasFlag(StateMachine.StateHint.Tankbuster))
+                {
+                    foundTB = true;
+                    sb.Append($" | TB@{next.ID:X}({next.Name})");
+                }
+                next = next.NextStates?.Length == 1 ? next.NextStates[0] : null;
+                count++;
+            }
+            if (!foundRW)
+            {
+                sb.Append(" | RW=NONE");
+            }
+
+            if (!foundTB)
+            {
+                sb.Append(" | TB=NONE");
+            }
+
+            if (next == null && count < 20)
+            {
+                sb.Append($" | Chain ended at {count} states");
+            }
+
+            if (count >= 20)
+            {
+                sb.Append(" | Walked 20+ states");
+            }
+
+            return sb.ToString();
+        });
+
+        // 時間軸類：沿著狀態機往後找第一個帶指定旗標的轉換。
+        // 📌 StateMachine.NextTransitionWithFlag 沒有命中時回 DateTime.MaxValue，這裡折成 float.MaxValue。
+        float nextTransitionIn(StateMachine.StateHint flag)
+        {
+            var module = bossmod.ActiveModule;
+            if (module?.StateMachine.ActiveState == null)
+            {
+                return float.MaxValue;
+            }
+
+            var next = module.StateMachine.NextTransitionWithFlag(flag);
+            return next == DateTime.MaxValue ? float.MaxValue : (float)(next - DateTime.Now).TotalSeconds;
+        }
+
+        Register("Timeline.NextRaidwideIn", () => nextTransitionIn(StateMachine.StateHint.Raidwide));
+        Register("Timeline.NextTankbusterIn", () => nextTransitionIn(StateMachine.StateHint.Tankbuster));
+        Register("Timeline.NextKnockbackIn", () => nextTransitionIn(StateMachine.StateHint.Knockback));
+        Register("Timeline.NextDowntimeIn", () => nextTransitionIn(StateMachine.StateHint.DowntimeStart));
+        Register("Timeline.NextDowntimeEndIn", () => nextTransitionIn(StateMachine.StateHint.DowntimeEnd));
+        Register("Timeline.NextVulnerableIn", () => nextTransitionIn(StateMachine.StateHint.VulnerableStart));
+        Register("Timeline.NextVulnerableEndIn", () => nextTransitionIn(StateMachine.StateHint.VulnerableEnd));
+
+        // 預測傷害類：AIHints.PredictedDamage 由 boss 模組每幀重建。
+        Register("Hints.NextDamageIn", () =>
+        {
+            var predicted = hints.PredictedDamage;
+            return predicted.Count == 0 ? float.MaxValue : (float)(predicted[0].Activation - DateTime.Now).TotalSeconds;
+        });
+
+        Register("Hints.NextDamageType", () =>
+        {
+            var predicted = hints.PredictedDamage;
+            return predicted.Count == 0 ? 0 : (int)predicted[0].Type;
+        });
+
+        // 分屬性的版本：掃**全部**條目找第一筆吻合的類型（不是只看 [0]）。
+        float nextDamageOfType(AIHints.PredictedDamageType type)
+        {
+            var predicted = hints.PredictedDamage;
+            var now = DateTime.Now;
+            var count = predicted.Count;
+            for (var i = 0; i < count; ++i)
+            {
+                if (predicted[i].Type == type)
+                {
+                    return (float)(predicted[i].Activation - now).TotalSeconds;
+                }
+            }
+            return float.MaxValue;
+        }
+
+        Register("Hints.NextRaidwideDamageIn", () => nextDamageOfType(AIHints.PredictedDamageType.Raidwide));
+        Register("Hints.NextTankbusterDamageIn", () => nextDamageOfType(AIHints.PredictedDamageType.Tankbuster));
+        Register("Hints.PredictedDamagePlayers", () => hints.PredictedDamage.Count == 0 ? 0ul : hints.PredictedDamage[0].Players.Raw);
+
+        Register("Hints.MaxCastTime", () => hints.MaxCastTime);
+
+        // ⚠️ 上游把「取消詠唱」的成因拆成 Mechanic／Other 兩個欄位，**我方樹仍是單一
+        //    AIHints.ForceCancelCast**（AIController.ForceCancelCast 同理，見 AIController.cs:15）。
+        //    這裡把上游的四個名字全部註冊，Mechanic 與 Other 回同一個 bool ——
+        //    語意上等於「兩種成因都算在內」，對呼叫端只會偏保守（該取消時一定為 true），不會漏報。
+        //    🔑 上游若哪天真的把欄位拆進來，這裡只要改 lambda 內容，端點名不必動、呼叫端不必改。
+        //    另外保留不帶後綴的舊名，讓既有呼叫端不必跟著改（兩者指向同一個 bool）。
+        Register("Hints.ForceCancelCast", () => hints.ForceCancelCast);
+        Register("Hints.ForceCancelCastMechanic", () => hints.ForceCancelCast);
+        Register("Hints.ForceCancelCastOther", () => hints.ForceCancelCast);
+        Register("Hints.ForceCancelCastAI", () => ai.Controller.ForceCancelCast);
+        Register("Hints.ForceCancelCastMechanicAI", () => ai.Controller.ForceCancelCast);
+        Register("Hints.ForceCancelCastOtherAI", () => ai.Controller.ForceCancelCast);
+
+        Register("Movement.IsMoving", () => hints.ForcedMovement != null);
+        Register("Movement.IsMoveRequested", movement.IsMoveRequested);
+
+        Register("Hints.ForbiddenZonesCount", () => hints.ForbiddenZones.Count);
+        Register("Hints.ForbiddenZonesNextActivation", () => hints.ForbiddenZones.Count == 0 ? float.MaxValue : (float)(hints.ForbiddenZones[0].activation - DateTime.Now).TotalSeconds);
+        Register("Hints.ForbiddenDirectionsCount", () => hints.ForbiddenDirections.Count);
+        Register("Hints.ArenaCenter", () => new Vector2(hints.PathfindMapCenter.X, hints.PathfindMapCenter.Z));
+        Register("Hints.ArenaRadius", () => hints.PathfindMapBounds.Radius);
+        Register("Hints.ShouldCleansePlayers", () => hints.ShouldCleanse.Raw);
+        Register("Hints.InteractWithTargetOID", () => hints.InteractWithTarget?.InstanceID ?? 0ul);
+        Register("Hints.RecommendedPositional", () => (int)hints.RecommendedPositional.Pos);
+
+        Register("Hints.SpecialModeIn", () => hints.ImminentSpecialMode == default
+            ? float.MaxValue
+            : (float)(hints.ImminentSpecialMode.activation - DateTime.Now).TotalSeconds);
+        Register("Hints.SpecialModeType", () => hints.ImminentSpecialMode == default ? 0 : (int)hints.ImminentSpecialMode.mode);
+
+        // 位移安全性：上游是 ActionPredicate.IsDashSafe，我方樹的同一份幾何檢查叫
+        // ActionDefinitions.IsDashDangerous（**回傳值相反**，所以這裡一律取反）。
+        // 🔑 刻意用 IsDashDangerous 這支「純幾何」的，不是 DashFixedDistanceCheck 那些條件委派 ——
+        //    後者還會看 DashSafety/DashSafetyExtra 設定與 PendingKnockbacks，
+        //    那是「我方要不要攔這一發」的策略，不是呼叫端問的「這個落點安不安全」。
+        Register("Hints.IsPositionSafe", (Vector3 to) =>
+        {
+            var player = bossmod.WorldState.Party.Player();
+            return player != null && !ActionDefinitions.IsDashDangerous(player.Position, new WPos(to.X, to.Z), hints);
+        });
+
+        Register("Hints.IsDashSafe", (Vector3 from, Vector3 to) =>
+            !ActionDefinitions.IsDashDangerous(new WPos(from.X, from.Z), new WPos(to.X, to.Z), hints));
+
+        // 對齊 DashFixedDistanceCheck 的落點算法：dest = playerPos + playerRotation * range（backwards 時取負）。
+        Register("Hints.IsFixedDashSafe", (float range, bool backwards) =>
+        {
+            var player = bossmod.WorldState.Party.Player();
+            if (player == null)
+            {
+                return false;
+            }
+
+            var dest = player.Position + player.Rotation.ToDirection() * range * (backwards ? -1f : 1f);
+            return !ActionDefinitions.IsDashDangerous(player.Position, dest, hints);
+        });
+
+        // 對齊 BackdashCheck：dir = normalize(playerPos - enemyPos)，dest = playerPos + dir * range。
+        Register("Hints.IsBackdashSafe", (Vector3 enemyPos, float range) =>
+        {
+            var player = bossmod.WorldState.Party.Player();
+            if (player == null)
+            {
+                return false;
+            }
+
+            var dir = (player.Position - new WPos(enemyPos.X, enemyPos.Z)).Normalized();
+            var dest = player.Position + dir * range;
+            return !ActionDefinitions.IsDashDangerous(player.Position, dest, hints);
+        });
+
+        Register("AI.IsNavigating", () => ai.Controller.NaviTargetPos != null);
+        Register("AI.NaviTargetPos", () =>
+        {
+            var pos = ai.Controller.NaviTargetPos;
+            return pos.HasValue ? new Vector3(pos.Value.X, 0, pos.Value.Z) : (Vector3?)null;
+        });
+        Register("AI.PlayerSpeed", () => ai.WorldState.Client.MoveSpeed);
+
+        // 冷卻計畫（cooldown planner）：回傳沿著**當前生效分支**解析出來的預定動作。
+        // 沒有計畫在跑時回空陣列的 JSON，不是 null —— 呼叫端可以無條件丟給 JSON 解析器。
+        Register("Plan.GetUpcomingActions", (float lookAheadSeconds) =>
+        {
+            var planner = autorotation.Planner;
+            if (planner == null)
+                return "[]";
+
+            var actions = planner.GetUpcomingPlannedActions(bossmod.WorldState, autorotation.PlayerSlot, lookAheadSeconds);
+            return JsonSerializer.Serialize(actions);
+        });
+
+        // 推播：生效中的計畫換掉時發一次訊號，讓呼叫端知道該重新問 Plan.GetUpcomingActions。
+        // 🔴 這個是唯一在本類別裡「訂閱別人事件」的端點，所以退訂必須掛進 _disposeActions ——
+        //    漏掉的話 RotationModuleManager 會一直握著已 Dispose 的 IPCProvider 的委派。
+        var plannedActionsChangedProvider = Service.PluginInterface.GetIpcProvider<object>("BossMod.Plan.ActionsChanged");
+        void OnPlannedActionsChanged() => plannedActionsChangedProvider.SendMessage();
+        autorotation.PlannedActionsChanged += OnPlannedActionsChanged;
+        _disposeActions += () => autorotation.PlannedActionsChanged -= OnPlannedActionsChanged;
+
+        #endregion
+
         Register("Configuration", (List<string> args, bool save) => Service.Config.ConsoleCommand(args.AsSpan(), save));
 
         DateTime lastModified = DateTime.Now;

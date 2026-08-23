@@ -28,6 +28,15 @@ public sealed class RotationModuleManager : IDisposable
     public readonly int PlayerSlot; // TODO: reconsider, we rely on too many things in clientstate...
     public readonly AIHints Hints;
     public PlanExecution? Planner;
+
+    /// <summary>生效中的冷卻計畫換掉時發一次。</summary>
+    /// <remarks>
+    /// 目前唯一的訂閱者是 <c>IPCProvider</c> 的 <c>BossMod.Plan.ActionsChanged</c> 推播端點，
+    /// 讓外部外掛不必每幀輪詢 <c>Plan.GetUpcomingActions</c>。
+    /// 🔴 訂閱者**必須**自己退訂（IPCProvider 把退訂掛在 <c>_disposeActions</c> 上）——
+    /// 本管理器的生命週期比 IPCProvider 長，不退訂就會握著已釋放物件的委派。
+    /// </remarks>
+    public event Action? PlannedActionsChanged;
     private static readonly PartyRolesConfig _prc = Service.Config.Get<PartyRolesConfig>();
     private readonly EventSubscriptions _subscriptions;
     private List<ActiveModule>? ActiveModules;
@@ -111,6 +120,7 @@ public sealed class RotationModuleManager : IDisposable
             Service.Log($"[RMM] Changing active plan: '{Planner?.Plan?.Guid}' -> '{expectedPlan?.Guid}'");
             Planner = Bossmods.ActiveModule != null ? new(Bossmods.ActiveModule, expectedPlan) : null;
             DirtyActiveModules(Preset == null);
+            PlannedActionsChanged?.Invoke();
         }
 
         // rebuild modules if needed
