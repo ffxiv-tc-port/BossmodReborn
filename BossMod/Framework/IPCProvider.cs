@@ -467,7 +467,11 @@ sealed class IPCProvider : IDisposable
             return true;
         });
 
-        Register("AI.SetPreset", (string name) => ai.SetAIPreset(autorotation.Database.Presets.AllPresets.FirstOrDefault(x => x.Name.Trim().Equals(name.Trim(), StringComparison.OrdinalIgnoreCase))));
+        // 🔑 preset 名查找統一走 PresetDatabase.NameComparison（見該常數，跨外掛 IPC 契約的唯一比較器）。
+        //    這裡兩側都 .Trim() 是 SetPreset 這個呼叫點的區域輸入正規化（去掉呼叫方傳來的 preset 名頭尾空白），
+        //    與大小寫敏感度是兩件事——刻意保留在此呼叫點，不提進 canonical 比較器：那會回頭讓已出貨的
+        //    Presets.Create/Delete/FindPresetByName 也開始 Trim，可能把本來區分得開的名字折在一起。
+        Register("AI.SetPreset", (string name) => ai.SetAIPreset(autorotation.Database.Presets.AllPresets.FirstOrDefault(x => x.Name.Trim().Equals(name.Trim(), PresetDatabase.NameComparison))));
         Register("AI.GetPreset", () => ai.GetAIPreset);
     }
 

@@ -672,8 +672,10 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
         var normalizedInput = userInput.ToUpperInvariant();
+        // 🔑 preset 名查找統一走 PresetDatabase.NameComparison（單一真值來源）。.Trim() 是本呼叫點的
+        //    區域輸入正規化，與大小寫敏感度是兩件事——保留在這裡，不提進 canonical 比較器。
         var preset = _rotation.Database.Presets.AllPresets
-            .FirstOrDefault(p => p.Name.Trim().Equals(normalizedInput, StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault(p => p.Name.Trim().Equals(normalizedInput, PresetDatabase.NameComparison))
             ?? RotationModuleManager.ForceDisable;
         if (preset != null)
         {

@@ -652,8 +652,11 @@ sealed class AIManager : IDisposable
         }
 
         var normalizedInput = userInput.ToUpperInvariant();
+        // 🔑 preset 名查找統一走 PresetDatabase.NameComparison（單一真值來源）。.Trim() 是本呼叫點的
+        //    區域輸入正規化（去掉 preset 名頭尾空白），與大小寫敏感度是兩件事——保留在這裡，不提進
+        //    canonical 比較器，以免回頭改動主編輯器／IPC 查重已出貨的語意（讓本來分得開的名字折在一起）。
         var preset = Autorot.Database.Presets.AllPresets
-            .FirstOrDefault(p => p.Name.Trim().Equals(normalizedInput, StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault(p => p.Name.Trim().Equals(normalizedInput, PresetDatabase.NameComparison))
             ?? RotationModuleManager.ForceDisable;
 
         if (preset != null)
