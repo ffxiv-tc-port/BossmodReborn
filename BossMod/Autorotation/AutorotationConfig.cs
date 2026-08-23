@@ -45,6 +45,15 @@ public sealed class AutorotationConfig : ConfigNode
         tooltip: "Draws a line in the game world from your character to the spot the automatic movement module is steering towards this instant, plus the next waypoint after it when the path bends.\n\nThe line switches to the danger color when there is less than 1 second of safety margin left to reach that spot.\n\nPurely visual - it does not change where or how the AI moves.")]
     public bool ShowMovementPath = true;
 
+    // 📌 預設 false 是刻意的，而且這一條比其他「不需 preset」的選項更不能亂開：
+    //    它不是顯示，是**真的會按技能**。BMR 的 ConfigNode.Deserialize 只遍歷存檔 JSON 裡
+    //    「已存在」的鍵，新欄位在既有存檔裡不存在 ⇒ 既有使用者拿到的就是 false。
+    // 🔴 「會按技能」必須寫在**標籤上**而不是只藏在 tooltip 裡：tooltip 藏的是「為什麼」，
+    //    不是「這個選項會不會替我操作角色」。
+    [PropertyDisplay("Run predictive mitigation without a preset (this presses abilities)",
+        tooltip: "The Predictive Mitigation module presses mitigation and self-preservation oGCDs ahead of the raidwides and tankbusters that the boss module already knows are coming. It never presses GCDs and never changes your target, so it is built to run alongside an external rotation plugin.\n\nNormally it only runs while an autorotation preset containing it is active, and presets are not persisted - so in practice the module sits dormant. With this enabled it runs with no preset at all, using the module's own declared defaults: 5s raidwide lead, 4s tankbuster lead, emergency healing below 30% HP, and skipping mitigation when the damage type cannot be determined.\n\nIt defers entirely to your preset or cooldown plan whenever one is active, and to force-disable.\n\nBe aware: this will use your abilities even when the AI is set to forbid actions, because mitigation is pushed onto the same queue the game consumes every frame. Turn it off if you want fully manual control of your defensive cooldowns.")]
+    public bool RunPredictiveMitigationWithoutPreset = false;
+
     [PropertyDisplay("Automatically disable autorotation when exiting combat")]
     public bool ClearPresetOnCombatEnd = false;
 

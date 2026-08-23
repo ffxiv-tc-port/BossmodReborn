@@ -34,6 +34,10 @@ public sealed class Plugin : IDalamudPlugin
     private readonly DTRProvider _dtr;
     // 「不需掛 preset 的方位提示」的遲滯狀態。與 GoToPositional 模組各持一份、互不干擾。
     private readonly Autorotation.MiscAI.AutoPositional.Hysteresis _positionalHintAuto = new();
+    // 「不需掛 preset 的預測減傷」用的模組實例與它的預設策略值,見 UpdatePredictiveMitigationWithoutPreset。
+    // 🔴 實例綁在某一個 Actor 上(RotationModule.Player 是 readonly),所以玩家換人就要重建 —— 不是每幀 new。
+    private Autorotation.MiscAI.PredictiveMitigation? _predictiveMitAuto;
+    private Autorotation.StrategyValues? _predictiveMitAutoStrategy;
     private TimeSpan _prevUpdateTime;
     private DateTime _throttleJump;
     private DateTime _throttleInteract;
@@ -395,6 +399,9 @@ public sealed class Plugin : IDalamudPlugin
         //    否則疊加層讀到的是上一幀的值。放在 _rotation.Update 之後還多一個好處:
         //    循環模組已經跑完,能直接看出它有沒有自己給方位建議(有就讓給它)。
         UpdatePositionalHintDisplay();
+        // 🔴 位置的硬條件與上面那行相同,再加一條:必須在下面 _amex.FinishActionGather() **之前** ——
+        //    這一支會往 Hints.ActionsToExecute 推技能,而那個佇列就是 FinishActionGather 消費的。
+        UpdatePredictiveMitigationWithoutPreset();
         _ai.Update();
         _broadcast.Update();
         _amex.FinishActionGather();
@@ -479,6 +486,71 @@ public sealed class Plugin : IDalamudPlugin
         // Imminent 固定 true,與 GoToPositional 寫 RecommendedPositional 時的做法一致
         //(我們沒有循環規劃,無從得知方位技「還有幾個 GCD」)。
         _hints.PositionalHintDisplayOnly = (target, positional, true, correct);
+    }
+
+    /// <summary>
+    /// 不需掛 preset 也執行 <see cref="Autorotation.MiscAI.PredictiveMitigation"/>。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 🔴 <b>這一條會真的按技能</b>（模組往 <c>Hints.ActionsToExecute</c> 推減傷，
+    /// 而 <c>_amex.FinishActionGather()</c> 每幀無條件消費那個佇列、不看 AI 的 ForbidActions）。
+    /// 所以預設 false，UI 標籤本身就寫明會按技能，細節放 tooltip。
+    /// </para>
+    /// <para>
+    /// <b>為什麼需要這個</b>：那個模組是「BMR 只按減傷、輸出交給外部循環外掛」的完成品，
+    /// 但它只在掛了 preset 時才會被 <c>RotationModuleManager</c> 執行，而 preset 不持久化 ——
+    /// 實務上等於整份程式碼在休眠。這裡把它接到與方位提示同一條「無 preset」路徑上。
+    /// </para>
+    /// <para>
+    /// 🔑 <b>刻意不動模組本身一個字元。</b>不抽方法、不改簽名 —— 直接用它公開的
+    /// <c>Execute</c> 進入點，配上「模組自己宣告的預設策略值」。
+    /// 這樣「原 module 路徑行為不變」不是靠比對得出的結論，而是<b>建構上就成立</b>：
+    /// <c>PredictiveMitigation.cs</c> 在這次改動裡完全沒有被修改。
+    /// </para>
+    /// <para>
+    /// ⚠️ 掛著 preset 或有計畫在跑時整段讓開，由原本的 <c>RotationModuleManager</c> 路徑負責 ——
+    /// 否則同一幀會有兩個地方推同一批減傷。強制停用（<c>ForceDisable</c>）也是 <c>Preset != null</c>，
+    /// 所以一併被這條擋掉，符合「強制停用就該全部停」的直覺。
+    /// </para>
+    /// </remarks>
+    private void UpdatePredictiveMitigationWithoutPreset()
+    {
+        // 🔴 旗標先判:關閉時連查詢都不做。這就是「預設 false ＝ 對既有使用者零開銷」的來源。
+        if (!Autorotation.RotationModuleManager.Config.RunPredictiveMitigationWithoutPreset)
+        {
+            _predictiveMitAuto = null;
+            _predictiveMitAutoStrategy = null;
+            return;
+        }
+
+        // 掛了 preset／有計畫在跑 ⇒ 讓給 RotationModuleManager，避免同一幀推兩次。
+        if (_rotation.Preset != null || _rotation.Planner?.Plan != null)
+            return;
+
+        var player = _rotation.Player;
+        if (player == null)
+        {
+            _predictiveMitAuto = null;
+            return;
+        }
+
+        // RotationModule.Player 是 readonly 且綁定建構當下那個 Actor 物件，
+        // 所以玩家換人（換區、重登、換角）時必須重建，不能沿用舊實例。
+        if (_predictiveMitAuto == null || _predictiveMitAuto.Player != player)
+        {
+            if (!Autorotation.RotationModuleRegistry.Modules.TryGetValue(typeof(Autorotation.MiscAI.PredictiveMitigation), out var entry))
+                return; // 模組沒註冊成功（理論上不會發生）⇒ 什麼都不做，不擲例外
+            _predictiveMitAuto = new(_rotation, player);
+            // 策略值＝模組自己宣告的預設：StrategyValues 的每一格是 StrategyConfig.CreateEmpty()，
+            // 也就是軌道的第 0 個選項與 DefineFloat 的 defaultValue（RaidwideLead 5s／TankbusterLead 4s／
+            // EmergencyHP 30%／UnknownSchool=Skip）。與使用者在 preset 裡「沒動過任何一條軌」拿到的完全相同。
+            _predictiveMitAutoStrategy = new(entry.Definition.Configs);
+        }
+
+        // 目標解析與 RotationModuleManager.Update 裡那一行逐字相同。
+        var target = _hints.ForcedTarget ?? _rotation.WorldState.Actors.Find(player.TargetID);
+        _predictiveMitAuto.Execute(_predictiveMitAutoStrategy!.Value, target, _amex.AnimationLockDelayEstimate, _movementOverride.IsMoving());
     }
 
     private unsafe bool QuestUnlocked(uint link)
