@@ -8569,5 +8569,11 @@
   },
   "How far a mob is assumed to notice you - the radius of the cone or circle above, measured from the mob plus its hitbox.\n\n10 is the value NecroLens uses for deep dungeon mobs. 0 disables the whole feature.": {
     "message": "假定怪在多遠之內會發現你——也就是上面那個扇形或圓的半徑，從怪身上加上牠的 hitbox 起算。\n\n10 是 NecroLens 對深牢怪採用的值。0 會停用整個功能。"
+  },
+  "Derive positional hints without an active preset": {
+    "message": "不需啟用預設集也推導站位提示"
+  },
+  "Normally the positional cones only appear while an autorotation preset that provides positional guidance is active.\n\nWith this enabled, BMR derives the next positional for melee jobs (MNK/DRG/NIN/SAM/RPR/VPR) straight from your job gauge, combo state and buffs, so the cones show up with no preset at all.\n\nRequires \"Show positional hints in world\" to be enabled as well.\n\nPurely visual - it never moves your character and never changes what the AI targets or where it stands.": {
+    "message": "一般情況下，站位提示錐只有在啟用了會提供站位指引的自動循環預設集時才會出現。\n\n開啟本選項後，BMR 會直接從您的職業量表、連段狀態與身上的增益，推導近戰職業（MNK/DRG/NIN/SAM/RPR/VPR）的下一個站位技要側面還是背面，因此完全不掛預設集也看得到提示錐。\n\n需要同時開啟「在遊戲世界顯示站位提示」。\n\n純顯示功能，不會移動您的角色，也不會改變 AI 的選怪或站位。"
   }
 }

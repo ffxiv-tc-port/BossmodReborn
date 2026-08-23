@@ -32,6 +32,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly AI.Broadcast _broadcast;
     private readonly IPCProvider _ipc;
     private readonly DTRProvider _dtr;
+    // 「不需掛 preset 的方位提示」的遲滯狀態。與 GoToPositional 模組各持一份、互不干擾。
+    private readonly Autorotation.MiscAI.AutoPositional.Hysteresis _positionalHintAuto = new();
     private TimeSpan _prevUpdateTime;
     private DateTime _throttleJump;
     private DateTime _throttleInteract;
@@ -388,6 +390,11 @@ public sealed class Plugin : IDalamudPlugin
         _amex.UpdateDashIntercept(_movementOverride.IsForceUnblocked());
         _amex.QueueManualActions();
         _rotation.Update(_amex.AnimationLockDelayEstimate, _movementOverride.IsMoving());
+        // 🔴 位置有兩個硬條件:必須在上面 _hintsBuilder.Update(它會 AIHints.Clear())**之後**,
+        //    否則寫進去的東西當幀就被清掉;必須在下面 WindowSystem.Draw()**之前**,
+        //    否則疊加層讀到的是上一幀的值。放在 _rotation.Update 之後還多一個好處:
+        //    循環模組已經跑完,能直接看出它有沒有自己給方位建議(有就讓給它)。
+        UpdatePositionalHintDisplay();
         _ai.Update();
         _broadcast.Update();
         _amex.FinishActionGather();
@@ -404,6 +411,74 @@ public sealed class Plugin : IDalamudPlugin
         Camera.Instance?.DrawWorldPrimitives();
         UpdatePendingConfigSave();
         _prevUpdateTime = DateTime.Now - tsStart;
+    }
+
+    /// <summary>
+    /// 不需啟用 preset 也能顯示的方位提示。**純顯示**,寫的是 <see cref="AIHints.PositionalHintDisplayOnly"/>。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 這裡**絕不**寫 <see cref="AIHints.RecommendedPositional"/>:
+    /// <c>AI.AIBehaviour.SelectPrimaryTarget</c> 會把那個欄位讀去設 <c>Targeting.PreferredPosition</c>,
+    /// 也就是「AI 請繞到目標側背」。使用者要的是看得到提示,不是角色自己跑起來 ——
+    /// 顯示與走位在這裡必須維持解耦,所以另立了一個沒有任何 AI 消費端的欄位。
+    /// <para>
+    /// 目標一律沿用玩家當前的硬目標,**不自己選怪**(選怪是行為不是顯示)。
+    /// 推不出方位就什麼都不寫,那一幀維持 <c>default</c> ⇒ 疊加層不畫。
+    /// </para>
+    /// </remarks>
+    private void UpdatePositionalHintDisplay()
+    {
+        var config = Autorotation.RotationModuleManager.Config;
+        // 🔴 旗標先判:關閉時連一次推導都不跑。這就是「預設 false ＝ 對既有使用者零開銷」的來源。
+        //    也一併看 ShowPositionals —— 疊加層總開關關著的話算了也沒人畫。
+        if (!config.ShowPositionalsWithoutPreset || !config.ShowPositionals)
+            return;
+
+        // 循環模組自己已經給了方位建議(使用者有掛提供方位的 preset)就整段讓開:
+        // 既有使用者看到的東西逐位元組不變,兩邊也不會互相打架。
+        if (_hints.RecommendedPositional.Target != null)
+        {
+            _positionalHintAuto.Reset();
+            return;
+        }
+
+        var player = _rotation.Player;
+        // 戰鬥外不畫:方位推導看的是連段/量表,不在戰鬥時那些值多半是殘留的,畫出來只會誤導。
+        if (player == null || !player.InCombat)
+        {
+            _positionalHintAuto.Reset();
+            return;
+        }
+
+        // 真北期間所有方位需求自動滿足,再畫錐純粹是噪音
+        if (player.FindStatus((uint)ClassShared.SID.TrueNorth) != null)
+        {
+            _positionalHintAuto.Reset();
+            return;
+        }
+
+        var target = _rotation.WorldState.Actors.Find(player.TargetID);
+        // Omnidirectional(無方位判定的敵人)無條件過濾 —— 與 UIRotationWindow.DrawPositional 同一條規則
+        if (target == null || target.IsAlly || target.IsDeadOrDestroyed || !target.IsTargetable || target.Omnidirectional)
+        {
+            _positionalHintAuto.Reset();
+            return;
+        }
+
+        var positional = _positionalHintAuto.Update(_rotation.WorldState, player, _hints, target);
+        if (positional is not (Positional.Flank or Positional.Rear))
+            return; // 判不出來 ⇒ 這一幀什麼都不寫
+
+        // correct 的算式與 GoToPositional.Execute 逐字相同(那裡抄自 Basexan.UpdatePositionals)
+        var toPlayer = (player.Position - target.Position).Normalized();
+        var facing = target.Rotation.ToDirection();
+        var correct = positional == Positional.Flank
+            ? MathF.Abs(facing.Dot(toPlayer)) < 0.7071067f
+            : facing.Dot(toPlayer) < -0.7071068f;
+
+        // Imminent 固定 true,與 GoToPositional 寫 RecommendedPositional 時的做法一致
+        //(我們沒有循環規劃,無從得知方位技「還有幾個 GCD」)。
+        _hints.PositionalHintDisplayOnly = (target, positional, true, correct);
     }
 
     private unsafe bool QuestUnlocked(uint link)

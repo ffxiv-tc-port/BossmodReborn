@@ -4,11 +4,32 @@
 /// 「位移技危險攔截」：在 <c>ActionManager::UseAction</c> 這一關把「會把自己送進危險區」的位移技吞掉。
 /// </summary>
 /// <remarks>
-/// 🔑 存在的理由是**既有的位移安全檢查管不到外部來源**：BMR 本來就有一整組落點判定式
-/// （<see cref="ActionDefinitions.DashToTargetCheck"/> 那四條，掛在 <c>ActionDefinition.ForbidExecute</c> 上），
-/// 但它們只在 <c>ActionQueue.FindBest</c> 裡被呼叫 —— 也就是**只管得到 BMR 自己的自動循環，
-/// 以及「手動按鍵自訂佇列」開著時的手動按鍵**。WrathCombo 這類外掛是直接呼叫
-/// <c>ActionManager::UseAction</c>，整條佇列都繞過去了。這個 tweak 補的就是那個洞。
+/// 🔑 存在的理由是**既有的位移安全檢查只在「東西進得了 BMR 的佇列」時才生效**：BMR 本來就有一整組
+/// 落點判定式（<see cref="ActionDefinitions.DashToTargetCheck"/> 那四條，掛在
+/// <c>ActionDefinition.ForbidExecute</c> 上），但它們只在 <c>ActionQueue.FindBest</c> 裡被呼叫。
+/// <para>
+/// ⚠️ **「外部外掛直接呼叫 <c>ActionManager::UseAction</c> 就整條佇列繞過去了」這句話是錯的**（曾經寫在這裡）。
+/// 我們的 <c>ActionManagerEx.UseActionDetour</c> 掛的就是 <c>ActionManager::UseAction</c> 本身，
+/// 所以 WrathCombo 這類外掛的呼叫**一樣會經過這一關**；而且當
+/// <see cref="ActionTweaksConfig.UseManualQueue"/> 開著時，那一發會被 <c>ManualActionQueueTweak.Push</c>
+/// 收進 BMR 自己的佇列 —— 於是它**照樣吃得到** <c>ForbidExecute</c> 的落點判定，不需要這個 tweak。
+/// </para>
+/// <para>
+/// 🔑 因此這個 tweak **不可替代的場合**是「那一發最後沒進 BMR 的佇列、直接落回遊戲原生路徑」的時候，
+/// 逐條列出來就是 <c>UseActionDetour</c> 裡 <c>queued</c> 為 false 的那些分支：
+/// <list type="bullet">
+/// <item><see cref="ActionTweaksConfig.UseManualQueue"/> 關著（預設值就是關著 ⇒ <b>多數使用者的常態</b>）</item>
+/// <item><c>mode != UseActionMode.None</c>（地面放置技的預覽/確定那兩段）或動作類型不是 Spell／Item</item>
+/// <item><c>Push</c> 自己判掉：<c>ActionDefinitions</c> 沒登記這個動作、冷卻剩餘超過佇列視窗（GCD 1s／oGCD 3s）、
+/// 或目標解析失敗 —— 這幾種都是 <c>return false</c> 交還原生佇列</item>
+/// <item><c>UseActionDetour</c> 的 <c>try</c> 擲例外走進退化路徑（那裡把 <c>queued</c> 強制設回 false）</item>
+/// </list>
+/// ⇒ 這個 tweak 補的是**上面這些落回原生路徑的發數**，不是「外部外掛完全繞過 BMR」。
+/// </para>
+/// <para>
+/// 📌 順序上這一關**排在** <c>Push</c> 之前（<c>queued = !dashBlocked &amp;&amp; …</c>），
+/// 所以兩條路徑不會重複攔截：被這裡吞掉的那一發根本不會進佇列。
+/// </para>
 /// <para>
 /// 🔴 落點算法**不另建一張表**：直接沿用上面那四條判定式登記的分類與距離
 /// （<see cref="ActionDefinitions.TryGetDashGeometry"/>）。兩份表遲早會漂移，而漂移的失敗形式是靜默的。

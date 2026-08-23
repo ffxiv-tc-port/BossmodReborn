@@ -173,23 +173,48 @@ public sealed class UIRotationWindow : UIWindow
         return modified;
     }
 
+    private const float PositionalConeThickness = 2f;       // 主線粗細
+    private const float PositionalConeOutlineExtra = 2f;    // 外框比主線粗這麼多（等於每邊 1px 深色邊）
+
     private void DrawPositional()
     {
-        var pos = _mgr.Hints.RecommendedPositional;
+        // 🔴 兩個來源、優先序固定:
+        //   ① PositionalHintDisplayOnly —— 「不需 preset」的純顯示推導(Plugin.UpdatePositionalHintDisplay 寫的)
+        //   ② RecommendedPositional —— 循環模組寫的,同時也是 AI 走位的輸入
+        // 新欄位有值才用新欄位,否則退回舊欄位 ⇒ 既有掛 preset 的使用者行為完全不變。
+        //(寫入端在 ① 有值時本來就會讓給 ②,所以實務上兩者不會同時有值;這裡的優先序是第二道保險。)
+        var pos = _mgr.Hints.PositionalHintDisplayOnly;
+        if (pos.Target == null)
+            pos = _mgr.Hints.RecommendedPositional;
+
         if (_config.ShowPositionals && pos.Target != null && !pos.Target.Omnidirectional)
         {
             var color = PositionalColor(pos.Imminent, pos.Correct);
+            var center = pos.Target.PosRot.XYZ();
+            var radius = pos.Target.HitboxRadius + 3.5f;
             switch (pos.Pos)
             {
                 case Positional.Flank:
-                    Camera.Instance?.DrawWorldCone(pos.Target.PosRot.XYZ(), pos.Target.HitboxRadius + 3.5f, pos.Target.Rotation + 90.Degrees(), 45.Degrees(), color);
-                    Camera.Instance?.DrawWorldCone(pos.Target.PosRot.XYZ(), pos.Target.HitboxRadius + 3.5f, pos.Target.Rotation - 90.Degrees(), 45.Degrees(), color);
+                    DrawPositionalCone(center, radius, pos.Target.Rotation + 90.Degrees(), color);
+                    DrawPositionalCone(center, radius, pos.Target.Rotation - 90.Degrees(), color);
                     break;
                 case Positional.Rear:
-                    Camera.Instance?.DrawWorldCone(pos.Target.PosRot.XYZ(), pos.Target.HitboxRadius + 3.5f, pos.Target.Rotation + 180.Degrees(), 45.Degrees(), color);
+                    DrawPositionalCone(center, radius, pos.Target.Rotation + 180.Degrees(), color);
                     break;
             }
         }
+    }
+
+    // 先畫深色粗線當外框、再畫亮色細線 —— 與 DrawPathSegment／MiniArena.AddLine 同一套做法。
+    // 疊加層底下是 3D 場景，單色細線在亮地板或白色特效上會整條看不見；外框解決的是那個。
+    // 🔑 對齊 NecroLens 基準：有方向（錐體本身就指向該站的位置）、有外框、**不疊顏色**
+    //   （從容/急迫、站對/站錯仍然只靠 PositionalColor 換色表達，這裡不額外加半透明填色）。
+    private static void DrawPositionalCone(Vector3 center, float radius, Angle direction, uint color)
+    {
+        if (Camera.Instance is not { } camera)
+            return;
+        camera.DrawWorldCone(center, radius, direction, 45.Degrees(), Colors.Shadows, PositionalConeThickness + PositionalConeOutlineExtra);
+        camera.DrawWorldCone(center, radius, direction, 45.Degrees(), color, PositionalConeThickness);
     }
 
     private static uint PositionalColor(bool imminent, bool correct) => imminent

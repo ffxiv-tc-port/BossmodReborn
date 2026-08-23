@@ -32,6 +32,12 @@ sealed class IPCProvider : IDisposable
             return false;
         });
 
+        // 完整 IPC 名稱:BossMod.ActionQueue.UseManualQueueEnabled
+        // 回「手動佇列接管是否啟用」。唯讀、無副作用,每次呼叫讀設定現值(使用者中途改也拿得到新值)。
+        // 🔑 給別的外掛判斷「我直接呼叫 ActionManager::UseAction 會不會被 BMR 收進它自己的佇列」——
+        //    這個開關為 true 時會,為 false 時不會(見 ActionManagerEx.UseActionDetour)。
+        Register("ActionQueue.UseManualQueueEnabled", () => Service.Config.Get<ActionTweaksConfig>().UseManualQueue);
+
         Register("Presets.Get", (string name) =>
         {
             var preset = autorotation.Database.Presets.FindPresetByName(name);

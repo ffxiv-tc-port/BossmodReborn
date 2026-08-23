@@ -91,6 +91,25 @@ public sealed class AIHints
     // positioning: next positional hint (TODO: reconsider, maybe it should be a list prioritized by in-gcds, and imminent should be in-gcds instead? or maybe it should be property of an enemy? do we need correct?)
     public (Actor? Target, Positional Pos, bool Imminent, bool Correct) RecommendedPositional;
 
+    /// <summary>
+    /// 純顯示用的方位提示。形狀與 <see cref="RecommendedPositional"/> 相同,語意**完全不同**。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 這個欄位存在的唯一理由是**不能重用 <see cref="RecommendedPositional"/>**:
+    /// <c>AI.AIBehaviour.SelectPrimaryTarget</c> 會把那個欄位讀去設 <c>Targeting.PreferredPosition</c>,
+    /// 也就是「AI 請開始繞到目標的側背」。把顯示用的推測寫進去等於**改變移動行為** ——
+    /// 使用者只是想看提示,結果角色自己跑起來。
+    /// <para>
+    /// 🔴 因此本欄位的消費端只有 <c>UIRotationWindow.DrawPositional</c>(畫世界疊加層)。
+    /// <b>AI 與循環的任何路徑都不得讀它</b>;新增讀取點之前請先想清楚那是不是又把顯示接回了行為。
+    /// </para>
+    /// <para>
+    /// 寫入端是 <c>Framework.Plugin.DrawUI</c>,而且只在設定
+    /// <c>AutorotationConfig.ShowPositionalsWithoutPreset</c> 開著時才算 —— 旗標關閉時零開銷。
+    /// </para>
+    /// </remarks>
+    public (Actor? Target, Positional Pos, bool Imminent, bool Correct) PositionalHintDisplayOnly;
+
     // orientation restrictions (e.g. for gaze attacks): a list of forbidden orientation ranges, now or in near future
     // AI will rotate to face allowed orientation at last possible moment, potentially losing uptime
     public readonly List<(Angle center, Angle halfWidth, DateTime activation)> ForbiddenDirections = [];
@@ -152,6 +171,7 @@ public sealed class AIHints
         ForbiddenZones.Clear();
         GoalZones.Clear();
         RecommendedPositional = default;
+        PositionalHintDisplayOnly = default;
         ForbiddenDirections.Clear();
         ImminentSpecialMode = default;
         MisdirectionThreshold = 15f.Degrees();

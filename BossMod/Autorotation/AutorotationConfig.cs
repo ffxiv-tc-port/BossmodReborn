@@ -28,6 +28,16 @@ public sealed class AutorotationConfig : ConfigNode
     [PropertyDisplay("Show positional hints in world", tooltip: "Show tips for positional abilities, indicating to move to the flank or rear of your target")]
     public bool ShowPositionals = false;
 
+    // 📌 預設 false 是刻意的:這是新行為(不掛 preset 也會冒出方位錐),既有使用者不該被它改到。
+    //    BMR 的 ConfigNode.Deserialize 只遍歷存檔 JSON 裡「已存在」的鍵,新欄位在既有存檔裡不存在,
+    //    所以會保留這裡的初始值 —— 也就是既有使用者拿到的就是 false。
+    // 🔴 這個選項只寫 AIHints.PositionalHintDisplayOnly(純顯示欄位),
+    //    絕不寫 RecommendedPositional —— 後者會被 AIBehaviour 讀去設 PreferredPosition,
+    //    那會讓 AI 真的開始繞到目標側背。顯示與走位必須維持解耦。
+    [PropertyDisplay("Derive positional hints without an active preset",
+        tooltip: "Normally the positional cones only appear while an autorotation preset that provides positional guidance is active.\n\nWith this enabled, BMR derives the next positional for melee jobs (MNK/DRG/NIN/SAM/RPR/VPR) straight from your job gauge, combo state and buffs, so the cones show up with no preset at all.\n\nRequires \"Show positional hints in world\" to be enabled as well.\n\nPurely visual - it never moves your character and never changes what the AI targets or where it stands.")]
+    public bool ShowPositionalsWithoutPreset = false;
+
     // 📌 預設 true 是刻意的：BMR 的 ConfigNode.Deserialize 只遍歷存檔 JSON 裡「已存在」的鍵，
     //    新欄位在既有使用者的存檔裡不存在，所以會保留這裡的初始值 —— 也就是既有使用者也直接看得到。
     //    這是純顯示的疊加層，不改變任何移動行為，開著沒有風險。

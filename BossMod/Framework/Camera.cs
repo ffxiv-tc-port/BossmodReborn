@@ -94,20 +94,21 @@ sealed class Camera
         _worldDrawLines.Add((p1screen, p2screen, color, thickness));
     }
 
-    public void DrawWorldCone(Vector3 center, float radius, Angle direction, Angle halfWidth, uint color)
+    // thickness 預設 1f，與加上這個參數之前的行為逐位元組相同 —— 既有呼叫端外觀完全不變。
+    public void DrawWorldCone(Vector3 center, float radius, Angle direction, Angle halfWidth, uint color, float thickness = 1f)
     {
         int numSegments = CurveApprox.CalculateCircleSegments(radius, halfWidth, maxerror);
         var delta = halfWidth / numSegments;
 
         var prev = center + radius * (direction - delta * numSegments).ToDirection().ToVec3();
-        DrawWorldLine(center, prev, color);
+        DrawWorldLine(center, prev, color, thickness);
         for (var i = -numSegments + 1; i <= numSegments; ++i)
         {
             var curr = center + radius * (direction + delta * i).ToDirection().ToVec3();
-            DrawWorldLine(prev, curr, color);
+            DrawWorldLine(prev, curr, color, thickness);
             prev = curr;
         }
-        DrawWorldLine(prev, center, color);
+        DrawWorldLine(prev, center, color, thickness);
     }
 
     public void DrawWorldCircle(Vector3 center, float radius, uint color, float thickness = 1f)
