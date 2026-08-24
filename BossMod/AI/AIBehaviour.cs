@@ -567,6 +567,16 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         else if (misdirectionAngle != default && _naviDecision.Destination is WPos destination)
         {
             ctrl.AllowInterruptingCastByMovement = true;
+            // 🔴 這一支原本完全不碰 ForceCancelCast，於是上面那一支（凝視／Pyretic）設下的 true 會殘留下來：
+            //    ctrl 這個欄位只在 AI 被停用時才走 AIController.Clear()，AI 跑著的時候**沒有任何逐幀重置點**，
+            //    唯一的重置就在下面的 else。迷惑（Components.TemporaryMisdirection）與凝視可以同時存在
+            //    ——ImminentSpecialMode 與 ForbiddenDirections 是兩個獨立來源，例：Ker 的 EternalDamnation——
+            //    凝視過去了、迷惑還在時就會落到這一支 ⇒ 旗標卡在 true，之後每一幀只要在詠唱就被取消，
+            //    直到迷惑結束掉進 else 為止。行為上不會崩，只會「該詠唱的都被莫名打斷」。
+            //    進得到這一支就代表凝視／Pyretic 不迫在眉睫（上一支優先且會 return 掉這個 if 鏈），
+            //    所以這裡的正解一定是 false；三支都指派之後 UpdateMovement 對這個旗標才是全覆蓋的。
+            //    ⚠️ 這不會吃掉模組自己提出的取消請求：AIController 是用 |= 疊到 Hints 上，不是覆寫。
+            ctrl.ForceCancelCast = false;
             var dir = destination - player.Position;
             var distSq = dir.LengthSq();
             var threshold = 45f.Degrees();
