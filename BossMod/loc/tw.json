@@ -8587,5 +8587,14 @@
   },
   "The Predictive Mitigation module presses mitigation and self-preservation oGCDs ahead of the raidwides and tankbusters that the boss module already knows are coming. It never presses GCDs and never changes your target, so it is built to run alongside an external rotation plugin.\n\nNormally it only runs while an autorotation preset containing it is active, and presets are not persisted - so in practice the module sits dormant. With this enabled it runs with no preset at all, using the module's own declared defaults: 5s raidwide lead, 4s tankbuster lead, emergency healing below 30% HP, and skipping mitigation when the damage type cannot be determined.\n\nIt defers entirely to your preset or cooldown plan whenever one is active, and to force-disable.\n\nBe aware: this will use your abilities even when the AI is set to forbid actions, because mitigation is pushed onto the same queue the game consumes every frame. Turn it off if you want fully manual control of your defensive cooldowns.": {
     "message": "「預測減傷」模組會在王模組已經知道要來的全體傷害與坦克死刑之前，先按下減傷與自保能力技。它不會按戰技、也不會更動你的目標，設計上就是要和外部循環外掛並行。\n\n正常情況下它只在掛著含有它的循環預設集時才會執行，而預設集並不會保存下來 —— 實務上這個模組等於一直在休眠。開啟本選項後它完全不需要預設集就會執行，並採用模組自己宣告的預設值：全體傷害提前 5 秒、坦克死刑提前 4 秒、HP 低於 30% 時緊急自我治療，以及判不出傷害屬性時不出手。\n\n只要你掛了預設集或有冷卻計畫在跑，它就整個讓開；強制停用時也一樣不執行。\n\n請注意：即使 AI 設定為禁止出招，這個選項照樣會用掉你的技能 —— 因為減傷是推進遊戲每幀都會讀取的那個佇列。想要完全手動掌控自己的防禦冷卻，請把它關掉。"
+  },
+  "MODCAT_AI": {
+    "message": "AI"
+  },
+  "MODCAT_DPS": {
+    "message": "DPS"
+  },
+  "MODCAT_PvP": {
+    "message": "PvP"
   }
 }
