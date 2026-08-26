@@ -300,6 +300,10 @@ public abstract class AutoClear : ZoneModule
 
     protected override void Dispose(bool disposing)
     {
+        // 🔴 最先做:vnavmesh 的移動開關是**全域**的,留在 false 等於使用者的 vnavmesh 從此不會動,
+        //    而且完全沒有錯誤訊息。擺在 Stop() 之前,免得 Stop() 擲例外時連帶跳過還原。
+        ReleaseNavPause();
+
         // 我們自己叫起來的移動不要留給下一個場景。
         // 🔴 Dispose 期間的 IPC 要整個包起來：外掛卸載時對方可能已經先走一步，
         //    這裡擲例外會打斷後面的 Dispose 鏈（全艦隊踩過的形狀）。
@@ -805,6 +809,141 @@ public abstract class AutoClear : ZoneModule
 
     private bool WalkActive => _walkState != WalkState.Idle;
 
+    #region 「按住暫停」對手動導航的接管
+
+    /// <summary>
+    /// 我們是不是正握著 vnavmesh 的移動開關（也就是曾經把它關掉、還沒還原）。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 這個旗標就是「還原欠帳」的帳本：<b>只有</b>在 <see cref="DeepDungeonNav.SetMovementAllowed"/>
+    /// 真的回報成功之後才准設為 true，否則會記到一筆我們其實沒欠的帳，
+    /// 之後那次「還原」就變成把別人刻意關掉的開關硬打開。
+    /// </remarks>
+    private bool _navPauseHeld;
+
+    /// <summary>接手／還原失敗後的重試節流；<see cref="DateTime.MinValue"/>＝可以立刻試。</summary>
+    private DateTime _navPauseNextTry = DateTime.MinValue;
+
+    /// <summary>接手／還原失敗時的重試間隔。</summary>
+    private const double NavPauseRetryMs = 100d;
+
+    /// <summary>
+    /// 把「按住暫停鍵」這件事套用到手動導航（＝vnavmesh 正在走的那條路）。
+    /// </summary>
+    /// <remarks>
+    /// <b>為什麼要另外做一份</b>：<c>MovementOverride</c> 的閘門擋的是「BMR 自己注入移動輸入」，
+    /// 而手動導航的角色是 <b>vnavmesh</b> 在走的，那條路徑完全不經過 BMR 的 detour ⇒ 擋不到。
+    /// 深牢自動探索（AI 自己一間間清）走的是 <c>AIHints.ForcedMovement</c>，
+    /// <b>已經</b>被 <c>MovementOverride.DirectionToDestination</c> 的閘門涵蓋，不必也不該在這裡重複處理。
+    /// <para>
+    /// 🔑 <b>寫成「每幀對帳」而不是「按下／放開的邊緣觸發」是刻意的</b>：邊緣觸發要為每一條
+    /// 離開路徑（路徑走完、使用者按停止、樓層切換、模組停用、設定改成「無」、例外）各補一次還原，
+    /// 漏掉任何一條就會把 vnavmesh 的全域開關永久留在 <c>false</c>——而那個失敗是<b>靜默</b>的
+    /// （使用者只會發現「我的 vnavmesh 從此不會動了」，沒有任何錯誤訊息）。
+    /// 對帳式只有一條規則「想暫停 ≠ 正握著就去修正它」，上面每一種情況都讓 <c>wantPause</c>
+    /// 自然變成 false，於是<b>下一幀自動還原</b>，不必逐條列舉。
+    /// </para>
+    /// <para>
+    /// 🔴 <b>只在 vnavmesh 現在確實允許移動時才接手。</b>問到 <c>false</c> 代表別的外掛
+    /// （或使用者自己在 vnavmesh 的除錯視窗裡）刻意關著它，這時我們什麼都不做、也不記帳，
+    /// 免得放開 Alt 時替別人把開關打開。⚠️ 問不到（<c>null</c>）當成「可以接手」——
+    /// 那是「不知道」不是「別人握著」，見 <see cref="DeepDungeonNav.GetMovementAllowed"/>。
+    /// </para>
+    /// <para>
+    /// 📌 <b>放開後多快繼續</b>：還原是同一幀送出去的 IPC，vnavmesh 在它自己的
+    /// <c>FollowPath.Update</c> 裡讀那個欄位 ⇒ 最慢下一幀（約 16ms）就恢復移動，
+    /// 而且是<b>從角色當下位置沿原路徑續走</b>——路徑點沒有被清掉，不重算、也不倒回去。
+    /// </para>
+    /// </remarks>
+    private void UpdateNavPause()
+    {
+        // 只有「路徑已經交出去、vnavmesh 正在走」才有東西可暫停。
+        // Pathfinding 階段還沒有路徑，這時關掉全域開關只會白白影響到別的外掛。
+        var wantPause = _walkState == WalkState.Moving
+            && MovementOverride.Instance is { AutoMovementPaused: true };
+
+        if (wantPause == _navPauseHeld)
+            return;
+
+        var now = World.CurrentTime;
+        if (_navPauseNextTry != DateTime.MinValue && now < _navPauseNextTry)
+            return;
+
+        if (wantPause)
+        {
+            // 別人刻意關著 ⇒ 不接手、不記帳（null＝問不到，視同可以接手）
+            if (DeepDungeonNav.GetMovementAllowed() == false)
+            {
+                _navPauseNextTry = now.AddMilliseconds(NavPauseRetryMs);
+                return;
+            }
+
+            if (!DeepDungeonNav.SetMovementAllowed(false))
+            {
+                // 送不出去就**不要**記帳：沒關成功卻記成「我們握著」，放開時會憑空打開一個
+                // 我們從來沒關過的開關。節流重試，避免每幀丟例外（沒安裝時 IPC 是靠擲例外回報的）。
+                _navPauseNextTry = now.AddMilliseconds(NavPauseRetryMs);
+                Service.Logger.Information("[DD] 按住暫停：vnavmesh 的 Path.SetMovementAllowed 叫不動（端點不存在或擲例外），手動導航這一段不受暫停鍵影響——要停請按「停止移動」。");
+                return;
+            }
+
+            _navPauseHeld = true;
+            _navPauseNextTry = DateTime.MinValue;
+            Service.Logger.Information("[DD] 按住暫停：已請 vnavmesh 暫停手動導航（Path.SetMovementAllowed=false）。路徑點保留，放開按鍵即從原地續走。");
+            return;
+        }
+
+        // ── 還原 ──────────────────────────────────────────────────────
+        if (DeepDungeonNav.SetMovementAllowed(true))
+        {
+            _navPauseHeld = false;
+            _navPauseNextTry = DateTime.MinValue;
+            Service.Logger.Information("[DD] 按住暫停：已還原 vnavmesh 的移動開關（Path.SetMovementAllowed=true），手動導航從原地續走。");
+            return;
+        }
+
+        // 🔴 還原失敗是唯一「不還原就會留下永久災情」的分支，所以預設是**保住欠帳並重試**。
+        //    唯一可以放手的情況是 vnavmesh 根本不在了——那個欄位隨著它的實例一起消失，
+        //    沒有任何東西需要還原；繼續重試只會每幀丟例外。
+        if (!DeepDungeonNav.IsInstalled())
+        {
+            _navPauseHeld = false;
+            _navPauseNextTry = DateTime.MinValue;
+            Service.Logger.Information("[DD] 按住暫停：還原移動開關時發現 vnavmesh 已經不在了，欠帳一併作廢（它的狀態隨實例消失，不需要還原）。");
+            return;
+        }
+
+        _navPauseNextTry = now.AddMilliseconds(NavPauseRetryMs);
+        Service.Logger.Information("[DD] 按住暫停：還原 vnavmesh 移動開關失敗，稍後重試（在還原成功之前不會放棄）。");
+    }
+
+    /// <summary>
+    /// 模組收攤時的最後一道保險：把還沒還回去的移動開關還原。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <see cref="UpdateNavPause"/> 的對帳只在 <c>Update()</c> 跑得到的時候有效。
+    /// 離開深牢／卸載外掛時 <c>Update()</c> 就此不再被呼叫，對帳沒有機會執行 ⇒ 這裡補一次。
+    /// 沒有這一段的話「按著 Alt 的瞬間傳送出深牢」就會把 vnavmesh 的全域開關永久留在 false。
+    /// ⚠️ 只在<b>我們確實握著</b>時才動它（<see cref="_navPauseHeld"/>），不要無條件寫 true——
+    /// 那會把別的外掛刻意關著的開關打開。
+    /// </remarks>
+    private void ReleaseNavPause()
+    {
+        if (!_navPauseHeld)
+            return;
+        _navPauseHeld = false;
+        try
+        {
+            DeepDungeonNav.SetMovementAllowed(true);
+        }
+        catch (Exception ex)
+        {
+            Service.Log($"[DD nav] 還原 vnavmesh 移動開關失敗（可忽略）: {ex.Message}");
+        }
+    }
+
+    #endregion
+
     #region 卡住偵測
 
     /// <summary>認定「沒在動」的位移門檻（碼）。</summary>
@@ -872,6 +1011,10 @@ public abstract class AutoClear : ZoneModule
     public override void Update()
     {
         base.Update();
+
+        // 🔴 擺在最前面是刻意的：這一支是 vnavmesh 全域移動開關的「還原對帳」，
+        //    後面任何一段擲例外都不該連帶讓開關留在關閉狀態。
+        UpdateNavPause();
 
         UpdateStopWatchdog();
         UpdateStuckDetection();

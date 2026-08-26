@@ -974,8 +974,8 @@
   "Key to hold to pause automatic movement": {
     "message": "按住可暫停自動移動的按鍵"
   },
-  "While this key is held, BossMod stops injecting any movement input of its own - AI mode, the Normal Movement autorotation module, quest battles and boss module repositioning all let go of your character, and you steer manually. Movement resumes on the very frame you release the key.\n\nOnly movement is paused. Actions, dodging hints, positional hints, mitigation and targeting all keep running exactly as before, and nothing about your own input is blocked.\n\nSet to \"None\" to disable this entirely.\n\nNote: this does not stop the deep dungeon \"Walk to room\" button, because that route is walked by vnavmesh rather than by BossMod - press its stop button instead.": {
-    "message": "按住這顆鍵的期間，BossMod 完全不注入任何自己的移動輸入——AI 模式、自動循環的 Normal Movement 模組、任務戰與魔物模組的自動站位全部放手，走位完全回到你手上。放開按鍵，自動移動當幀恢復。\n\n只有移動被暫停。出招、閃避提示、方位提示、減傷與選取目標全部照舊運作，你自己的操作也不會被擋住。\n\n選「無」即完全停用本功能。\n\n請注意：這顆鍵停不了深層迷宮的「走到房間」，因為那一段路是 vnavmesh 在走而不是 BossMod——請改按它旁邊的「停止移動」按鈕。"
+  "While this key is held, BossMod stops injecting any movement input of its own - AI mode, the Normal Movement autorotation module, quest battles and boss module repositioning all let go of your character, and you steer manually. Movement resumes on the very frame you release the key.\n\nOnly movement is paused. Actions, dodging hints, positional hints, mitigation and targeting all keep running exactly as before, and nothing about your own input is blocked.\n\nSet to \"None\" to disable this entirely.\n\nThe deep dungeon \"Walk to room\" button is covered too. That route is walked by vnavmesh, so while the key is held BossMod asks vnavmesh to hold still. The route itself is kept, so releasing the key carries straight on from wherever you are standing - nothing is recalculated and you do not backtrack.": {
+    "message": "按住這顆鍵的期間，BossMod 完全不注入任何自己的移動輸入——AI 模式、自動循環的 Normal Movement 模組、任務戰與魔物模組的自動站位全部放手，走位完全回到你手上。放開按鍵，自動移動當幀恢復。\n\n只有移動被暫停。出招、閃避提示、方位提示、減傷與選取目標全部照舊運作，你自己的操作也不會被擋住。\n\n選「無」即完全停用本功能。\n\n深層迷宮的「走到房間」現在也涵蓋在內。那一段路是 vnavmesh 在走的，所以按住這顆鍵的期間，BossMod 會請 vnavmesh 先停住。已經算好的路徑會保留下來，放開按鍵就從你當下所在的位置直接續走——不會重算路徑，也不會倒回去補走。"
   },
   "None": {
     "message": "無"
@@ -8539,6 +8539,9 @@
   },
   "CHANGELOG_OK": {
     "message": "知道了"
+  },
+  "CHANGELOG_DeepDungeonWalkPause": {
+    "message": "「按住暫停自動移動」現在連深層迷宮的「走到房間」一起管了。那一段路是 vnavmesh 在走而不是 BossMod，所以在此之前它完全不理會這顆鍵——那個選項自己的提示也是這樣寫的。現在按住的期間 BossMod 會請 vnavmesh 停住，放開就立刻放手。已經算好的路徑會保留，你會從當下所在的位置直接續走，不會重算路徑，也不會倒回去補走。"
   },
   "CHANGELOG_PauseAutoMoveKey": {
     "message": "現在可以「按住一顆鍵暫停 BossMod 的自動移動」。跟幾乎所有其他新選項不同，這一個預設是「開」，綁定 Alt：按住 Alt 的期間外掛完全不控制你的角色，走位完全回到你手上，放開當幀恢復。只有移動受影響——出招、閃避提示、方位提示與減傷都照舊。不想要的話，到「技能調整」把它設成「無」。"

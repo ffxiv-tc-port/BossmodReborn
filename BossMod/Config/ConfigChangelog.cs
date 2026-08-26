@@ -56,6 +56,13 @@ public sealed class ConfigChangelogWindow : UIWindow
         //    既有使用者升上來就直接拿到 Alt,不講的話會變成「BMR 突然在我按 Alt 時不動了」。
         // ⚠️ 版本號寫的是「這個改動第一次出貨的那個 tag」。撰寫時 feed 上的是 7.20.0.93,
         //    所以填下一號;比對是 `resolved.Version > prev`,實際出貨號更大也照樣顯示得到。
+        // 🔴 .94 只涵蓋「BMR 自己注入移動輸入」那條路。深牢的「走到房間」是 vnavmesh 在走的,
+        //    完全不經過 BMR 的 detour ⇒ 當時按住 Alt 對它沒有任何效果,而 .94 的提示也是這樣寫的。
+        //    這一則就是把那句話推翻掉,所以必須登記:使用者讀過舊提示,不講他不會知道行為變了。
+        new("7.20.0.95", ChangelogKind.ChangedBehaviour, typeof(ActionTweaksConfig), nameof(ActionTweaksConfig.PauseAutoMoveKey),
+            "CHANGELOG_DeepDungeonWalkPause",
+            "The pause-automatic-movement key now covers the deep dungeon \"Walk to room\" button as well. That route is walked by vnavmesh rather than by BossMod, so it used to ignore the key entirely - the option's own tooltip said so. BossMod now asks vnavmesh to hold still while the key is held and releases it the moment you let go. The computed route is kept, so you carry on from wherever you are standing instead of re-pathing or backtracking."),
+
         new("7.20.0.94", ChangelogKind.NewOption, typeof(ActionTweaksConfig), nameof(ActionTweaksConfig.PauseAutoMoveKey),
             "CHANGELOG_PauseAutoMoveKey",
             "Holding a key now pauses BossMod's automatic movement. Unlike almost every other new option this one is ON by default, bound to Alt: while Alt is held nothing in the plugin steers your character and you move manually, and it lets go on the frame you release. Only movement is affected - actions, dodging hints, positional hints and mitigation are untouched. Set it to \"None\" in Action tweaks if you do not want it."),

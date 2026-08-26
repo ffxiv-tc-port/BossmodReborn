@@ -56,6 +56,14 @@ static class DeepDungeonNav
     private static readonly Lazy<ICallGateSubscriber<List<Vector3>, bool, object>?> PathMoveTo =
         new(() => Service.PluginInterface?.GetIpcSubscriber<List<Vector3>, bool, object>("vnavmesh.Path.MoveTo"));
 
+    // 📌 `Path.GetMovementAllowed` 是 RegisterFunc（回 bool），`Path.SetMovementAllowed` 是
+    //    RegisterAction（吃 bool、無回傳）→ 訂閱型別分別是 <bool> 與 <bool, object>，
+    //    而且後者必須用 InvokeAction()。寫錯只會在執行期炸，編譯期看不出來。
+    private static readonly Lazy<ICallGateSubscriber<bool>?> PathGetMovementAllowed = new(() => Gate<bool>("Path.GetMovementAllowed"));
+
+    private static readonly Lazy<ICallGateSubscriber<bool, object>?> PathSetMovementAllowed =
+        new(() => Service.PluginInterface?.GetIpcSubscriber<bool, object>("vnavmesh.Path.SetMovementAllowed"));
+
     private static readonly Lazy<ICallGateSubscriber<Vector3, Vector3, bool, Task<List<Vector3>>?>?> NavPathfind =
         new(() => Service.PluginInterface?.GetIpcSubscriber<Vector3, Vector3, bool, Task<List<Vector3>>?>("vnavmesh.Nav.Pathfind"));
 
@@ -174,6 +182,70 @@ static class DeepDungeonNav
         catch (Exception ex)
         {
             LogUnexpected("Path.Stop", ex);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// vnavmesh 目前允不允許沿路徑移動；<c>null</c>＝問不到（沒安裝／端點不存在／擲例外）。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>回 <c>null</c> 與回 <c>false</c> 是兩件完全不同的事</b>，不可以合併成「不允許」：
+    /// 前者是「不知道」，後者是「有人（可能是別的外掛）刻意關掉了」。
+    /// 呼叫端要靠這個差別決定「該不該接手」——把 null 當 false 會讓我們在問不到的情況下
+    /// 誤以為別人握著開關而永遠不接手，失敗形式是<b>暫停鍵靜默沒反應</b>。
+    /// </remarks>
+    public static bool? GetMovementAllowed()
+    {
+        try
+        {
+            if (PathGetMovementAllowed.Value is not { } g)
+                return null;
+            return g.InvokeFunc();
+        }
+        catch (IpcError)
+        {
+            return null;
+        }
+        catch (Exception ex)
+        {
+            LogUnexpected("Path.GetMovementAllowed", ex);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 開關 vnavmesh 的「允許沿路徑移動」。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>這是 vnavmesh 的全域開關，不是只影響我們這條路徑。</b>關掉之後 <b>任何</b>外掛
+    /// （AutoDuty、Lifestream、BOCCHI…）的 vnavmesh 移動都會一起停住。所以只准在
+    /// 「確實是我們發起的移動正在跑」時動它，而且<b>一定要還原</b>——留在 <c>false</c> 的話
+    /// 使用者的 vnavmesh 從此不會動，而且完全沒有錯誤訊息。
+    /// <para>
+    /// 📌 關掉<b>不會清掉路徑點</b>（vnavmesh 的 <c>FollowPath.Update</c> 只是不再寫入移動輸入），
+    /// 所以這是真正的「暫停／繼續」而不是「停止／重走」：還原成 <c>true</c> 的<b>下一幀</b>
+    /// 角色就從當下所在位置沿原路徑續走，不必重算路徑，也不會倒回去補走已經過掉的路徑點。
+    /// </para>
+    /// </remarks>
+    /// <returns>指令有沒有送出去（false＝沒安裝、端點不存在，或對方擲了例外）。</returns>
+    public static bool SetMovementAllowed(bool value)
+    {
+        try
+        {
+            if (PathSetMovementAllowed.Value is not { } g)
+                return false;
+            g.InvokeAction(value);
+            return true;
+        }
+        catch (IpcError ex)
+        {
+            Service.Log($"[DD nav] vnavmesh.Path.SetMovementAllowed 失敗: {ex.Message}");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            LogUnexpected("Path.SetMovementAllowed", ex);
             return false;
         }
     }
