@@ -824,6 +824,17 @@ public abstract class AutoClear : ZoneModule
     /// <summary>接手／還原失敗後的重試節流；<see cref="DateTime.MinValue"/>＝可以立刻試。</summary>
     private DateTime _navPauseNextTry = DateTime.MinValue;
 
+    /// <summary>
+    /// 這一串連續失敗已經記過 log 了。
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ 沒有這個旗標的話，失敗分支會<b>每 100ms 印一行</b>（＝每秒 10 行）。
+    /// 使用者跑 LogLevel 2，這些是 <c>Information</c>，會真的灌進他的 log 檔裡把別的線索淹掉。
+    /// 一串連續失敗只值得講一次；狀態一有變化（接手成功／還原成功／不再想暫停）就清掉，
+    /// 下次再壞會重新講。
+    /// </remarks>
+    private bool _navPauseFailureLogged;
+
     /// <summary>接手／還原失敗時的重試間隔。</summary>
     private const double NavPauseRetryMs = 100d;
 
@@ -863,7 +874,12 @@ public abstract class AutoClear : ZoneModule
             && MovementOverride.Instance is { AutoMovementPaused: true };
 
         if (wantPause == _navPauseHeld)
+        {
+            // 帳對上了＝沒有欠帳也沒有待辦，順手把「失敗已記過」清掉，
+            // 讓下一串失敗還講得出話來。
+            _navPauseFailureLogged = false;
             return;
+        }
 
         var now = World.CurrentTime;
         if (_navPauseNextTry != DateTime.MinValue && now < _navPauseNextTry)
@@ -883,12 +899,17 @@ public abstract class AutoClear : ZoneModule
                 // 送不出去就**不要**記帳：沒關成功卻記成「我們握著」，放開時會憑空打開一個
                 // 我們從來沒關過的開關。節流重試，避免每幀丟例外（沒安裝時 IPC 是靠擲例外回報的）。
                 _navPauseNextTry = now.AddMilliseconds(NavPauseRetryMs);
-                Service.Logger.Information("[DD] 按住暫停：vnavmesh 的 Path.SetMovementAllowed 叫不動（端點不存在或擲例外），手動導航這一段不受暫停鍵影響——要停請按「停止移動」。");
+                if (!_navPauseFailureLogged)
+                {
+                    _navPauseFailureLogged = true;
+                    Service.Logger.Information("[DD] 按住暫停：vnavmesh 的 Path.SetMovementAllowed 叫不動（端點不存在或擲例外），手動導航這一段不受暫停鍵影響——要停請按「停止移動」。");
+                }
                 return;
             }
 
             _navPauseHeld = true;
             _navPauseNextTry = DateTime.MinValue;
+            _navPauseFailureLogged = false;
             Service.Logger.Information("[DD] 按住暫停：已請 vnavmesh 暫停手動導航（Path.SetMovementAllowed=false）。路徑點保留，放開按鍵即從原地續走。");
             return;
         }
@@ -898,6 +919,7 @@ public abstract class AutoClear : ZoneModule
         {
             _navPauseHeld = false;
             _navPauseNextTry = DateTime.MinValue;
+            _navPauseFailureLogged = false;
             Service.Logger.Information("[DD] 按住暫停：已還原 vnavmesh 的移動開關（Path.SetMovementAllowed=true），手動導航從原地續走。");
             return;
         }
@@ -909,12 +931,17 @@ public abstract class AutoClear : ZoneModule
         {
             _navPauseHeld = false;
             _navPauseNextTry = DateTime.MinValue;
+            _navPauseFailureLogged = false;
             Service.Logger.Information("[DD] 按住暫停：還原移動開關時發現 vnavmesh 已經不在了，欠帳一併作廢（它的狀態隨實例消失，不需要還原）。");
             return;
         }
 
         _navPauseNextTry = now.AddMilliseconds(NavPauseRetryMs);
-        Service.Logger.Information("[DD] 按住暫停：還原 vnavmesh 移動開關失敗，稍後重試（在還原成功之前不會放棄）。");
+        if (!_navPauseFailureLogged)
+        {
+            _navPauseFailureLogged = true;
+            Service.Logger.Information("[DD] 按住暫停：還原 vnavmesh 移動開關失敗，稍後重試（在還原成功之前不會放棄）。");
+        }
     }
 
     /// <summary>
