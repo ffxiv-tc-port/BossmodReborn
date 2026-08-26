@@ -3,7 +3,7 @@ using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.ImGuiFileDialog;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Lumina.Excel.Sheets;
 using System.Diagnostics;
 using System.IO;
@@ -148,7 +148,7 @@ public sealed class ReplayManagementWindow : UIWindow
     {
         if (_config.ImportantDutyAlert && IsImportantDuty(cfcId) && !ShouldAutoRecord)
         {
-            _startLinkPayload ??= Service.PluginInterface.AddChatLinkHandler(0, (id, str) =>
+            _startLinkPayload ??= Service.ChatGui.AddChatLinkHandler(0, (id, str) =>
             {
                 if (id == 0)
                 {
@@ -156,7 +156,7 @@ public sealed class ReplayManagementWindow : UIWindow
                     Service.ChatGui.Print("[BMR] Replay recording started");
                 }
             });
-            _disableAlertLinkPayload ??= Service.PluginInterface.AddChatLinkHandler(2, (id, str) =>
+            _disableAlertLinkPayload ??= Service.ChatGui.AddChatLinkHandler(2, (id, str) =>
             {
                 if (id == 2)
                 {
@@ -334,7 +334,7 @@ public sealed class ReplayManagementWindow : UIWindow
         if (_config.ImportantDutyAlert && IsImportantDuty(_recorder?.CFCID ?? 0))
         {
             var path = _recorder?.LogPath;
-            _uploadLinkPayload ??= Service.PluginInterface.AddChatLinkHandler(1, (id, str) =>
+            _uploadLinkPayload ??= Service.ChatGui.AddChatLinkHandler(1, (id, str) =>
             {
                 if (id == 1)
                 {
