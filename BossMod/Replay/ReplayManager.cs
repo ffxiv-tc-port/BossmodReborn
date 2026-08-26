@@ -32,13 +32,20 @@ public sealed class ReplayManager : IDisposable
 
         public void Dispose()
         {
+            if (Disposing)
+                return;
             Disposing = true;
             Window?.Dispose();
             Cancel.Cancel();
-            Replay.Wait();
-            Replay.Dispose();
-            Cancel.Dispose();
-            Disposed = true;
+            // Don't block the calling (UI) thread on the parser noticing cancellation - finish
+            // tearing down once it actually stops, and let ReplayManager.Update() reap this
+            // entry via Disposed once that lands.
+            Replay.ContinueWith(_ =>
+            {
+                Replay.Dispose();
+                Cancel.Dispose();
+                Disposed = true;
+            });
         }
 
         public void Show(RotationDatabase rotationDB)
@@ -158,6 +165,9 @@ public sealed class ReplayManager : IDisposable
 
         foreach (var e in _replayEntries)
         {
+            if (e.Disposing)
+                continue;
+
             using var idScope = ImRaii.PushId(e.Path);
 
             ImGui.TableNextColumn();
