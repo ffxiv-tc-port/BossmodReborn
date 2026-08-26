@@ -39,7 +39,7 @@ sealed class P3Inception3Debuffs(BossModule module) : Components.GenericStackSpr
     {
         base.AddHints(slot, actor, hints);
         if (_tethered[slot] && FindPartner(slot) is var partner && partner != null && (partner.Position - actor.Position).LengthSq() < 900f)
-            hints.Add("Stay farther from partner!");
+            hints.Add(Loc.T("Stay farther from partner!"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

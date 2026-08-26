@@ -27,7 +27,7 @@ sealed class InfraredHomingMissileBait(BossModule module) : Components.GenericBa
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (CurrentBaits.Count != 0)
-            hints.Add("Bait away!");
+            hints.Add(Loc.T("Bait away!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

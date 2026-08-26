@@ -29,17 +29,17 @@ class Crystallize : BossComponent
             case Element.Water:
                 var healersInRange = Raid.WithoutSlot(false, true, true).Where(a => a.Role == Role.Healer).InRadius(actor.Position, _waterRadius).Count();
                 if (healersInRange > 1)
-                    hints.Add("Hit by two aoes!");
+                    hints.Add(Loc.T("Hit by two aoes!"));
                 else if (healersInRange == 0)
-                    hints.Add("Stack with healer!");
+                    hints.Add(Loc.T("Stack with healer!"));
                 break;
             case Element.Earth:
                 if (Raid.WithoutSlot(false, true, true).OutOfRadius(actor.Position, _earthRadius).Any())
-                    hints.Add("Stack!");
+                    hints.Add(Loc.T("Stack!"));
                 break;
             case Element.Ice:
                 if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _iceRadius).Any())
-                    hints.Add("Spread!");
+                    hints.Add(Loc.T("Spread!"));
                 break;
         }
     }

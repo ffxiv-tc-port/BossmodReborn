@@ -22,7 +22,7 @@ class P4Twisters(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (Module.PrimaryActor.CastInfo?.IsSpell(AID.Twister) ?? false)
-            hints.Add("Move!");
+            hints.Add(Loc.T("Move!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

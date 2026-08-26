@@ -20,7 +20,7 @@ class AetherExplosion(BossModule module) : BossComponent(module)
     {
         if (actor != _memberWithSOT && _explodingCells != Cell.None && _explodingCells == CellFromOffset(actor.Position - Arena.Center))
         {
-            hints.Add("Hit by aether explosion!");
+            hints.Add(Loc.T("Hit by aether explosion!"));
         }
     }
 

@@ -172,7 +172,7 @@ class Barbeque(BossModule module) : Components.GenericAOEs(module)
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (imminent)
-            hints.Add("Go to the opposite side of the arena and work against getting sucked in!");
+            hints.Add(Loc.T("Go to the opposite side of the arena and work against getting sucked in!"));
     }
 }
 

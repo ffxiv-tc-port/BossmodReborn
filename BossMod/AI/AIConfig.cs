@@ -24,6 +24,12 @@ sealed class AIConfig : ConfigNode
     [PropertyDisplay("Forbid actions")]
     public bool ForbidActions = false;
 
+    // 🔴 預設 false（opt-in）。BMR 的新設定欄位預設值會直接落到既有使用者身上，
+    //    而有人是靠 BMR 的自動循環打一般副本的 —— 預設 true 會讓他們在深牢以外靜默停火。
+    [PropertyDisplay("Only use the autorotation preset inside deep dungeons",
+        tooltip: "The AI keeps doing movement, dodging and targeting everywhere, but only presses rotation actions while you are inside a deep dungeon.\n\nUse this when another plugin handles your rotation in normal content and you only want BMR to take over in deep dungeons.")]
+    public bool AutorotOnlyInDeepDungeon = false;
+
     [PropertyDisplay("Manual targeting")]
     public bool ManualTarget = false;
 

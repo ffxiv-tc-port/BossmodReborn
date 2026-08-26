@@ -28,9 +28,9 @@ sealed class P2PartySynergy(BossModule module) : CommonAssignments(module)
             var distSq = (partner.Position - actor.Position).LengthSq();
             var range = DistanceRange;
             if (distSq < range.min * range.min)
-                hints.Add("Move away from partner!");
+                hints.Add(Loc.T("Move away from partner!"));
             else if (distSq > range.max * range.max)
-                hints.Add("Move closer to partner!");
+                hints.Add(Loc.T("Move closer to partner!"));
         }
     }
 

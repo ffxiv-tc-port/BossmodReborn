@@ -99,10 +99,10 @@ public sealed class MNK(RotationModuleManager manager, Actor player) : Attackxan
         def.DefineSimple(Track.BH, "BH", minLevel: 70, uiPriority: 99).AddAssociatedActions(AID.Brotherhood);
 
         def.Define(Track.RoF).As<RoFStrategy>("RoF", uiPriority: 96)
-            .AddOption(RoFStrategy.Automatic, "Auto", "Automatically use RoF during burst window", minLevel: 68)
-            .AddOption(RoFStrategy.Force, "Force", "Use ASAP", minLevel: 68)
-            .AddOption(RoFStrategy.ForceMidWeave, "ForceMid", "Use ASAP, but retain late-weave to ensure maximum GCDs covered", minLevel: 68)
-            .AddOption(RoFStrategy.Delay, "Delay", "Do not use", minLevel: 68)
+            .AddOption(RoFStrategy.Automatic, "Automatically use RoF during burst window", minLevel: 68)
+            .AddOption(RoFStrategy.Force, "Use ASAP", minLevel: 68)
+            .AddOption(RoFStrategy.ForceMidWeave, "Use ASAP, but retain late-weave to ensure maximum GCDs covered", minLevel: 68)
+            .AddOption(RoFStrategy.Delay, "Do not use", minLevel: 68)
             .AddAssociatedActions(AID.RiddleOfFire);
         def.Define(Track.FiresReply).As<FRStrategy>("FiresReply", uiPriority: 95)
             .AddOption(FRStrategy.Automatic, "Use after Opo GCD", minLevel: 100)

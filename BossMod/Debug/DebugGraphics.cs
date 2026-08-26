@@ -118,7 +118,7 @@ sealed class DebugGraphics
         foreach (var v in _watchedRenderObjects)
         {
             var obj = (FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object*)v.Key;
-            Camera.Instance?.DrawWorldLine(Service.ClientState.LocalPlayer!.Position, obj->Position, Colors.TextColor3);
+            Camera.Instance?.DrawWorldLine(Service.ObjectTable.LocalPlayer!.Position, obj->Position, Colors.TextColor3);
         }
     }
 
@@ -232,7 +232,11 @@ sealed class DebugGraphics
 
     public unsafe void DrawMatrices()
     {
-        var camera = CameraManager.Instance()->CurrentCamera;
+        // 🔴 這裡的 CameraManager 是 Client.Graphics.Scene.CameraManager（見檔頭 using），與
+        //    Game.Control 那個同名型別**不是同一個**：這個的 Instance() 是
+        //    [StaticAddress(…, isPointer: true)]，合法可為 null，直接 ->CurrentCamera 會 AVE。
+        var cameraManager = CameraManager.Instance();
+        var camera = cameraManager != null ? cameraManager->CurrentCamera : null;
         if (camera == null)
             return;
 
@@ -331,12 +335,14 @@ sealed class DebugGraphics
         ImGui.TableNextColumn();
         DrawMatrix(world);
 
+        // 🔴 Device.Instance() 是 [StaticAddress(…, isPointer: true)]，合法可為 null。
+        //    拿不到裝置時顯示 "?" 而不是 0 —— 0 會被誤讀成「視窗尺寸真的是 0」。
         var device = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Device.Instance();
         ImGui.TableNextRow();
         ImGui.TableNextColumn();
         ImGui.TextUnformatted("Viewport size");
         ImGui.TableNextColumn();
-        ImGui.TextUnformatted($"{device->Width:f6} {device->Height:f6}");
+        ImGui.TextUnformatted(device != null ? $"{device->Width:f6} {device->Height:f6}" : "? ?");
     }
 
     private void DrawMatrix(SharpDX.Matrix mtx)
@@ -357,7 +363,7 @@ sealed class DebugGraphics
 
     public void DrawOverlay()
     {
-        if (Camera.Instance == null || Service.ClientState.LocalPlayer == null)
+        if (Camera.Instance == null || Service.ObjectTable.LocalPlayer == null)
             return;
 
         ImGui.Checkbox("Circle", ref _overlayCircle);
@@ -373,7 +379,7 @@ sealed class DebugGraphics
 
         var mx = (int)(_overlayMaxOffset.X / _overlayStep.X);
         var mz = (int)(_overlayMaxOffset.Y / _overlayStep.Y);
-        var y = Service.ClientState.LocalPlayer.Position.Y;
+        var y = Service.ObjectTable.LocalPlayer.Position.Y;
 
         var rotationMatrix = Matrix3x2.CreateRotation(-_overlayRotation.Rad);
         Vector2 TransformPoint(Vector2 point) => Vector2.Transform(point - _overlayCenter, rotationMatrix) + _overlayCenter;
@@ -412,7 +418,7 @@ sealed class DebugGraphics
 
     public static unsafe FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object* FindSceneRoot()
     {
-        var player = Utils.GameObjectInternal(Service.ClientState.LocalPlayer);
+        var player = Utils.GameObjectInternal(Service.ObjectTable.LocalPlayer);
         if (player == null || player->DrawObject == null)
             return null;
 

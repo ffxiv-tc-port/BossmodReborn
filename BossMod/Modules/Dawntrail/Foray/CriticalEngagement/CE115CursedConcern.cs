@@ -354,7 +354,7 @@ sealed class WhatreYouBuying(BossModule module) : Components.GenericAOEs(module)
         {
             var delta = data.required - data.current;
             if (delta <= 0)
-                hints.Add("Deliver the coins!", false);
+                hints.Add(Loc.T("Deliver the coins!"), false);
             else
             {
                 hints.Add($"Fetch {delta} more coin{(delta == 1 ? "" : "s")}!");

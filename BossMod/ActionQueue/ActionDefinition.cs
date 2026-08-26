@@ -152,6 +152,55 @@ public sealed class ActionDefinitions : IDisposable
 {
     private static readonly ActionTweaksConfig _config = Service.Config.Get<ActionTweaksConfig>();
 
+    /// <summary>
+    /// 位移技的落點算法分類。
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ <c>None</c> 一定要留在 0 —— 沒有零值的列舉會讓 <c>default</c> 落在某個看起來合法的成員上。
+    /// </remarks>
+    public enum DashGeometry
+    {
+        None,
+        ToTargetHitbox,  // 衝向目標：落點＝目標 hitbox 邊緣（近戰突進大宗）
+        ToGroundTarget,  // 落點＝地面指定座標（縮地／魔紋步／回歸這一類）
+        FixedFromFacing, // 面向 ±N 碼；Distance 帶正負號，負值＝往後（前衝步／迴避跳躍）
+        AwayFromTarget,  // 從目標指向玩家的方向 N 碼（夜天／移轉／後躍射擊這類「以目標為基準的後跳」）
+    }
+
+    public readonly record struct DashGeometryInfo(DashGeometry Geometry, float Distance);
+
+    /// <summary>
+    /// 「哪些 <see cref="ActionDefinition.ForbidExecute"/> 判定式其實是位移落點檢查」以及它們各自的落點算法。
+    /// </summary>
+    /// <remarks>
+    /// 🔑 <c>ForbidExecute</c> 是通用的「這一發別打」條件（早開飛燕之計、學者搶跑、三連咒已在身上……），
+    /// 只有這四條是講落點安全的。想在 <c>UseAction</c> 那一關攔外部來源時，只能認這四條 —— 拿整個
+    /// <c>ForbidExecute</c> 去攔會把一堆純循環判斷也一併擋掉。
+    /// <para>
+    /// 🔴 這個欄位的初始式**必須排在 <see cref="Instance"/> 之前**：靜態欄位初始式照原始碼順序執行，
+    /// 而 <c>Instance = new()</c> 的建構式會走進各職業的 <c>Definitions</c>，那裡就會呼叫
+    /// <see cref="DashFixedDistanceCheck"/>／<see cref="BackdashCheck"/> 往這張表寫入。搬到後面＝載入時 NRE。
+    /// </para>
+    /// <para>
+    /// 📌 寫入全部發生在 <c>ActionDefinitions</c> 建構期間（早於任何 hook 安裝），之後只有讀取，
+    /// 所以這裡用普通 <c>Dictionary</c> 不加鎖。
+    /// </para>
+    /// </remarks>
+    private static readonly Dictionary<ActionDefinition.ConditionDelegate, DashGeometryInfo> _dashGeometry = new()
+    {
+        [DashToTargetCheck] = new(DashGeometry.ToTargetHitbox, 0f),
+        [DashToPositionCheck] = new(DashGeometry.ToGroundTarget, 0f),
+    };
+
+    /// <summary>這個 <c>ForbidExecute</c> 判定式是不是位移落點檢查；是的話一併給出落點算法與距離。</summary>
+    public static bool TryGetDashGeometry(ActionDefinition.ConditionDelegate? check, out DashGeometryInfo info)
+    {
+        if (check != null)
+            return _dashGeometry.TryGetValue(check, out info);
+        info = default;
+        return false;
+    }
+
     private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.Sheets.Action> _actionsSheet = Service.LuminaSheet<Lumina.Excel.Sheets.Action>()!;
     private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.Sheets.Item> _itemsSheet = Service.LuminaSheet<Lumina.Excel.Sheets.Item>()!;
     private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.RawRow> _cjcSheet = Service.LuminaGameData!.Excel.GetSheet<Lumina.Excel.RawRow>(null, "ClassJobCategory")!;
@@ -316,7 +365,8 @@ public sealed class ActionDefinitions : IDisposable
     }
 
     public static ActionDefinition.ConditionDelegate DashFixedDistanceCheck(float range, bool backwards = false)
-        => (ws, player, act, hints) =>
+    {
+        ActionDefinition.ConditionDelegate check = (ws, player, act, hints) =>
         {
             if (!_config.DashSafety || !_config.DashSafetyExtra)
                 return false;
@@ -330,9 +380,14 @@ public sealed class ActionDefinitions : IDisposable
 
             return IsDashDangerous(player.Position, dest, hints);
         };
+        // 落點算法登記在同一個地方，讓 UseAction 那一關的外部攔截能沿用同一組距離，不必另建一張表
+        _dashGeometry[check] = new(DashGeometry.FixedFromFacing, backwards ? -range : range);
+        return check;
+    }
 
     public static ActionDefinition.ConditionDelegate BackdashCheck(float range)
-         => (ws, player, act, hints) =>
+    {
+        ActionDefinition.ConditionDelegate check = (ws, player, act, hints) =>
         {
             if (act.Target == null || !_config.DashSafety || !_config.DashSafetyExtra)
                 return false;
@@ -344,6 +399,9 @@ public sealed class ActionDefinitions : IDisposable
 
             return IsDashDangerous(player.Position, player.Position + dir * range, hints);
         };
+        _dashGeometry[check] = new(DashGeometry.AwayFromTarget, range);
+        return check;
+    }
 
     // check if dashing to target will put the player inside a forbidden zone
     public static bool IsDashDangerous(WPos from, WPos to, AIHints hints)

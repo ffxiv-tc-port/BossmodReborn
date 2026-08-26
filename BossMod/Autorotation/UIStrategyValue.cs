@@ -1,5 +1,6 @@
-﻿using Dalamud.Interface.Utility.Raii;
-using Dalamud.Bindings.ImGui;
+﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility;
+using Dalamud.Interface.Utility.Raii;
 
 namespace BossMod.Autorotation;
 
@@ -14,18 +15,24 @@ public static class UIStrategyValue
         ("Very High", ActionQueue.Priority.VeryHigh),
     ];
 
-    public static List<string> Preview(ref StrategyValue value, StrategyConfig cfg, BossModuleRegistry.Info? moduleInfo)
+    public static List<string> Preview(StrategyValue value, StrategyConfigTrack cfg, BossModuleRegistry.Info? moduleInfo)
     {
-        var opt = cfg.Options[value.Option];
-        return [
-            $"Option: {opt.UIName}",
-            $"Comment: {value.Comment}",
-            $"Priority: {(float.IsNaN(value.PriorityOverride) ? $"default ({opt.DefaultPriority:f})" : value.PriorityOverride.ToString("f"))}",
-            $"Target: {PreviewTarget(ref value, moduleInfo)}"
-        ];
+        switch (value)
+        {
+            case StrategyValueTrack t:
+                var opt = cfg.Options[t.Option];
+                return [
+                    $"Option: {opt.UIName}",
+                    $"Comment: {value.Comment}",
+                    $"Priority: {(float.IsNaN(t.PriorityOverride) ? $"default ({opt.DefaultPriority:f})" : t.PriorityOverride.ToString("f"))}",
+                    $"Target: {PreviewTarget(t, moduleInfo)}"
+                ];
+            default:
+                return [];
+        }
     }
 
-    public static string PreviewTarget(ref StrategyValue value, BossModuleRegistry.Info? moduleInfo)
+    public static string PreviewTarget(StrategyValueTrack value, BossModuleRegistry.Info? moduleInfo)
     {
         var targetDetails = value.Target switch
         {
@@ -40,20 +47,23 @@ public static class UIStrategyValue
         return (targetDetails.Length > 0 ? $"{value.Target} ({targetDetails})" : $"{value.Target}") + offsetDetails;
     }
 
-    public static bool DrawEditor(ref StrategyValue value, StrategyConfig cfg, BossModuleRegistry.Info? moduleInfo, int? level)
+    public static bool DrawEditor(StrategyValue value, StrategyConfigTrack cfg, BossModuleRegistry.Info? moduleInfo, int? level)
     {
         var modified = false;
-        modified |= DrawEditorOption(ref value, cfg, level);
-        modified |= ImGui.InputText("Comment", ref value.Comment, 512);
-        modified |= DrawEditorPriority(ref value);
-        modified |= DrawEditorTarget(ref value, cfg.Options[value.Option].SupportedTargets, moduleInfo);
+        if (value is StrategyValueTrack tr)
+        {
+            modified |= DrawEditorTrackOption(tr, cfg, level);
+            modified |= ImGui.InputText(Loc.T("Comment"), ref value.Comment, 512);
+            modified |= DrawEditorPriority(tr);
+            modified |= DrawEditorTarget(tr, cfg.Options[tr.Option].SupportedTargets, moduleInfo);
+        }
         return modified;
     }
 
-    public static bool DrawEditorOption(ref StrategyValue value, StrategyConfig cfg, int? level, string label = "Option")
+    public static bool DrawEditorTrackOption(StrategyValueTrack value, StrategyConfigTrack cfg, int? level, string label = "Option")
     {
         var modified = false;
-        using (var combo = ImRaii.Combo(label, cfg.Options[value.Option].UIName))
+        using (var combo = ImRaii.Combo(Loc.T(label), cfg.Options[value.Option].UIName))
         {
             if (combo)
             {
@@ -74,7 +84,7 @@ public static class UIStrategyValue
         return modified;
     }
 
-    public static bool DrawEditorPriority(ref StrategyValue value)
+    public static bool DrawEditorPriority(StrategyValueTrack value)
     {
         var modified = false;
         var overridePriority = !float.IsNaN(value.PriorityOverride);
@@ -84,7 +94,7 @@ public static class UIStrategyValue
             value.PriorityOverride = overridePriority ? ActionQueue.Priority.Low : float.NaN;
         }
         ImGui.SameLine();
-        UIMisc.HelpMarker("""
+        UIMisc.HelpMarker(Loc.T("STRAT_PriorityHelp", """
             Define custom priority for the corresponding action.
             Priority is compared against other candidate actions; it is suggested to use a predefined base and add a small offset to disambiguate multiple actions.
             Base priorities are the following:
@@ -93,7 +103,7 @@ public static class UIStrategyValue
             * Medium (3000) - action will be used in next possible ogcd slot, but it won't delay gcd or any extremely important ogcds; you can expect to have at least 1 slot for medium actions per gcd.
             * High (4000) - action will be used in the next possible ogcd slot; it won't delay gcd, but might break the rotation in some cases if not used carefully.
             * Very High (5000) - action will be used asap; will delay gcd if needed.
-            """);
+            """));
 
         if (overridePriority)
         {
@@ -109,13 +119,13 @@ public static class UIStrategyValue
 
             using var indent = ImRaii.PushIndent();
             ImGui.SetNextItemWidth(100);
-            using (var combo = ImRaii.Combo("###baseline", PriorityBaselines[baselineIndex].Name))
+            using (var combo = ImRaii.Combo("###baseline", Loc.T(PriorityBaselines[baselineIndex].Name)))
             {
                 if (combo)
                 {
                     for (var i = 0; i < PriorityBaselines.Length; ++i)
                     {
-                        if (ImGui.Selectable(PriorityBaselines[i].Name, i == baselineIndex))
+                        if (ImGui.Selectable(Loc.T(PriorityBaselines[i].Name), i == baselineIndex))
                         {
                             modified = true;
                             value.PriorityOverride = PriorityBaselines[i].Value + priorityDelta;
@@ -136,10 +146,10 @@ public static class UIStrategyValue
         return modified;
     }
 
-    public static bool DrawEditorTarget(ref StrategyValue value, ActionTargets supportedTargets, BossModuleRegistry.Info? moduleInfo)
+    public static bool DrawEditorTarget(StrategyValueTrack value, ActionTargets supportedTargets, BossModuleRegistry.Info? moduleInfo)
     {
         var modified = false;
-        using (var combo = ImRaii.Combo("Target", value.Target.ToString()))
+        using (var combo = ImRaii.Combo(Loc.T("Target"), value.Target.ToString()))
         {
             if (combo)
             {
@@ -159,25 +169,25 @@ public static class UIStrategyValue
         switch (value.Target)
         {
             case StrategyTarget.PartyByAssignment:
-                modified |= DrawEditorTargetParamCombo<PartyRolesConfig.Assignment>(ref value.TargetParam, "Assignment");
+                modified |= DrawEditorTargetParamCombo<PartyRolesConfig.Assignment>(ref value.TargetParam, Loc.T("Assignment"));
                 break;
             case StrategyTarget.PartyWithLowestHP:
                 if (supportedTargets.HasFlag(ActionTargets.Self))
-                    modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.IncludeSelf, "Allow self", false);
-                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeTanks, "Allow tanks", true);
-                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeHealers, "Allow healers", true);
-                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeMelee, "Allow melee", true);
-                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeRanged, "Allow ranged", true);
-                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeNoPredictedDamage, "Only if more damage is expected", false);
+                    modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.IncludeSelf, Loc.T("Allow self"), false);
+                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeTanks, Loc.T("Allow tanks"), true);
+                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeHealers, Loc.T("Allow healers"), true);
+                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeMelee, Loc.T("Allow melee"), true);
+                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeRanged, Loc.T("Allow ranged"), true);
+                modified |= DrawEditorTargetParamFlags(ref value.TargetParam, StrategyPartyFiltering.ExcludeNoPredictedDamage, Loc.T("Only if more damage is expected"), false);
                 break;
             case StrategyTarget.EnemyWithHighestPriority:
-                modified |= DrawEditorTargetParamCombo<StrategyEnemySelection>(ref value.TargetParam, "Criterion");
+                modified |= DrawEditorTargetParamCombo<StrategyEnemySelection>(ref value.TargetParam, Loc.T("Criterion"));
                 break;
             case StrategyTarget.EnemyByOID:
                 if (moduleInfo?.ObjectIDType != null)
                 {
                     var v = (Enum)Enum.ToObject(moduleInfo.ObjectIDType, (uint)value.TargetParam);
-                    if (UICombo.Enum("OID", ref v))
+                    if (UICombo.Enum(Loc.T("OID"), ref v))
                     {
                         value.TargetParam = (int)(uint)(object)v;
                         modified = true;
@@ -186,7 +196,7 @@ public static class UIStrategyValue
                 break;
             case StrategyTarget.PointWaymark:
                 var wm = (Waymark)value.TargetParam;
-                if (UICombo.Enum("Waymark", ref wm))
+                if (UICombo.Enum(Loc.T("Waymark"), ref wm))
                 {
                     value.TargetParam = (int)wm;
                     modified = true;
@@ -198,15 +208,15 @@ public static class UIStrategyValue
         {
             if (value.Target == StrategyTarget.PointAbsolute)
             {
-                modified |= ImGui.InputFloat("X", ref value.Offset1);
-                modified |= ImGui.InputFloat("Z", ref value.Offset2);
+                modified |= ImGui.InputFloat(Loc.T("X"), ref value.Offset1);
+                modified |= ImGui.InputFloat(Loc.T("Z"), ref value.Offset2);
             }
             else
             {
-                modified |= ImGui.DragFloat("Offset", ref value.Offset1, 0.1f, 0, 30);
-                modified |= ImGui.DragFloat("Direction", ref value.Offset2, 1, -180, 180);
+                modified |= ImGui.DragFloat(Loc.T("Offset"), ref value.Offset1, 0.1f, 0, 30);
+                modified |= ImGui.DragFloat(Loc.T("Direction"), ref value.Offset2, 1, -180, 180);
                 if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip($"In degrees; 0 is south, increases CCW (so 90 is E, 180 is N, -90 is W)");
+                    ImGui.SetTooltip(Loc.T("STRAT_OffsetDirectionHelp", "In degrees; 0 is south, increases CCW (so 90 is E, 180 is N, -90 is W)"));
             }
         }
 
@@ -251,5 +261,115 @@ public static class UIStrategyValue
             return false;
         current ^= (int)flag;
         return true;
+    }
+}
+
+[AttributeUsage(AttributeTargets.Enum)]
+public sealed class RendererAttribute(Type type) : Attribute
+{
+    public Type Type => type;
+}
+
+public class RendererFactory
+{
+    private static RendererFactory? _instance;
+    private readonly Dictionary<Type, IStrategyRenderer> _dict = [];
+
+    public static bool Draw(StrategyConfig config, ref StrategyValue value)
+    {
+        var inst = (_instance ??= new()).Get(config.Renderer);
+
+        ImGui.TableNextRow();
+        using var _ = ImRaii.PushId(config.InternalName);
+        ImGui.TableNextColumn();
+        ImGui.AlignTextToFramePadding();
+        inst.DrawLabel(config);
+        ImGui.TableNextColumn();
+        return inst.DrawValue(config, ref value);
+    }
+
+    private IStrategyRenderer Get(Type t) => _dict.TryGetValue(t, out var r) ? r : (_dict[t] = (IStrategyRenderer)Activator.CreateInstance(t)!);
+}
+
+public interface IStrategyRenderer
+{
+    public void DrawLabel(StrategyConfig config);
+    public bool DrawValue(StrategyConfig config, ref StrategyValue value);
+}
+
+public class TrackRenderer : IStrategyRenderer
+{
+    public virtual void DrawLabel(StrategyConfig config) => ImGui.TextWrapped(config.UIName);
+    public bool DrawValue(StrategyConfig config, ref StrategyValue value)
+    {
+        var v = (StrategyValueTrack)value;
+        if (DrawValue((StrategyConfigTrack)config, ref v))
+        {
+            value = v;
+            return true;
+        }
+        return false;
+    }
+
+    // 🔴 選項顯示文字必須經過 UIName(即 Loc.T)——這裡曾直接讀 DisplayName 繞過在地化,
+    // 造成軌道標籤(DrawLabel 用 config.UIName)已是中文、下拉選項卻仍是英文原文。
+    public virtual bool DrawValue(StrategyConfigTrack config, ref StrategyValueTrack value) => UICombo.EnumIndex("", config.OptionEnum, ref value.Option, ix => config.Options[ix].DisplayName.Length > 0 ? config.Options[ix].UIName : UICombo.EnumString((Enum)config.OptionEnum.GetEnumValues().GetValue(ix)!));
+}
+
+public class FloatRenderer : IStrategyRenderer
+{
+    public void DrawLabel(StrategyConfig config) => ImGui.TextWrapped(config.UIName);
+    public bool DrawValue(StrategyConfig config, ref StrategyValue value)
+    {
+        var cfg = (StrategyConfigFloat)config;
+        var f = ((StrategyValueFloat)value).Value;
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        if (cfg.Drag)
+        {
+            if (ImGui.DragFloat("", ref f, cfg.Speed, cfg.MinValue, cfg.MaxValue))
+            {
+                value = new StrategyValueFloat() { Value = f };
+                return true;
+            }
+        }
+        else
+        {
+            if (ImGui.InputFloat("", ref f, cfg.Speed))
+            {
+                value = new StrategyValueFloat() { Value = f };
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+public class IntRenderer : IStrategyRenderer
+{
+    public void DrawLabel(StrategyConfig config) => ImGui.TextWrapped(config.UIName);
+    public bool DrawValue(StrategyConfig config, ref StrategyValue value)
+    {
+        var cfg = (StrategyConfigInt)config;
+        var f = ((StrategyValueInt)value).Value;
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        if (cfg.Drag)
+        {
+            if (ImGui.DragLong("", ref f, cfg.Speed, cfg.MinValue, cfg.MaxValue))
+            {
+                value = new StrategyValueInt() { Value = f };
+                return true;
+            }
+        }
+        else
+        {
+            if (ImGui.InputLong("", ref f, (long)cfg.Speed))
+            {
+                value = new StrategyValueInt() { Value = f };
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -44,16 +44,16 @@ class FlamesOfEventide(BossModule module) : Components.GenericBaitAway(module, (
         if (Module.PrimaryActor.TargetID == actor.InstanceID)
         {
             if (_playerStacks[slot] >= 2)
-                hints.Add("Pass aggro!");
+                hints.Add(Loc.T("Pass aggro!"));
             if (Raid.WithoutSlot(false, true, true).Exclude(actor).InShape(_shape, Module.PrimaryActor.Position, Angle.FromDirection(actor.Position - Module.PrimaryActor.Position)).Count != 0)
-                hints.Add("GTFO from raid!");
+                hints.Add(Loc.T("GTFO from raid!"));
         }
         else if (CurrentBaits.Count > 0)
         {
             if (IsClippedBy(actor, CurrentBaits[0]))
-                hints.Add("GTFO from tank!");
+                hints.Add(Loc.T("GTFO from tank!"));
             if (_playerStacks[slot] < 2 && actor.Role == Role.Tank && Raid.FindSlot(Module.PrimaryActor.TargetID) is var tankSlot && tankSlot >= 0 && _playerStacks[tankSlot] >= 2)
-                hints.Add("Taunt!");
+                hints.Add(Loc.T("Taunt!"));
         }
     }
 

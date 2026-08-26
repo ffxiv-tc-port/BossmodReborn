@@ -22,6 +22,7 @@ public abstract class AIBase(RotationModuleManager manager, Actor player) : Rota
             .Select(player => (player.Item2, d.Activation)));
 }
 
+[Renderer(typeof(DefaultOnRenderer))]
 public enum AbilityUse
 {
     Enabled,

@@ -38,7 +38,7 @@ sealed class TwofoldTempestTetherAOE(BossModule module) : Components.InterceptTe
         }
         if (Tethers[0].Player == actor && vulnerability[slot])
         {
-            hints.Add("Pass tether!");
+            hints.Add(Loc.T("Pass tether!"));
         }
     }
 
@@ -201,7 +201,7 @@ sealed class TwofoldTempestRect(BossModule module) : Components.GenericBaitStack
                 }
                 else if (vulnerability[slot])
                 {
-                    hints.Add("Avoid bait!");
+                    hints.Add(Loc.T("Avoid bait!"));
                     return;
                 }
                 playerPlatform = i;
@@ -225,7 +225,7 @@ sealed class TwofoldTempestRect(BossModule module) : Components.GenericBaitStack
             {
                 if (++countP == 2)
                 {
-                    hints.Add("More than 2 players on your platform!");
+                    hints.Add(Loc.T("More than 2 players on your platform!"));
                 }
             }
         }

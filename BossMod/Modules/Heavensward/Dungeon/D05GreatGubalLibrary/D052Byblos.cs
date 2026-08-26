@@ -98,7 +98,7 @@ class Bibliocide(BossModule module) : Components.BaitAwayTethers(module, 0f, (ui
         if (!targetFound)
             return;
 
-        hints.Add("Pull the orb to the boss!");
+        hints.Add(Loc.T("Pull the orb to the boss!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

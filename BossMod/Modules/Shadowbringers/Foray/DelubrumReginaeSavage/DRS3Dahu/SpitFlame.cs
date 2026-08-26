@@ -18,7 +18,7 @@ sealed class SpitFlame(BossModule module) : Components.UniformStackSpread(module
         {
             hints.Add($"Order: {order + 1}", false);
             if (!_adds.Any(add => add.Position.InCircle(actor.Position, SpreadRadius)))
-                hints.Add("Hit at least one add!");
+                hints.Add(Loc.T("Hit at least one add!"));
         }
     }
 

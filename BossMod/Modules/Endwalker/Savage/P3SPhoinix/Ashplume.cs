@@ -41,18 +41,18 @@ class Ashplume : BossComponent
             }
             if (numStacked != 3)
             {
-                hints.Add("Stack in fours!");
+                hints.Add(Loc.T("Stack in fours!"));
             }
             else if (haveTanks && haveHealers)
             {
-                hints.Add("Incorrect stack!");
+                hints.Add(Loc.T("Incorrect stack!"));
             }
         }
         else if (CurState == State.Spread)
         {
             if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _spreadRadius).Any())
             {
-                hints.Add("Spread!");
+                hints.Add(Loc.T("Spread!"));
             }
         }
     }
@@ -60,9 +60,9 @@ class Ashplume : BossComponent
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (CurState == State.Stack)
-            hints.Add("Stack!");
+            hints.Add(Loc.T("Stack!"));
         else if (CurState == State.Spread)
-            hints.Add("Spread!");
+            hints.Add(Loc.T("Spread!"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

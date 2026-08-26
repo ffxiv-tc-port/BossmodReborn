@@ -27,13 +27,13 @@ class MeteorImpactCharge(BossModule module) : Components.GenericAOEs(module)
         if (SourceIfActive(slot) != null)
         {
             if (!_playerStates[slot].NonClipping)
-                hints.Add("Avoid other meteors!");
+                hints.Add(Loc.T("Avoid other meteors!"));
             if (!_playerStates[slot].Stretched)
-                hints.Add("Stretch the tether!");
+                hints.Add(Loc.T("Stretch the tether!"));
         }
 
         if (IsClippedByOthers(actor))
-            hints.Add("GTFO from charges!");
+            hints.Add(Loc.T("GTFO from charges!"));
     }
 
     public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => Utils.ZeroOrOne(ref _aoe);

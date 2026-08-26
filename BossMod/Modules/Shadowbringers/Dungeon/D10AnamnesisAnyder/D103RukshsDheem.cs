@@ -258,7 +258,7 @@ class Drains(BossModule module) : Components.GenericAOEs(module)
                 break;
             }
         }
-        hints.Add("Block a drain!", isBlocking);
+        hints.Add(Loc.T("Block a drain!"), isBlocking);
     }
 }
 

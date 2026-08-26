@@ -50,16 +50,28 @@ public sealed unsafe class DebugCollision() : IDisposable
 
     public void Draw()
     {
-        var module = Framework.Instance()->BGCollisionModule;
-        ImGui.TextUnformatted($"Module: {(nint)module:X}->{(nint)module->SceneManager:X} ({module->SceneManager->NumScenes} scenes, {module->LoadInProgressCounter} loads)");
-        ImGui.TextUnformatted($"Streaming: {SphereStr(module->ForcedStreamingSphere)} / {SphereStr(module->SceneManager->StreamingSphere)}");
+        // 🔴 Framework.Instance() 是 [StaticAddress(…, isPointer: true)]，回傳全域指標槽的**內容**，合法可為 null；
+        //    BGCollisionModule 與其 SceneManager 也都是普通的指標欄位，場景還沒載入時同樣可能是 null。
+        //    原本三者都是裸鏈解參考＝AccessViolationException（攔不到）。除錯視窗的中性行為＝顯示不可用。
+        var fwk = Framework.Instance();
+        var module = fwk != null ? fwk->BGCollisionModule : null;
+        var sceneManager = module != null ? module->SceneManager : null;
+        if (sceneManager == null)
+        {
+            ImGui.TextUnformatted($"Module: {(nint)module:X} —— 碰撞模組／場景管理器不可用");
+            DrawSettings();
+            return;
+        }
+
+        ImGui.TextUnformatted($"Module: {(nint)module:X}->{(nint)sceneManager:X} ({sceneManager->NumScenes} scenes, {module->LoadInProgressCounter} loads)");
+        ImGui.TextUnformatted($"Streaming: {SphereStr(module->ForcedStreamingSphere)} / {SphereStr(sceneManager->StreamingSphere)}");
         module->ForcedStreamingSphere.W = _maxDrawDistance;
 
         GatherInfo();
         DrawSettings();
 
         var i = 0;
-        foreach (var s in module->SceneManager->Scenes)
+        foreach (var s in sceneManager->Scenes)
         {
             DrawSceneColliders(s->Scene, i);
             DrawSceneQuadtree(s->Scene->Quadtree, i);
@@ -77,7 +89,16 @@ public sealed unsafe class DebugCollision() : IDisposable
         _streamedMeshes.Clear();
         _availableLayers.Reset();
         _availableMaterials.Reset();
-        foreach (var s in Framework.Instance()->BGCollisionModule->SceneManager->Scenes)
+        // 🔴 同 Draw()：整條 Framework->BGCollisionModule->SceneManager 都可能是 null。
+        //    這支只從 Draw() 被呼叫（呼叫點已經判過一次），但它自己再解析一次，所以自己也要判——
+        //    拿不到就維持上面剛清空的狀態，等同「這一刻沒有蒐集到任何圖層／材質」。
+        var fwk = Framework.Instance();
+        var module = fwk != null ? fwk->BGCollisionModule : null;
+        var sceneManager = module != null ? module->SceneManager : null;
+        if (sceneManager == null)
+            return;
+
+        foreach (var s in sceneManager->Scenes)
         {
             foreach (var coll in s->Scene->Colliders)
             {
@@ -406,7 +427,7 @@ public sealed unsafe class DebugCollision() : IDisposable
                 vertices.Add((transformedVertex, i, i < node->NumVertsRaw ? 'r' : 'c'));
             }
 
-            var playerPos = Service.ClientState.LocalPlayer!.Position;
+            var playerPos = Service.ObjectTable.LocalPlayer!.Position;
             // Sort vertices by distance to player position, ignore height
 
             vertices.Sort((a, b) =>

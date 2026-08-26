@@ -14,23 +14,23 @@ class Synergy(BossModule module) : BossComponent(module)
         if (!_chelic)
         {
             if (_targets.Any(t => actor != t && _shapeNormal.Check(actor.Position, t)))
-                hints.Add("GTFO from tanks!");
+                hints.Add(Loc.T("GTFO from tanks!"));
 
             if (Module.PrimaryActor.TargetID == _targets[0]?.InstanceID)
             {
                 if (actor == _targets[0])
-                    hints.Add("Shirk!");
+                    hints.Add(Loc.T("Shirk!"));
                 else if (actor.Role == Role.Tank)
-                    hints.Add("Taunt!");
+                    hints.Add(Loc.T("Taunt!"));
             }
         }
         else if (_targets[0] == actor)
         {
-            hints.Add("Stack with other tanks or press invuln!", false);
+            hints.Add(Loc.T("Stack with other tanks or press invuln!"), false);
         }
         else
         {
-            hints.Add("GTFO from tank!", _shapeChelic.Check(actor.Position, Module.PrimaryActor.Position, Angle.FromDirection(_targets[0]!.Position - Module.PrimaryActor.Position)));
+            hints.Add(Loc.T("GTFO from tank!"), _shapeChelic.Check(actor.Position, Module.PrimaryActor.Position, Angle.FromDirection(_targets[0]!.Position - Module.PrimaryActor.Position)));
         }
     }
 

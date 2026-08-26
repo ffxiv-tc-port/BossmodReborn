@@ -14,6 +14,16 @@ public sealed class ActionTweaksConfig : ConfigNode
     [PropertyDisplay("Remove extra framerate-induced cooldown delay", tooltip: "Dynamically adjusts cooldown and animation locks to ensure queued actions resolve immediately regardless of framerate limitations")]
     public bool RemoveCooldownDelay = false;
 
+    [PropertyDisplay("Shorten long cast times (read tooltip!)", tooltip: "The server resolves a cast about 0.5s before the client's cast bar completes (that is what makes slidecasting possible), so the tail of the bar is pure local idle time. This reclaims part of it by shortening the client's cast timer, letting the next action be requested earlier.\n\nOnly applies when the cast time is longer than the recast time, so it never affects a normal GCD rotation - in practice only BLM Fire IV / Blizzard IV, Teleport/Return, raises and limit breaks. Nothing is sent to the server earlier and no packet is modified.\n\nDefault off; the reduction is hard-capped below the slidecast window.")]
+    public bool ReduceLongCastTime = false;
+
+    [PropertyDisplay("Long cast time reduction (ms)", tooltip: "How much to shorten the client's cast timer by, in milliseconds. Capped at 400ms so that it always stays below the ~500ms slidecast window.")]
+    [PropertySlider(50, CastTimeReductionTweak.MaxReductionMS, Speed = 1)]
+    public int LongCastTimeReductionMS = CastTimeReductionTweak.MaxReductionMS;
+
+    [PropertyDisplay("Show slidecast marker on own cast bar", tooltip: "Highlights the tail of your own cast bar, from the point where moving no longer interrupts the cast up to the end of the bar. It turns green the instant the server's action effect for that cast arrives, which is the real moment you are free to move.\n\nDisplay only - the game's cast bar is never modified, and enemy cast bars are never touched. If 'Shorten long cast times' is enabled the band shrinks accordingly, since that setting reclaims part of the same window.")]
+    public bool ShowSlidecastMarker = false;
+
     [PropertyDisplay("Prevent movement while casting")]
     public bool PreventMovingWhileCasting = false;
 
@@ -33,6 +43,15 @@ public sealed class ActionTweaksConfig : ConfigNode
 
     [PropertyDisplay("Key to hold to allow movement while casting", tooltip: "Requires the above setting checked as well")]
     public ModifierKey MoveEscapeHatch = ModifierKey.None;
+
+    // 📌 預設 false 是刻意的:這是新行為(以前引導技完全不在封鎖範圍內),既有使用者不該被它改到。
+    //    BMR 的 ConfigNode.Deserialize 只遍歷存檔 JSON 裡「已存在」的鍵,新欄位在既有存檔裡不存在,
+    //    所以會保留這裡的初始值 —— 也就是既有使用者拿到的就是 false。
+    // 🔴 這條是「Prevent movement while casting」的子旗標:總開關關著時它不論真假都不生效
+    //    (見 ActionManagerEx 算 blockMovement 那一行,兩者是 && 關係)。
+    [PropertyDisplay("Also prevent movement while channeling",
+        tooltip: "Extends the setting above to channeled abilities - the ones whose tooltip says the effect ends immediately if you move: Flamethrower, Improvisation, Passage of Arms, Collective Unconscious, Meditate, Chelonian Gate, Phantom Flurry and Apokalypsis.\n\nThese are instant abilities with no cast bar, so the normal cast protection never applied to them.\n\nMovement is only blocked when you yourself pressed one of those abilities AND the matching status is currently on you with yourself as its source - standing inside somebody else's Passage of Arms or Collective Unconscious will never block you. Your \"key to hold to allow movement\" still works as an escape hatch.")]
+    public bool PreventMovingWhileChanneling = false;
 
     [PropertyDisplay("Automatically cancel a cast when target is dead")]
     public bool CancelCastOnDeadTarget = false;
@@ -57,11 +76,34 @@ public sealed class ActionTweaksConfig : ConfigNode
     [PropertyDisplay("Use custom queueing for manually pressed actions", tooltip: "This setting allows better integration with autorotations and will prevent you from triple-weaving or drifting GCDs if you press a healing ability while autorotation is going on")]
     public bool UseManualQueue = false;
 
+    [PropertyDisplay("Use a custom action queue window", tooltip: "The game accepts an action into its native queue when at most 0.5s of cooldown remains. This lets you change that threshold.\n\nA larger window makes early presses stick instead of being dropped, at the cost of committing to an action further ahead of time; a smaller one does the opposite. This only changes how early the client accepts input - the action is still sent when the cooldown actually expires, so the server sees no difference.")]
+    public bool CustomActionQueueWindow = false;
+
+    [PropertyDisplay("Action queue window (seconds)", tooltip: "The game's built-in value is 0.5s.")]
+    [PropertySlider(ActionQueueWindowTweak.MinWindow, ActionQueueWindowTweak.MaxWindow, Speed = 0.01f)]
+    public float ActionQueueWindow = ActionQueueWindowTweak.GameWindow;
+
+    [PropertyDisplay("Derive the queue window from current framerate instead", tooltip: "Ignores the slider and widens the window as the framerate drops (20ms per 5fps below 90fps), to compensate for input being sampled less often. Note that \"Remove extra framerate-induced cooldown delay\" above addresses the same problem in a more precise way.")]
+    public bool ActionQueueWindowFromFramerate = false;
+
+    [PropertyDisplay("Allow actions used from macros to be queued", tooltip: "By default the game refuses to queue anything executed from a macro, so a macro pressed slightly too early is simply dropped. This makes such actions behave like a normal hotbar press instead: they get queued and fire as soon as they become available.\n\nAn already queued action is still not overwritten, and nothing is sent to the server any earlier.")]
+    public bool QueueMacroActions = false;
+
+    [PropertyDisplay("Ignore the \"target is not in line of sight\" restriction (read tooltip!)", tooltip: "The client refuses to send an action request when a raycast finds geometry between you and the target, which is the \"看不到目標。\" error. This makes that single check report success, so the request is sent anyway.\n\nOnly the line-of-sight verdict is changed - range and arc still reject exactly as before, and dashes that refuse to path through walls are not affected.\n\nThis only removes the client's own refusal. Whether the server repeats the check is not known; if it does, the action simply fails the way any rejected action does. Default off.")]
+    public bool IgnoreLineOfSight = false;
+
     [PropertyDisplay("Try to prevent dashing into AOEs", tooltip: "Prevent automatic use of targeted dashes (like WAR Onslaught) if they would move you into a dangerous area. May not work as expected in instances that do not have modules.\n\nThis option will also apply to manually pressed dashes if you have \"Use custom queueing for manually pressed actions\" enabled.")]
     public bool DashSafety = true;
 
     [PropertyDisplay("Apply the previous option to all dashes, not just gap closers", tooltip: "Includes backdashes (e.g. SAM Yaten), teleports (e.g. NIN Shukuchi), and fixed-length dashes (e.g. DRG Elusive Jump)")]
     public bool DashSafetyExtra = true;
+
+    [PropertyDisplay("Also block dashes requested by other plugins (read tooltip!)", tooltip: "The two options above only affect actions that go through BossMod's own action queue. Plugins that call the game's UseAction directly - WrathCombo's auto-rotation, for example - bypass that queue entirely, so a gap closer they fire can still throw you into an AOE.\n\nThis adds the same landing-spot check at the UseAction hook itself, which every source passes through. A dash judged dangerous is simply dropped for that frame; the rotation carries on and the action fires as soon as the path is clear.\n\nOnly active while BossMod's AI is enabled - the hook cannot tell who asked for the action, so with AI off you are assumed to be playing manually and nothing is blocked. Holding the movement escape hatch key also lets everything through. Dashes whose landing spot cannot be computed (ground-targeted teleports like NIN Shukuchi) are never blocked.")]
+    public bool DashSafetyBlockExternal = true;
+
+    [PropertyDisplay("Dash block: only count danger zones going off within this many seconds", tooltip: "A zone that will not go off for a long time is not a reason to refuse a dash - the AI would simply walk back out of it. Only zones that are already active, or that resolve within this many seconds, can block a dash.")]
+    [PropertySlider(0.1f, 10f, Speed = 0.1f)]
+    public float DashSafetyActivationThreshold = 1.5f;
 
     [PropertyDisplay("Automatically manage auto attacks", tooltip: "This setting prevents starting autos early during countdown, starts them automatically at pull, when switching targets and when using any actions that don't explicitly cancel autos.")]
     public bool AutoAutos = false;

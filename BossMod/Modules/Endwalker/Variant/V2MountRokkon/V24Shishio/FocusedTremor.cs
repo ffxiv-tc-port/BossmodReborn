@@ -75,7 +75,7 @@ sealed class FocusedTremorYokiUzu(BossModule module) : Components.GenericAOEs(mo
             }
             else if (!aoe.Check(actor.Position))
             {
-                hints.Add("Go into quicksand to avoid AOE!");
+                hints.Add(Loc.T("Go into quicksand to avoid AOE!"));
             }
         }
     }

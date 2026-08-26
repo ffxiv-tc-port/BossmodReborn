@@ -28,11 +28,11 @@ sealed class BlazingLariat(BossModule module) : Components.CastCounter(module, d
             if (_stack)
             {
                 var cond = clipped.CountByCondition(a => a.Class.IsSupport() == actor.Class.IsSupport());
-                hints.Add("Stack in pairs!", cond.match != 0 || cond.mismatch != 1);
+                hints.Add(Loc.T("Stack in pairs!"), cond.match != 0 || cond.mismatch != 1);
             }
             else
             {
-                hints.Add("Spread!", clipped.Count != 0);
+                hints.Add(Loc.T("Spread!"), clipped.Count != 0);
             }
         }
     }

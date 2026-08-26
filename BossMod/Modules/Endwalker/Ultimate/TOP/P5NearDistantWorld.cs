@@ -27,7 +27,7 @@ class P5NearDistantWorld(BossModule module) : Components.GenericStackSpread(modu
         base.AddHints(slot, actor, hints);
 
         if (_risky[slot])
-            hints.Add("Avoid baiting jump!");
+            hints.Add(Loc.T("Avoid baiting jump!"));
     }
 
     public override void OnStatusGain(Actor actor, ActorStatus status)

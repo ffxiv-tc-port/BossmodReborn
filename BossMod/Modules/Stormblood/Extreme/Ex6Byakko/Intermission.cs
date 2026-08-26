@@ -24,7 +24,7 @@ class VoiceOfThunder(BossModule module) : BossComponent(module)
         var orbs = GetOrbs(Module);
         var count = orbs.Count;
         if (count != 0)
-            hints.Add("Soak the orbs!");
+            hints.Add(Loc.T("Soak the orbs!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

@@ -393,5 +393,7 @@ public abstract unsafe class PacketDecoder
 public sealed class PacketDecoderGame : PacketDecoder
 {
     protected override string DecodeActor(ulong instanceID) => Utils.ObjectString(instanceID);
-    protected override NetworkState.IDScrambleFields GetScramble() => IDScramble.Get();
+    // IDScramble.Get() 現在會在讀不到網路模組時回 null（見該檔說明）。封包解碼這一路沒有「延後」可言，
+    // 拿不到就只能用 default（全 0＝不做 descramble），與這個型別在 NetworkState 裡本來的「未知」語意一致。
+    protected override NetworkState.IDScrambleFields GetScramble() => IDScramble.Get() ?? default;
 }

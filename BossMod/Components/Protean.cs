@@ -11,7 +11,7 @@ public abstract class GenericProtean(BossModule module, uint aid, AOEShape shape
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (ActiveAOEs().Any(st => st.target != actor && IsPlayerClipped(st.source, st.target, actor)))
-            hints.Add("GTFO from protean!");
+            hints.Add(Loc.T("GTFO from protean!"));
     }
 
     public override PlayerPriority CalcPriority(int pcSlot, Actor pc, int playerSlot, Actor player, ref uint customColor)

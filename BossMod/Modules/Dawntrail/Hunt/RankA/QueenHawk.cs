@@ -49,7 +49,7 @@ sealed class ResonantBuzzMarch(BossModule module) : Components.StatusDrivenForce
             return;
         var last = movements[count - 1];
         if (last.from != last.to && DestinationUnsafe(slot, actor, last.to))
-            hints.Add("Aim outside of the AOE!");
+            hints.Add(Loc.T("Aim outside of the AOE!"));
     }
 }
 

@@ -304,7 +304,11 @@ public abstract class QuestBattle : ZoneModule
         {
             _pathfind = Service.PluginInterface.GetIpcSubscriber<Vector3, Vector3, bool, Task<List<Vector3>>?>("vnavmesh.Nav.Pathfind");
             _meshIsReady = Service.PluginInterface.GetIpcSubscriber<bool>("vnavmesh.Nav.IsReady");
-            _abandonDuty = Marshal.GetDelegateForFunctionPointer<AbandonDuty>(Service.SigScanner.ScanText("E8 ?? ?? ?? ?? 41 B2 01 EB 39"));
+            // sig 失效時降級:_abandonDuty 維持 null(呼叫端已是 ?.Invoke),不讓整個外掛載入失敗
+            if (Service.SigScanner.TryScanText("E8 ?? ?? ?? ?? 41 B2 01 EB 39", out var abandonDutyAddr))
+                _abandonDuty = Marshal.GetDelegateForFunctionPointer<AbandonDuty>(abandonDutyAddr);
+            else
+                Service.Log("[QuestBattle] 特徵碼解析失敗:AbandonDuty,自動放棄任務功能停用");
         }
     }
 

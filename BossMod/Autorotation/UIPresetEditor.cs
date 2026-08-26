@@ -1,5 +1,6 @@
-﻿using Dalamud.Interface.Utility.Raii;
-using Dalamud.Bindings.ImGui;
+﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility;
+using Dalamud.Interface.Utility.Raii;
 
 namespace BossMod.Autorotation;
 
@@ -12,17 +13,31 @@ public sealed class UIPresetEditor
         public List<(Type type, RotationModuleDefinition def, Func<RotationModuleManager, Actor, RotationModule> builder)> Leafs = [];
     }
 
+    private readonly AutorotationConfig _autorotConfig = Service.Config.Get<AutorotationConfig>();
     private readonly PresetDatabase _db;
     private int _sourcePresetIndex;
     private bool _sourcePresetDefault;
     public readonly Preset Preset; // note: this is an edited copy, and as such it never has transient settings
-    public bool Modified { get; private set; }
-    public bool NameConflict { get; private set; }
+    public bool Modified;
+    public bool NameConflict;
     private int _selectedModuleIndex = -1;
-    private int _selectedSettingIndex = -1;
     private readonly List<int> _orderedTrackList = []; // for current module, by UI order
-    private readonly List<int> _settingGuids = []; // a hack to keep track of held item during drag-n-drop
     private readonly ModuleCategory _availableModules;
+    private bool _showHiddenTracks;
+    private bool _currentModuleHasHealerAI;
+
+    // 📌 新預設的預設名稱常數已移到 PresetDatabase.DefaultPresetName —— 載入時的空名自動改名與 UI 新增
+    //    預設要沿用同一個常數，不能各寫各的。
+    private const string DefaultPresetName = PresetDatabase.DefaultPresetName;
+
+    private static readonly Type THealerAI = typeof(xan.HealerAI);
+    private static readonly Type[] _misleadingHealerRotations = [
+        typeof(xan.WHM),
+        typeof(xan.AST),
+        typeof(xan.SCH),
+        typeof(xan.SGE),
+        typeof(akechi.AkechiSCH)
+    ];
 
     public Type? SelectedModuleType => Preset.Modules.BoundSafeAt(_selectedModuleIndex)?.Type;
 
@@ -34,10 +49,16 @@ public sealed class UIPresetEditor
         if (index >= 0)
         {
             Preset = (isDefaultPreset ? db.DefaultPresets : db.UserPresets)[index].MakeClone(false);
+            // 這個檢查加入之前就存進資料庫的空白名稱：載入當下就標成不可保存。
+            // 否則使用者只改模組、完全不碰名稱欄時 NameConflict 永遠是 false，空名會原封不動被寫回去。
+            // ⚠️ 這裡刻意只判空白、不跑完整的 CheckNameConflict —— 完整檢查會把「與內建預設同名的
+            // 既有使用者預設」也一併鎖死（內建預設清單是我們發版時加的，使用者沒做錯任何事），
+            // 那是回退既有行為。
+            NameConflict = string.IsNullOrWhiteSpace(Preset.Name);
         }
         else
         {
-            Preset = new("New");
+            Preset = new(DefaultPresetName);
             NameConflict = CheckNameConflict();
             MakeNameUnique();
             Modified = false; // don't bother...
@@ -54,13 +75,14 @@ public sealed class UIPresetEditor
         NameConflict = CheckNameConflict();
         Modified = true;
         _availableModules = BuildAvailableModules();
+        _currentModuleHasHealerAI = preset.Modules.Any(m => m.Type == THealerAI);
         SelectModule(FindModuleByType(initiallySelectedModuleType));
     }
 
     public void SelectModule(int index)
     {
         _selectedModuleIndex = index;
-        _selectedSettingIndex = -1;
+        _showHiddenTracks = false;
         _orderedTrackList.Clear();
         if (index >= 0)
         {
@@ -68,33 +90,30 @@ public sealed class UIPresetEditor
             _orderedTrackList.AddRange(Enumerable.Range(0, md.Configs.Count));
             _orderedTrackList.Sort((b, a) => md.Configs[a].UIPriority.CompareTo(md.Configs[b].UIPriority));
         }
-        RebuildSettingGuids();
     }
 
     public void Draw()
     {
         using (ImRaii.Disabled(_sourcePresetDefault))
         {
-            if (ImGui.InputText("Name", ref Preset.Name, 256))
+            // 📌 預設名稱輸入框對稱於計劃名稱輸入框的 TL_Name（CooldownPlannerColumns），
+            //    本編輯器其餘標籤也都在 PRESET_ 命名空間；共用的 "Name" 留給各視窗的表格欄標。
+            if (ImGui.InputText(Loc.T("PRESET_Name", "Name"), ref Preset.Name, 256))
             {
                 Modified = true;
                 NameConflict = CheckNameConflict();
             }
         }
 
-        using var table = ImRaii.Table("preset_details", 3);
+        using var table = ImRaii.Table("preset_details", 2);
         if (!table)
             return;
-        ImGui.TableSetupColumn("Modules");
-        ImGui.TableSetupColumn("Strategies");
-        ImGui.TableSetupColumn("Details");
-        ImGui.TableHeadersRow();
+        ImGui.TableSetupColumn(Loc.T("PRESET_ColModules", "Modules"), ImGuiTableColumnFlags.WidthFixed, 200 * ImGuiHelpers.GlobalScale);
+        ImGui.TableSetupColumn(Loc.T("PRESET_ColStrategies", "Strategies"));
         ImGui.TableNextColumn();
         DrawModulesList();
         ImGui.TableNextColumn();
         DrawSettingsList();
-        ImGui.TableNextColumn();
-        DrawDetails();
     }
 
     public void DetachFromSource()
@@ -107,6 +126,18 @@ public sealed class UIPresetEditor
     public void MakeNameUnique()
     {
         var baseName = Preset.Name;
+        if (string.IsNullOrWhiteSpace(baseName))
+        {
+            // 自動命名的路徑（複製／另存新檔）拿到空白基底名時，逐號湊唯一只會得到 " (1)" 這種
+            // 一樣不可辨識的名字；先換成與「新增」相同的預設名再往下湊。
+            // 🔴 另存新檔（SaveCurrentPresetAsCopy）不檢查 NameConflict，只靠這個函式收斂名稱，
+            //    所以這裡是那條路徑上唯一擋得住空名的地方。
+            baseName = DefaultPresetName;
+            Preset.Name = baseName;
+            Modified = true;
+            NameConflict = CheckNameConflict();
+        }
+
         var i = 1;
         while (NameConflict)
         {
@@ -124,8 +155,9 @@ public sealed class UIPresetEditor
                 DrawModuleAddPopup(_availableModules, ref post);
         post?.Invoke();
 
-        var width = new Vector2(ImGui.GetContentRegionAvail().X, 0);
-        using (var list = ImRaii.ListBox("###modules", width))
+        var size = ImGui.GetContentRegionAvail();
+        var width = new Vector2(size.X, 0);
+        using (var list = ImRaii.ListBox("###modules", new(size.X, size.Y - 100)))
         {
             if (list)
             {
@@ -163,12 +195,13 @@ public sealed class UIPresetEditor
         if (ImGui.Button(Loc.T("PRESET_Add", "Add") + "##module", width))
             ImGui.OpenPopup("add_module");
 
-        if (UIMisc.Button("Remove##module", width.X, (_selectedModuleIndex < 0, "Select any module to remove"), (!ImGui.GetIO().KeyShift, "Hold shift")))
+        if (UIMisc.Button(Loc.T("PRESET_Remove", "Remove") + "##module", width.X, (_selectedModuleIndex < 0, Loc.T("Select any module to remove")), (!ImGui.GetIO().KeyShift, Loc.T("Hold shift"))))
         {
             var m = Preset.Modules[_selectedModuleIndex];
             AddAvailableModule(m.Type, m.Definition, m.Builder, _availableModules);
             Preset.Modules.RemoveAt(_selectedModuleIndex);
             Modified = true;
+            _currentModuleHasHealerAI &= m.Type != THealerAI;
             SelectModule(-1);
         }
     }
@@ -177,7 +210,10 @@ public sealed class UIPresetEditor
     {
         foreach (var sub in cat.Subcategories)
         {
-            if (ImGui.BeginMenu(sub.Key))
+            // 🔴 key 前綴 MODCAT_ 是刻意的:分類樹片段(如 "Ranged"/"Tank")與其他地方的
+            // 軌道/選項顯示鍵共用同一個扁平字串空間,不加命名空間會撞名
+            // (例如 "Ranged" 已被 AkechiPLD 的填充技策略佔用,譯文是「遠程填充技」)。
+            if (ImGui.BeginMenu(Loc.T($"MODCAT_{sub.Key}", sub.Key)))
             {
                 DrawModuleAddPopup(sub.Value, ref actions);
                 ImGui.EndMenu();
@@ -191,6 +227,7 @@ public sealed class UIPresetEditor
                 var index = Preset.AddModule(leaf.type, leaf.def, leaf.builder);
                 Modified = true;
                 SelectModule(index);
+                _currentModuleHasHealerAI |= leaf.type == THealerAI;
                 actions += () => RemoveAvailableModule(cat, leaf.type);
             }
         }
@@ -198,7 +235,7 @@ public sealed class UIPresetEditor
 
     private bool DrawModule(Type type, RotationModuleDefinition definition, bool selected = false)
     {
-        var res = ImGui.Selectable(definition.DisplayName, selected); // note: this assumes display names are unique
+        var res = ImGui.Selectable(Loc.T(definition.DisplayName), selected); // note: this assumes display names are unique
         if (ImGui.IsItemHovered())
         {
             using var tooltip = ImRaii.Tooltip();
@@ -222,115 +259,127 @@ public sealed class UIPresetEditor
 
         var width = new Vector2(ImGui.GetContentRegionAvail().X, 0);
         var ms = Preset.Modules[_selectedModuleIndex];
-        DrawAddSettingPopup(ms, ms.Definition);
 
-        using (var list = ImRaii.ListBox("###settings", width))
+        ImGui.Checkbox(Loc.T("PRESET_ShowHiddenTracks", "Show hidden tracks"), ref _showHiddenTracks);
+
+        using var _ = ImRaii.PushStyle(ImGuiStyleVar.CellPadding, new Vector2(5, 5));
+        using var table = ImRaii.Table("preset_options", 2, ImGuiTableFlags.BordersInnerH);
+        if (!table)
+            return;
+        ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 150 * ImGuiHelpers.GlobalScale);
+        ImGui.TableSetupColumn("");
+
+        if (!_sourcePresetDefault && SuggestHealerAI(ms))
+            return;
+
+        foreach (var track in _orderedTrackList)
         {
-            if (list)
-            {
-                for (var i = 0; i < ms.SerializedSettings.Count; ++i)
-                {
-                    ref var m = ref ms.SerializedSettings.Ref(i);
-                    var cfg = ms.Definition.Configs[m.Track];
-                    if (ImGui.Selectable($"[{i + 1}] {cfg.UIName} [{m.Mod}] = {cfg.Options[m.Value.Option].UIName}###setting{_settingGuids[i]}", i == _selectedSettingIndex))
-                    {
-                        _selectedSettingIndex = i;
-                    }
+            var cfg = ms.Definition.Configs[track];
+            var active = ms.SerializedSettings.FindIndex(s => s.Track == track && s.Mod == default);
+            if (active < 0 && cfg.UIPriority < 0 && !_showHiddenTracks)
+                break;
 
-                    if (ImGui.IsItemActive() && !ImGui.IsItemHovered())
+            using (ImRaii.PushId($"{cfg.InternalName}_default"))
+            {
+                if (active >= 0)
+                {
+                    var v2 = ms.SerializedSettings[active].Value with { }; // make clone
+                    if (RendererFactory.Draw(cfg, ref v2))
                     {
-                        var j = ImGui.GetMouseDragDelta().Y < 0 ? i - 1 : i + 1;
-                        if (j >= 0 && j < ms.SerializedSettings.Count)
-                        {
-                            (ms.SerializedSettings[i], ms.SerializedSettings[j]) = (ms.SerializedSettings[j], ms.SerializedSettings[i]);
-                            (_settingGuids[i], _settingGuids[j]) = (_settingGuids[j], _settingGuids[i]);
-                            Modified = true;
-                            if (_selectedSettingIndex == i)
-                                _selectedSettingIndex = j;
-                            else if (_selectedSettingIndex == j)
-                                _selectedSettingIndex = i;
-                            ImGui.ResetMouseDragDelta();
-                        }
+                        ms.SerializedSettings.RemoveAt(active);
+                        if (!cfg.IsDefault(v2))
+                            ms.SerializedSettings.Insert(active, new(default, track, v2));
+                        Modified = true;
+                    }
+                }
+                else
+                {
+                    var v1 = cfg.CreateEmpty();
+                    if (RendererFactory.Draw(cfg, ref v1))
+                    {
+                        if (!cfg.IsDefault(v1))
+                            ms.SerializedSettings.Add(new(default, track, v1));
+                        Modified = true;
                     }
                 }
             }
         }
-        if (UIMisc.Button("Add##setting", ms.Definition.Configs.Count == 0, "Module does not support configuration", width.X))
-            ImGui.OpenPopup("add_setting");
 
-        if (UIMisc.Button("Remove##setting", width.X, (_selectedSettingIndex < 0, "Select any strategy to remove"), (!ImGui.GetIO().KeyShift, "Hold shift")))
+        ImGui.TableNextRow();
+        ImGui.TableNextColumn();
+        ImGui.Dummy(new(1, 27));
+        ImGui.Text(Loc.T("PRESET_HotkeyOverrides", "Hotkey overrides"));
+        ImGui.TableNextColumn();
+        ImGui.Dummy(new(1, 24));
+        ImGui.SetNextItemWidth(200 * ImGuiHelpers.GlobalScale);
+        using (var combo = ImRaii.Combo("###selectover", Loc.T("PRESET_AddNewOverride", "Add new...")))
         {
-            ms.SerializedSettings.RemoveAt(_selectedSettingIndex);
-            Modified = true;
-            _selectedSettingIndex = -1;
-            RebuildSettingGuids();
-        }
-    }
-
-    private void DrawAddSettingPopup(Preset.ModuleSettings ms, RotationModuleDefinition def)
-    {
-        using var popup = ImRaii.Popup("add_setting");
-        if (!popup)
-            return;
-
-        foreach (var i in _orderedTrackList)
-        {
-            var cfg = def.Configs[i];
-            if (ImGui.Selectable(cfg.UIName))
+            if (combo)
             {
-                _selectedSettingIndex = ms.SerializedSettings.Count;
-                ms.SerializedSettings.Add(new(Preset.Modifier.None, i, new() { Option = cfg.Options.Count > 1 ? 1 : 0 }));
-                Modified = true;
-                RebuildSettingGuids();
+                for (var i = 0; i < ms.Definition.Configs.Count; i++)
+                    if (ImGui.Selectable(ms.Definition.Configs[i].UIName))
+                    {
+                        ms.SerializedSettings.Add(new(Preset.Modifier.Shift, i, ms.Definition.Configs[i].CreateForEditor()));
+                    }
             }
         }
-    }
 
-    private void DrawDetails()
-    {
-        if (_selectedModuleIndex < 0)
+        for (var i = 0; i < ms.SerializedSettings.Count; i++)
         {
-            ImGui.TextUnformatted(Loc.T("PRESET_SelectModulePreview", "Select module to preview resulting strategies with different modifiers"));
-            ImGui.TextUnformatted(Loc.T("PRESET_SelectStrategyEdit", "Select strategy to edit its preferences"));
-        }
-        else if (_selectedSettingIndex < 0)
-        {
-            DrawModulePreview();
-        }
-        else
-        {
-            DrawSettingDetails();
-        }
-    }
+            ref var val = ref ms.SerializedSettings.Ref(i);
+            if (val.Mod == default)
+                continue;
 
-    private void DrawModulePreview()
-    {
-        ImGui.TextUnformatted($"Current modifiers: {Preset.CurrentModifiers()}");
-        var ms = Preset.Modules[_selectedModuleIndex];
-        var values = Preset.ActiveStrategyOverrides(_selectedModuleIndex);
-        foreach (var i in _orderedTrackList)
-        {
-            ref var val = ref values.Values[i];
-            ImGui.TextUnformatted($"{ms.Definition.Configs[i].UIName} = {ms.Definition.Configs[i].Options[val.Option].UIName}");
+            var cfg = ms.Definition.Configs[val.Track];
+
+            using var _i2 = ImRaii.PushId($"{cfg.InternalName}_override_{i}");
+
+            Modified |= RendererFactory.Draw(cfg, ref val.Value);
+
+            Modified |= DrawModifier(ref val.Mod, Preset.Modifier.Shift, "Shift");
+            ImGui.SameLine();
+            Modified |= DrawModifier(ref val.Mod, Preset.Modifier.Ctrl, "Ctrl");
+            ImGui.SameLine();
+            Modified |= DrawModifier(ref val.Mod, Preset.Modifier.Alt, "Alt");
+            ImGui.SameLine();
+            if (ImGui.Button(Loc.T("PRESET_DeleteOverride", "Delete override")))
+                ms.SerializedSettings.RemoveAt(i);
         }
     }
 
-    private void DrawSettingDetails()
+    private bool SuggestHealerAI(Preset.ModuleSettings ms)
     {
-        using var d = ImRaii.Disabled(_sourcePresetDefault);
-        var ms = Preset.Modules[_selectedModuleIndex];
-        ref var s = ref ms.SerializedSettings.Ref(_selectedSettingIndex);
-        var cfg = ms.Definition.Configs[s.Track];
-        ImGui.TextUnformatted($"Setting: {cfg.UIName}");
-        Modified |= DrawModifier(ref s.Mod, Preset.Modifier.Shift, "Shift");
-        Modified |= DrawModifier(ref s.Mod, Preset.Modifier.Ctrl, "Ctrl");
-        Modified |= DrawModifier(ref s.Mod, Preset.Modifier.Alt, "Alt");
-        Modified |= UIStrategyValue.DrawEditor(ref s.Value, cfg, null, null);
+        if (!_currentModuleHasHealerAI && _autorotConfig.SuggestHealerAI && _misleadingHealerRotations.Contains(ms.Type))
+        {
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.TextUnformatted(Loc.T("PRESET_AutoHealRaise", "Auto-heal/auto-raise"));
+            ImGui.TableNextColumn();
+            ImGui.TextUnformatted(Loc.T("PRESET_HealerAIHint", "Not part of the standard rotation. Use the Healer AI module instead."));
+            if (ImGui.Button(Loc.T("PRESET_AddHealerAI", "Add Healer AI")))
+            {
+                var rot = RotationModuleRegistry.Modules[THealerAI];
+                var index = Preset.AddModule(THealerAI, rot.Definition, rot.Builder);
+                Modified = true;
+                SelectModule(index);
+                _currentModuleHasHealerAI = true;
+                return true;
+            }
+            ImGui.SameLine();
+            if (ImGui.Button(Loc.T("PRESET_DontSuggestAgain", "Don't show this suggestion again")))
+            {
+                _autorotConfig.SuggestHealerAI = false;
+                _autorotConfig.Modified.Fire();
+            }
+        }
+        return false;
     }
 
     private bool DrawModifier(ref Preset.Modifier mod, Preset.Modifier flag, string label)
     {
         var value = mod.HasFlag(flag);
+        using var _ = ImRaii.Disabled(mod == flag);
+
         if (ImGui.Checkbox(label, ref value))
         {
             if (value)
@@ -344,20 +393,25 @@ public sealed class UIPresetEditor
 
     private bool CheckNameConflict()
     {
-        for (var i = 0; i < _db.DefaultPresets.Count; ++i)
-            if (_db.DefaultPresets[i].Name == Preset.Name)
-                return true;
+        // 🔴 空白名稱要 fail-closed 擋在保存之前。保存按鈕的停用說明（PRESETDB_NameConflict）
+        //    一直寫著「名稱為空或與其他預設重複」，但這裡從來只比對重複、從沒檢查過空字串，
+        //    於是空名一路存得下去。它造成的不只是「清單裡不好認」：
+        //    ① 預設清單用 ImGui.Selectable(preset.Name) 畫，空標籤等於沒有 ID，
+        //       多筆空名會共用同一個 ID，點選行為變得不可預期；
+        //    ② 下拉預覽在「沒選任何預設」時也是空字串，兩種狀態長得一模一樣；
+        //    ③ 深層迷宮設定以空字串當「不切換」的哨兵值，選到空名預設等於靜默不切換。
+        if (string.IsNullOrWhiteSpace(Preset.Name))
+            return true;
+
+        // 🔑 查重必須用與 FindPresetByName/IPC 查找同一個比較器（PresetDatabase.NameComparison），
+        //    否則 UI 會放行一個「IPC 端會視為重複」的名字，兩邊對同一主鍵得到不一致的答案。
+        if (_db.DefaultPresets.Any(p => string.Equals(p.Name, Preset.Name, PresetDatabase.NameComparison)))
+            return true;
+
         for (var i = 0; i < _db.UserPresets.Count; ++i)
-            if (i != _sourcePresetIndex && _db.UserPresets[i].Name == Preset.Name)
+            if (i != _sourcePresetIndex && string.Equals(_db.UserPresets[i].Name, Preset.Name, PresetDatabase.NameComparison))
                 return true;
         return false;
-    }
-
-    private void RebuildSettingGuids()
-    {
-        _settingGuids.Clear();
-        if (_selectedModuleIndex >= 0)
-            _settingGuids.AddRange(Enumerable.Range(0, Preset.Modules[_selectedModuleIndex].SerializedSettings.Count));
     }
 
     private int FindModuleByType(Type? type) => type != null ? Preset.Modules.FindIndex(m => m.Type == type) : -1;
@@ -386,7 +440,7 @@ public sealed class UIPresetEditor
             cat = sub;
         }
         cat.Leafs.Add((type, def, builder));
-        cat.Leafs.Sort((a, b) => a.def.DisplayName.CompareTo(b.def.DisplayName));
+        cat.Leafs.Sort(static (a, b) => a.def.DisplayName.CompareTo(b.def.DisplayName));
     }
 
     private void RemoveAvailableModule(ModuleCategory cat, Type type)

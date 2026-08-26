@@ -12,15 +12,15 @@ public sealed class AutoFarm(RotationModuleManager manager, Actor player) : Rota
         RotationModuleDefinition res = new("Automatic targeting", "Collection of utilities to automatically target and pull mobs based on different criteria.", "AI", "veyn", RotationModuleQuality.Basic, new(~0ul), 1000, 1, RotationModuleOrder.HighLevel, CanUseWhileRoleplaying: true);
 
         res.Define(Track.General).As<GeneralStrategy>("General")
-            .AddOption(GeneralStrategy.FightBack, "FightBack", "Automatically engage eligible mobs that are in combat with player, but don't pull new mobs", supportedTargets: ActionTargets.Hostile)
-            .AddOption(GeneralStrategy.AllowPull, "AllowPull", "Automatically engage eligible mobs that are in combat with player; if player is not in combat, pull new mobs", supportedTargets: ActionTargets.Hostile)
-            .AddOption(GeneralStrategy.Aggressive, "Aggressive", "Aggressively pull eligible mobs that are not yet in combat", supportedTargets: ActionTargets.Hostile)
-            .AddOption(GeneralStrategy.Passive, "Passive", "Do nothing");
+            .AddOption(GeneralStrategy.FightBack, "Automatically engage eligible mobs that are in combat with player, but don't pull new mobs", supportedTargets: ActionTargets.Hostile)
+            .AddOption(GeneralStrategy.AllowPull, "Automatically engage eligible mobs that are in combat with player; if player is not in combat, pull new mobs", supportedTargets: ActionTargets.Hostile)
+            .AddOption(GeneralStrategy.Aggressive, "Aggressively pull eligible mobs that are not yet in combat", supportedTargets: ActionTargets.Hostile)
+            .AddOption(GeneralStrategy.Passive, "Do nothing");
 
         res.Define(Track.Specific).As<TargetingStrategy>("Target")
-            .AddOption(TargetingStrategy.None, "None", "Don't prioritize any mobs")
-            .AddOption(TargetingStrategy.Fate, "FATE", "Prioritize mobs in active fate")
-            .AddOption(TargetingStrategy.All, "All", "Prioritize ALL targetable mobs");
+            .AddOption(TargetingStrategy.None, "Don't prioritize any mobs")
+            .AddOption(TargetingStrategy.Fate, "Prioritize mobs in active fate")
+            .AddOption(TargetingStrategy.All, "Prioritize ALL targetable mobs");
 
         res.Define(Track.QuestBattle).As<Flag>("QuestBattle", "Automatically attack solo duty bosses")
             .AddOption(Flag.Disabled, "Disabled")

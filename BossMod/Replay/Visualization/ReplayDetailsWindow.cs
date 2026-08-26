@@ -91,9 +91,9 @@ sealed class ReplayDetailsWindow : UIWindow
         }
         if (!_azimuthOverride)
             _azimuth = _mgr.WorldState.Client.CameraAzimuth.Deg;
-        ImGui.DragFloat("Camera azimuth", ref _azimuth, 1, -180f, 180f);
+        ImGui.DragFloat(Loc.T("Camera azimuth"), ref _azimuth, 1, -180f, 180f);
         ImGui.SameLine();
-        ImGui.Checkbox("Override", ref _azimuthOverride);
+        ImGui.Checkbox(Loc.T("Override"), ref _azimuthOverride);
         _hintsBuilder.Update(_hints, _povSlot, false);
         _rmm.Update(0, false);
         if (_mgr.ActiveModule != null)
@@ -130,11 +130,11 @@ sealed class ReplayDetailsWindow : UIWindow
             ImGui.TextUnformatted($"Current state: {_mgr.ActiveModule.StateMachine.ActiveState?.ID:X}, Time since pull: {_mgr.ActiveModule.StateMachine.TimeSinceActivation:f3}, Draw time: {(drawTimerPost - drawTimerPre).TotalMilliseconds:f3}ms, Components: {compList}, Player offset: {povOffsetString}");
         }
 
-        if (ImGui.CollapsingHeader("Plan execution"))
+        if (ImGui.CollapsingHeader(Loc.T("Plan execution")))
         {
             resetPF |= UIRotationWindow.DrawRotationSelector(_rmm);
 
-            if (_mgr.ActiveModule != null && ImGui.Button("Timeline"))
+            if (_mgr.ActiveModule != null && ImGui.Button(Loc.T("Timeline")))
             {
                 _ = new StateMachineWindow(_mgr.ActiveModule);
             }
@@ -143,7 +143,7 @@ sealed class ReplayDetailsWindow : UIWindow
             {
                 ImGui.SameLine();
                 var plans = _rotationDB.Plans.GetPlans(_mgr.ActiveModule.GetType(), _mgr.WorldState.Party.Player()?.Class ?? Class.None);
-                var newSel = UIPlanDatabaseEditor.DrawPlanCombo(plans, plans.SelectedIndex, "Plan");
+                var newSel = UIPlanDatabaseEditor.DrawPlanCombo(plans, plans.SelectedIndex, Loc.T("Plan"));
                 if (newSel != plans.SelectedIndex)
                 {
                     plans.SelectedIndex = newSel;
@@ -152,7 +152,7 @@ sealed class ReplayDetailsWindow : UIWindow
                 }
 
                 ImGui.SameLine();
-                if (ImGui.Button(plans.SelectedIndex >= 0 ? "Edit" : "New"))
+                if (ImGui.Button(plans.SelectedIndex >= 0 ? Loc.T("Edit") : Loc.T("New")))
                 {
                     if (plans.SelectedIndex < 0)
                     {
@@ -191,7 +191,7 @@ sealed class ReplayDetailsWindow : UIWindow
 
         if (ImGui.CollapsingHeader($"Events (version: {_player.Replay.GameVersion})"))
             _events.Draw();
-        if (ImGui.CollapsingHeader("Analysis"))
+        if (ImGui.CollapsingHeader(Loc.T("Analysis")))
             _analysis.Draw();
 
         if (resetPF)
@@ -230,14 +230,14 @@ sealed class ReplayDetailsWindow : UIWindow
             _playSpeed = 10;
 
         ImGui.SameLine();
-        ImGui.Checkbox("Show config", ref _showConfig);
+        ImGui.Checkbox(Loc.T("Show config"), ref _showConfig);
         ImGui.SameLine();
-        ImGui.Checkbox("Show debug", ref _showDebug);
+        ImGui.Checkbox(Loc.T("Show debug"), ref _showDebug);
         ImGui.SameLine();
-        if (ImGui.Button("Split"))
+        if (ImGui.Button(Loc.T("Split")))
             SplitLog();
         ImGui.SameLine();
-        if (ImGui.Button("Split (encounter)"))
+        if (ImGui.Button(Loc.T("Split (encounter)")))
             IsolateEncounter();
 
         if (_showConfig)
@@ -365,23 +365,23 @@ sealed class ReplayDetailsWindow : UIWindow
 
     private bool DrawPartyTable()
     {
-        if (!ImGui.CollapsingHeader("Party"))
+        if (!ImGui.CollapsingHeader(Loc.T("Party")))
             return false;
 
         var resetPF = false;
         ImGui.BeginTable("party", 12, ImGuiTableFlags.Resizable);
-        ImGui.TableSetupColumn("POV", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 25);
-        ImGui.TableSetupColumn("Class", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 30);
-        ImGui.TableSetupColumn("Assign", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 50);
+        ImGui.TableSetupColumn(Loc.T("POV"), ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 25);
+        ImGui.TableSetupColumn(Loc.T("Class"), ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 30);
+        ImGui.TableSetupColumn(Loc.T("Assign"), ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 50);
         ImGui.TableSetupColumn("X", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 90);
         ImGui.TableSetupColumn("Z", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 90);
         ImGui.TableSetupColumn("Rot", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 90);
-        ImGui.TableSetupColumn("HP", ImGuiTableColumnFlags.WidthFixed, 200);
-        ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.None, 100);
-        ImGui.TableSetupColumn("Target", ImGuiTableColumnFlags.None, 100);
-        ImGui.TableSetupColumn("Cast", ImGuiTableColumnFlags.None, 100);
-        ImGui.TableSetupColumn("Statuses", ImGuiTableColumnFlags.None, 100);
-        ImGui.TableSetupColumn("Hints", ImGuiTableColumnFlags.None, 250);
+        ImGui.TableSetupColumn(Loc.T("HP"), ImGuiTableColumnFlags.WidthFixed, 200);
+        ImGui.TableSetupColumn(Loc.T("Name"), ImGuiTableColumnFlags.None, 100);
+        ImGui.TableSetupColumn(Loc.T("Target"), ImGuiTableColumnFlags.None, 100);
+        ImGui.TableSetupColumn(Loc.T("Cast"), ImGuiTableColumnFlags.None, 100);
+        ImGui.TableSetupColumn(Loc.T("Statuses"), ImGuiTableColumnFlags.None, 100);
+        ImGui.TableSetupColumn(Loc.T("Hints"), ImGuiTableColumnFlags.None, 250);
         ImGui.TableHeadersRow();
         foreach ((int slot, var player) in _player.WorldState.Party.WithSlot(true))
         {
@@ -451,11 +451,11 @@ sealed class ReplayDetailsWindow : UIWindow
         ImGui.TableSetupColumn("X", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 90);
         ImGui.TableSetupColumn("Z", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 90);
         ImGui.TableSetupColumn("Rot", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 90);
-        ImGui.TableSetupColumn("HP", ImGuiTableColumnFlags.WidthFixed, 200);
-        ImGui.TableSetupColumn("Name");
-        ImGui.TableSetupColumn("Target");
-        ImGui.TableSetupColumn("Cast");
-        ImGui.TableSetupColumn("Statuses");
+        ImGui.TableSetupColumn(Loc.T("HP"), ImGuiTableColumnFlags.WidthFixed, 200);
+        ImGui.TableSetupColumn(Loc.T("Name"));
+        ImGui.TableSetupColumn(Loc.T("Target"));
+        ImGui.TableSetupColumn(Loc.T("Cast"));
+        ImGui.TableSetupColumn(Loc.T("Statuses"));
         ImGui.TableHeadersRow();
         foreach (var enemy in actors)
         {
@@ -469,18 +469,18 @@ sealed class ReplayDetailsWindow : UIWindow
 
     private void DrawAllActorsTable()
     {
-        if (!ImGui.CollapsingHeader("All actors"))
+        if (!ImGui.CollapsingHeader(Loc.T("All actors")))
             return;
 
         ImGui.BeginTable($"actors", 8, ImGuiTableFlags.Resizable);
         ImGui.TableSetupColumn("X", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 90);
         ImGui.TableSetupColumn("Z", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 90);
         ImGui.TableSetupColumn("Rot", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoResize, 90);
-        ImGui.TableSetupColumn("HP", ImGuiTableColumnFlags.WidthFixed, 200);
-        ImGui.TableSetupColumn("Name");
-        ImGui.TableSetupColumn("Target");
-        ImGui.TableSetupColumn("Cast");
-        ImGui.TableSetupColumn("Statuses");
+        ImGui.TableSetupColumn(Loc.T("HP"), ImGuiTableColumnFlags.WidthFixed, 200);
+        ImGui.TableSetupColumn(Loc.T("Name"));
+        ImGui.TableSetupColumn(Loc.T("Target"));
+        ImGui.TableSetupColumn(Loc.T("Cast"));
+        ImGui.TableSetupColumn(Loc.T("Statuses"));
         ImGui.TableHeadersRow();
         foreach (var actor in _player.WorldState.Actors)
         {
@@ -494,7 +494,7 @@ sealed class ReplayDetailsWindow : UIWindow
 
     private void DrawAI()
     {
-        if (!ImGui.CollapsingHeader("AI hints"))
+        if (!ImGui.CollapsingHeader(Loc.T("AI hints")))
             return;
         var player = _player.WorldState.Party[_povSlot];
         if (player == null)
@@ -504,9 +504,9 @@ sealed class ReplayDetailsWindow : UIWindow
         _pfVisu.Draw(_pfTree);
 
         bool rebuild = false;
-        rebuild |= ImGui.SliderFloat("Zone cushion", ref _pfCushion, 0, 5);
-        rebuild |= ImGui.SliderFloat("Ability range", ref _pfTargetRadius, 3, 25);
-        rebuild |= UICombo.Enum("Ability positional", ref _pfPositional);
+        rebuild |= ImGui.SliderFloat(Loc.T("Zone cushion"), ref _pfCushion, 0, 5);
+        rebuild |= ImGui.SliderFloat(Loc.T("Ability range"), ref _pfTargetRadius, 3, 25);
+        rebuild |= UICombo.Enum(Loc.T("Ability positional"), ref _pfPositional);
         if (rebuild)
             ResetPF();
     }

@@ -15,6 +15,8 @@ public class RaidwideCasts(BossModule module, uint[] aids, string hint = "Raidwi
 {
     private readonly uint[] AIDs = aids;
 
+    public override uint[] HintDamageActions => AIDs;
+
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         var len = AIDs.Length;
@@ -65,7 +67,7 @@ public class RaidwideInstant(BossModule module, uint aid, double delay = default
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (Activation != default && Hint.Length > 0)
-            hints.Add(Hint);
+            hints.Add(Loc.T(Hint));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
@@ -130,6 +132,8 @@ public class SingleTargetCasts(BossModule module, uint[] aids, string hint = "Ta
 {
     private readonly uint[] AIDs = aids;
 
+    public override uint[] HintDamageActions => AIDs;
+
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         var len = AIDs.Length;
@@ -180,7 +184,7 @@ public class SingleTargetInstant(BossModule module, uint aid, double delay = def
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (Targets.Count != 0 && Hint.Length != 0)
-            hints.Add(Hint);
+            hints.Add(Loc.T(Hint));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

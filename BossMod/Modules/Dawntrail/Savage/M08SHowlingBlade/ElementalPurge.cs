@@ -56,7 +56,7 @@ sealed class HuntersHarvestBait(BossModule module) : Components.GenericBaitAway(
     {
         if (actor.Role == Role.Tank && spreadTarget is Actor t && t != actor && bossmod.BossP2()!.TargetID != actor.InstanceID)
         {
-            hints.Add("Provoke for tankbuster!");
+            hints.Add(Loc.T("Provoke for tankbuster!"));
         }
     }
 }

@@ -32,7 +32,7 @@ class Soundstorm(BossModule module) : Components.StatusDrivenForcedMarch(module,
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (Module.PrimaryActor.CastInfo?.IsSpell(AID.Soundstorm) ?? false)
-            hints.Add("Apply march debuffs");
+            hints.Add(Loc.T("Apply march debuffs"));
     }
 }
 

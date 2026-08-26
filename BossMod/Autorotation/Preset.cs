@@ -8,6 +8,8 @@ namespace BossMod.Autorotation;
 [JsonConverter(typeof(JsonPresetConverter))]
 public sealed record class Preset(string Name)
 {
+    public bool HiddenByDefault;
+
     [Flags]
     public enum Modifier
     {
@@ -104,38 +106,54 @@ public class JsonPresetConverter : JsonConverter<Preset>
             var m = res.Modules[mi];
             foreach (var js in jm.Value.EnumerateArray())
             {
-                var s = new Preset.ModuleSetting() { Value = new() };
+                var s = new Preset.ModuleSetting() { Value = null! };
 
                 var trackName = js.GetProperty(nameof(Preset.ModuleSetting.Track)).GetString() ?? "";
                 s.Track = md.Definition.Configs.FindIndex(s => s.InternalName == trackName);
                 if (s.Track < 0)
                 {
-                    Service.Log($"Error while deserializing preset {res.Name}: failed to find track {trackName} in module {jm.Name}");
+                        // 📌 走 Information：使用者跑 LogLevel 2，Service.Log 是 Debug 級收不到。
+                    //    這一行代表「使用者存好的某一項設定被丟掉了」——軌道被改名或改型別時就會走到，
+                    //    UI 上只會看到設定憑空少一項，沒有這行的話完全查不出原因。
+                    Service.Logger.Information($"[Autorotation] 預設集「{res.Name}」的模組 {jm.Name} 找不到軌道 {trackName}，該項設定已略過（其餘設定不受影響）");
                     continue;
                 }
 
-                var optionName = js.GetProperty(nameof(StrategyValue.Option)).GetString() ?? "";
-                s.Value.Option = md.Definition.Configs[s.Track].Options.FindIndex(o => o.InternalName == optionName);
-                if (s.Value.Option < 0)
+                switch (md.Definition.Configs[s.Track])
                 {
-                    Service.Log($"Error while deserializing preset {res.Name}: failed to find option {optionName} in track {trackName} in module {jm.Name}");
-                    continue;
+                    case StrategyConfigTrack cfgTrack:
+                        var optionName = js.GetProperty(nameof(StrategyValueTrack.Option)).GetString() ?? "";
+                        var t = new StrategyValueTrack
+                        {
+                            Option = cfgTrack.Options.FindIndex(o => o.InternalName == optionName)
+                        };
+                        s.Value = t;
+
+                        if (t.Option < 0)
+                        {
+                            // 📌 同上，走 Information：選項被改名或移除時使用者要看得到原因。
+                            Service.Logger.Information($"[Autorotation] 預設集「{res.Name}」的軌道 {trackName}（模組 {jm.Name}）找不到選項 {optionName}，該項設定已略過");
+                            continue;
+                        }
+                        break;
+                    case StrategyConfigFloat:
+                        s.Value = new StrategyValueFloat()
+                        {
+                            Value = js.GetProperty(nameof(StrategyValueFloat.Value)).GetSingle()
+                        };
+                        break;
+                    case StrategyConfigInt:
+                        s.Value = new StrategyValueInt()
+                        {
+                            Value = js.GetProperty(nameof(StrategyValueInt.Value)).GetInt64()
+                        };
+                        break;
                 }
 
                 if (js.TryGetProperty(nameof(Preset.ModuleSetting.Mod), out var jmod))
                     s.Mod = Enum.Parse<Preset.Modifier>(jmod.GetString() ?? "");
-                if (js.TryGetProperty(nameof(StrategyValue.PriorityOverride), out var jprio))
-                    s.Value.PriorityOverride = jprio.GetSingle();
-                if (js.TryGetProperty(nameof(StrategyValue.Target), out var jtarget))
-                    s.Value.Target = Enum.Parse<StrategyTarget>(jtarget.GetString() ?? "");
-                if (js.TryGetProperty(nameof(StrategyValue.TargetParam), out var jtp))
-                    s.Value.TargetParam = jtp.GetInt32();
-                if (js.TryGetProperty(nameof(StrategyValue.Offset1), out var joff1))
-                    s.Value.Offset1 = joff1.GetSingle();
-                if (js.TryGetProperty(nameof(StrategyValue.Offset2), out var joff2))
-                    s.Value.Offset2 = joff2.GetSingle();
-                if (js.TryGetProperty(nameof(StrategyValue.Comment), out var jcomment))
-                    s.Value.Comment = jcomment.GetString() ?? "";
+
+                s.Value.DeserializeFields(js);
 
                 m.SerializedSettings.Add(s);
             }
@@ -151,25 +169,18 @@ public class JsonPresetConverter : JsonConverter<Preset>
         foreach (var m in value.Modules)
         {
             writer.WriteStartArray(m.Type.FullName!);
-            foreach (ref var s in m.SerializedSettings.AsSpan())
+            foreach (var s in m.SerializedSettings)
             {
                 writer.WriteStartObject();
                 writer.WriteString(nameof(Preset.ModuleSetting.Track), m.Definition.Configs[s.Track].InternalName);
-                writer.WriteString(nameof(StrategyValue.Option), m.Definition.Configs[s.Track].Options[s.Value.Option].InternalName);
+
+                m.Definition.Configs[s.Track].SerializeValue(writer, s.Value);
+
                 if (s.Mod != Preset.Modifier.None)
                     writer.WriteString(nameof(Preset.ModuleSetting.Mod), s.Mod.ToString());
-                if (!float.IsNaN(s.Value.PriorityOverride))
-                    writer.WriteNumber(nameof(StrategyValue.PriorityOverride), s.Value.PriorityOverride);
-                if (s.Value.Target != StrategyTarget.Automatic)
-                    writer.WriteString(nameof(StrategyValue.Target), s.Value.Target.ToString());
-                if (s.Value.TargetParam != 0)
-                    writer.WriteNumber(nameof(StrategyValue.TargetParam), s.Value.TargetParam);
-                if (s.Value.Offset1 != 0)
-                    writer.WriteNumber(nameof(StrategyValue.Offset1), s.Value.Offset1);
-                if (s.Value.Offset2 != 0)
-                    writer.WriteNumber(nameof(StrategyValue.Offset2), s.Value.Offset2);
-                if (s.Value.Comment.Length > 0)
-                    writer.WriteString(nameof(StrategyValue.Comment), s.Value.Comment);
+
+                s.Value.SerializeFields(writer);
+
                 writer.WriteEndObject();
             }
             writer.WriteEndArray();

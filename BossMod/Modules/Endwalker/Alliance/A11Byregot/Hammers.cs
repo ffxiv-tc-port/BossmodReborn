@@ -168,6 +168,6 @@ class HammersSpire(BossModule module) : Components.SimpleAOEs(module, (uint)AID.
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (_safespot != null)
-            hints.Add("Prepare to go to upcoming safespot!");
+            hints.Add(Loc.T("Prepare to go to upcoming safespot!"));
     }
 }

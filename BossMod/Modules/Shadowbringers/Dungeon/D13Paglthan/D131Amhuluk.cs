@@ -45,7 +45,7 @@ sealed class LightningBolt(BossModule module) : Components.GenericBaitAway(modul
         {
             return;
         }
-        hints.Add("Pass the lightning to a rod!");
+        hints.Add(Loc.T("Pass the lightning to a rod!"));
     }
 
     public override void OnStatusGain(Actor actor, ActorStatus status)

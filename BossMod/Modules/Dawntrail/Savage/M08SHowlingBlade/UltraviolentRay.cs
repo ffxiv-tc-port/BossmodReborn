@@ -60,7 +60,7 @@ sealed class UltraviolentRay(BossModule module) : Components.GenericBaitAway(mod
                     {
                         if (occupiedPlatforms[k] == angle && playerPlatform == angle)
                         {
-                            hints.Add("More than 1 defamation on your platform!");
+                            hints.Add(Loc.T("More than 1 defamation on your platform!"));
                             return;
                         }
                     }

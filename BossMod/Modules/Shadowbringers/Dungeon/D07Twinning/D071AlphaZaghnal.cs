@@ -89,7 +89,7 @@ sealed class PounceErrant(BossModule module) : Components.GenericStackSpread(mod
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (IsSpreadTarget(actor))
-            hints.Add("Spread, avoid intersecting cage hitboxes!");
+            hints.Add(Loc.T("Spread, avoid intersecting cage hitboxes!"));
     }
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
@@ -177,7 +177,7 @@ sealed class ForlornImpact(BossModule module) : Components.GenericBaitAway(modul
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (ActiveBaitsOn(actor).Count != 0)
-            hints.Add("Bait away, avoid intersecting cage hitboxes!");
+            hints.Add(Loc.T("Bait away, avoid intersecting cage hitboxes!"));
     }
 }
 

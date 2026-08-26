@@ -33,15 +33,15 @@ public class GenericSharedTankbuster(BossModule module, uint aid, AOEShape shape
                     break;
                 }
             }
-            hints.Add("Stack with other tanks or press invuln!", !otherTanksInAOE);
+            hints.Add(Loc.T("Stack with other tanks or press invuln!"), !otherTanksInAOE);
         }
         else if (actor.Role == Role.Tank)
         {
-            hints.Add("Stack with tank!", !InAOE(actor));
+            hints.Add(Loc.T("Stack with tank!"), !InAOE(actor));
         }
         else
         {
-            hints.Add("GTFO from tank!", InAOE(actor));
+            hints.Add(Loc.T("GTFO from tank!"), InAOE(actor));
         }
     }
 

@@ -68,7 +68,7 @@ sealed class BladeOfEntropy(BossModule module) : Components.GenericAOEs(module)
         }
         else
         {
-            hints.Add("Get hit by AOE!", !isInside);
+            hints.Add(Loc.T("Get hit by AOE!"), !isInside);
         }
     }
 }

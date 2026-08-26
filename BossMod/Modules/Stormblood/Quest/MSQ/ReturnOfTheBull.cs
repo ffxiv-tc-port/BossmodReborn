@@ -42,7 +42,7 @@ class FordolaShield(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (Shield != null && !actor.Position.InCircle(Shield.Position, 4f))
-            hints.Add("Go to safe zone!");
+            hints.Add(Loc.T("Go to safe zone!"));
     }
 }
 

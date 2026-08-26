@@ -10,7 +10,7 @@ class InfralateralArc(BossModule module) : Components.CastCounter(module, (uint)
         var pcRole = EffectiveRole(actor);
         var pcDir = Angle.FromDirection(actor.Position - Module.PrimaryActor.Position);
         if (Raid.WithoutSlot(false, true, true).Any(a => EffectiveRole(a) != pcRole && a.Position.InCone(Module.PrimaryActor.Position, pcDir, _coneHalfAngle)))
-            hints.Add("Spread by roles!");
+            hints.Add(Loc.T("Spread by roles!"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

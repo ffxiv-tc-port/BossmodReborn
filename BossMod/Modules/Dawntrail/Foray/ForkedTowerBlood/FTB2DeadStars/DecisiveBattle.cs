@@ -112,7 +112,7 @@ sealed class DecisiveBattleAOEs(BossModule module) : Components.GenericAOEs(modu
     {
         if (_aoe is AOEInstance aoe)
         {
-            hints.Add("Stand inside AOE of assigned boss!", !aoe.Check(actor.Position));
+            hints.Add(Loc.T("Stand inside AOE of assigned boss!"), !aoe.Check(actor.Position));
         }
     }
 }

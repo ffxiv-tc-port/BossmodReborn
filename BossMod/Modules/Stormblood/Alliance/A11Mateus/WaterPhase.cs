@@ -68,7 +68,7 @@ class Froth(BossModule module) : Components.GenericAOEs(module)
         var status = actor.FindStatus((uint)SID.Breathless);
         if (status is ActorStatus breathless && breathless.Extra >= 0x5)
         {
-            hints.Add("Stand in an air bubble!");
+            hints.Add(Loc.T("Stand in an air bubble!"));
         }
     }
 }
@@ -113,6 +113,6 @@ class Snowpierce(BossModule module) : Components.BaitAwayChargeCast(module, (uin
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (ActiveBaitsOn(actor).Count != 0)
-            hints.Add("Bait away, avoid intersecting bubble hitboxes!");
+            hints.Add(Loc.T("Bait away, avoid intersecting bubble hitboxes!"));
     }
 }

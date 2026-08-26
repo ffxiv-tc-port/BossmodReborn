@@ -1,4 +1,6 @@
-﻿namespace BossMod;
+﻿using System.Text.Json;
+
+namespace BossMod;
 
 [ConfigDisplay(Name = "Boss modules and radar", Order = 1)]
 public sealed class BossModuleConfig : ConfigNode
@@ -84,8 +86,13 @@ public sealed class BossModuleConfig : ConfigNode
     [PropertyDisplay("Show text hints in separate window", tooltip: "Separates the radar window from the hints window, allowing you to reposition the hints window")]
     public bool HintsInSeparateWindow = false;
 
-    [PropertyDisplay("Make separate hints window transparent")]
+    // legacy on/off transparency toggle, superseded by HintsWindowOpacity below; intentionally left serializable (and without PropertyDisplay, so it no longer shows up in the UI)
+    // so that an existing config is migrated rather than silently discarded - see Deserialize below
     public bool HintsInSeparateWindowTransparent = false;
+
+    [PropertyDisplay("Separate hints window background opacity (%)", tooltip: "0 = fully transparent background, same as the old 'Make separate hints window transparent' checkbox; 100 = normal window background")]
+    [PropertySlider(0, 100, Speed = 1)]
+    public int HintsWindowOpacity = 100;
 
     [PropertyDisplay("Show mechanic sequence and timer hints")]
     public bool ShowMechanicTimers = true;
@@ -93,8 +100,14 @@ public sealed class BossModuleConfig : ConfigNode
     [PropertyDisplay("Show raidwide hints")]
     public bool ShowGlobalHints = true;
 
-    [PropertyDisplay("Show player hints and warnings", separator: true)]
+    [PropertyDisplay("Show player hints and warnings")]
     public bool ShowPlayerHints = true;
+
+    [PropertyDisplay("Translate hint text", tooltip: "Translates hints when displaying them: whole hints that have a translation are replaced outright, otherwise well-known mechanic vocabulary inside the hint is swapped for its localized term. Display only - the hints themselves are not modified")]
+    public bool TranslateHints = true;
+
+    [PropertyDisplay("Mark hints as physical or magical damage", tooltip: "Appends the damage type of the incoming attack to raidwide/tankbuster hints, taken from the action's attack type in the game data.\nAttack types that do not map onto physical or magical (and actions the module does not name) are shown as a greyed out '?' rather than guessed at", separator: true)]
+    public bool ShowHintDamageType = true;
 
     // misc. settings
     [PropertyDisplay("Show movement hints in world", tooltip: "Not used very much, but can show you arrows in the game world to indicate where to move for certain mechanics")]
@@ -102,4 +115,15 @@ public sealed class BossModuleConfig : ConfigNode
 
     [PropertyDisplay("Show melee range indicator")]
     public bool ShowMeleeRangeIndicator = false;
+
+    public override void Deserialize(JsonElement j, JsonSerializerOptions ser)
+    {
+        base.Deserialize(j, ser);
+
+        // backwards compatibility: the 'make separate hints window transparent' checkbox became an opacity slider.
+        // if the stored config predates the slider, map the old checked state onto a fully transparent background, which is what it used to do.
+        // once the config is written out again it will contain HintsWindowOpacity, and from then on the slider value wins.
+        if (HintsInSeparateWindowTransparent && !j.TryGetProperty(nameof(HintsWindowOpacity), out _))
+            HintsWindowOpacity = 0;
+    }
 }

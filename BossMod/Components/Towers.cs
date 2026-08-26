@@ -60,7 +60,7 @@ public class GenericTowers(BossModule module, uint aid = default, bool prioritiz
 
         if (gtfoFromTower)
         {
-            hints.Add("GTFO from tower!");
+            hints.Add(Loc.T("GTFO from tower!"));
         }
         else // Find index of a tower that is not forbidden and the actor is inside
         {
@@ -79,11 +79,11 @@ public class GenericTowers(BossModule module, uint aid = default, bool prioritiz
             {
                 var count2 = towers[soakedIndex].NumInside(Module);
                 if (count2 < towers[soakedIndex].MinSoakers)
-                    hints.Add("Too few soakers in the tower!");
+                    hints.Add(Loc.T("Too few soakers in the tower!"));
                 else if (count2 > towers[soakedIndex].MaxSoakers)
-                    hints.Add("Too many soakers in the tower!");
+                    hints.Add(Loc.T("Too many soakers in the tower!"));
                 else
-                    hints.Add("Soak the tower!", false);
+                    hints.Add(Loc.T("Soak the tower!"), false);
             }
             else // Check if any tower has insufficient soakers
             {
@@ -98,7 +98,7 @@ public class GenericTowers(BossModule module, uint aid = default, bool prioritiz
                     }
                 }
                 if (insufficientSoakers)
-                    hints.Add("Soak the tower!");
+                    hints.Add(Loc.T("Soak the tower!"));
             }
         }
     }
@@ -400,7 +400,7 @@ public class GenericTowersOpenWorld(BossModule module, uint aid = default, bool 
 
         if (gtfoFromTower)
         {
-            hints.Add("GTFO from tower!");
+            hints.Add(Loc.T("GTFO from tower!"));
         }
         else // Find index of a tower that is not forbidden and the actor is inside
         {
@@ -419,11 +419,11 @@ public class GenericTowersOpenWorld(BossModule module, uint aid = default, bool 
             {
                 var count2 = towers[soakedIndex].NumInside(Module);
                 if (count2 < towers[soakedIndex].MinSoakers)
-                    hints.Add("Too few soakers in the tower!");
+                    hints.Add(Loc.T("Too few soakers in the tower!"));
                 else if (count2 > towers[soakedIndex].MaxSoakers)
-                    hints.Add("Too many soakers in the tower!");
+                    hints.Add(Loc.T("Too many soakers in the tower!"));
                 else
-                    hints.Add("Soak the tower!", false);
+                    hints.Add(Loc.T("Soak the tower!"), false);
             }
             else // Check if any tower has insufficient soakers
             {
@@ -438,7 +438,7 @@ public class GenericTowersOpenWorld(BossModule module, uint aid = default, bool 
                     }
                 }
                 if (insufficientSoakers)
-                    hints.Add("Soak the tower!");
+                    hints.Add(Loc.T("Soak the tower!"));
             }
         }
     }

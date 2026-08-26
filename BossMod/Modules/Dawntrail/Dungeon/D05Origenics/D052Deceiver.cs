@@ -226,7 +226,7 @@ sealed class SurgeHint(BossModule module) : Components.GenericAOEs(module)
                     break;
                 }
             }
-            hints.Add("Wait inside safespot for knockback!", !isPositionSafe);
+            hints.Add(Loc.T("Wait inside safespot for knockback!"), !isPositionSafe);
         }
     }
 }

@@ -25,16 +25,16 @@ class Lightwave2(BossModule module) : LightwaveCommon(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if ((Module.PrimaryActor.CastInfo?.IsSpell(AID.HerosGlory) ?? false) && _gloryAOE.Check(actor.Position, Module.PrimaryActor))
-            hints.Add("GTFO from glory aoe!");
+            hints.Add(Loc.T("GTFO from glory aoe!"));
 
         (var inWave, var inSafeCone) = NumCasts < 4
             ? (WaveAOE.Check(actor.Position, Wave1Pos(), 0.Degrees()) || WaveAOE.Check(actor.Position, Wave2Pos(), 0.Degrees()), InSafeCone(NextSideCrystal(), _crystalCenter, actor.Position))
             : (WaveAOE.Check(actor.Position, Wave3Pos(), 0.Degrees()), _safeCrystal == default || InSafeCone(_crystalCenter, _safeCrystal, actor.Position));
 
         if (inWave)
-            hints.Add("GTFO from wave!");
+            hints.Add(Loc.T("GTFO from wave!"));
         if (!inSafeCone)
-            hints.Add("Hide behind crystal!");
+            hints.Add(Loc.T("Hide behind crystal!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

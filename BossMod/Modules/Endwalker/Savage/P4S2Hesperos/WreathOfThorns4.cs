@@ -52,16 +52,16 @@ class WreathOfThorns4(BossModule module) : BossComponent(module)
         {
             if (_playerIcons[slot] == IconID.AkanthaiWater)
             {
-                hints.Add("Break tether!");
+                hints.Add(Loc.T("Break tether!"));
                 if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _waterExplosionRange).Any())
                 {
-                    hints.Add("GTFO from others!");
+                    hints.Add(Loc.T("GTFO from others!"));
                 }
             }
             else if (_playerIcons[slot] == IconID.AkanthaiDark)
             {
                 var soakedTower = _playerTetherSource.Zip(_playerIcons).Where(si => si.First != null && si.Second == IconID.AkanthaiWater).Select(si => si.First!).InRadius(actor.Position, P4S2.WreathTowerRadius).FirstOrDefault();
-                hints.Add("Soak the tower!", soakedTower == null);
+                hints.Add(Loc.T("Soak the tower!"), soakedTower == null);
             }
         }
         else
@@ -71,11 +71,11 @@ class WreathOfThorns4(BossModule module) : BossComponent(module)
             {
                 if (nextAOE.Tether.Target == actor.InstanceID)
                 {
-                    hints.Add("Break tether!");
+                    hints.Add(Loc.T("Break tether!"));
                 }
                 if (actor.Position.InCircle(nextAOE.Position, P4S2.WreathAOERadius))
                 {
-                    hints.Add("GTFO from AOE!");
+                    hints.Add(Loc.T("GTFO from AOE!"));
                 }
             }
         }

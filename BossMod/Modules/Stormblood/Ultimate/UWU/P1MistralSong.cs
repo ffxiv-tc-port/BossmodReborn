@@ -21,6 +21,7 @@ class P1MistralSongBoss(BossModule module) : Components.GenericWildCharge(module
 // TODO: verify width
 class P1MistralSongAdds(BossModule module) : Components.CastCounter(module, (uint)AID.MistralSongAdds)
 {
+    private readonly UWUConfig _config = Service.Config.Get<UWUConfig>();
     private readonly List<Actor> _sisters = module.Enemies(OID.GarudaSister);
     private readonly List<Actor> _targets = [];
 
@@ -30,12 +31,12 @@ class P1MistralSongAdds(BossModule module) : Components.CastCounter(module, (uin
     {
         if (actor.Role == Role.Tank && _targets.Count != 0)
         {
-            hints.Add("Intercept charge!", !IsClosest(actor));
+            hints.Add(Loc.T("Intercept charge!"), !IsClosest(actor));
         }
         else if (_targets.Contains(actor))
         {
             var isClosest = ActiveAOEs().Any(aoe => Raid.WithoutSlot(false, true, true).InShape(_shape, aoe.origin, aoe.rotation).Closest(aoe.origin) == actor);
-            hints.Add("Hide behind tank!", IsClosest(actor));
+            hints.Add(Loc.T("Hide behind tank!"), IsClosest(actor));
         }
     }
 
@@ -51,6 +52,12 @@ class P1MistralSongAdds(BossModule module) : Components.CastCounter(module, (uin
     public override void DrawArenaForeground(int pcSlot, Actor pc)
     {
         Arena.Actors(_sisters, Colors.Object, true);
+        // 第二次寒風之歌的固定集合點：非坦克踩進去才算安全
+        if (_config.P1MistralSongFixedLocation && pc.Role != Role.Tank)
+        {
+            var loc = new WPos(107f, 107f);
+            Arena.AddCircle(loc, 2f, (pc.Position - loc).LengthSq() <= 4f ? Colors.Safe : Colors.Danger);
+        }
     }
 
     public override void OnEventIcon(Actor actor, uint iconID, ulong targetID)

@@ -8,7 +8,7 @@ class P3AethericProfusion(BossModule module) : Components.CastCounter(module, (u
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (Active)
-            hints.Add("Go to neurolink!", !_neurolinks.InRadius(actor.Position, 2f).Any());
+            hints.Add(Loc.T("Go to neurolink!"), !_neurolinks.InRadius(actor.Position, 2f).Any());
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

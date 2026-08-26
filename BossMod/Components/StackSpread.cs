@@ -119,7 +119,7 @@ public abstract class GenericStackSpread(BossModule module, bool alwaysShowSprea
     {
         if (Spreads.FindIndex(s => s.Target == actor) is var iSpread && iSpread >= 0)
         {
-            hints.Add("Spread!", Raid.WithoutSlot().InRadiusExcluding(actor, Spreads[iSpread].Radius).Any());
+            hints.Add(Loc.T("Spread!"), Raid.WithoutSlot().InRadiusExcluding(actor, Spreads[iSpread].Radius).Any());
         }
         else if (Stacks.FindIndex(s => s.Target == actor) is var iStack && iStack >= 0)
         {
@@ -131,7 +131,7 @@ public abstract class GenericStackSpread(BossModule module, bool alwaysShowSprea
                 ++numStacked;
                 stackedWithOtherStackOrAvoid |= stack.ForbiddenPlayers[j] || IsStackTarget(other);
             }
-            hints.Add(StackHint, stackedWithOtherStackOrAvoid || numStacked < stack.MinSize || numStacked > stack.MaxSize);
+            hints.Add(Loc.T(StackHint), stackedWithOtherStackOrAvoid || numStacked < stack.MinSize || numStacked > stack.MaxSize);
         }
         else
         {
@@ -146,22 +146,22 @@ public abstract class GenericStackSpread(BossModule module, bool alwaysShowSprea
             }
 
             if (numParticipatingStacks > 1)
-                hints.Add(StackHint);
+                hints.Add(Loc.T(StackHint));
             else if (numParticipatingStacks == 1)
-                hints.Add(StackHint, false);
+                hints.Add(Loc.T(StackHint), false);
             else if (numUnsatisfiedStacks > 0)
-                hints.Add(StackHint);
+                hints.Add(Loc.T(StackHint));
             // else: don't show anything, all potential stacks are already satisfied without a player
-            //hints.Add("Stack!", ActiveStacks.Count(s => !s.ForbiddenPlayers[slot] && actor.Position.InCircle(s.Target.Position, s.Radius)) != 1);
+            //hints.Add(Loc.T("Stack!"), ActiveStacks.Count(s => !s.ForbiddenPlayers[slot] && actor.Position.InCircle(s.Target.Position, s.Radius)) != 1);
         }
 
         if (ActiveSpreads.Any(s => s.Target != actor && actor.Position.InCircle(s.Target.Position.Quantized(), s.Radius)))
         {
-            hints.Add("GTFO from spreads!");
+            hints.Add(Loc.T("GTFO from spreads!"));
         }
         else if (ActiveStacks.Any(s => s.Target != actor && s.ForbiddenPlayers[slot] && actor.Position.InCircle(s.Target.Position.Quantized(), s.Radius)))
         {
-            hints.Add("GTFO from forbidden stacks!");
+            hints.Add(Loc.T("GTFO from forbidden stacks!"));
         }
     }
 
@@ -705,20 +705,20 @@ public abstract class GenericBaitStack(BossModule module, uint aid = default, bo
         }
         if (isInWrongBait || allForbidden)
         {
-            hints.Add(HintAvoid, isInWrongBait);
+            hints.Add(Loc.T(HintAvoid), isInWrongBait);
             return;
         }
         if (!isBaitTarget && !isInBaitShape)
         {
-            hints.Add(HintStack);
+            hints.Add(Loc.T(HintStack));
         }
         else if (isBaitTarget || !isBaitTarget && isInBaitShape)
         {
-            hints.Add(HintStack, false);
+            hints.Add(Loc.T(HintStack), false);
         }
         if (isBaitTarget && isBaitTargetAndInExtraStack)
         {
-            hints.Add(HintAvoidOther);
+            hints.Add(Loc.T(HintAvoidOther));
         }
     }
 

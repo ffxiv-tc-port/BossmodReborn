@@ -66,9 +66,9 @@ class Flails : BossComponent
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (_first?.Check(actor.Position, Module.PrimaryActor) ?? false)
-            hints.Add("Hit by first flail!");
+            hints.Add(Loc.T("Hit by first flail!"));
         if (_showSecond && _second != null && _second.Check(actor.Position, Module.PrimaryActor))
-            hints.Add("Hit by second flail!");
+            hints.Add(Loc.T("Hit by second flail!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

@@ -174,7 +174,7 @@ class BurningStrike(BossModule module) : BossComponent(module)
         if (clive == null)
             return;
         if (casting && !clive.IsTargetable)
-            hints.Add("Prepare to defend Clive!");
+            hints.Add(Loc.T("Prepare to defend Clive!"));
         else if (clive.IsTargetable)
             hints.Add($"Interact with {clive.Name} and solve a QTE!");
     }
@@ -214,7 +214,7 @@ class SearingStomp(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (casting)
-            hints.Add("Prepare to solve a QTE!");
+            hints.Add(Loc.T("Prepare to solve a QTE!"));
     }
 }
 

@@ -59,7 +59,7 @@ class PlayerBound(BossModule module) : BossComponent(module)
     {
         // Add global hint text
         if (!_bound.None())
-            hints.Add("Kill Queer Bubble to free bound player!");
+            hints.Add(Loc.T("Kill Queer Bubble to free bound player!"));
     }
 
     public override void OnStatusGain(Actor actor, ActorStatus status)

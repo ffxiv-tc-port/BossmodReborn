@@ -68,6 +68,6 @@ sealed class WildCharges(BossModule module) : Components.GenericAOEs(module)
                 break;
             }
         }
-        hints.Add("Share damage inside wildcharge!", risky);
+        hints.Add(Loc.T("Share damage inside wildcharge!"), risky);
     }
 }

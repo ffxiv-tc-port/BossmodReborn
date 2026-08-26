@@ -76,7 +76,7 @@ class Thundercall2(BossModule module) : Components.GenericBaitAway(module)
         if (CurrentBaits[0].Target != actor)
             base.AddHints(slot, actor, hints);
         else
-            hints.Add("Bait levinorb away!");
+            hints.Add(Loc.T("Bait levinorb away!"));
     }
 }
 

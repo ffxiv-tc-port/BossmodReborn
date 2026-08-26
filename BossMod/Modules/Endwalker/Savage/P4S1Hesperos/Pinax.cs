@@ -23,36 +23,36 @@ class Pinax(BossModule module) : BossComponent(module)
         {
             if (actor.Position.InRect(_acid.Position, new WDir(1, 0), 10, 10, 10))
             {
-                hints.Add("GTFO from acid square!");
+                hints.Add(Loc.T("GTFO from acid square!"));
             }
-            hints.Add("Spread!", Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _acidAOERadius).Any());
+            hints.Add(Loc.T("Spread!"), Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _acidAOERadius).Any());
         }
         if (_fire != null)
         {
             if (actor.Position.InRect(_fire.Position, new WDir(1, 0), 10, 10, 10))
             {
-                hints.Add("GTFO from fire square!");
+                hints.Add(Loc.T("GTFO from fire square!"));
             }
-            hints.Add("Stack in fours!", Raid.WithoutSlot(false, true, true).Where(x => x.Role == Role.Healer).InRadius(actor.Position, _fireAOERadius).Count() != 1);
+            hints.Add(Loc.T("Stack in fours!"), Raid.WithoutSlot(false, true, true).Where(x => x.Role == Role.Healer).InRadius(actor.Position, _fireAOERadius).Count() != 1);
         }
         if (_water != null)
         {
             if (actor.Position.InRect(_water.Position, new WDir(1, 0), 10, 10, 10))
             {
-                hints.Add("GTFO from water square!");
+                hints.Add(Loc.T("GTFO from water square!"));
             }
             if (!Module.InBounds(Components.GenericKnockback.AwayFromSource(actor.Position, Arena.Center, _knockbackRadius)))
             {
-                hints.Add("About to be knocked into wall!");
+                hints.Add(Loc.T("About to be knocked into wall!"));
             }
         }
         if (_lighting != null)
         {
             if (actor.Position.InRect(_lighting.Position, new WDir(1, 0), 10, 10, 10))
             {
-                hints.Add("GTFO from lighting square!");
+                hints.Add(Loc.T("GTFO from lighting square!"));
             }
-            hints.Add("GTFO from center!", actor.Position.InRect(Arena.Center, new WDir(1, 0), _lightingSafeDistance, _lightingSafeDistance, _lightingSafeDistance));
+            hints.Add(Loc.T("GTFO from center!"), actor.Position.InRect(Arena.Center, new WDir(1, 0), _lightingSafeDistance, _lightingSafeDistance, _lightingSafeDistance));
         }
     }
 

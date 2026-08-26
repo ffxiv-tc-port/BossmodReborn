@@ -37,7 +37,7 @@ sealed class AlexandrianBanishIII(BossModule module) : Components.GenericBaitSta
         if (count == 0)
             return;
         if (CurrentBaits[0].Target == actor)
-            hints.Add("Intersect marked tiles to share damage over distance!");
+            hints.Add(Loc.T("Intersect marked tiles to share damage over distance!"));
         else
             base.AddHints(slot, actor, hints);
     }

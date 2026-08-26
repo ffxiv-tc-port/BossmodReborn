@@ -191,7 +191,7 @@ sealed class PendulumFlare(BossModule module) : Components.BaitAwayIcon(module, 
     {
         base.AddHints(slot, actor, hints);
         if (ActiveBaitsOn(actor).Count != 0)
-            hints.Add("Bait away!");
+            hints.Add(Loc.T("Bait away!"));
     }
 }
 

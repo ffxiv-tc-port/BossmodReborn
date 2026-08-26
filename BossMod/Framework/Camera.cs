@@ -19,10 +19,14 @@ sealed class Camera
     public Vector2 ViewportSize;
     private const float maxerror = 1 / 90f;
 
-    private readonly List<(Vector2 from, Vector2 to, uint col)> _worldDrawLines = [];
+    private readonly List<(Vector2 from, Vector2 to, uint col, float thickness)> _worldDrawLines = [];
 
     public unsafe void Update()
     {
+        // 📌 這裡的 CameraManager 是 Client.Game.Control.CameraManager，Instance() 展開成
+        //    (CameraManager*)Control.Instance()，而 Control.Instance() 的 [StaticAddress] 沒帶
+        //    isPointer（＝false，lea 取全域變數本身的位址）⇒ 恆非 null，判空是死碼。
+        //    可能為 null 的是 GetActiveCamera() 的回傳值，下面那行已經擋住了。
         var controlCamera = CameraManager.Instance()->GetActiveCamera();
         var renderCamera = controlCamera != null ? controlCamera->SceneCamera.RenderCamera : null;
         if (renderCamera == null)
@@ -43,8 +47,14 @@ sealed class Camera
 
         CameraAzimuth = MathF.Atan2(View.M13, View.M33);
         CameraAltitude = MathF.Asin(View.M23);
+        // 🔴 Device.Instance() 是 [StaticAddress(…, isPointer: true)]——回傳全域指標槽的內容，
+        //    合法可為 null（繪圖裝置重建期間）。原本直接 device->Width 就是 AccessViolation，
+        //    而 AVE 是 corrupted-state exception，try/catch 攔不到。
+        //    這幀拿不到裝置就沿用上一幀的 ViewportSize（中性值：世界疊加層頂多晚一幀對齊），
+        //    絕不寫入垃圾尺寸。
         var device = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Device.Instance();
-        ViewportSize = new(device->Width, device->Height);
+        if (device != null)
+            ViewportSize = new(device->Width, device->Height);
     }
 
     public void DrawWorldPrimitives()
@@ -60,14 +70,15 @@ sealed class Camera
 
         var dl = ImGui.GetWindowDrawList();
         foreach (var l in _worldDrawLines)
-            dl.AddLine(l.from, l.to, l.col);
+            dl.AddLine(l.from, l.to, l.col, l.thickness);
         _worldDrawLines.Clear();
 
         ImGui.End();
         ImGui.PopStyleVar();
     }
 
-    public void DrawWorldLine(Vector3 start, Vector3 end, uint color)
+    // thickness 預設 1f，與改動前 dl.AddLine 的隱含預設相同 —— 既有呼叫端外觀完全不變。
+    public void DrawWorldLine(Vector3 start, Vector3 end, uint color, float thickness = 1f)
     {
         var p1w = start;
         var p2w = end;
@@ -80,33 +91,34 @@ sealed class Camera
         var p2c = p2p.XY() * (1 / p2p.W);
         var p1screen = new Vector2(0.5f * ViewportSize.X * (1 + p1c.X), 0.5f * ViewportSize.Y * (1 - p1c.Y)) + ImGuiHelpers.MainViewport.Pos;
         var p2screen = new Vector2(0.5f * ViewportSize.X * (1 + p2c.X), 0.5f * ViewportSize.Y * (1 - p2c.Y)) + ImGuiHelpers.MainViewport.Pos;
-        _worldDrawLines.Add((p1screen, p2screen, color));
+        _worldDrawLines.Add((p1screen, p2screen, color, thickness));
     }
 
-    public void DrawWorldCone(Vector3 center, float radius, Angle direction, Angle halfWidth, uint color)
+    // thickness 預設 1f，與加上這個參數之前的行為逐位元組相同 —— 既有呼叫端外觀完全不變。
+    public void DrawWorldCone(Vector3 center, float radius, Angle direction, Angle halfWidth, uint color, float thickness = 1f)
     {
         int numSegments = CurveApprox.CalculateCircleSegments(radius, halfWidth, maxerror);
         var delta = halfWidth / numSegments;
 
         var prev = center + radius * (direction - delta * numSegments).ToDirection().ToVec3();
-        DrawWorldLine(center, prev, color);
+        DrawWorldLine(center, prev, color, thickness);
         for (var i = -numSegments + 1; i <= numSegments; ++i)
         {
             var curr = center + radius * (direction + delta * i).ToDirection().ToVec3();
-            DrawWorldLine(prev, curr, color);
+            DrawWorldLine(prev, curr, color, thickness);
             prev = curr;
         }
-        DrawWorldLine(prev, center, color);
+        DrawWorldLine(prev, center, color, thickness);
     }
 
-    public void DrawWorldCircle(Vector3 center, float radius, uint color)
+    public void DrawWorldCircle(Vector3 center, float radius, uint color, float thickness = 1f)
     {
         int numSegments = CurveApprox.CalculateCircleSegments(radius, 360f.Degrees(), maxerror);
         var prev = center + new Vector3(0, 0, radius);
         for (var i = 1; i <= numSegments; ++i)
         {
             var curr = center + radius * (i * 360.0f / numSegments).Degrees().ToDirection().ToVec3();
-            DrawWorldLine(curr, prev, color);
+            DrawWorldLine(curr, prev, color, thickness);
             prev = curr;
         }
     }

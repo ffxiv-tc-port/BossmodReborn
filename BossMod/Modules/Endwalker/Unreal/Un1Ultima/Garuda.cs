@@ -17,13 +17,13 @@ class Garuda(BossModule module) : BossComponent(module)
         {
             var adjPos = _vulcanBurstImminent ? Arena.ClampToBounds(Components.GenericKnockback.AwayFromSource(actor.Position, _mistralSong, 30)) : actor.Position;
             if (_aoeMistralSong.Check(adjPos, _mistralSong))
-                hints.Add("GTFO from aoe!");
+                hints.Add(Loc.T("GTFO from aoe!"));
         }
 
         if (_eots != null)
-            hints.Add("Stand near inner edge", _aoeEOTS.Check(actor.Position, _eots));
+            hints.Add(Loc.T("Stand near inner edge"), _aoeEOTS.Check(actor.Position, _eots));
         else if (_aoeGeocrush.Check(actor.Position, _geocrush))
-            hints.Add("Go to edge!");
+            hints.Add(Loc.T("Go to edge!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

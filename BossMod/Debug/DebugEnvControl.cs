@@ -36,7 +36,10 @@ sealed unsafe class DebugEnvControl
 
         _history.Remove(_current);
         _history.Insert(0, _current);
-        var director = EventFramework.Instance()->DirectorModule.ActiveContentDirector;
+        // 🔴 EventFramework.Instance() 是 [StaticAddress(…, isPointer: true)]，合法可為 null；
+        //    直接 ->DirectorModule 會 AccessViolation。當作「沒有作用中的 director」處理。
+        var eventFramework = EventFramework.Instance();
+        var director = eventFramework != null ? eventFramework->DirectorModule.ActiveContentDirector : null;
         if (director == null)
         {
             Service.Log("No active content director, doing nothing");

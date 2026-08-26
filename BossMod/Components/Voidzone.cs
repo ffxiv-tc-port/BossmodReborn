@@ -206,9 +206,9 @@ public class PersistentInvertibleVoidzone(BossModule module, float radius, Func<
     {
         var inVoidzone = Sources(Module).Any(s => Shape.Check(actor.Position, s));
         if (Inverted)
-            hints.Add(inVoidzone ? "Stay in voidzone" : "Go to voidzone!", !inVoidzone);
+            hints.Add(Loc.T(inVoidzone ? "Stay in voidzone" : "Go to voidzone!"), !inVoidzone);
         else if (inVoidzone)
-            hints.Add("GTFO from voidzone!");
+            hints.Add(Loc.T("GTFO from voidzone!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

@@ -27,11 +27,11 @@ sealed class P3TemporalStasis(BossModule module) : Components.GenericBaitAway(mo
         {
             case Mechanic.StayClose:
                 if (FindPartner(slot) is var partner1 && partner1 != null && (partner1.Position - actor.Position).LengthSq() > 25f)
-                    hints.Add("Stay closer to partner!");
+                    hints.Add(Loc.T("Stay closer to partner!"));
                 break;
             case Mechanic.StayFar:
                 if (FindPartner(slot) is var partner2 && partner2 != null && (partner2.Position - actor.Position).LengthSq() < 900f)
-                    hints.Add("Stay farther from partner!");
+                    hints.Add(Loc.T("Stay farther from partner!"));
                 break;
         }
     }

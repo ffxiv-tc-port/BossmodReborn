@@ -41,7 +41,11 @@ public sealed class AboutTab(DirectoryInfo? replayDir)
         DrawSection(Loc.T("ABOUT_CDPlanner", "Cooldown planner"),
         [
             Loc.T("ABOUT_CDPlanner_1", "Creates a CD plan for supported bosses."),
-            Loc.T("ABOUT_CDPlanner_2", "Replaces autorotations in specific fights."),
+            // 🔴 原句「Replaces autorotations in specific fights.」把優先順序講反了：
+            //    RotationModuleManager.Update 是 Preset != null 就用預設的模組，只有 Preset == null
+            //    才輪到計劃 ⇒ 是「預設蓋掉計劃」，不是「計劃取代預設」。自動循環視窗自己那顆
+            //    警告圖示（ROT_PlanBlockedByPreset）講的就是相反的事，兩句不能並存。
+            Loc.T("ABOUT_CDPlanner_2", "Used in specific fights instead of autorotation, but only while no preset is activated."),
             Loc.T("ABOUT_CDPlanner_3", "Allows you to time specific abilities to cast at specific times."),
             Loc.T("ABOUT_CDPlanner_4", "Guide for using this feature can be found on the wiki."),
         ]);

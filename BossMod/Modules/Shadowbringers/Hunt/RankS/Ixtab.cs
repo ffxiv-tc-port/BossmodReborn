@@ -139,9 +139,9 @@ class Doom(BossModule module) : BossComponent(module)
         if (_doomed.Count != 0)
             if (_doomed.Contains(actor))
                 if (!(actor.Role == Role.Healer))
-                    hints.Add("You were doomed! Get healed to full fast.");
+                    hints.Add(Loc.T("You were doomed! Get healed to full fast."));
                 else
-                    hints.Add("Heal yourself to full! (Doom).");
+                    hints.Add(Loc.T("Heal yourself to full! (Doom)."));
             else if (actor.Role == Role.Healer)
             {
                 var count = _doomed.Count;

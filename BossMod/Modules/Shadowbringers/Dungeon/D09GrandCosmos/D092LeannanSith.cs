@@ -214,14 +214,14 @@ class GreenTiles(BossModule module) : Components.GenericAOEs(module)
         if (trans)
         {
             if (aoe.Check(actor.Position))
-                hints.Add("Drop seed outside of vulnerable area!");
+                hints.Add(Loc.T("Drop seed outside of vulnerable area!"));
             else
-                hints.Add("Drop your seed!");
+                hints.Add(Loc.T("Drop your seed!"));
         }
         else if (!trans)
         {
             if (GetClippedSeeds(ref aoe).Count != 0)
-                hints.Add("Pick up seeds in vulnerable area!");
+                hints.Add(Loc.T("Pick up seeds in vulnerable area!"));
         }
     }
 }

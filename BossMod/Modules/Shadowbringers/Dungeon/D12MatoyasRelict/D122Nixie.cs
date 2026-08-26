@@ -203,7 +203,7 @@ class GeysersCloudPlatform(BossModule module) : Components.GenericAOEs(module)
                     break;
                 }
             }
-            hints.Add("Go to correct geyser and wait for erruption!", isRisky);
+            hints.Add(Loc.T("Go to correct geyser and wait for erruption!"), isRisky);
         }
         else
             base.AddHints(slot, actor, hints);

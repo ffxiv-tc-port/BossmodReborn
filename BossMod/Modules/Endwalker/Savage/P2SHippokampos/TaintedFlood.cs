@@ -25,13 +25,13 @@ class TaintedFlood : Components.CastCounter
         {
             // player is not a target of flood, so just make sure he is not clipped by others
             if (Raid.WithSlot(false, true, true).ExcludedFromMask(_ignoredTargets).InRadius(actor.Position, _radius).Any())
-                hints.Add("GTFO from flood!");
+                hints.Add(Loc.T("GTFO from flood!"));
         }
         else
         {
             // player is target of flood => make sure no one is in range
             if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _radius).Any())
-                hints.Add("Spread!");
+                hints.Add(Loc.T("Spread!"));
         }
     }
 

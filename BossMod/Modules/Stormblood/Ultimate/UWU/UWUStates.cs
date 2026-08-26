@@ -9,6 +9,7 @@ class UWUStates : StateMachineBuilder
         _module = module;
         SimplePhase(0, Phase1Garuda, "P1: Garuda")
             .ActivateOnEnter<P1Plumes>()
+            .ActivateOnEnter<P1PlumeShield>()
             .ActivateOnEnter<P1Gigastorm>()
             .ActivateOnEnter<P1GreatWhirlwind>() // TODO: not sure about this...
             .Raw.Update = () => Module.PrimaryActor.IsDestroyed || Module.PrimaryActor.HPMP.CurHP <= 1 && !Module.PrimaryActor.IsTargetable;

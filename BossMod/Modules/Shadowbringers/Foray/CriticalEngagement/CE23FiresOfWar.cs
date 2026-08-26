@@ -82,7 +82,7 @@ sealed class CantTouchThis(BossModule module) : Components.GenericStackSpread(mo
             var stackPos = stack.Target.Position;
             if (stack.IsInside(stackPos))
             {
-                hints.Add("Touch bomb when ready to resolve stack!");
+                hints.Add(Loc.T("Touch bomb when ready to resolve stack!"));
                 return;
             }
         }

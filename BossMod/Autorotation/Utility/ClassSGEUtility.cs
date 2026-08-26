@@ -18,30 +18,30 @@ public sealed class ClassSGEUtility(RotationModuleManager manager, Actor player)
         DefineShared(res, IDLimitBreak3); //Shared Healer actions
 
         res.Define(Track.Kardia).As<KardiaOption>("Kardia", "", 200) //Kardia & Soteria
-            .AddOption(KardiaOption.None, "None", "Do not use automatically")
-            .AddOption(KardiaOption.Kardia, "Kardia", "Use Kardia", 5, 0, ActionTargets.Self | ActionTargets.Party, 4)
-            .AddOption(KardiaOption.Soteria, "Soteria", "Use Soteria", 60, 15, ActionTargets.Self, 35)
+            .AddOption(KardiaOption.None, "Do not use automatically")
+            .AddOption(KardiaOption.Kardia, "Use Kardia", cooldown: 5, effect: 0, supportedTargets: ActionTargets.Self | ActionTargets.Party, minLevel: 4)
+            .AddOption(KardiaOption.Soteria, "Use Soteria", cooldown: 60, effect: 15, supportedTargets: ActionTargets.Self, minLevel: 35)
             .AddAssociatedActions(SGE.AID.Kardia, SGE.AID.Soteria);
 
         res.Define(Track.Physis).As<PhysisOption>("Physis", "", 200) //Physis
-            .AddOption(PhysisOption.None, "None", "Do not use automatically")
-            .AddOption(PhysisOption.Use, "Use", "Use Physis", 60, 15, ActionTargets.Self, 20, 59)
-            .AddOption(PhysisOption.UseEx, "UseEx", "Use Physis II", 60, 15, ActionTargets.Self, 60)
+            .AddOption(PhysisOption.None, "Do not use automatically")
+            .AddOption(PhysisOption.Use, "Use Physis", cooldown: 60, effect: 15, supportedTargets: ActionTargets.Self, minLevel: 20, maxLevel: 59)
+            .AddOption(PhysisOption.UseEx, "Use Physis II", cooldown: 60, effect: 15, supportedTargets: ActionTargets.Self, minLevel: 60)
             .AddAssociatedActions(SGE.AID.Physis, SGE.AID.PhysisII);
 
         DefineSimpleConfig(res, Track.Eukrasia, "Eukrasia", "", 110, SGE.AID.Eukrasia); //Eukrasia (spell only)
 
         res.Define(Track.Diagnosis).As<DiagnosisOption>("Diagnosis", "Diag", 200) //Diagnosis & EukrasianDiagnosis
-            .AddOption(DiagnosisOption.None, "None", "Do not use automatically")
-            .AddOption(DiagnosisOption.Use, "Use", "Use normal Diagnosis", 0, 0, ActionTargets.Self | ActionTargets.Party, 2)
-            .AddOption(DiagnosisOption.UseED, "UseED", "Use Eukrasian Diagnosis", 0, 30, ActionTargets.Self | ActionTargets.Party, 30)
+            .AddOption(DiagnosisOption.None, "Do not use automatically")
+            .AddOption(DiagnosisOption.Use, "Use normal Diagnosis", cooldown: 0, effect: 0, supportedTargets: ActionTargets.Self | ActionTargets.Party, minLevel: 2)
+            .AddOption(DiagnosisOption.UseED, "Use Eukrasian Diagnosis", cooldown: 0, effect: 30, supportedTargets: ActionTargets.Self | ActionTargets.Party, minLevel: 30)
             .AddAssociatedActions(SGE.AID.Diagnosis, SGE.AID.EukrasianDiagnosis);
 
         res.Define(Track.Prognosis).As<PrognosisOption>("Prognosis", "Prog", 200) //Prognosis & EukrasianPrognosis
-            .AddOption(PrognosisOption.None, "None", "Do not use automatically")
-            .AddOption(PrognosisOption.Use, "Use", "Use normal Prognosis", 0, 0, ActionTargets.Self, 2)
-            .AddOption(PrognosisOption.UseEP, "UseEP", "Use Eukrasian Prognosis", 0, 30, ActionTargets.Self, 30, 95)
-            .AddOption(PrognosisOption.UseEPEx, "UseEPEx", "Use Eukrasian Prognosis II", 0, 30, ActionTargets.Self, 96)
+            .AddOption(PrognosisOption.None, "Do not use automatically")
+            .AddOption(PrognosisOption.Use, "Use normal Prognosis", cooldown: 0, effect: 0, supportedTargets: ActionTargets.Self, minLevel: 2)
+            .AddOption(PrognosisOption.UseEP, "Use Eukrasian Prognosis", cooldown: 0, effect: 30, supportedTargets: ActionTargets.Self, minLevel: 30, maxLevel: 95)
+            .AddOption(PrognosisOption.UseEPEx, "Use Eukrasian Prognosis II", cooldown: 0, effect: 30, supportedTargets: ActionTargets.Self, minLevel: 96)
             .AddAssociatedActions(SGE.AID.Prognosis, SGE.AID.EukrasianPrognosis, SGE.AID.EukrasianPrognosisII);
 
         DefineSimpleConfig(res, Track.Druochole, "Druochole", "Druo", 150, SGE.AID.Druochole); //Druochole
@@ -49,9 +49,9 @@ public sealed class ClassSGEUtility(RotationModuleManager manager, Actor player)
         DefineSimpleConfig(res, Track.Ixochole, "Ixochole", "Ixo", 190, SGE.AID.Ixochole); //Ixochole
 
         res.Define(Track.Zoe).As<ZoeOption>("Zoe", "", 200) //Zoe
-            .AddOption(ZoeOption.None, "None", "Do not use automatically")
-            .AddOption(ZoeOption.Use, "Use", "Use Zoe", 120, 30, ActionTargets.Self, 56, 87)
-            .AddOption(ZoeOption.UseEx, "UseEx", "Use Enhanced Zoe", 90, 30, ActionTargets.Self, 88)
+            .AddOption(ZoeOption.None, "Do not use automatically")
+            .AddOption(ZoeOption.Use, "Use Zoe", cooldown: 120, effect: 30, supportedTargets: ActionTargets.Self, minLevel: 56, maxLevel: 87)
+            .AddOption(ZoeOption.UseEx, "Use Enhanced Zoe", cooldown: 90, effect: 30, supportedTargets: ActionTargets.Self, minLevel: 88)
             .AddAssociatedActions(SGE.AID.Zoe);
 
         DefineSimpleConfig(res, Track.Pepsis, "Pepsis", "", 170, SGE.AID.Pepsis); //Pepsis
@@ -65,8 +65,8 @@ public sealed class ClassSGEUtility(RotationModuleManager manager, Actor player)
         DefineSimpleConfig(res, Track.Philosophia, "Philosophia", "Philo", 260, SGE.AID.Philosophia, 20); //Philosophia
 
         res.Define(Track.Icarus).As<DashStrategy>("Icarus", "", 20)
-            .AddOption(DashStrategy.None, "None", "No use")
-            .AddOption(DashStrategy.GapClose, "GapClose", "Use as gapcloser if outside melee range", 45, 0, ActionTargets.Party | ActionTargets.Hostile, 45)
+            .AddOption(DashStrategy.None, "No use")
+            .AddOption(DashStrategy.GapClose, "Use as gapcloser if outside melee range", cooldown: 45, effect: 0, supportedTargets: ActionTargets.Party | ActionTargets.Hostile, minLevel: 45)
             .AddAssociatedActions(SGE.AID.Icarus);
 
         return res;

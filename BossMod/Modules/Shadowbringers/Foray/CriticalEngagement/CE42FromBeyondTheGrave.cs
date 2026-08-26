@@ -111,7 +111,7 @@ class GallowsMarch(BossModule module) : Components.StatusDrivenForcedMarch(modul
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (Module.PrimaryActor.CastInfo?.IsSpell(AID.GallowsMarch) ?? false)
-            hints.Add("Apply doom & march debuffs");
+            hints.Add(Loc.T("Apply doom & march debuffs"));
     }
 }
 

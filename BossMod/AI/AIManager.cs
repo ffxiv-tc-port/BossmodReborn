@@ -97,12 +97,12 @@ sealed class AIManager : IDisposable
     {
         SwitchToIdle();
         MasterSlot = WorldState.Party[masterSlot]?.Name == null ? 0 : masterSlot;
-        var count = Autorot.Database.Presets.VisiblePresets.Count;
+        var count = Autorot.Database.Presets.AllPresets.Count;
         Preset? preset = null;
         for (var i = 0; i < count; ++i)
         {
-            var p = Autorot.Database.Presets.VisiblePresets[i];
-            if (p.Name == _config.AIAutorotPresetName)
+            var p = Autorot.Database.Presets.AllPresets[i];
+            if (string.Equals(p.Name, _config.AIAutorotPresetName, PresetDatabase.NameComparison))
             {
                 preset = p;
                 break;
@@ -119,7 +119,10 @@ sealed class AIManager : IDisposable
             return -1;
         var group = GroupManager.Instance()->GetGroup();
         var slot = -1;
-        for (var i = 0; i < group->MemberCount; ++i)
+        // MemberCount 是遊戲寫入的 byte，PartyMembers 是 FixedSizeArray8 —— 兩者之間沒有結構
+        // 保證，Count 異常時原本會索引到陣列外。夾到容量內，越界時安靜少讀。
+        var memberCount = Math.Min((int)group->MemberCount, group->PartyMembers.Length);
+        for (var i = 0; i < memberCount; ++i)
         {
             if (group->PartyMembers[i].HomeWorld == source.World.RowId && group->PartyMembers[i].NameString == source.PlayerName)
             {
@@ -649,8 +652,11 @@ sealed class AIManager : IDisposable
         }
 
         var normalizedInput = userInput.ToUpperInvariant();
-        var preset = Autorot.Database.Presets.VisiblePresets
-            .FirstOrDefault(p => p.Name.Trim().Equals(normalizedInput, StringComparison.OrdinalIgnoreCase))
+        // 🔑 preset 名查找統一走 PresetDatabase.NameComparison（單一真值來源）。.Trim() 是本呼叫點的
+        //    區域輸入正規化（去掉 preset 名頭尾空白），與大小寫敏感度是兩件事——保留在這裡，不提進
+        //    canonical 比較器，以免回頭改動主編輯器／IPC 查重已出貨的語意（讓本來分得開的名字折在一起）。
+        var preset = Autorot.Database.Presets.AllPresets
+            .FirstOrDefault(p => p.Name.Trim().Equals(normalizedInput, PresetDatabase.NameComparison))
             ?? RotationModuleManager.ForceDisable;
 
         if (preset != null)

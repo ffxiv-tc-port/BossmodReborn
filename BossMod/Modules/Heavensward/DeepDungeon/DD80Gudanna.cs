@@ -103,28 +103,28 @@ class EncounterHints(BossModule module) : BossComponent(module)
         switch (NumCast)
         {
             case 0:
-                hints.Add("Thunderbolt -> Charybdis -> Thunderbolt -> Trounce from East Wall");
+                hints.Add(Loc.T("Thunderbolt -> Charybdis -> Thunderbolt -> Trounce from East Wall"));
                 break;
             case 1:
-                hints.Add("Charybdis -> Thunderbolt -> Trounce from East Wall");
+                hints.Add(Loc.T("Charybdis -> Thunderbolt -> Trounce from East Wall"));
                 break;
             case 2:
-                hints.Add("Thunderbolt -> Trounce from East Wall");
+                hints.Add(Loc.T("Thunderbolt -> Trounce from East Wall"));
                 break;
             case 3:
-                hints.Add("Trounce from East Wall");
+                hints.Add(Loc.T("Trounce from East Wall"));
                 break;
             case 4:
-                hints.Add("Charybdis -> Thunderbolt -> Charybdis -> Trounce from West Wall.");
+                hints.Add(Loc.T("Charybdis -> Thunderbolt -> Charybdis -> Trounce from West Wall."));
                 break;
             case 5:
-                hints.Add("Thunderbolt -> Charybdis -> Trounce from West Wall.");
+                hints.Add(Loc.T("Thunderbolt -> Charybdis -> Trounce from West Wall."));
                 break;
             case 6:
-                hints.Add("Charybdis -> Trounce from West Wall!");
+                hints.Add(Loc.T("Charybdis -> Trounce from West Wall!"));
                 break;
             case 7:
-                hints.Add("Trounce from West Wall!");
+                hints.Add(Loc.T("Trounce from West Wall!"));
                 break;
             default:
                 break;

@@ -15,7 +15,7 @@ class TrailOfCondemnation(BossModule module) : BossComponent(module)
         {
             if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _aoeRadius).Any())
             {
-                hints.Add("Spread!");
+                hints.Add(Loc.T("Spread!"));
             }
         }
         else
@@ -30,11 +30,11 @@ class TrailOfCondemnation(BossModule module) : BossComponent(module)
             }
             if (numStacked != 1)
             {
-                hints.Add("Stack in pairs!");
+                hints.Add(Loc.T("Stack in pairs!"));
             }
             else if (!goodPair)
             {
-                hints.Add("Incorrect pairing!");
+                hints.Add(Loc.T("Incorrect pairing!"));
             }
         }
     }

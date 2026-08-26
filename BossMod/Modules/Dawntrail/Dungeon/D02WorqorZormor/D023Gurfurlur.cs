@@ -94,7 +94,7 @@ sealed class AuraSphere(BossModule module) : BossComponent(module)
         var orbs = GetOrbs(Module);
         var count = orbs.Count;
         if (count != 0)
-            hints.Add("Soak the orbs!");
+            hints.Add(Loc.T("Soak the orbs!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
@@ -234,7 +234,7 @@ sealed class Allfire(BossModule module) : Components.GenericAOEs(module)
             base.AddHints(slot, actor, hints);
             return;
         }
-        hints.Add("Wait inside safespot for knockback!", !AOEs[0].Check(actor.Position));
+        hints.Add(Loc.T("Wait inside safespot for knockback!"), !AOEs[0].Check(actor.Position));
     }
 }
 

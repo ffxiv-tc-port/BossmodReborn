@@ -1,4 +1,6 @@
-﻿namespace BossMod.Autorotation;
+﻿using System.Reflection;
+
+namespace BossMod.Autorotation;
 
 public enum RotationModuleQuality
 {
@@ -40,27 +42,29 @@ public sealed record class RotationModuleDefinition(string DisplayName, string D
     public readonly BitMask Classes = Classes;
     public readonly List<StrategyConfig> Configs = [];
 
-    public DefineRef Define<Index>(Index expectedIndex) where Index : Enum => new(Configs, (int)(object)expectedIndex);
-
     // unfortunately, c# doesn't support partial type inference, and forcing user to spell out track enum twice is obnoxious, so here's the hopefully cheap solution
     public readonly ref struct DefineRef(List<StrategyConfig> configs, int index)
     {
-        public ConfigRef<Selector> As<Selector>(string internalName, string displayName = "", float uiPriority = 0) where Selector : Enum
+        public ConfigRef<Selector> As<Selector>(string internalName, string displayName = "", float uiPriority = 0, Type? renderer = null) where Selector : Enum
         {
             if (configs.Count != index)
                 throw new ArgumentException($"Unexpected index for {internalName}: expected {index}, cur size {configs.Count}");
-            var config = new StrategyConfig(typeof(Selector), internalName, displayName, uiPriority);
+            // renderer resolution order mirrors WithStrategies<S>() below: explicit argument wins, then the
+            // [Renderer] attribute on the selector enum, then the plain combo box. Without the attribute step
+            // the custom renderers are only reachable by spelling them out at every Define site, which silently
+            // leaves direct As<T>() callers (e.g. xan DRG/SAM) on a different widget than the DefineSimple ones.
+            var config = new StrategyConfigTrack(typeof(Selector), internalName, displayName, uiPriority, renderer ?? typeof(Selector).GetCustomAttribute<RendererAttribute>()?.Type ?? typeof(TrackRenderer));
             configs.Add(config);
             return new(config);
         }
     }
 
-    public readonly ref struct ConfigRef<Index>(StrategyConfig config) where Index : Enum
+    public readonly ref struct ConfigRef<Index>(StrategyConfigTrack config) where Index : Enum
     {
-        public ConfigRef<Index> AddOption(Index expectedIndex, string internalName, string displayName = "", float cooldown = 0, float effect = 0, ActionTargets supportedTargets = ActionTargets.None,
-            int minLevel = 1, int maxLevel = int.MaxValue, float defaultPriority = ActionQueue.Priority.Medium)
+        public ConfigRef<Index> AddOption(Index expectedIndex, string displayName = "", float cooldown = 0, float effect = 0, ActionTargets supportedTargets = ActionTargets.None, int minLevel = 1, int maxLevel = int.MaxValue, float defaultPriority = ActionQueue.Priority.Medium, string? internalNameOverride = null)
         {
             var idx = (int)(object)expectedIndex;
+            var internalName = internalNameOverride ?? expectedIndex.ToString();
             if (config.Options.Count != idx)
                 throw new ArgumentException($"Unexpected index value for {internalName}: expected {expectedIndex} ({idx}), got {config.Options.Count}");
             config.Options.Add(new(internalName, displayName)
@@ -87,6 +91,91 @@ public sealed record class RotationModuleDefinition(string DisplayName, string D
                 config.AssociatedActions.Add(ActionID.MakeSpell(aid));
             return this;
         }
+    }
+
+    public DefineRef Define<Index>(Index expectedIndex) where Index : Enum => new(Configs, (int)(object)expectedIndex);
+
+    /// <param name="defaultValue">
+    /// 使用者沒動過這條軌時拿到的值。省略＝沿用 <paramref name="minValue"/>（解耦前的行為）。
+    /// 🔴 想把 <paramref name="minValue"/> 調低時<b>一定要同時明寫這個</b>，否則等於把所有既有
+    /// 使用者的預設值一起改掉，而且完全不報錯 —— 見 <see cref="StrategyConfigFloat.Default"/>。
+    /// </param>
+    /// <param name="speed">
+    /// 拖曳滑桿一格的增量（<c>ImGui.DragFloat</c> 的 speed）。距離／秒數這類需要細調的軌道要明寫，
+    /// 預設的 1 對它們太粗。
+    /// </param>
+    public void DefineFloat<Index>(Index expectedIndex, string displayName = "", float minValue = 0, float maxValue = float.MaxValue, float uiPriority = 0, float? defaultValue = null, float speed = 1) where Index : Enum
+    {
+        var idx = (int)(object)expectedIndex;
+        var internalName = expectedIndex.ToString();
+        if (Configs.Count != idx)
+            throw new ArgumentException($"Unexpected index value for {internalName}: expected {idx}, cur size {Configs.Count}");
+        Configs.Add(new StrategyConfigFloat(internalName, displayName, minValue, maxValue, uiPriority, typeof(FloatRenderer), Speed: speed, DefaultValue: defaultValue));
+    }
+
+    public void DefineInt<Index>(Index expectedIndex, string displayName = "", long minValue = 0, long maxValue = long.MaxValue, float uiPriority = 0) where Index : Enum
+    {
+        var idx = (int)(object)expectedIndex;
+        var internalName = expectedIndex.ToString();
+        if (Configs.Count != idx)
+            throw new ArgumentException($"Unexpected index value for {internalName}: expected {idx}, cur size {Configs.Count}");
+        Configs.Add(new StrategyConfigInt(internalName, displayName, minValue, maxValue, uiPriority, typeof(IntRenderer)));
+    }
+
+    public RotationModuleDefinition WithStrategies<S>()
+    {
+        foreach (var field in typeof(S).GetFields())
+        {
+            if (field.FieldType.Name == typeof(Track<>).Name)
+            {
+                var inner = field.FieldType.GetGenericArguments()[0];
+
+                if (inner.IsEnum)
+                {
+                    var trackInfo = field.GetCustomAttribute<TrackAttribute>() ?? new();
+                    var renderer = trackInfo.Renderer ?? inner.GetCustomAttribute<RendererAttribute>()?.Type ?? typeof(TrackRenderer);
+
+                    var trackCfg = new StrategyConfigTrack(inner, trackInfo.InternalName ?? field.Name, trackInfo.DisplayName, trackInfo.UiPriority, renderer);
+
+                    foreach (var variantName in inner.GetEnumNames())
+                    {
+                        var variantField = inner.GetField(variantName)!;
+                        var fieldSettings = variantField.GetCustomAttribute<OptionAttribute>() ?? new OptionAttribute();
+
+                        trackCfg.Options.Add(new(variantField.Name, fieldSettings.DisplayName)
+                        {
+                            Cooldown = fieldSettings.Cooldown,
+                            Effect = fieldSettings.Effect,
+                            SupportedTargets = fieldSettings.Targets,
+                            MinLevel = fieldSettings.MinLevel,
+                            MaxLevel = fieldSettings.MaxLevel,
+                            DefaultPriority = fieldSettings.DefaultPriority
+                        });
+                    }
+
+                    Configs.Add(trackCfg);
+                    continue;
+                }
+
+                if (inner == typeof(float))
+                {
+                    var attr = field.GetCustomAttribute<NumberAttribute>() ?? new();
+                    Configs.Add(new StrategyConfigFloat(field.Name, attr.DisplayName, attr.MinValue, attr.MaxValue, attr.UiPriority, attr.Renderer ?? typeof(FloatRenderer), attr.Slider, attr.Speed));
+                    continue;
+                }
+
+                if (inner == typeof(int))
+                {
+                    var attr = field.GetCustomAttribute<NumberAttribute>() ?? new();
+                    Configs.Add(new StrategyConfigInt(field.Name, attr.DisplayName, (long)attr.MinValue, (long)attr.MaxValue, attr.UiPriority, attr.Renderer ?? typeof(IntRenderer), attr.Slider, attr.Speed));
+                    continue;
+                }
+            }
+
+            throw new ArgumentException($"not sure what to do with field {field.Name} of type {field.FieldType}");
+        }
+
+        return this;
     }
 }
 
@@ -133,8 +222,8 @@ public abstract class RotationModule(RotationModuleManager manager, Actor player
 
     // utility to resolve the target overrides; returns null on failure - in this case module is expected to run smart-targeting logic
     // expected usage is `ResolveTargetOverride(strategy) ?? CustomSmartTargetingLogic(...)`
-    protected Actor? ResolveTargetOverride(in StrategyValue strategy) => Manager.ResolveTargetOverride(strategy.Target, strategy.TargetParam);
-    protected WPos ResolveTargetLocation(in StrategyValue strategy) => Manager.ResolveTargetLocation(strategy.Target, strategy.TargetParam, strategy.Offset1, strategy.Offset2);
+    protected Actor? ResolveTargetOverride(in StrategyValueTrack strategy) => Manager.ResolveTargetOverride(strategy.Target, strategy.TargetParam);
+    protected WPos ResolveTargetLocation(in StrategyValueTrack strategy) => Manager.ResolveTargetLocation(strategy.Target, strategy.TargetParam, strategy.Offset1, strategy.Offset2);
 
     protected float StatusDuration(DateTime expireAt) => Math.Max((float)(expireAt - World.CurrentTime).TotalSeconds, 0.0f);
 
@@ -207,4 +296,13 @@ public abstract class RotationModule(RotationModuleManager manager, Actor player
         }
         return (bestTarget, bestPrio);
     }
+}
+
+public abstract class TypedRotationModule<TValues>(RotationModuleManager manager, Actor player) : RotationModule(manager, player) where TValues : struct
+{
+    public abstract void Execute(TValues strategy, Actor? primaryTarget, float estimatedAnimLockDelay, bool isMoving);
+
+    protected abstract TValues FromValues(StrategyValues strategy);
+
+    public sealed override void Execute(StrategyValues strategy, Actor? primaryTarget, float estimatedAnimLockDelay, bool isMoving) => Execute(FromValues(strategy), primaryTarget, estimatedAnimLockDelay, isMoving);
 }

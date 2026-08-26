@@ -8,7 +8,7 @@ sealed class AbsoluteAuthorityFlare(BossModule module) : Components.BaitAwayIcon
     {
         base.AddHints(slot, actor, hints);
         if (ActiveBaitsOn(actor).Count != 0)
-            hints.Add("Bait away!");
+            hints.Add(Loc.T("Bait away!"));
     }
 }
 

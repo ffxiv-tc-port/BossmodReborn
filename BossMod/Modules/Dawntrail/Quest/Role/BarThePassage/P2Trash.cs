@@ -61,7 +61,7 @@ sealed class IceAegis(BossModule module) : Components.GenericAOEs(module)
     {
         if (_aoe is not AOEInstance aoe)
             return;
-        hints.Add("Go behind shield!", !aoe.Check(actor.Position));
+        hints.Add(Loc.T("Go behind shield!"), !aoe.Check(actor.Position));
     }
 }
 

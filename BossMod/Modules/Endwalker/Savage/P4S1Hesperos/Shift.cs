@@ -13,11 +13,11 @@ class Shift(BossModule module) : BossComponent(module)
     {
         if (_swordAOE.Check(actor.Position, _swordCaster))
         {
-            hints.Add("GTFO from sword!");
+            hints.Add(Loc.T("GTFO from sword!"));
         }
         else if (_cloakCaster != null && !Module.InBounds(Components.GenericKnockback.AwayFromSource(actor.Position, _cloakCaster, _knockbackRange)))
         {
-            hints.Add("About to be knocked into wall!");
+            hints.Add(Loc.T("About to be knocked into wall!"));
         }
     }
 

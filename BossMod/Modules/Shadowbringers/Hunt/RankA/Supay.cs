@@ -20,7 +20,7 @@ class BlasphemousHowl(BossModule module) : Components.BaitAwayCast(module, (uint
     {
         base.AddHints(slot, actor, hints);
         if (ActiveBaitsOn(actor).Count != 0)
-            hints.Add("Bait away + look away!");
+            hints.Add(Loc.T("Bait away + look away!"));
     }
 }
 

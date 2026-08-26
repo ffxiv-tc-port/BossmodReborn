@@ -51,17 +51,18 @@ public unsafe struct PlayerController
     [FieldOffset(0x559)] public byte ControlMode;
 }
 
-[StructLayout(LayoutKind.Explicit, Size = 0x2B0)]
+// 同 BossMod.Util.CameraEx:TC 7.20 起整批往後移 0x10,對齊 pin 版 CS 的 Camera。
+[StructLayout(LayoutKind.Explicit, Size = 0x2C0)]
 public unsafe struct CameraX
 {
-    [FieldOffset(0x130)] public float DirH;
-    [FieldOffset(0x134)] public float DirV;
-    [FieldOffset(0x138)] public float InputDeltaHAdjusted;
-    [FieldOffset(0x13C)] public float InputDeltaVAdjusted;
-    [FieldOffset(0x140)] public float InputDeltaH;
-    [FieldOffset(0x144)] public float InputDeltaV;
-    [FieldOffset(0x148)] public float DirVMin;
-    [FieldOffset(0x14C)] public float DirVMax;
+    [FieldOffset(0x140)] public float DirH;
+    [FieldOffset(0x144)] public float DirV;
+    [FieldOffset(0x148)] public float InputDeltaHAdjusted;
+    [FieldOffset(0x14C)] public float InputDeltaVAdjusted;
+    [FieldOffset(0x150)] public float InputDeltaH;
+    [FieldOffset(0x154)] public float InputDeltaV;
+    [FieldOffset(0x158)] public float DirVMin;
+    [FieldOffset(0x15C)] public float DirVMax;
 }
 
 internal sealed unsafe class DebugInput : IDisposable
@@ -138,19 +139,31 @@ internal sealed unsafe class DebugInput : IDisposable
 
     public void Draw()
     {
-        var dt = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance()->FrameDeltaTime;
+        // 🔴 Framework.Instance() 是 [StaticAddress(…, isPointer: true)]，回傳全域指標槽的**內容**，合法可為 null；
+        //    原本直接 ->FrameDeltaTime ＝ AccessViolationException（corrupted-state exception，攔不到）。
+        //    這裡只把「需要 dt」的速度那一段關掉，下面不需要 Framework 的欄位照常顯示。
+        //    ⚠️ 顯示「不可用」而不是把速度畫成 0 —— 0 會被誤讀成「真的沒在動」。
+        var fwk = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance();
+        if (fwk == null)
+        {
+            ImGui.TextUnformatted("Speed: Framework 不可用 —— 這一幀算不出速度／加速度");
+        }
+        else
+        {
+            var dt = fwk->FrameDeltaTime;
 
-        var player = _ws.Party.Player();
-        var curPosRot = player?.PosRot ?? new();
-        var speed = (curPosRot.XYZ() - _prevPosRot.XYZ()) / dt;
-        var speedAbs = speed.Length();
-        var accel = (speedAbs - _prevSpeed) / dt;
-        var rotSpeed = (curPosRot.W - _prevPosRot.W).Radians().Normalized() / dt;
-        //if (curPosRot.W != _prevPosRot.W)
-        //    Service.Log($"ROT: {_prevPosRot.W.Radians()} -> {curPosRot.W.Radians()} over {dt} (s={rotSpeed})");
-        _prevPosRot = curPosRot;
-        _prevSpeed = speedAbs;
-        ImGui.TextUnformatted($"Speed={speedAbs:f3}, SpeedH={speed.XZ().Length():f3}, SpeedV={speed.Y:f3}, RSpeed={rotSpeed}, Accel={accel:f3}, Azimuth={Angle.FromDirection(new(speed.XZ()))}, Altitude={Angle.FromDirection(new(speed.Y, speed.XZ().Length()))}");
+            var player = _ws.Party.Player();
+            var curPosRot = player?.PosRot ?? new();
+            var speed = (curPosRot.XYZ() - _prevPosRot.XYZ()) / dt;
+            var speedAbs = speed.Length();
+            var accel = (speedAbs - _prevSpeed) / dt;
+            var rotSpeed = (curPosRot.W - _prevPosRot.W).Radians().Normalized() / dt;
+            //if (curPosRot.W != _prevPosRot.W)
+            //    Service.Log($"ROT: {_prevPosRot.W.Radians()} -> {curPosRot.W.Radians()} over {dt} (s={rotSpeed})");
+            _prevPosRot = curPosRot;
+            _prevSpeed = speedAbs;
+            ImGui.TextUnformatted($"Speed={speedAbs:f3}, SpeedH={speed.XZ().Length():f3}, SpeedV={speed.Y:f3}, RSpeed={rotSpeed}, Accel={accel:f3}, Azimuth={Angle.FromDirection(new(speed.XZ()))}, Altitude={Angle.FromDirection(new(speed.Y, speed.XZ().Length()))}");
+        }
         ImGui.TextUnformatted($"MO: desired={_move.DesiredDirection}, user={_move.UserMove}, actual={_move.ActualMove}");
         //Service.Log($"Speed: {speedAbs:f3}, accel: {accel:f3}");
 
@@ -180,7 +193,14 @@ internal sealed unsafe class DebugInput : IDisposable
 
         foreach (var n in _tree.Node("Input data"))
         {
+            // 🔴 GetInputData() 現在會在 Framework／UIModule 拿不到時回 null（見該方法的說明），
+            //    原本這裡直接 idata->KeybindCount 就是 AccessViolation。拿不到就顯示不可用。
             var idata = GetInputData();
+            if (idata == null)
+            {
+                _tree.LeafNode("Keybinds: UIInputData 不可用");
+                continue;
+            }
             foreach (var n2 in _tree.Node($"Keybinds ({idata->KeybindCount} total)"))
             {
                 var mapping = new VirtualKey[256];
@@ -310,7 +330,15 @@ internal sealed unsafe class DebugInput : IDisposable
         //}
     }
 
-    private InputData* GetInputData() => (InputData*)FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance()->GetUIModule()->GetUIInputData();
+    // 🔴 Framework.Instance() 是 [StaticAddress(…, isPointer: true)]，合法可為 null；GetUIModule() 也是
+    //    一般的成員函式、UI 模組還沒建好時回 null。原本整條裸鏈就是 AccessViolationException（攔不到）。
+    //    改成把 null 傳給呼叫端，由呼叫端顯示「不可用」——不要在這裡回一個假的非 null 指標。
+    private InputData* GetInputData()
+    {
+        var fwk = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance();
+        var uiModule = fwk != null ? fwk->GetUIModule() : null;
+        return uiModule != null ? (InputData*)uiModule->GetUIInputData() : null;
+    }
 
     //private void RMIWalkDetour(PlayerMoveControllerWalk* self, float* sumLeft, float* sumForward, float* sumTurnLeft, byte* haveBackwardOrStrafe, byte* a6, byte bAdditiveUnk)
     //{

@@ -45,7 +45,7 @@ class HeavensfallBait(BossModule module) : Components.BaitAwayIcon(module, 5f, (
     {
         base.AddHints(slot, actor, hints);
         if (ActiveBaitsOn(actor).Count != 0)
-            hints.Add("Bait away!");
+            hints.Add(Loc.T("Bait away!"));
     }
 }
 
@@ -62,7 +62,7 @@ class Meteor(BossModule module) : Components.BaitAwayIcon(module, 20f, (uint)Ico
     {
         base.AddHints(slot, actor, hints);
         if (ActiveBaitsOn(actor).Count != 0)
-            hints.Add("Bait away!");
+            hints.Add(Loc.T("Bait away!"));
     }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)

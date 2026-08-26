@@ -56,7 +56,7 @@ sealed class DraconiformMotionBait(BossModule module) : Components.GenericAOEs(m
                     break;
                 }
             }
-            hints.Add("Bait the cone AOEs!", !isInside);
+            hints.Add(Loc.T("Bait the cone AOEs!"), !isInside);
         }
     }
 }

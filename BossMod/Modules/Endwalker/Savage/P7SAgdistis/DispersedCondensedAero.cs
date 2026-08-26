@@ -15,14 +15,14 @@ class DispersedCondensedAero(BossModule module) : BossComponent(module)
         {
             if (Module.PrimaryActor.TargetID == actor.InstanceID)
             {
-                hints.Add("Stack with other tank or press invuln!", Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _radiusCondensed).Any(a => a.Role != Role.Tank));
+                hints.Add(Loc.T("Stack with other tank or press invuln!"), Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _radiusCondensed).Any(a => a.Role != Role.Tank));
             }
             else
             {
                 var tank = WorldState.Actors.Find(Module.PrimaryActor.TargetID);
                 if (tank != null && actor.Position.InCircle(tank.Position, _radiusCondensed))
                 {
-                    hints.Add("GTFO from tank!");
+                    hints.Add(Loc.T("GTFO from tank!"));
                 }
             }
         }
@@ -30,11 +30,11 @@ class DispersedCondensedAero(BossModule module) : BossComponent(module)
         {
             if (actor.Role == Role.Tank)
             {
-                hints.Add("GTFO from raid!", Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _radiusDispersed).Any());
+                hints.Add(Loc.T("GTFO from raid!"), Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _radiusDispersed).Any());
             }
             else if (Raid.WithoutSlot(false, true, true).Where(a => a.Role == Role.Tank).InRadius(actor.Position, _radiusDispersed).Any())
             {
-                hints.Add("GTFO from tanks!");
+                hints.Add(Loc.T("GTFO from tanks!"));
             }
         }
     }

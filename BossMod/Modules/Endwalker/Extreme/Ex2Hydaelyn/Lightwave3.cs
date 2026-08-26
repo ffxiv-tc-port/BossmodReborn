@@ -21,7 +21,7 @@ class Lightwave3(BossModule module) : LightwaveCommon(module)
             return;
 
         if (Waves.Any(w => WaveAOE.Check(actor.Position, w)))
-            hints.Add("GTFO from wave!");
+            hints.Add(Loc.T("GTFO from wave!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

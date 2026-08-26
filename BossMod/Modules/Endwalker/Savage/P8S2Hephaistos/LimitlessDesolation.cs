@@ -25,7 +25,7 @@ class LimitlessDesolation : Components.UniformStackSpread
 
         var towerIndex = _towerAssignments[slot];
         if (towerIndex >= 0 && !actor.Position.InCircle(Arena.Center + _towerOffsets[towerIndex], _towerRadius))
-            hints.Add("Soak assigned tower!");
+            hints.Add(Loc.T("Soak assigned tower!"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

@@ -17,12 +17,12 @@ class BlackHole(BossModule module) : BossComponent(module)
         if (Baiter == actor)
         {
             if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _startingRadius).Any())
-                hints.Add("GTFO from raid!");
+                hints.Add(Loc.T("GTFO from raid!"));
         }
         else if (Baiter != null)
         {
             if (actor.Position.InCircle(Baiter.Position, _startingRadius))
-                hints.Add("GTFO from black hole baiter!");
+                hints.Add(Loc.T("GTFO from black hole baiter!"));
         }
     }
 

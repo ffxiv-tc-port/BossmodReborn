@@ -27,7 +27,7 @@ sealed class WorldStateGameSync : IDisposable
     private readonly ActionManagerEx _amex;
     private readonly DateTime _startTime;
     private readonly long _startQPC;
-    private bool _loggedDeepDungeonBase; // TEMP DEBUG
+    private bool _loggedDeepDungeonBase;
 
     // list of actors that are present in the user's enemy list
     private readonly List<ulong> _playerEnmity = [];
@@ -85,7 +85,18 @@ sealed class WorldStateGameSync : IDisposable
         _ws = ws;
         _amex = amex;
         _startTime = DateTime.Now;
-        _startQPC = Framework.Instance()->PerformanceCounterValue;
+        // 🔴 Framework.Instance() 是 [StaticAddress(…, isPointer: true)]，回傳全域指標槽的**內容**，合法可為 null。
+        // 📌 判定：這裡是「外掛載入」路徑，不是每幀路徑。Dalamud 自己要先有 Framework 才跑得起外掛，
+        //    所以這一刻為 null 幾乎不可能發生；而 _startQPC 是整條世界狀態時間軸的錨點，沒有中性值可用
+        //    （拿 0 當錨會讓每一幀的時間戳都偏掉，是靜默的錯誤資料，比載入失敗糟）。
+        //    ⇒ 選擇擲出明確的受管理例外：Dalamud 會把它記成「外掛載入失敗」並顯示原因，遊戲照常跑；
+        //    原本的裸鏈解參考則是 AccessViolationException＝直接把遊戲帶走，而且沒有任何訊息。
+        //    （不選「延後到第一幀再取」是因為 _startTime／_startQPC 必須是同一刻的一對，
+        //      拆成兩個時機要動到兩個 readonly 欄位與所有使用點，對一個幾乎不會發生的情況不划算。）
+        var fwk = Framework.Instance();
+        if (fwk == null)
+            throw new InvalidOperationException("Client::System::Framework::Framework 尚未建立，無法取得世界狀態時間軸的起始 QPC。");
+        _startQPC = fwk->PerformanceCounterValue;
         _interceptor.ServerIPCReceived += ServerIPCReceived;
         _interceptor.ClientIPCSent += ClientIPCSent;
 
@@ -100,7 +111,7 @@ sealed class WorldStateGameSync : IDisposable
             amex.ActionEffectReceived.Subscribe(OnActionEffect)
         );
 
-        _processPacketActorCastHook = Service.Hook.HookFromSignature<ProcessPacketActorCastDelegate>("40 56 41 56 48 81 EC ?? ?? ?? ?? 48 8B F2", ProcessPacketActorCastDetour);
+        _processPacketActorCastHook = Service.Hook.HookFromSignature<ProcessPacketActorCastDelegate>("40 53 57 48 81 EC ?? ?? ?? ?? 48 8B FA 8B D1", ProcessPacketActorCastDetour);
         _processPacketActorCastHook.Enable();
         Service.Log($"[WSG] ProcessPacketActorCast address = 0x{_processPacketActorCastHook.Address:X}");
 
@@ -117,7 +128,7 @@ sealed class WorldStateGameSync : IDisposable
         Service.Log($"[WSG] ProcessPacketActorControl address = 0x{_processPacketActorControlHook.Address:X}");
 
         // alt sig - impl: "45 33 D2 48 8D 41 48"
-        _processPacketNpcYellHook = Service.Hook.HookFromSignature<ProcessPacketNpcYellDelegate>("48 83 EC 58 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 44 24 ?? 0F 10 41 10", ProcessPacketNpcYellDetour);
+        _processPacketNpcYellHook = Service.Hook.HookFromSignature<ProcessPacketNpcYellDelegate>("48 83 EC 68 48 8B 05 ?? ?? ?? ?? 48 33 C4 48 89 44 24 ?? 0F 10 41 10", ProcessPacketNpcYellDetour);
         _processPacketNpcYellHook.Enable();
         Service.Log($"[WSG] ProcessPacketNpcYell address = 0x{_processPacketNpcYellHook.Address:X}");
 
@@ -129,7 +140,7 @@ sealed class WorldStateGameSync : IDisposable
         _processPacketRSVDataHook.Enable();
         Service.Log($"[WSG] ProcessPacketRSVData address = 0x{_processPacketRSVDataHook.Address:X}");
 
-        _processSystemLogMessageHook = Service.Hook.HookFromSignature<ProcessSystemLogMessageDelegate>("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 0F B6 46 28", ProcessSystemLogMessageDetour);
+        _processSystemLogMessageHook = Service.Hook.HookFromSignature<ProcessSystemLogMessageDelegate>("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 0F B6 47 28", ProcessSystemLogMessageDetour);
         _processSystemLogMessageHook.Enable();
         Service.Log($"[WSG] ProcessSystemLogMessage address = 0x{_processSystemLogMessageHook.Address:X}");
 
@@ -137,14 +148,14 @@ sealed class WorldStateGameSync : IDisposable
         _processPacketOpenTreasureHook.Enable();
         Service.Log($"[WSG] ProcessPacketOpenTreasure address = 0x{_processPacketOpenTreasureHook.Address:X}");
 
-        _processPacketFateInfoHook = Service.Hook.HookFromSignature<ProcessPacketFateInfoDelegate>("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 0F B7 4E 10 48 8D 56 12 41 B8 ?? ?? ?? ??", ProcessPacketFateInfoDetour);
+        _processPacketFateInfoHook = Service.Hook.HookFromSignature<ProcessPacketFateInfoDelegate>("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 0F B7 4F 10 48 8D 57 12 41 B8 ?? ?? ?? ??", ProcessPacketFateInfoDetour);
         _processPacketFateInfoHook.Enable();
         Service.Log($"[WSG] ProcessPacketFateInfo address = 0x{_processPacketFateInfoHook.Address:X}");
 
         _calculateMoveSpeedMulti = (delegate* unmanaged<ContainerInterface*, float>)Service.SigScanner.ScanText("E8 ?? ?? ?? ?? 44 0F 28 D8 45 0F 57 D2");
         Service.Log($"[WSG] CalculateMovementSpeedMultiplier address = 0x{(nint)_calculateMoveSpeedMulti:X}");
 
-        var processMapEffectAddr = Service.SigScanner.ScanText("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 4C 8D 46 10 8B D7 48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 8D 4E 10 E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 4C 8D 46 10 8B D7 48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 8D 4E 10 E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 8D 4E 10 BA ?? ?? ?? ??");
+        var processMapEffectAddr = Service.SigScanner.ScanText("E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 4C 8D 47 10 8B D6 48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 8D 4F 10 E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 4C 8D 47 10 8B D6 48 8D 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 48 8D 4F 10 E8 ?? ?? ?? ?? E9 ?? ?? ?? ?? 48 8D 4F 10 BA ?? ?? ?? ??");
         _processMapEffect1Hook = Service.Hook.HookFromAddress<ProcessMapEffectDelegate>(processMapEffectAddr, ProcessMapEffect1Detour);
         _processMapEffect1Hook.Enable();
         _processMapEffect2Hook = Service.Hook.HookFromAddress<ProcessMapEffectDelegate>(processMapEffectAddr + 0x40, ProcessMapEffect2Detour);
@@ -176,7 +187,16 @@ sealed class WorldStateGameSync : IDisposable
 
     public unsafe void Update(TimeSpan prevFramePerf)
     {
+        // 🔴 每幀路徑。Framework.Instance() 是 [StaticAddress(…, isPointer: true)]，回傳全域指標槽的**內容**，
+        //    登出／切換區域／外掛熱更新拆解過程中合法為 null。下面六個欄位原本是無防護的裸鏈解參考，
+        //    null 時直接 AccessViolationException——AVE 是 corrupted-state exception，攔不到。
+        //    fail-closed：這一幀整段不同步（時間戳沒有中性值可編，寫個假的會污染整條世界狀態時間軸）。
+        //    _globalOps 不清空、留到下一幀照樣執行，所以只是晚一幀，不會掉事件。
+        //    🔴 熱路徑，刻意不寫 log。
         var fwk = Framework.Instance();
+        if (fwk == null)
+            return;
+
         _ws.Execute(new WorldState.OpFrameStart
         (
             new(
@@ -195,10 +215,18 @@ sealed class WorldStateGameSync : IDisposable
         {
             _ws.Execute(new WorldState.OpZoneChange(Service.ClientState.TerritoryType, GameMain.Instance()->CurrentContentFinderConditionId));
         }
-        var proxy = fwk->NetworkModuleProxy->ReceiverCallback;
+        // ⚠️ proxy 這個區域變數在本方法裡**沒有任何使用點**（全檔唯一一次出現就是這行），
+        //    但它做的是 fwk->NetworkModuleProxy->ReceiverCallback 兩層裸解參考，網路模組還沒接起來時
+        //    兩層都可能是 null＝AccessViolation。沒有指示要刪既有程式碼，所以原樣留著、只補上判空；
+        //    要不要整行拿掉留給後續裁決。
+        var networkModuleProxy = fwk->NetworkModuleProxy;
+        var proxy = networkModuleProxy != null ? networkModuleProxy->ReceiverCallback : null;
+        _ = proxy;
+        // 📌 Get() 回 null＝「這一刻讀不到」，與「讀到全 0」不同：讀不到時什麼都不做，保留上一次讀到的
+        //    scramble，不要把它覆寫成 default（覆寫會讓後續每個封包都被解錯）。
         var scramble = Network.IDScramble.Get();
-        if (_ws.Network.IDScramble != scramble)
-            _ws.Execute(new NetworkState.OpIDScramble(scramble));
+        if (scramble is { } scrambleFields && _ws.Network.IDScramble != scrambleFields)
+            _ws.Execute(new NetworkState.OpIDScramble(scrambleFields));
 
         var count = _globalOps.Count;
         for (var i = 0; i < count; ++i)
@@ -209,7 +237,9 @@ sealed class WorldStateGameSync : IDisposable
 
         _playerEnmity.Clear();
         var uiState = UIState.Instance();
-        for (var i = 0; i < uiState->Hater.HaterCount; ++i)
+        // HaterCount 是遊戲寫入的 int，Haters 是 FixedSizeArray32 —— 兩者無結構保證，夾到容量內。
+        var haterCount = Math.Min(uiState->Hater.HaterCount, uiState->Hater.Haters.Length);
+        for (var i = 0; i < haterCount; ++i)
             _playerEnmity.Add(uiState->Hater.Haters[i].EntityId);
 
         UpdateWaymarks();
@@ -257,7 +287,9 @@ sealed class WorldStateGameSync : IDisposable
                 Service.LogVerbose($"[WorldState] Skipping bad object #{i} with id {obj->EntityId:X}");
                 obj = null;
             }
-            if (actor != null && (obj == null || actor.InstanceID != obj->EntityId))
+            var existing = obj != null ? _ws.Actors.Find(obj->EntityId) : null;
+
+            if (actor != null && (obj == null || existing == null || actor.InstanceID != obj->EntityId))
             {
                 _actorsByIndex[i] = null;
                 RemoveActor(actor);
@@ -265,10 +297,9 @@ sealed class WorldStateGameSync : IDisposable
             }
             if (obj != null)
             {
-                if (actor != _ws.Actors.Find(obj->EntityId))
-                {
+                if (actor != existing)
                     Service.Log($"[WorldState] Actor position mismatch for #{i} {actor}");
-                }
+
                 UpdateActor(obj, i, actor);
             }
         }
@@ -388,7 +419,10 @@ sealed class WorldStateGameSync : IDisposable
         var sm = chr != null ? chr->GetStatusManager() : null;
         if (sm != null)
         {
-            for (var i = 0; i < sm->NumValidStatuses; ++i)
+            // NumValidStatuses 是遊戲寫入的 byte，Status 是 FixedSizeArray60（Actor.Statuses 同樣是 60）：
+            // 兩者無結構保證，夾到容量內，越界時安靜少讀。
+            var numStatuses = Math.Min((int)sm->NumValidStatuses, sm->Status.Length);
+            for (var i = 0; i < numStatuses; ++i)
             {
                 // note: sometimes (Ocean Fishing) remaining-time is weird (I assume too large?) and causes exception in AddSeconds - so we just clamp it to some reasonable range
                 // note: self-cast buffs with duration X will have duration -X until EffectResult (~0.6s later); see autorotation for more details
@@ -508,7 +542,7 @@ sealed class WorldStateGameSync : IDisposable
                 // player not logged in, just do some sanity checks
                 if (pc != null)
                     Service.Log($"[WSG] Object #0 is valid ({pc->AccountId:X}.{pc->ContentId:X}, {pc->EntityId:X8} '{pc->NameString}') while player is not logged in");
-                if (group->MemberCount > 0)
+                if (group != null && group->MemberCount > 0)
                     Service.Log($"[WGS] Group is non-empty while player is not logged in");
             }
         }
@@ -522,15 +556,63 @@ sealed class WorldStateGameSync : IDisposable
             // else: just assume there's no player for now...
         }
 
-        var member = player.InstanceId != default ? group->GetPartyMemberByEntityId((uint)player.InstanceId) : null;
+        var member = player.InstanceId != default && group != null ? group->GetPartyMemberByEntityId((uint)player.InstanceId) : null;
+        ReportPartyLookupMismatch(group, player, member);
         if (member != null)
             player.InCutscene |= (member->Flags & 0x10) != default;
         UpdatePartySlot(PartyState.PlayerSlot, player);
         return member;
     }
 
+    // 台服診斷(只觀測、不改行為)。
+    // cycleapple 的 fork 主張「GroupManager 的 entity-id 查表在台服 API13 不可靠」並據此把這裡改成手動掃描,
+    // 但離線反組譯不支持那個主張:台服執行檔裡 GetPartyMemberByEntityId / GetPartyMemberByContentId
+    // 兩支的特徵碼各自唯一命中,函式語意也正確 —— 逐格比對 EntityId(+0x400)/ContentId(+0x3F8)、
+    // 上限取 MemberCount(+0x7FDC)、步長 0x490,全部與 FFXIVClientStructs 的宣告相符。
+    // 既然沒有離線證據,就不在每幀路徑上照抄那個改寫;改成在「真的發生」時留一筆 Information,
+    // 把不可證的假設變成可判定的問題(使用者跑 LogLevel 2,收得到 Information)。
+    private bool _reportedPartyLookupMismatch;
+
+    private unsafe void ReportPartyLookupMismatch(GroupManager.Group* group, PartyState.Member player, PartyMember* member)
+    {
+        // 查表成功,或根本沒有可查的前提(沒隊伍/沒 ContentId/沒 EntityId)都不算異常
+        if (member != null || group == null || group->MemberCount == 0 || player.ContentId == default || player.InstanceId == default)
+        {
+            _reportedPartyLookupMismatch = false;
+            return;
+        }
+
+        // entity-id 查表回 null —— 用 ContentId 手動掃一遍,確認玩家是不是真的在隊伍裡
+        var found = -1;
+        for (var i = 0; i < group->MemberCount; ++i)
+        {
+            if (group->PartyMembers.GetPointer(i)->ContentId == player.ContentId)
+            {
+                found = i;
+                break;
+            }
+        }
+
+        if (found < 0)
+        {
+            // 玩家確實不在這個 group 裡(單人、剛換區、跨區隊友),屬於正常狀態
+            _reportedPartyLookupMismatch = false;
+            return;
+        }
+
+        if (_reportedPartyLookupMismatch)
+            return; // 同一段狀態只回報一次,不要每幀刷
+
+        _reportedPartyLookupMismatch = true;
+        var m = group->PartyMembers.GetPointer(found);
+        Service.Logger.Information($"[BMR][隊伍同步] GetPartyMemberByEntityId 對玩家回 null,但以 ContentId 掃描在第 {found} 格找得到(隊伍人數 {group->MemberCount})。玩家 EntityId={player.InstanceId:X8}、該格 EntityId={m->EntityId:X8}、ContentId={player.ContentId:X}。若這行反覆出現,代表台服的 entity-id 查表確實不可靠,隊伍身分定位(坦克輪替/指向分配)會受影響,屆時再改成手動掃描。");
+    }
+
     private unsafe void UpdatePartyNormal(GroupManager.Group* group, PartyMember* player)
     {
+        if (group == null)
+            return;
+
         // first iterate over previous members, search for match in game state, and reconcile differences - update or remove
         for (var i = PartyState.PlayerSlot + 1; i < PartyState.MaxPartySize; ++i)
         {
@@ -555,7 +637,7 @@ sealed class WorldStateGameSync : IDisposable
         for (var i = 0; i < group->MemberCount; ++i)
         {
             var member = group->PartyMembers.GetPointer(i);
-            if (member->ContentId != player->ContentId && Array.FindIndex(_ws.Party.Members, m => m.ContentId == member->ContentId) < 0)
+            if ((player == null || member->ContentId != player->ContentId) && Array.FindIndex(_ws.Party.Members, m => m.ContentId == member->ContentId) < 0)
                 AddPartyMember(BuildPartyMember(member));
             // else: member is either a player (it was handled by a different function) or already exists in party state
         }
@@ -576,6 +658,9 @@ sealed class WorldStateGameSync : IDisposable
 
     private unsafe void UpdatePartyAlliance(GroupManager.Group* group)
     {
+        if (group == null)
+            return;
+
         // note: we don't support small-group alliance (should we?)
         // unlike normal party, game's alliance slots never change, so we just keep 1:1 mapping
         var isNormalAlliance = group->IsAlliance && !group->IsSmallGroupAlliance;
@@ -719,7 +804,11 @@ sealed class WorldStateGameSync : IDisposable
         if (!MemoryExtensions.SequenceEqual(_ws.Client.ClassJobLevels.AsSpan(), levels))
             _ws.Execute(new ClientState.OpClassJobLevelsChange([.. levels]));
 
-        var curFate = FateManager.Instance()->CurrentFate;
+        // 🔴 FateManager.Instance() 是 [StaticAddress(…, isPointer: true)]，回傳的是全域指標槽的
+        //    內容，管理器還沒建好時合法為 null（原本直接 ->CurrentFate ＝ AccessViolation，
+        //    而 AVE 攔不到）。fail-closed：拿不到管理器就等同「目前沒有 FATE」。
+        var fateManager = FateManager.Instance();
+        var curFate = fateManager != null ? fateManager->CurrentFate : null;
         ClientState.Fate activeFate = curFate != null ? new(curFate->FateId, curFate->Location, curFate->Radius) : default;
         if (_ws.Client.ActiveFate != activeFate)
             _ws.Execute(new ClientState.OpActiveFateChange(activeFate));
@@ -734,9 +823,12 @@ sealed class WorldStateGameSync : IDisposable
         if (_ws.Client.FocusTargetId != focusTargetId)
             _ws.Execute(new ClientState.OpFocusTargetChange(focusTargetId));
 
-        var forcedMovementDir = MovementOverride.ForcedMovementDirection->Radians();
-        if (_ws.Client.ForcedMovementDirection != forcedMovementDir)
-            _ws.Execute(new ClientState.OpForcedMovementDirectionChange(forcedMovementDir));
+        if (MovementOverride.ForcedMovementDirection != null) // sig 失效時為 null(降級停用),見 MovementOverride
+        {
+            var forcedMovementDir = MovementOverride.ForcedMovementDirection->Radians();
+            if (_ws.Client.ForcedMovementDirection != forcedMovementDir)
+                _ws.Execute(new ClientState.OpForcedMovementDirectionChange(forcedMovementDir));
+        }
 
         var contentKeyValue = uiState->PlayerState.ContentKeyValueData;
         var ckArray = new uint[]
@@ -754,7 +846,10 @@ sealed class WorldStateGameSync : IDisposable
         var hate = uiState->Hate;
         var hatePrimary = hate.HateTargetId;
         var hateTargets = new ClientState.Hate[32];
-        for (var i = 0; i < hate.HateArrayLength; ++i)
+        // HateArrayLength 是遊戲寫入的 int，HateInfo 是 FixedSizeArray32（受端 hateTargets 也是 32）：
+        // 兩者無結構保證，夾到容量內。
+        var hateLen = Math.Min(hate.HateArrayLength, Math.Min(hate.HateInfo.Length, hateTargets.Length));
+        for (var i = 0; i < hateLen; ++i)
             hateTargets[i] = new(hate.HateInfo[i].EntityId, hate.HateInfo[i].Enmity);
 
         if (hatePrimary != _ws.Client.CurrentTargetHate.InstanceID || !MemoryExtensions.SequenceEqual(hateTargets, _ws.Client.CurrentTargetHate.Targets))
@@ -767,17 +862,25 @@ sealed class WorldStateGameSync : IDisposable
 
     private unsafe void UpdateDeepDungeon()
     {
-        var dd = EventFramework.Instance()->GetInstanceContentDeepDungeon();
+        // 🔴 EventFramework.Instance() 是 [StaticAddress(…, isPointer: true)]，合法可為 null
+        //    （切換區域／登出過程中全域槽會是空的）。原本直接 -> 呼叫成員函式＝AccessViolation。
+        //    fail-closed：拿不到 EventFramework 就當作「不在深牢」，走下面既有的清理分支
+        //    ——與真的離開深牢語意一致，不會留下上一層的殘留狀態。
+        var eventFramework = EventFramework.Instance();
+        var dd = eventFramework != null ? eventFramework->GetInstanceContentDeepDungeon() : null;
         if (dd != null)
         {
             var currentId = (DeepDungeonState.DungeonType)dd->DeepDungeonId;
             var fullUpdate = currentId != _ws.DeepDungeon.DungeonId;
 
-            // TEMP DEBUG: print struct base address every time we (re-)enter a deep dungeon, in case it moves between instances
+            // 每次（重新）進入深牢印一次結構基底位址：台服的 InstanceContentDeepDungeon 欄位偏移
+            // 是照國際服 CS 定義推的，對不上時整份深牢資料會是垃圾值而不會拋例外。要使用者回報這行
+            // 才查得出來，所以走 Information（使用者的 LogLevel 是 2，Debug/Verbose 收不到）。
+            // 📌 一次進場只印一行，不是每幀——放心留在正式版。
             if (fullUpdate || !_loggedDeepDungeonBase)
             {
                 _loggedDeepDungeonBase = true;
-                Service.Log($"[DD debug] struct base = 0x{(nint)dd:X}");
+                Service.Logger.Information($"[DD] InstanceContentDeepDungeon 基底位址 = 0x{(nint)dd:X}、DeepDungeonId = {(byte)currentId}、樓層 = {dd->Floor}");
             }
 
             var progress = new DeepDungeonState.DungeonProgress(dd->Floor, dd->ActiveLayoutIndex, dd->WeaponLevel, dd->ArmorLevel, dd->SyncedGearLevel, dd->HoardCount, dd->ReturnProgress, dd->PassageProgress);
@@ -788,13 +891,103 @@ sealed class WorldStateGameSync : IDisposable
                 _ws.Execute(new DeepDungeonState.OpMapDataChange(dd->MapData.ToArray()));
 
             Span<DeepDungeonState.PartyMember> party = stackalloc DeepDungeonState.PartyMember[DeepDungeonState.NumPartyMembers];
+            // 🔴 原值要在 Sanitize **之前**留下來，理由與寶箱那份相同：
+            //    SanitizeDeepDungeonRoom 把負值（＝遊戲說「不在任何房間」）壓成 0，
+            //    壓完就再也分不出「不在任何房間」與「第 0 間房」——而所有版面的房號 0
+            //    都沒有中心座標，於是座標校驗閘門會靜默地卡在 Unknown。
+            Span<sbyte> rawPartyRooms = stackalloc sbyte[DeepDungeonState.NumPartyMembers];
             for (var i = 0; i < DeepDungeonState.NumPartyMembers; ++i)
             {
                 ref var p = ref dd->Party[i];
+                rawPartyRooms[i] = p.RoomIndex;
                 party[i] = new(SanitizedObjectID(p.EntityId), SanitizeDeepDungeonRoom(p.RoomIndex));
             }
             if (fullUpdate || !MemoryExtensions.SequenceEqual(_ws.DeepDungeon.Party.AsSpan(), party))
                 _ws.Execute(new DeepDungeonState.OpPartyStateChange(party.ToArray()));
+
+            // ── 隊伍房號原值診斷 ──────────────────────────────────────────
+            // 只在原值真的變了、而且沒超過每層上限時印。上限是為了擋「大房間裡房號每幀在
+            // -1 與某個房號之間跳」那種會刷爆 log 的情況——被擋掉本身也是訊息（看行數就知道）。
+            if (!MemoryExtensions.SequenceEqual(_ddDiagPartyRooms.AsSpan(), rawPartyRooms))
+            {
+                rawPartyRooms.CopyTo(_ddDiagPartyRooms.AsSpan());
+                if (dd->Floor != _ddDiagPartyFloor)
+                {
+                    _ddDiagPartyFloor = dd->Floor;
+                    _ddDiagPartyLines = 0;
+                }
+                if (++_ddDiagPartyLines <= DDPartyDiagLinesPerFloor)
+                {
+                    var pb = new StringBuilder(128);
+                    pb.Append("[DD] 隊伍房號原值 樓層 ").Append(dd->Floor).Append(" Party[0..3].RoomIndex=");
+                    for (var i = 0; i < DeepDungeonState.NumPartyMembers; ++i)
+                        pb.Append(i == 0 ? "" : ", ").Append(rawPartyRooms[i]);
+                    // 帶上本人座標：大廳層（無內牆 12 格）A/B 兩面座標表都不涵蓋，座標校驗整層
+                    // Mismatch（2026-08-13 樓層 15/25 實證；房號原值一路正常＝「-1 塌陷」假設已排除）。
+                    // 房號變化時的 (座標, 房號) 樣本正是擬合大廳格心所需的量測資料。
+                    if (_ws.Party.Player() is { } pcActor)
+                        pb.Append(" 本人 (").Append(pcActor.PosRot.X.ToString("f1")).Append(", ")
+                          .Append(pcActor.PosRot.Z.ToString("f1")).Append(')');
+                    if (_ddDiagPartyLines == DDPartyDiagLinesPerFloor)
+                        pb.Append("（已達本層上限，之後不再記錄）");
+                    Service.Logger.Information(pb.ToString());
+                }
+            }
+
+            // ── 房間位置普查 ──────────────────────────────────────────────
+            // 🔑 上面那份「隊伍房號原值」只在**房號變了**的那一幀才記，所以它的每一筆都落在
+            //    房間交界上——拿來擬合房間中心是**病態的**：2026-08-14 離線實測，用它對一個
+            //    格線已知正確的一般層（樓層 65）做最小平方擬合，留一法一致率是 **0.000**
+            //    （工具 ~/.claude/tools/bmr_dd_hall_gridfit.py，它的校準閘門就是為此擋下來的）。
+            //    要擬合中心需要的是**房間內部**的位置，也就是定時取樣而不是變化時取樣。
+            // 📌 這一段只收資料、印一行，不參與任何決策。目標是「大廳層」（無內牆的 12 格版面，
+            //    實測樓層 15／25／64）——那種版面 A／B 兩面座標表都不涵蓋，座標校驗整層不通過，
+            //    於是小地圖只畫得出摘要、畫不出寶箱點位。
+            // ⚠️ 一般層也照收：它們的表本來就通過校驗，正好當「擬合方法對不對」的對照組。
+            //    沒有對照組就分不出「擬合失敗」與「擬合程式自己寫錯」。
+            if (dd->Floor != _ddCensusFloor)
+            {
+                FlushDeepDungeonRoomCensus();
+                _ddCensusFloor = dd->Floor;
+                _ddCensusLayout = dd->ActiveLayoutIndex;
+                _ddCensusFloorSince = _ws.CurrentTime;
+                Array.Clear(_ddCensus);
+            }
+            // 🔴 換層後要先靜置：剛進場那一瞬間角色還在傳送中，回報的是一個與房號完全無關的
+            //    固定位置（實機看到的 (0, -300) 那一組，離房中心 600~740 碼）。那種樣本會把
+            //    整組平均值拉歪，而且看起來只是「離群值大了點」，不像壞掉。
+            else if ((_ws.CurrentTime - _ddCensusFloorSince).TotalSeconds >= DDCensusSettleSeconds
+                     && _ws.CurrentTime >= _ddCensusNextSample
+                     && _ws.Party.Player() is { } censusPlayer)
+            {
+                for (var i = 0; i < DeepDungeonState.NumPartyMembers; ++i)
+                {
+                    ref var p = ref dd->Party[i];
+                    if (SanitizedObjectID(p.EntityId) != censusPlayer.InstanceID)
+                        continue;
+                    if ((uint)p.RoomIndex >= DeepDungeonState.NumRooms)
+                        break; // 遊戲說「不在任何房間」（負值）或超出範圍——那不是量測，是沒有量測
+                    _ddCensusNextSample = _ws.CurrentTime.AddSeconds(DDCensusSampleInterval);
+                    ref var cell = ref _ddCensus[p.RoomIndex];
+                    var px = censusPlayer.PosRot.X;
+                    var pz = censusPlayer.PosRot.Z;
+                    if (cell.N++ == 0)
+                    {
+                        cell.MinX = cell.MaxX = px;
+                        cell.MinZ = cell.MaxZ = pz;
+                    }
+                    else
+                    {
+                        cell.MinX = Math.Min(cell.MinX, px);
+                        cell.MaxX = Math.Max(cell.MaxX, px);
+                        cell.MinZ = Math.Min(cell.MinZ, pz);
+                        cell.MaxZ = Math.Max(cell.MaxZ, pz);
+                    }
+                    cell.SumX += px;
+                    cell.SumZ += pz;
+                    break;
+                }
+            }
 
             Span<DeepDungeonState.PomanderState> pomanders = stackalloc DeepDungeonState.PomanderState[DeepDungeonState.NumPomanderSlots];
             for (var i = 0; i < DeepDungeonState.NumPomanderSlots; ++i)
@@ -806,13 +999,52 @@ sealed class WorldStateGameSync : IDisposable
                 _ws.Execute(new DeepDungeonState.OpPomandersChange(pomanders.ToArray()));
 
             Span<DeepDungeonState.Chest> chests = stackalloc DeepDungeonState.Chest[DeepDungeonState.NumChests];
+            // 🔴 原值要在 Sanitize **之前**留下來：SanitizeDeepDungeonRoom 把 0xFF（空槽）壓成 0，
+            //    壓完就再也分不出「空槽」與「第 0 間房的寶箱」——而那正好是我們要量的東西。
+            Span<byte> rawChestRooms = stackalloc byte[DeepDungeonState.NumChests];
+            var nonEmptyChests = 0;
             for (var i = 0; i < DeepDungeonState.NumChests; ++i)
             {
                 ref var c = ref dd->Chests[i];
+                rawChestRooms[i] = (byte)c.RoomIndex;
+                if (c.ChestType != 0)
+                    ++nonEmptyChests;
                 chests[i] = new(c.ChestType, SanitizeDeepDungeonRoom(c.RoomIndex));
             }
             if (fullUpdate || !MemoryExtensions.SequenceEqual(_ws.DeepDungeon.Chests.AsSpan(), chests))
                 _ws.Execute(new DeepDungeonState.OpChestsChange(chests.ToArray()));
+
+            // ── 原值診斷 ──────────────────────────────────────────────────
+            // 「地圖上的大房間到底有沒有寶箱，是遊戲根本沒送、還是我們畫丟了」——
+            // 這是唯一能離線分辨的量測，所以印遊戲送過來的**原始** (Type,Room) 與 25 格 MapData。
+            // 節流：進場、換層，以及「非空寶箱數變多」時各一次（開箱只會變少，不會刷版面）。
+            // 走 Information，因為要靠使用者的 log 回報才看得到（LogLevel 2）。
+            if (fullUpdate || dd->Floor != _ddDiagFloor || nonEmptyChests > _ddDiagChestCount)
+            {
+                var newFloor = fullUpdate || dd->Floor != _ddDiagFloor;
+                _ddDiagFloor = dd->Floor;
+                _ddDiagChestCount = nonEmptyChests;
+
+                var sb = new StringBuilder(320);
+                sb.Append("[DD] 寶箱原值 樓層 ").Append(dd->Floor).Append(" 版面 ").Append(dd->ActiveLayoutIndex).Append(" Chests[0..15]=");
+                for (var i = 0; i < DeepDungeonState.NumChests; ++i)
+                    sb.Append('(').Append(dd->Chests[i].ChestType).Append(',').Append(rawChestRooms[i]).Append(')');
+                Service.Logger.Information(sb.ToString());
+
+                if (newFloor)
+                {
+                    sb.Clear();
+                    sb.Append("[DD] MapData 原值 樓層 ").Append(dd->Floor).Append(' ');
+                    for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+                    {
+                        if (i % 5 == 0)
+                            sb.Append('[');
+                        sb.Append(((ushort)dd->MapData[i]).ToString("X2"));
+                        sb.Append(i % 5 == 4 ? ']' : ' ');
+                    }
+                    Service.Logger.Information(sb.ToString());
+                }
+            }
 
             if (fullUpdate || !MemoryExtensions.SequenceEqual(_ws.DeepDungeon.Magicite.AsSpan(), dd->Magicite))
                 _ws.Execute(new DeepDungeonState.OpMagiciteChange(dd->Magicite.ToArray()));
@@ -820,9 +1052,93 @@ sealed class WorldStateGameSync : IDisposable
         else if (_ws.DeepDungeon.DungeonId != DeepDungeonState.DungeonType.None)
         {
             // exiting deep dungeon, clean up all state
+            // 離開深牢也要把最後一層的普查倒出來，否則最後一層（含大廳層）永遠記不到。
+            FlushDeepDungeonRoomCensus();
+            _ddCensusFloor = 255;
             _ws.Execute(new DeepDungeonState.OpProgressChange(DeepDungeonState.DungeonType.None, default));
         }
         // else: we were and still are outside deep dungeon, nothing to do
+    }
+
+    /// <summary>寶箱原值診斷用的節流狀態：上次印過的樓層與非空寶箱數。</summary>
+    private byte _ddDiagFloor = 255;
+    private int _ddDiagChestCount = -1;
+
+    /// <summary>隊伍房號原值診斷用的節流狀態：上次印過的四個原值、樓層與本層已記了幾行。</summary>
+    /// <remarks>初值刻意用 <c>sbyte.MinValue</c>，讓進場第一次一定會印（0 與 -1 都是會出現的合法值）。</remarks>
+    private readonly sbyte[] _ddDiagPartyRooms = [sbyte.MinValue, sbyte.MinValue, sbyte.MinValue, sbyte.MinValue];
+    private byte _ddDiagPartyFloor = 255;
+    private int _ddDiagPartyLines;
+
+    /// <summary>隊伍房號原值每層最多記幾行。</summary>
+    private const int DDPartyDiagLinesPerFloor = 40;
+
+    /// <summary>房間位置普查：某一間房收到的樣本統計。</summary>
+    private struct DDRoomCensus
+    {
+        public int N;
+        public double SumX, SumZ;
+        public float MinX, MaxX, MinZ, MaxZ;
+    }
+
+    private readonly DDRoomCensus[] _ddCensus = new DDRoomCensus[DeepDungeonState.NumRooms];
+    private byte _ddCensusFloor = 255;
+    private byte _ddCensusLayout;
+    private DateTime _ddCensusFloorSince;
+    private DateTime _ddCensusNextSample;
+
+    /// <summary>房間位置普查的取樣間隔（秒）。</summary>
+    /// <remarks>
+    /// 2 Hz。一層待個幾分鐘就是數百筆，足夠把每間房的平均位置壓到房間尺寸的零頭；
+    /// 再密只是讓同一個站位重複計數（角色不動時樣本完全相同），拉不出更多資訊。
+    /// </remarks>
+    private const double DDCensusSampleInterval = 0.5d;
+
+    /// <summary>換層後要靜置這麼久才開始取樣（秒）。</summary>
+    private const double DDCensusSettleSeconds = 2d;
+
+    /// <summary>
+    /// 把上一層的房間位置普查倒成一行 log。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 走 <c>Information</c>：這是要靠使用者回報才看得到的量測（使用者的 LogLevel 是 2）。
+    /// 一層只印一行，所以量很小。
+    /// <para>
+    /// 每一格印的是「樣本數／平均位置／半幅」。半幅是拿來判斷這一格的樣本到底散得多開——
+    /// 平均值本身沒辦法告訴你它是「房間中心」還是「兩次穿門的中點」，半幅可以。
+    /// </para>
+    /// </remarks>
+    private void FlushDeepDungeonRoomCensus()
+    {
+        if (_ddCensusFloor == 255)
+            return;
+
+        var total = 0;
+        for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+            total += _ddCensus[i].N;
+        if (total == 0)
+            return;
+
+        var sb = new StringBuilder(512);
+        sb.Append("[DD] 房間位置普查 樓層 ").Append(_ddCensusFloor)
+          .Append(" 版面 ").Append(_ddCensusLayout)
+          .Append(" 取樣 ").Append(total).Append(" 筆：");
+        var first = true;
+        for (var i = 0; i < DeepDungeonState.NumRooms; ++i)
+        {
+            ref var c = ref _ddCensus[i];
+            if (c.N == 0)
+                continue;
+            if (!first)
+                sb.Append('、');
+            first = false;
+            sb.Append('r').Append(i).Append(" n=").Append(c.N)
+              .Append(" 心(").Append(((float)(c.SumX / c.N)).ToString("f1")).Append(", ")
+              .Append(((float)(c.SumZ / c.N)).ToString("f1")).Append(')')
+              .Append(" 幅(").Append(((c.MaxX - c.MinX) * 0.5f).ToString("f1")).Append(", ")
+              .Append(((c.MaxZ - c.MinZ) * 0.5f).ToString("f1")).Append(')');
+        }
+        Service.Logger.Information(sb.ToString());
     }
 
     private byte SanitizeDeepDungeonRoom(sbyte room) => room < 0 ? (byte)0 : (byte)room;
@@ -912,126 +1228,241 @@ sealed class WorldStateGameSync : IDisposable
         _actorOps.GetOrAdd(targetID).Add(new ActorState.OpEffectResult(targetID, seq, targetIndex));
     }
 
+    // 以下每一支 detour 都遵守同一個 fail-closed 約定（見 Util/DetourGuard.cs）：
+    // 自訂邏輯進 try、catch 受管理例外後節流記一行 Information，**Original 一律照樣呼叫、照樣回傳其結果**。
+    // ⚠️ 這不防 AccessViolationException（那攔不到），防的是受管理例外逸出到原生框架。
+    //
+    // 🔴 這一批用的是 Dalamud 原生的 Hook<T>（不是 Util/Hook.cs 的 HookAddress<T> 包裝），
+    //    所以呼叫的是 **OriginalDisposeSafe 而不是 Original**：
+    //    Dalamud/Hooking/Hook.cs 裡 Original 的文件註解寫明它會擲 ObjectDisposedException
+    //    (Hook is already disposed)，而 OriginalDisposeSafe 在已 dispose 時改用
+    //    Marshal.GetDelegateForFunctionPointer(this.address) 繞過它。
+    //    detour 在外掛卸載、熱更新時仍可能觸發（Util/Hook.cs:13 對 HookAddress 寫的就是這件事），
+    //    那一刻 Original 會擲例外並直接逸出到原生框架，遊戲會被帶走。
+    //    未 dispose 時 OriginalDisposeSafe 逐字回傳 this.Original，行為完全相同、無額外配置。
+    //
+    // 📌 關於封包指標參數的判空（稽核工具會對這一批標 DEREF_PARAM，那是誤判，別再開一輪）：
+    //    這裡除了 ActorCast 以外，每一支都是**先呼叫 Original、再讀封包**。Original 就是遊戲自己的
+    //    處理函式，它已經解參考過同一個指標了 —— 指標若是 null，行程在進到我們的 try 之前就已經死在
+    //    遊戲自己的碼裡。所以在那些位置補判空不會多擋下任何一次崩潰，只會讓下一輪稽核看不出差別。
+    //    唯一有意義的位置是**我們比遊戲先碰到指標**的那支（ActorCast），已補在下面。
+    //    ⚠️ 同理，count/長度欄位（EffectResult 的 packet[0]、MapEffect 的 *data、SystemLogMessage 的
+    //    argCount）也都取自遊戲自己的封包，遊戲的 Original 用同一個值跑同一個迴圈，我們沒有更好的上界。
+
     private unsafe void ProcessPacketActorCastDetour(uint casterId, Network.ServerIPC.ActorCast* packet)
     {
-        _lastCastPositions[casterId] = Network.PacketDecoder.IntToFloatCoords(packet->PosX, packet->PosY, packet->PosZ);
-        _processPacketActorCastHook.Original(casterId, packet);
+        try
+        {
+            // 🔴 這是本檔唯一「我們比 Original 先解參考封包」的地方 —— 判空讓我們不會搶在遊戲之前
+            //    因為 null 而崩掉（且崩在 BMR 的堆疊上）。非 null 時逐行等價。
+            if (packet != null)
+                _lastCastPositions[casterId] = Network.PacketDecoder.IntToFloatCoords(packet->PosX, packet->PosY, packet->PosZ);
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessPacketActorCastDetour), ex);
+        }
+        _processPacketActorCastHook.OriginalDisposeSafe(casterId, packet);
     }
 
     private unsafe void ProcessPacketEffectResultDetour(uint targetID, byte* packet, byte replaying)
     {
-        var count = packet[0];
-        var p = (Network.ServerIPC.EffectResultEntry*)(packet + 4);
-        for (var i = 0; i < count; ++i)
+        try
         {
-            OnEffectResult(targetID, p->RelatedActionSequence, p->RelatedTargetIndex);
-            ++p;
+            var count = packet[0];
+            var p = (Network.ServerIPC.EffectResultEntry*)(packet + 4);
+            for (var i = 0; i < count; ++i)
+            {
+                OnEffectResult(targetID, p->RelatedActionSequence, p->RelatedTargetIndex);
+                ++p;
+            }
         }
-        _processPacketEffectResultHook.Original(targetID, packet, replaying);
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessPacketEffectResultDetour), ex);
+        }
+        _processPacketEffectResultHook.OriginalDisposeSafe(targetID, packet, replaying);
     }
 
     private unsafe void ProcessPacketEffectResultBasicDetour(uint targetID, byte* packet, byte replaying)
     {
-        var count = packet[0];
-        var p = (Network.ServerIPC.EffectResultBasicEntry*)(packet + 4);
-        for (var i = 0; i < count; ++i)
+        try
         {
-            OnEffectResult(targetID, p->RelatedActionSequence, p->RelatedTargetIndex);
-            ++p;
+            var count = packet[0];
+            var p = (Network.ServerIPC.EffectResultBasicEntry*)(packet + 4);
+            for (var i = 0; i < count; ++i)
+            {
+                OnEffectResult(targetID, p->RelatedActionSequence, p->RelatedTargetIndex);
+                ++p;
+            }
         }
-        _processPacketEffectResultBasicHook.Original(targetID, packet, replaying);
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessPacketEffectResultBasicDetour), ex);
+        }
+        _processPacketEffectResultBasicHook.OriginalDisposeSafe(targetID, packet, replaying);
     }
 
     private void ProcessPacketActorControlDetour(uint actorID, uint category, uint p1, uint p2, uint p3, uint p4, uint p5, uint p6, ulong targetID, byte replaying)
     {
-        _processPacketActorControlHook.Original(actorID, category, p1, p2, p3, p4, p5, p6, targetID, replaying);
-        switch ((Network.ServerIPC.ActorControlCategory)category)
+        _processPacketActorControlHook.OriginalDisposeSafe(actorID, category, p1, p2, p3, p4, p5, p6, targetID, replaying);
+        try
         {
-            case Network.ServerIPC.ActorControlCategory.TargetIcon:
-                _actorOps.GetOrAdd(actorID).Add(new ActorState.OpIcon(actorID, p1 - Network.IDScramble.Delta, p2));
-                break;
-            case Network.ServerIPC.ActorControlCategory.Tether:
-                _actorOps.GetOrAdd(actorID).Add(new ActorState.OpTether(actorID, new(p2, p3)));
-                break;
-            case Network.ServerIPC.ActorControlCategory.TetherCancel:
-                // note: this seems to clear tether only if existing matches p2
-                _actorOps.GetOrAdd(actorID).Add(new ActorState.OpTether(actorID, default));
-                break;
-            case Network.ServerIPC.ActorControlCategory.EObjSetState:
-                // p2 is unused (seems to be director id?), p3==1 means housing (?) item instead of event obj, p4 is housing item id
-                _actorOps.GetOrAdd(actorID).Add(new ActorState.OpEventObjectStateChange(actorID, (ushort)p1));
-                break;
-            case Network.ServerIPC.ActorControlCategory.EObjAnimation:
-                _actorOps.GetOrAdd(actorID).Add(new ActorState.OpEventObjectAnimation(actorID, (ushort)p1, (ushort)p2));
-                break;
-            case Network.ServerIPC.ActorControlCategory.PlayActionTimeline:
-                _actorOps.GetOrAdd(actorID).Add(new ActorState.OpPlayActionTimelineEvent(actorID, (ushort)p1));
-                break;
-            case Network.ServerIPC.ActorControlCategory.ActionRejected:
-                _globalOps.Add(new ClientState.OpActionReject(new(new((ActionType)p2, p3), p6, p4 * 0.01f, p5 * 0.01f, p1)));
-                break;
-            case Network.ServerIPC.ActorControlCategory.DirectorUpdate:
-                _globalOps.Add(new WorldState.OpDirectorUpdate(p1, p2, p3, p4, p5, p6));
-                break;
+            switch ((Network.ServerIPC.ActorControlCategory)category)
+            {
+                case Network.ServerIPC.ActorControlCategory.TargetIcon:
+                    _actorOps.GetOrAdd(actorID).Add(new ActorState.OpIcon(actorID, p1 - Network.IDScramble.Delta, p2));
+                    break;
+                case Network.ServerIPC.ActorControlCategory.Tether:
+                    _actorOps.GetOrAdd(actorID).Add(new ActorState.OpTether(actorID, new(p2, p3)));
+                    break;
+                case Network.ServerIPC.ActorControlCategory.TetherCancel:
+                    // note: this seems to clear tether only if existing matches p2
+                    _actorOps.GetOrAdd(actorID).Add(new ActorState.OpTether(actorID, default));
+                    break;
+                case Network.ServerIPC.ActorControlCategory.EObjSetState:
+                    // p2 is unused (seems to be director id?), p3==1 means housing (?) item instead of event obj, p4 is housing item id
+                    _actorOps.GetOrAdd(actorID).Add(new ActorState.OpEventObjectStateChange(actorID, (ushort)p1));
+                    break;
+                case Network.ServerIPC.ActorControlCategory.EObjAnimation:
+                    _actorOps.GetOrAdd(actorID).Add(new ActorState.OpEventObjectAnimation(actorID, (ushort)p1, (ushort)p2));
+                    break;
+                case Network.ServerIPC.ActorControlCategory.PlayActionTimeline:
+                    _actorOps.GetOrAdd(actorID).Add(new ActorState.OpPlayActionTimelineEvent(actorID, (ushort)p1));
+                    break;
+                case Network.ServerIPC.ActorControlCategory.ActionRejected:
+                    _globalOps.Add(new ClientState.OpActionReject(new(new((ActionType)p2, p3), p6, p4 * 0.01f, p5 * 0.01f, p1)));
+                    break;
+                case Network.ServerIPC.ActorControlCategory.DirectorUpdate:
+                    _globalOps.Add(new WorldState.OpDirectorUpdate(p1, p2, p3, p4, p5, p6));
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessPacketActorControlDetour), ex);
         }
     }
 
     private unsafe void ProcessPacketNpcYellDetour(Network.ServerIPC.NpcYell* packet)
     {
-        _processPacketNpcYellHook.Original(packet);
-        _actorOps.GetOrAdd(packet->SourceID).Add(new ActorState.OpEventNpcYell(packet->SourceID, packet->Message));
+        _processPacketNpcYellHook.OriginalDisposeSafe(packet);
+        try
+        {
+            _actorOps.GetOrAdd(packet->SourceID).Add(new ActorState.OpEventNpcYell(packet->SourceID, packet->Message));
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessPacketNpcYellDetour), ex);
+        }
     }
 
     private unsafe void ProcessEnvControlDetour(void* self, uint index, ushort s1, ushort s2)
     {
         // note: this function is only executed for incoming packets that pass some checks (validation that currently active director is what is expected) - don't think it's a big deal?
-        _processEnvControlHook.Original(self, index, s1, s2);
-        _globalOps.Add(new WorldState.OpEnvControl((byte)index, s1 | ((uint)s2 << 16)));
+        _processEnvControlHook.OriginalDisposeSafe(self, index, s1, s2);
+        try
+        {
+            _globalOps.Add(new WorldState.OpEnvControl((byte)index, s1 | ((uint)s2 << 16)));
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessEnvControlDetour), ex);
+        }
     }
 
     private unsafe void ProcessPacketRSVDataDetour(byte* packet)
     {
-        _processPacketRSVDataHook.Original(packet);
-        _globalOps.Add(new WorldState.OpRSVData(MemoryHelper.ReadStringNullTerminated((nint)(packet + 4)), MemoryHelper.ReadString((nint)(packet + 0x34), *(int*)packet)));
+        _processPacketRSVDataHook.OriginalDisposeSafe(packet);
+        try
+        {
+            _globalOps.Add(new WorldState.OpRSVData(MemoryHelper.ReadStringNullTerminated((nint)(packet + 4)), MemoryHelper.ReadString((nint)(packet + 0x34), *(int*)packet)));
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessPacketRSVDataDetour), ex);
+        }
     }
 
     private unsafe void ProcessPacketOpenTreasureDetour(uint playerID, byte* packet)
     {
-        _processPacketOpenTreasureHook.Original(playerID, packet);
-        var actorID = *(uint*)(packet + 16);
-        _actorOps.GetOrAdd(actorID).Add(new ActorState.OpEventOpenTreasure(actorID));
+        _processPacketOpenTreasureHook.OriginalDisposeSafe(playerID, packet);
+        try
+        {
+            var actorID = *(uint*)(packet + 16);
+            _actorOps.GetOrAdd(actorID).Add(new ActorState.OpEventOpenTreasure(actorID));
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessPacketOpenTreasureDetour), ex);
+        }
     }
 
     private unsafe void* ProcessSystemLogMessageDetour(uint entityId, uint messageId, int* args, byte argCount)
     {
-        var res = _processSystemLogMessageHook.Original(entityId, messageId, args, argCount);
-        _globalOps.Add(new WorldState.OpSystemLogMessage(messageId, new Span<int>(args, argCount).ToArray()));
+        var res = _processSystemLogMessageHook.OriginalDisposeSafe(entityId, messageId, args, argCount);
+        try
+        {
+            _globalOps.Add(new WorldState.OpSystemLogMessage(messageId, new Span<int>(args, argCount).ToArray()));
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessSystemLogMessageDetour), ex);
+        }
         return res;
     }
 
     private unsafe void* ProcessPacketFateInfoDetour(ulong fateId, long startTimestamp, ulong durationSecs)
     {
-        var res = _processPacketFateInfoHook.Original(fateId, startTimestamp, durationSecs);
-        _globalOps.Add(new ClientState.OpFateInfo((uint)fateId, DateTimeOffset.FromUnixTimeSeconds(startTimestamp).UtcDateTime));
+        var res = _processPacketFateInfoHook.OriginalDisposeSafe(fateId, startTimestamp, durationSecs);
+        try
+        {
+            _globalOps.Add(new ClientState.OpFateInfo((uint)fateId, DateTimeOffset.FromUnixTimeSeconds(startTimestamp).UtcDateTime));
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessPacketFateInfoDetour), ex);
+        }
         return res;
     }
 
     private unsafe void ProcessMapEffect1Detour(byte* data)
     {
-        _processMapEffect1Hook.Original(data);
-        ProcessMapEffect(data, 10, 18);
+        _processMapEffect1Hook.OriginalDisposeSafe(data);
+        try
+        {
+            ProcessMapEffect(data, 10, 18);
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessMapEffect1Detour), ex);
+        }
     }
 
     private unsafe void ProcessMapEffect2Detour(byte* data)
     {
-        _processMapEffect2Hook.Original(data);
-        ProcessMapEffect(data, 18, 34);
+        _processMapEffect2Hook.OriginalDisposeSafe(data);
+        try
+        {
+            ProcessMapEffect(data, 18, 34);
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessMapEffect2Detour), ex);
+        }
     }
 
     private unsafe void ProcessMapEffect3Detour(byte* data)
     {
-        _processMapEffect3Hook.Original(data);
-        ProcessMapEffect(data, 26, 50);
+        _processMapEffect3Hook.OriginalDisposeSafe(data);
+        try
+        {
+            ProcessMapEffect(data, 26, 50);
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(ProcessMapEffect3Detour), ex);
+        }
     }
 
     private unsafe void ProcessMapEffect(byte* data, byte offLow, byte offIndex)

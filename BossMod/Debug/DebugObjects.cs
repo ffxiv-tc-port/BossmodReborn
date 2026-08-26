@@ -43,7 +43,7 @@ public sealed class DebugObjects
                 _tree.LeafNode($"Gimmick ID: {Utils.ReadField<uint>(internalObj, 0x7C):X}");
                 _tree.LeafNode($"Radius: {obj.HitboxRadius:f3}");
                 _tree.LeafNode($"Owner: {Utils.ObjectString(obj.OwnerId)}");
-                _tree.LeafNode($"BNpcBase/Name: {obj.DataId:X}/{Utils.GameObjectInternal(obj)->GetNameId()}");
+                _tree.LeafNode($"BNpcBase/Name: {obj.BaseId:X}/{Utils.GameObjectInternal(obj)->GetNameId()}");
                 _tree.LeafNode($"Targetable: {obj.IsTargetable}");
                 _tree.LeafNode($"Is character: {internalObj->IsCharacter()}");
                 _tree.LeafNode($"Event state: {Utils.GameObjectInternal(obj)->EventState}");
@@ -92,7 +92,7 @@ public sealed class DebugObjects
         if (selected != null)
         {
             var h = new Vector3(0, Utils.GameObjectInternal(selected)->Height, 0);
-            Camera.Instance?.DrawWorldLine(Service.ClientState.LocalPlayer?.Position ?? default, selected.Position, Colors.TextColor3);
+            Camera.Instance?.DrawWorldLine(Service.ObjectTable.LocalPlayer?.Position ?? default, selected.Position, Colors.TextColor3);
             Camera.Instance?.DrawWorldCircle(selected.Position, selected.HitboxRadius, Colors.TextColor4);
             Camera.Instance?.DrawWorldCircle(selected.Position + h, selected.HitboxRadius, Colors.TextColor4);
             Camera.Instance?.DrawWorldCircle(selected.Position - h, selected.HitboxRadius, Colors.TextColor4);
@@ -107,7 +107,18 @@ public sealed class DebugObjects
 
     public unsafe void DrawUIObjects()
     {
-        var module = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance()->UIModule->GetUI3DModule();
+        // 🔴 Framework.Instance() 是 [StaticAddress(…, isPointer: true)]，回傳全域指標槽的**內容**，合法可為 null；
+        //    UIModule 也是普通的指標欄位、GetUI3DModule() 同樣可能回 null。原本整條裸鏈解參考＝AccessViolation
+        //    （corrupted-state exception，try/catch 攔不到）。除錯視窗的中性行為＝顯示不可用、不畫表。
+        var fwk = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance();
+        var uiModule = fwk != null ? fwk->UIModule : null;
+        var module = uiModule != null ? uiModule->GetUI3DModule() : null;
+        if (module == null)
+        {
+            ImGui.TextUnformatted("UI3DModule 不可用");
+            return;
+        }
+
         ImGui.BeginTable("uiobj", 3, ImGuiTableFlags.Resizable);
         ImGui.TableSetupColumn("Index");
         ImGui.TableSetupColumn("GameObj");
@@ -169,7 +180,9 @@ public sealed class DebugObjects
         }
         res.Append("\n--- cid/acid (P) ---");
         var gp = GroupManager.Instance()->GetGroup();
-        for (var i = 0; i < gp->MemberCount; ++i)
+        // MemberCount 由遊戲寫入，PartyMembers 是 FixedSizeArray8：夾到容量內。
+        var gpCount = Math.Min((int)gp->MemberCount, gp->PartyMembers.Length);
+        for (var i = 0; i < gpCount; ++i)
         {
             ref var member = ref gp->PartyMembers[i];
             res.Append($"\n{i}: {member.AccountId:X}.{member.ContentId:X} = {member.NameString} / {(member.NameOverride != null ? member.NameOverride->ToString() : "<null>")}");

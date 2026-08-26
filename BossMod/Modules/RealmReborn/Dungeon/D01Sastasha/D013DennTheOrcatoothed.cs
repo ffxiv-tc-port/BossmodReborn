@@ -72,7 +72,7 @@ class TrashSpawning(BossModule module) : BossComponent(module)
     {
         if (ActiveRipples.Any())
         {
-            hints.Add("Adds spawning soon!");
+            hints.Add(Loc.T("Adds spawning soon!"));
         }
     }
 

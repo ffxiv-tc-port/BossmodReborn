@@ -36,12 +36,12 @@ sealed class ReplayTimelineWindow : UIWindow
 
     public override void Draw()
     {
-        if (ImGui.Button("Config"))
+        if (ImGui.Button(Loc.T("Config")))
         {
             ImGui.OpenPopup("config");
         }
         ImGui.SameLine();
-        if (ImGui.Button($"Save {(_colPlayers.AnyPlanModified ? "all changes" : "(no changes)")}"))
+        if (ImGui.Button(_colPlayers.AnyPlanModified ? Loc.T("Save all changes") : Loc.T("Save (no changes)")))
         {
             _colPlayers.SaveAll();
         }
@@ -59,12 +59,12 @@ sealed class ReplayTimelineWindow : UIWindow
 
     private void DrawConfig()
     {
-        UICombo.Enum("State text", ref _colStates.TextDisplay);
-        foreach (var _ in _configTree.Node("Enemy casts columns"))
+        UICombo.Enum(Loc.T("State text"), ref _colStates.TextDisplay);
+        foreach (var _ in _configTree.Node(Loc.T("Enemy casts columns")))
             _colCastEvents.DrawConfig(_configTree);
-        foreach (var n in _configTree.Node("Enemy details"))
+        foreach (var n in _configTree.Node(Loc.T("Enemy details")))
             _colEnemies.DrawConfig(_configTree);
-        foreach (var n in _configTree.Node("Player details"))
+        foreach (var n in _configTree.Node(Loc.T("Player details")))
             _colPlayers.DrawConfig(_configTree);
     }
 

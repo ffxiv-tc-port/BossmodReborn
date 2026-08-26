@@ -17,11 +17,11 @@ sealed class ShiningBladeKnockback(BossModule module) : Components.SimpleKnockba
         {
             var e = movements[i];
             if (!Module.InBounds(e.to))
-                hints.Add("About to be knocked into wall!");
+                hints.Add(Loc.T("About to be knocked into wall!"));
             if (_tears.InRadius(e.to, _tearRadius).Any())
                 hints.Add("About to be knocked into tear!");
             if (_dirToAdelphel.Dot(e.to - Arena.Center) > 0)
-                hints.Add("Aim away from boss!");
+                hints.Add(Loc.T("Aim away from boss!"));
         }
     }
 
@@ -119,12 +119,12 @@ sealed class ShiningBladeExecution(BossModule module) : Components.CastCounter(m
         if (_target == actor)
         {
             if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(_target, _executionRadius).Any())
-                hints.Add("GTFO from raid!");
+                hints.Add(Loc.T("GTFO from raid!"));
         }
         else if (_target != null)
         {
             if (actor.Position.InCircle(_target.Position, _executionRadius))
-                hints.Add("GTFO from tank!");
+                hints.Add(Loc.T("GTFO from tank!"));
         }
     }
 

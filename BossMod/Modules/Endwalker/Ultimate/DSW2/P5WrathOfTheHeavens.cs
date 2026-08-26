@@ -77,7 +77,7 @@ sealed class P5WrathOfTheHeavensChainLightning(BossModule module) : Components.U
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (Spreads.Count == 0 && Targets[slot])
-            hints.Add("Prepare for lightning!", false);
+            hints.Add(Loc.T("Prepare for lightning!"), false);
         base.AddHints(slot, actor, hints);
     }
 
@@ -147,7 +147,7 @@ sealed class P5WrathOfTheHeavensCauterizeBait(BossModule module) : BossComponent
     {
         if (_target != actor)
             return;
-        hints.Add("Prepare for divebomb!", false);
+        hints.Add(Loc.T("Prepare for divebomb!"), false);
     }
 
     public override void AddMovementHints(int slot, Actor actor, MovementHints movementHints)

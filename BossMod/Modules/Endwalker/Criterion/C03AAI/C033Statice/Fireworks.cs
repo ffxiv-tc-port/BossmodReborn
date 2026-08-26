@@ -65,7 +65,7 @@ class BurningChains(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (_chains[slot])
-            hints.Add("Break chains!");
+            hints.Add(Loc.T("Break chains!"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

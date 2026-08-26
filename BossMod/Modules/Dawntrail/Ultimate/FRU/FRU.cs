@@ -11,7 +11,8 @@ sealed class P5ParadiseLost(BossModule module) : Components.CastCounter(module, 
 [ModuleInfo(BossModuleInfo.Maturity.Verified, PrimaryActorOID = (uint)OID.BossP1, GroupType = BossModuleInfo.GroupType.CFC, GroupID = 1006, NameID = 9707, PlanLevel = 100)]
 public sealed class FRU(WorldState ws, Actor primary) : BossModule(ws, primary, arena.Center, arena)
 {
-    private static readonly ArenaBoundsComplex arena = new([new Polygon(new(100f, 100f), 20f, 64)]) { IsCircle = true };
+    public static ArenaBoundsComplex BuildArena() => new([new Polygon(new(100f, 100f), 20f, 64)]) { IsCircle = true }; // 中場水晶碰撞還原時要換回全新預設場地(上游 e0beca0a2)
+    private static readonly ArenaBoundsComplex arena = BuildArena();
     public static readonly ArenaBoundsSquare PathfindHugBorderBounds = new(20f); // this is a hack to allow precise positioning near border by some mechanics, TODO reconsider
 
     private Actor? _bossP2;

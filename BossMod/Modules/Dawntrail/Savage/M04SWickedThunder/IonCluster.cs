@@ -72,12 +72,12 @@ sealed class ElectronStream(BossModule module) : Components.GenericAOEs(module)
         if (actor.Role == Role.Tank)
         {
             if (sameSideCloser.Any())
-                hints.Add("Move closer!");
+                hints.Add(Loc.T("Move closer!"));
         }
         else
         {
             if (!sameSideCloser.Any(p => p.Role == Role.Tank))
-                hints.Add("Hide behind tank!");
+                hints.Add(Loc.T("Hide behind tank!"));
         }
     }
 
@@ -175,7 +175,7 @@ sealed class ElectronStreamCurrent(BossModule module) : Components.GenericAOEs(m
             {
                 var target = FindBaitTarget(source.slot, source.actor);
                 if (target != null && !_shapeBait.Check(actor.Position, source.actor.Position, Angle.FromDirection(target.Position - source.actor.Position)))
-                    hints.Add("Get hit by the cone!");
+                    hints.Add(Loc.T("Get hit by the cone!"));
             }
         }
     }

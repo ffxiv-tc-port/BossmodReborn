@@ -17,9 +17,9 @@ class P3FiendishWail(BossModule module) : Components.CastCounter(module, (uint)A
         var wantToSoak = _physResistMask.Any() ? _physResistMask[slot] : actor.Role == Role.Tank;
         var soaking = _towers.InRadius(actor.Position, _radius).Any();
         if (wantToSoak)
-            hints.Add("Soak the tower!", !soaking);
+            hints.Add(Loc.T("Soak the tower!"), !soaking);
         else
-            hints.Add("GTFO from tower!", soaking);
+            hints.Add(Loc.T("GTFO from tower!"), soaking);
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

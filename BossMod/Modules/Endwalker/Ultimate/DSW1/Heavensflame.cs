@@ -29,18 +29,18 @@ sealed class HeavensflameKnockback(BossModule module) : Components.SimpleKnockba
             return;
 
         if (Casters.Count > 0 && IsImmune(slot, WorldState.CurrentTime))
-            hints.Add("Cancel knockback immunity!");
+            hints.Add(Loc.T("Cancel knockback immunity!"));
 
         var actorAdjPos = _playerAdjustedPositions[slot];
         if (!Module.InBounds(actorAdjPos))
-            hints.Add("About to be knocked into wall!");
+            hints.Add(Loc.T("About to be knocked into wall!"));
 
         if (Raid.WithSlot(false, true, true).Exclude(actor).WhereSlot(s => _playerAdjustedPositions[s].InCircle(actorAdjPos, _aoeRadius)).Any())
-            hints.Add("Spread!");
+            hints.Add(Loc.T("Spread!"));
 
         var partner = FindTetheredPartner(slot);
         if (partner >= 0 && _playerAdjustedPositions[partner].InCircle(actorAdjPos, _tetherBreakDistance))
-            hints.Add("Aim to break tether!");
+            hints.Add(Loc.T("Aim to break tether!"));
     }
 
     public override PlayerPriority CalcPriority(int pcSlot, Actor pc, int playerSlot, Actor player, ref uint customColor)

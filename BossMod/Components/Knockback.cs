@@ -94,7 +94,7 @@ public abstract class GenericKnockback(BossModule module, uint aid = default, in
             var movement = movements[i];
             if (DestinationUnsafe(slot, actor, movement.to))
             {
-                hints.Add("About to be knocked into danger!");
+                hints.Add(Loc.T("About to be knocked into danger!"));
                 break;
             }
         }

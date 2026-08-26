@@ -20,11 +20,11 @@ sealed class SwordShieldOfTheHeavens(BossModule module) : BossComponent(module)
     {
         if (_adds.Any(a => a.buff == Buff.Sword && a.actor.CastInfo?.TargetID == actor.InstanceID && a.actor.CastInfo.IsSpell(AID.HolyBladedance)))
         {
-            hints.Add("Mitigate NOW!");
+            hints.Add(Loc.T("Mitigate NOW!"));
         }
         if (_adds.Any(a => a.buff == Buff.Shield && a.actor.TargetID != actor.InstanceID && a.actor.InstanceID == actor.TargetID))
         {
-            hints.Add("Swap target!");
+            hints.Add(Loc.T("Swap target!"));
         }
     }
 
@@ -32,7 +32,7 @@ sealed class SwordShieldOfTheHeavens(BossModule module) : BossComponent(module)
     {
         if (_adds.Count(a => !AddActive(a.actor)) == 2 && _adds[0].actor.Position.InCircle(_adds[1].actor.Position, 10f)) // TODO: verify range
         {
-            hints.Add("Separate adds!");
+            hints.Add(Loc.T("Separate adds!"));
         }
 
         var focus = _adds.Find(a => a.buff == Buff.Sword);

@@ -41,7 +41,7 @@ public abstract class GenericGaze(BossModule module, uint aid = default) : CastC
             ref readonly var eye = ref eyes[i];
             if (actor.Position.InCircle(eye.Position, eye.Range) && HitByEye(ref actor, eye) != eye.Inverted)
             {
-                hints.Add(eye.Inverted ? "Face the eye!" : "Turn away from gaze!");
+                hints.Add(Loc.T(eye.Inverted ? "Face the eye!" : "Turn away from gaze!"));
                 break;
             }
         }
@@ -277,7 +277,7 @@ public class CastWeakpoint(BossModule module, uint aid, AOEShape shape, uint sta
             ref readonly var eye = ref eyes[i];
             if (!HitByEye(ref actor, eye))
             {
-                hints.Add("Face open weakpoint to eye!");
+                hints.Add(Loc.T("Face open weakpoint to eye!"));
                 return;
             }
         }

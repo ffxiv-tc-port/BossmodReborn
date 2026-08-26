@@ -91,6 +91,25 @@ public sealed class AIHints
     // positioning: next positional hint (TODO: reconsider, maybe it should be a list prioritized by in-gcds, and imminent should be in-gcds instead? or maybe it should be property of an enemy? do we need correct?)
     public (Actor? Target, Positional Pos, bool Imminent, bool Correct) RecommendedPositional;
 
+    /// <summary>
+    /// 純顯示用的方位提示。形狀與 <see cref="RecommendedPositional"/> 相同,語意**完全不同**。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 這個欄位存在的唯一理由是**不能重用 <see cref="RecommendedPositional"/>**:
+    /// <c>AI.AIBehaviour.SelectPrimaryTarget</c> 會把那個欄位讀去設 <c>Targeting.PreferredPosition</c>,
+    /// 也就是「AI 請開始繞到目標的側背」。把顯示用的推測寫進去等於**改變移動行為** ——
+    /// 使用者只是想看提示,結果角色自己跑起來。
+    /// <para>
+    /// 🔴 因此本欄位的消費端只有 <c>UIRotationWindow.DrawPositional</c>(畫世界疊加層)。
+    /// <b>AI 與循環的任何路徑都不得讀它</b>;新增讀取點之前請先想清楚那是不是又把顯示接回了行為。
+    /// </para>
+    /// <para>
+    /// 寫入端是 <c>Framework.Plugin.DrawUI</c>,而且只在設定
+    /// <c>AutorotationConfig.ShowPositionalsWithoutPreset</c> 開著時才算 —— 旗標關閉時零開銷。
+    /// </para>
+    /// </remarks>
+    public (Actor? Target, Positional Pos, bool Imminent, bool Correct) PositionalHintDisplayOnly;
+
     // orientation restrictions (e.g. for gaze attacks): a list of forbidden orientation ranges, now or in near future
     // AI will rotate to face allowed orientation at last possible moment, potentially losing uptime
     public readonly List<(Angle center, Angle halfWidth, DateTime activation)> ForbiddenDirections = [];
@@ -123,6 +142,21 @@ public sealed class AIHints
     public bool WantJump;
     public bool WantDismount;
 
+    /// <summary>
+    /// 本幀有模組真的放下了「拉開距離」的目標區（風箏）。
+    /// </summary>
+    /// <remarks>
+    /// 🔑 存在的理由是<b>權重場會互相碾壓，而且是靜默的</b>：風箏的目標區權重只有 0.05，
+    /// 但只要場上有任何 AOE 預警，AI 就會加一個 <see cref="GoalDodgeDirection"/>，
+    /// 其中的「不要往後退」懲罰項約 −1.0 —— 風箏當場失效，沒有任何錯誤訊息。
+    /// <para>
+    /// 由設定風箏的模組設定、由 AI 讀取，讓 AI 知道「這一幀往後退是刻意的」。
+    /// ⚠️ 這是<b>純提示</b>：AI 只用它決定要不要加那個後退懲罰，不會因此改變閃避判定，
+    /// 也不會讓任何原本禁止進入的區域變成可進入。
+    /// </para>
+    /// </remarks>
+    public bool WantKiting;
+
     // clear all stored data
     public void Clear()
     {
@@ -137,6 +171,7 @@ public sealed class AIHints
         ForbiddenZones.Clear();
         GoalZones.Clear();
         RecommendedPositional = default;
+        PositionalHintDisplayOnly = default;
         ForbiddenDirections.Clear();
         ImminentSpecialMode = default;
         MisdirectionThreshold = 15f.Degrees();
@@ -148,6 +183,7 @@ public sealed class AIHints
         StatusesToCancel.Clear();
         WantJump = false;
         WantDismount = false;
+        WantKiting = false;
     }
 
     public void PrioritizeTargetsByOID(uint oid, int priority = default)
@@ -332,12 +368,21 @@ public sealed class AIHints
     public Func<WPos, float> GoalSingleTarget(Actor target, float range, float weight = 1f) => GoalSingleTarget(target.Position, range + target.HitboxRadius, weight);
 
     // simple goal zone that returns 1 if target is in range (usually melee), 2 if it's also in correct positional
-    public Func<WPos, float> GoalSingleTarget(WPos target, Angle rotation, Positional positional, float radius)
+    // 📌 cushion（上游 f46d93e09）：把方位區的判定從「剛好跨過對角線」往區域中心收緊，
+    //    讓呼叫端可以要求距離方位邊界 cushion 碼以上才算數（避免緊貼邊界站位、
+    //    目標微轉一下就掉出方位）。sqrt2 是把「到方位分界線的垂直距離」換算成
+    //    front/side 這兩個投影量的差值所需的係數（分界線是 45度斜線）。
+    // ⚠️ 預設 cushion = 0f ≡ 舊行為（0 乘任何數都是 0，三個比較式退回原式）。
+    //    唯一的呼叫端是 GoToPositional 的 EdgeBuffer 設定軌（上游 1f12f5f96，已併入），
+    //    而它的預設選項 None 也是 0f ⇒ 沒動過設定的使用者拿到的仍然是舊行為。
+    public Func<WPos, float> GoalSingleTarget(WPos target, Angle rotation, Positional positional, float radius, float cushion = 0f)
     {
         if (positional == Positional.Any)
             return GoalSingleTarget(target, radius); // more efficient implementation
         var effRsq = radius * radius;
         var targetDir = rotation.ToDirection();
+        const float sqrt2 = 1.41421356f;
+        var cushionThreshold = cushion * sqrt2;
         return p =>
         {
             var offset = p - target;
@@ -349,15 +394,15 @@ public sealed class AIHints
             var side = Math.Abs(targetDir.Dot(offset.OrthoL()));
             var inPositional = positional switch
             {
-                Positional.Flank => side > Math.Abs(front),
-                Positional.Rear => -front > side,
-                Positional.Front => front > side, // TODO: reconsider this, it's not a real positional?..
+                Positional.Flank => side - Math.Abs(front) > cushionThreshold,
+                Positional.Rear => -front - side > cushionThreshold,
+                Positional.Front => front - side > cushionThreshold, // TODO: reconsider this, it's not a real positional?..
                 _ => false
             };
             return inPositional ? 2f : 1f;
         };
     }
-    public Func<WPos, float> GoalSingleTarget(Actor target, Positional positional, float range = 2.6f) => GoalSingleTarget(target.Position, target.Rotation, positional, range + target.HitboxRadius);
+    public Func<WPos, float> GoalSingleTarget(Actor target, Positional positional, float range = 2.6f, float cushion = 0f) => GoalSingleTarget(target.Position, target.Rotation, positional, range + target.HitboxRadius, cushion);
 
     // simple goal zone that returns number of targets in aoes; note that performance is a concern for these functions, and perfection isn't required, so eg they ignore forbidden targets, etc
     public Func<WPos, float> GoalAOECircle(float radius)
@@ -462,11 +507,15 @@ public sealed class AIHints
     // goal zone that returns a value between 0 and weight depending on distance to point; useful for downtime movement targets
     public Func<WPos, float> GoalProximity(WPos destination, float maxDistance, float maxWeight)
     {
-        var invDist = 1f / maxDistance;
+        var maxDistSq = maxDistance * maxDistance;
+        var invDistSq = 1f / maxDistSq;
+
         return p =>
         {
-            var dist = (p - destination).Length();
-            var weight = 1f - Math.Clamp(invDist * dist, default, 1f);
+            var delta = p - destination;
+            var distSq = delta.LengthSq();
+
+            var weight = 1f - Math.Clamp(invDistSq * distSq, 0f, 1f);
             return maxWeight * weight;
         };
     }
@@ -474,7 +523,14 @@ public sealed class AIHints
 
     // goal zone used as a tie-breaker while dodging: prefers positions behind the target's facing direction over its front/flanks,
     // and penalizes positions that retreat further away from the target than the player's current distance (discourages simply backing away)
-    public Func<WPos, float> GoalDodgeDirection(Actor target, WPos playerPos, float weight = 0.5f)
+    /// <param name="penalizeRetreat">
+    /// 是否懲罰「比現在更遠離目標」的位置。預設 true。
+    /// ⚠️ 這個懲罰項的量級（每遠離 1y 約 −0.5×weight）遠大於風箏之類的小權重提示（0.05），
+    /// 所以刻意要拉開距離時必須關掉它，否則風箏會被靜默碾平 ——
+    /// 見 <see cref="WantKiting"/>。關掉的只是這個「別後退」的偏好，
+    /// 「躲到目標背後」的偏好與所有實際的閃避判定都不受影響。
+    /// </param>
+    public Func<WPos, float> GoalDodgeDirection(Actor target, WPos playerPos, float weight = 0.5f, bool penalizeRetreat = true)
     {
         var origin = target.Position;
         var facing = target.Rotation.ToDirection();
@@ -486,6 +542,8 @@ public sealed class AIHints
             if (dist < 0.01f)
                 return default;
             var behind = -facing.Dot(offset / dist); // 1 = directly behind target, -1 = directly in front
+            if (!penalizeRetreat)
+                return weight * behind;
             var retreat = Math.Max(0f, dist - curDist); // positive if this cell is further from target than our current position
             return weight * (behind - retreat * 0.5f);
         };

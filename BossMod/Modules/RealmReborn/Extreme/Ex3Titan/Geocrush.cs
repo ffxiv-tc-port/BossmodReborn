@@ -8,9 +8,9 @@ class Geocrush(BossModule module, float radius) : Components.CastCounter(module,
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (!actor.Position.InCircle(Arena.Center, _radius))
-            hints.Add("Move closer to center!");
+            hints.Add(Loc.T("Move closer to center!"));
         else if (actor.Position.InCircle(Arena.Center, _radius - _ringWidth))
-            hints.Add("Move closer to the edge!");
+            hints.Add(Loc.T("Move closer to the edge!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

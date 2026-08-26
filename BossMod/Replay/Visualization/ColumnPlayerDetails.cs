@@ -64,16 +64,16 @@ public sealed class ColumnPlayerDetails : Timeline.ColumnGroup
     public void DrawConfig(UITree tree)
     {
         DrawConfigPlanner(tree);
-        foreach (var _1 in tree.Node("Actions"))
+        foreach (var _1 in tree.Node(Loc.T("Actions")))
             _actions.DrawConfig(tree);
-        foreach (var _1 in tree.Node("Statuses"))
+        foreach (var _1 in tree.Node(Loc.T("Statuses")))
             _statuses.DrawConfig(tree);
 
-        foreach (var _1 in tree.Node("Resources"))
+        foreach (var _1 in tree.Node(Loc.T("Resources")))
         {
-            DrawResourceColumnToggle(_hp, "HP");
+            DrawResourceColumnToggle(_hp, Loc.T("HP"));
             if (_gauge != null)
-                DrawResourceColumnToggle(_gauge, "Gauge");
+                DrawResourceColumnToggle(_gauge, Loc.T("Gauge"));
         }
     }
 
@@ -91,11 +91,11 @@ public sealed class ColumnPlayerDetails : Timeline.ColumnGroup
     {
         if (_moduleInfo == null || _moduleInfo.PlanLevel <= 0)
         {
-            tree.LeafNode("Planner: not supported for this encounter");
+            tree.LeafNode(Loc.T("Planner: not supported for this encounter"));
             return;
         }
 
-        foreach (var _1 in tree.Node("Planner"))
+        foreach (var _1 in tree.Node(Loc.T("Planner")))
         {
             var plans = _planDatabase.GetPlans(_moduleInfo.ModuleType, _playerClass);
             UpdateSelectedPlan(plans, DrawPlanSelector(_moduleInfo.ModuleType, plans, _selectedPlan));
@@ -113,7 +113,7 @@ public sealed class ColumnPlayerDetails : Timeline.ColumnGroup
 
                 using (ImRaii.Disabled(!haveDifferentPhaseTimes))
                 {
-                    if (ImGui.Button("Sync phase durations to replay"))
+                    if (ImGui.Button(Loc.T("Sync phase durations to replay")))
                     {
                         for (int i = 0; i < _tree.Phases.Count; ++i)
                             _planner.Plan.PhaseDurations[i] = _tree.Phases[i].Duration;
@@ -131,16 +131,16 @@ public sealed class ColumnPlayerDetails : Timeline.ColumnGroup
 
         var isDefault = selection == list.SelectedIndex;
         ImGui.SameLine();
-        if (ImGui.Checkbox("Default", ref isDefault))
+        if (ImGui.Checkbox(Loc.T("Default"), ref isDefault))
         {
             list.SelectedIndex = isDefault ? selection : -1;
             _planDatabase.ModifyManifest(moduleType, _playerClass);
         }
         ImGui.SameLine();
-        if (UIMisc.Button("Save", _planner == null || !_planner.Modified, "Current plan was not modified"))
+        if (UIMisc.Button(Loc.T("Save"), _planner == null || !_planner.Modified, Loc.T("Current plan was not modified")))
             SaveChanges();
         ImGui.SameLine();
-        if (UIMisc.Button("Copy", _planner == null, "No plan selected") && _planner != null && _moduleInfo != null)
+        if (UIMisc.Button(Loc.T("Copy"), _planner == null, Loc.T("No plan selected")) && _planner != null && _moduleInfo != null)
         {
             _planner.Plan.Guid = Guid.NewGuid().ToString();
             _planner.Plan.Name += " Copy";
@@ -150,7 +150,7 @@ public sealed class ColumnPlayerDetails : Timeline.ColumnGroup
             _planner.Modified = false;
         }
         ImGui.SameLine();
-        if (UIMisc.Button("Revert", _planner == null || !_planner.Modified, "Current plan was not modified") && _planner != null && _moduleInfo != null)
+        if (UIMisc.Button(Loc.T("Revert"), _planner == null || !_planner.Modified, Loc.T("Current plan was not modified")) && _planner != null && _moduleInfo != null)
         {
             var plans = _planDatabase.GetPlans(_moduleInfo.ModuleType, _playerClass);
             _planner.Plan = plans.Plans[_selectedPlan].MakeClone();
@@ -158,7 +158,10 @@ public sealed class ColumnPlayerDetails : Timeline.ColumnGroup
             _planner.Modified = false;
         }
         ImGui.SameLine();
-        if (UIMisc.Button("New", _planner != null && _planner.Modified, "Current preset is modified, save or discard changes") && _moduleInfo != null)
+        // 🔴 這裡選的是「計劃」不是「預設」：閘門條件是 _planner.Modified（計劃有未存變更）。
+        //    上游的原句寫成 "Current preset is modified..."，名詞用錯——這個視窗裡根本沒有預設，
+        //    而同一個函式的儲存／還原鈕（下面幾行）用的是 "Current plan was not modified"。
+        if (UIMisc.Button(Loc.T("New"), _planner != null && _planner.Modified, Loc.T("Current plan is modified, save or discard changes")) && _moduleInfo != null)
         {
             var plans = _planDatabase.GetPlans(_moduleInfo.ModuleType, _playerClass);
             var plan = new Plan($"New {plans.Plans.Count + 1}", _moduleInfo.ModuleType) { Guid = Guid.NewGuid().ToString(), Class = _playerClass, Level = _moduleInfo.PlanLevel };
@@ -166,7 +169,10 @@ public sealed class ColumnPlayerDetails : Timeline.ColumnGroup
             selection = plans.Plans.Count - 1;
         }
         ImGui.SameLine();
-        if (UIMisc.Button("Delete", 0, (!ImGui.GetIO().KeyShift, "Hold shift to delete"), (_planner == null, "No preset is selected")) && _moduleInfo != null && _selectedPlan >= 0)
+        // 🔴 同上：_planner == null 是「沒有選取計劃」，上游卻寫 "No preset is selected"。
+        //    改用同一個函式第 143 行既有的 "No plan selected"（閘門條件逐字相同）。
+        //    "Hold shift to delete" 不帶名詞，維持共用 PRESETDB_HoldShift。
+        if (UIMisc.Button(Loc.T("Delete"), 0, (!ImGui.GetIO().KeyShift, Loc.T("PRESETDB_HoldShift", "Hold shift to delete")), (_planner == null, Loc.T("No plan selected"))) && _moduleInfo != null && _selectedPlan >= 0)
         {
             var plans = _planDatabase.GetPlans(_moduleInfo.ModuleType, _playerClass);
             _planDatabase.ModifyPlan(plans.Plans[_selectedPlan], null);

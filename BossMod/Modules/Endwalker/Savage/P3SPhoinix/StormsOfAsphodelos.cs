@@ -66,27 +66,27 @@ class StormsOfAsphodelos(BossModule module) : BossComponent(module)
         {
             if (!_tetherTargets[slot])
             {
-                hints.Add("Intercept tether!");
+                hints.Add(Loc.T("Intercept tether!"));
             }
             if (_hitByMultipleAOEs[slot])
             {
-                hints.Add("Press invul!");
+                hints.Add(Loc.T("Press invul!"));
             }
         }
         else
         {
             if (_tetherTargets[slot])
             {
-                hints.Add("Pass the tether!");
+                hints.Add(Loc.T("Pass the tether!"));
             }
             if (_hitByMultipleAOEs[slot])
             {
-                hints.Add("GTFO from aoes!");
+                hints.Add(Loc.T("GTFO from aoes!"));
             }
         }
         if (_closeToTetherTarget[slot])
         {
-            hints.Add("GTFO from tether!");
+            hints.Add(Loc.T("GTFO from tether!"));
         }
     }
 

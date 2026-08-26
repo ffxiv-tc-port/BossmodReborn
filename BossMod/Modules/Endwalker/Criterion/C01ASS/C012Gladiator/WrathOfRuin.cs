@@ -13,7 +13,7 @@ sealed class GoldenSilverFlame(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (DebuffsAtPosition(actor.Position) != _debuffs[slot])
-            hints.Add("Go to correct cell!");
+            hints.Add(Loc.T("Go to correct cell!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

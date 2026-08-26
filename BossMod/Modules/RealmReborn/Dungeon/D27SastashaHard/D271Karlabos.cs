@@ -51,7 +51,7 @@ class MarkOfDeath(BossModule module) : Components.SingleTargetInstant(module, (u
         // Tanks should pass the stun to a DPS so they can stun TailScrew later
         if (_marked[slot] && actor.Role == Role.Tank)
         {
-            hints.Add("Run through a DPS!");
+            hints.Add(Loc.T("Run through a DPS!"));
         }
     }
 }

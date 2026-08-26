@@ -1,4 +1,4 @@
-﻿using BossMod.Autorotation;
+using BossMod.Autorotation;
 using BossMod.Autorotation.xan;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.Utility.Raii;
@@ -40,7 +40,7 @@ sealed class MainDebugWindow(WorldState ws, RotationModuleManager autorot, ZoneM
     public override unsafe void Draw()
     {
         var playerCID = UIState.Instance()->PlayerState.ContentId;
-        var player = Service.ClientState.LocalPlayer;
+        var player = Service.ObjectTable.LocalPlayer;
         ImGui.TextUnformatted($"Current zone: {ws.CurrentZone}, player=0x{(ulong)Utils.GameObjectInternal(player):X}, playerCID={playerCID:X}, pos = {Utils.Vec3String(player?.Position ?? new Vector3())}");
         // ImGui.TextUnformatted($"ID scramble: {Network.IDScramble.Delta} = {*Network.IDScramble.OffsetAdjusted} - {*Network.IDScramble.OffsetBaseFixed} - {*Network.IDScramble.OffsetBaseChanging}");
         ImGui.TextUnformatted($"Player mode: {(player is null ? "No player found" : Utils.CharacterInternal(player)->Mode)}");
@@ -188,7 +188,7 @@ sealed class MainDebugWindow(WorldState ws, RotationModuleManager autorot, ZoneM
 
     private unsafe void DrawStatuses()
     {
-        ImGui.TextUnformatted($"Forced movement direction: {MovementOverride.ForcedMovementDirection->Radians()}");
+        ImGui.TextUnformatted($"Forced movement direction: {(MovementOverride.ForcedMovementDirection != null ? MovementOverride.ForcedMovementDirection->Radians() : "sig 失效")}");
         ImGui.SameLine();
         if (ImGui.Button("Add misdirection"))
         {
@@ -293,9 +293,9 @@ sealed class MainDebugWindow(WorldState ws, RotationModuleManager autorot, ZoneM
         var cursorPos = amex.GetWorldPosUnderCursor();
         ImGui.TextUnformatted($"World pos under cursor: {(cursorPos == null ? "n/a" : Utils.Vec3String(cursorPos.Value))}");
 
-        var player = Service.ClientState.LocalPlayer;
+        var player = Service.ObjectTable.LocalPlayer;
         var selfPos = player?.Position ?? new();
-        var targPos = Service.ClientState.LocalPlayer?.TargetObject?.Position ?? new();
+        var targPos = Service.ObjectTable.LocalPlayer?.TargetObject?.Position ?? new();
         var angle = player?.Rotation.Radians() ?? default; //Angle.FromDirection(new((targPos - selfPos).XZ()));
         var ts = FFXIVClientStructs.FFXIV.Client.Game.Control.TargetSystem.Instance();
         DrawTarget("Target", ts->Target, selfPos, angle);
@@ -303,8 +303,11 @@ sealed class MainDebugWindow(WorldState ws, RotationModuleManager autorot, ZoneM
         DrawTarget("GPose target", ts->GPoseTarget, selfPos, angle);
         DrawTarget("Mouseover", ts->MouseOverTarget, selfPos, angle);
         DrawTarget("Focus", ts->FocusTarget, selfPos, angle);
-        var mouseover = FFXIVClientStructs.FFXIV.Client.UI.Misc.PronounModule.Instance()->UiMouseOverTarget;
-        ImGui.TextUnformatted($"UI Mouseover: {Utils.ObjectString(mouseover != null ? mouseover->EntityId : 0)}");
+        // PronounModule.Instance() 是手寫包裝（UIModule 未建立時回 null）——判空顯示不可用。
+        var pronoun = FFXIVClientStructs.FFXIV.Client.UI.Misc.PronounModule.Instance();
+        ImGui.TextUnformatted(pronoun != null
+            ? $"UI Mouseover: {Utils.ObjectString(pronoun->UiMouseOverTarget != null ? pronoun->UiMouseOverTarget->EntityId : 0)}"
+            : "UI Mouseover: (PronounModule 不可用)");
 
         if (ImGui.Button("Target closest enemy"))
         {
@@ -396,7 +399,31 @@ sealed class MainDebugWindow(WorldState ws, RotationModuleManager autorot, ZoneM
 
     private unsafe void DrawCountdown()
     {
-        var agent = AgentCountDownSettingDialog.Instance();
+        // 🔴 AgentCountDownSettingDialog.Instance() 由
+        //    [Agent(AgentId.CountDownSettingDialog)] 產生:內部鏈
+        //    AgentModule -> UIModule -> Framework,任一層回 null 整條就回 null(登入前、
+        //    切場景、登出後都是常態),而底層 [StaticAddress]/[MemberFunction] 特徵碼失配時
+        //    改為擲 InvalidOperationException——兩種失效模式並存,只擋一種等於假防護。
+        //    裸解參考 null 原生指標是 AccessViolationException,在 .NET Core 屬
+        //    corrupted-state exception,try/catch 攔不到 ⇒ 只能事前判空。
+        //    這裡是除錯視窗的每幀繪製,不寫 log;但「取不到」本身要在畫面上看得見,
+        //    畫成 Active: False / Time left: 0.000 會被誤讀成「查過了,沒有倒數」。
+        AgentCountDownSettingDialog* agent;
+        try
+        {
+            agent = AgentCountDownSettingDialog.Instance();
+        }
+        catch
+        {
+            agent = null;
+        }
+
+        if (agent == null)
+        {
+            ImGui.TextUnformatted("AgentCountDownSettingDialog: ? (取不到 agent)");
+            return;
+        }
+
         ImGui.TextUnformatted($"Active: {agent->Active} (showing cd={agent->ShowingCountdown})");
         ImGui.TextUnformatted($"Initiator: {Utils.ObjectString(agent->InitiatorId)}");
         ImGui.TextUnformatted($"Time left: {agent->TimeRemaining:f3}");

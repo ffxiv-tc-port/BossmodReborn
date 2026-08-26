@@ -26,7 +26,7 @@ public class TankSwap(BossModule module, uint bossCast, uint firstCast, uint sub
     {
         if (_source?.TargetID == _prevTarget && actor.Role == Role.Tank)
         {
-            hints.Add(_prevTarget != actor.InstanceID ? "Provoke!" : "Pass aggro!");
+            hints.Add(Loc.T(_prevTarget != actor.InstanceID ? "Provoke!" : "Pass aggro!"));
         }
         base.AddHints(slot, actor, hints);
     }

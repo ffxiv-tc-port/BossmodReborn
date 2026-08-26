@@ -51,10 +51,43 @@ public sealed class ThetaStar
     public int NumSteps;
     public int NumReopens;
 
+    /// <summary>
+    /// 這一次搜尋<b>真的走得到</b>的格子裡最高的目標權重（純診斷，不參與任何決策）。
+    /// </summary>
+    /// <remarks>
+    /// 🔑 存在的理由：<see cref="Map.MaxPriority"/> 是<b>整張圖</b>的最高權重，包含被禁區
+    /// 或障礙物隔開、根本到不了的格子。只看它就會把兩種完全不同的狀況混成同一句話——
+    /// <list type="number">
+    /// <item><b>真的沒地方可去</b>（玩家已經在可達區域的最高點，例如隔著一道牆貼著寶箱）
+    /// ⇒ 尋路回 <c>null</c> 是<b>正確</b>的，問題出在目標區／障礙物，不在尋路。</item>
+    /// <item><b>走得到更好的格子卻沒被採用</b> ⇒ 那才是尋路自己的缺陷。</item>
+    /// </list>
+    /// 兩者的外觀完全相同（回 null、不報錯），而分辨它們只需要這一個數字：
+    /// 它等於玩家格權重就是第 ①，明顯大於就是第 ②。
+    /// </remarks>
+    public float MaxReachedPriority;
+
+    /// <summary>開放清單被掃空＝整張可達區域都探過了（純診斷）。</summary>
+    /// <remarks>
+    /// 為 false 代表搜尋是因為「找到最高權重的格子」而提早結束，那時
+    /// <see cref="MaxReachedPriority"/> 只是「掃到這裡為止」的值，不能拿來下結論。
+    /// </remarks>
+    public bool OpenListExhausted;
+
     public ref Node NodeByIndex(int index) => ref _nodes[index];
     public WPos CellCenter(int index) => _map.GridToWorld(index % _map.Width, index / _map.Width, 0.5f, 0.5f);
 
     // gMultiplier is typically inverse speed, which turns g-values into time
+    /// <remarks>
+    /// 🔴🔴 <b><paramref name="gMultiplier"/> 必須是有限的正數，這是本類別的不變式而不是建議。</b>
+    /// 它是 <c>1/速度</c>，速度 0 就會傳進 <c>+∞</c>；<c>_deltaGSide</c> 一旦是 ∞，
+    /// <c>VisitNeighbour</c> 算出的 <c>PathLeeway</c> 就是 <c>float.MaxValue - ∞ = -∞</c>
+    /// ⇒ <see cref="CalculateScore"/> 對<b>每一格</b>都回 <see cref="Score.UnsafeAsStart"/>
+    /// ⇒ 沒有任何格子贏得過起點 ⇒ <see cref="Execute"/> 把整個可達區域掃完後回傳<b>起點</b>，
+    /// 呼叫端看到的是「算不出目的地」，完全不像速度出問題（2026-08-14 深牢實證）。
+    /// 唯一的生產呼叫點 <c>NavigationDecision.Build</c> 已經夾限（見那裡的 <c>NominalPlayerSpeed</c>），
+    /// <b>新增呼叫點時要自己保證這件事</b>。
+    /// </remarks>
     public void Start(Map map, WPos startPos, float gMultiplier)
     {
         _map = map;
@@ -80,6 +113,9 @@ public sealed class ThetaStar
         //    _startMaxG = float.MaxValue; // TODO: this is a hack that allows navigating outside the obstacles, reconsider...
         _startScore = CalculateScore(_startMaxG, _startMaxG, _startMaxG, StartNodeIndex);
         NumSteps = NumReopens = 0;
+        // 診斷起點：玩家自己那一格一定「走得到」。
+        MaxReachedPriority = _startPrio;
+        OpenListExhausted = false;
 
         startFrac.X -= start.x + 0.5f;
         startFrac.Y -= start.y + 0.5f;
@@ -100,13 +136,25 @@ public sealed class ThetaStar
     public bool ExecuteStep()
     {
         if (_openList.Count == 0 /*|| _nodes[_openList[0]].HScore <= 0*/)
+        {
+            OpenListExhausted = true;
             return false;
+        }
 
         ++NumSteps;
         var nextNodeIndex = PopMinOpen();
         var nextNodeX = nextNodeIndex % _map.Width;
         var nextNodeY = nextNodeIndex / _map.Width;
         ref var nextNode = ref _nodes[nextNodeIndex];
+
+        // 純診斷：記下真的被展開過（＝走得到）的格子裡最高的目標權重。見 MaxReachedPriority。
+        // ⚠️ 被禁區擋住的格子在 RasterizeGoalZones 裡權重已經是 float.MinValue，
+        //    而且 VisitNeighbour 不會從安全格走進去，所以這裡不會把它們算進來。
+        {
+            ref readonly var reachedPrio = ref _map.PixelPriority[nextNodeIndex];
+            if (reachedPrio > MaxReachedPriority)
+                MaxReachedPriority = reachedPrio;
+        }
 
         // update our best indices
         if (CompareNodeScores(ref nextNode, ref _nodes[_bestIndex]) < 0)
