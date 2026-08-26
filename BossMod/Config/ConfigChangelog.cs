@@ -52,6 +52,14 @@ public sealed class ConfigChangelogWindow : UIWindow
     /// </remarks>
     private static readonly ConfigChangelogEntry[] Registry =
     [
+        // 🔴 這一則刻意登記,因為它是少數「新選項的預設值不是停用」的改動:
+        //    既有使用者升上來就直接拿到 Alt,不講的話會變成「BMR 突然在我按 Alt 時不動了」。
+        // ⚠️ 版本號寫的是「這個改動第一次出貨的那個 tag」。撰寫時 feed 上的是 7.20.0.93,
+        //    所以填下一號;比對是 `resolved.Version > prev`,實際出貨號更大也照樣顯示得到。
+        new("7.20.0.94", ChangelogKind.NewOption, typeof(ActionTweaksConfig), nameof(ActionTweaksConfig.PauseAutoMoveKey),
+            "CHANGELOG_PauseAutoMoveKey",
+            "Holding a key now pauses BossMod's automatic movement. Unlike almost every other new option this one is ON by default, bound to Alt: while Alt is held nothing in the plugin steers your character and you move manually, and it lets go on the frame you release. Only movement is affected - actions, dodging hints, positional hints and mitigation are untouched. Set it to \"None\" in Action tweaks if you do not want it."),
+
         new("7.20.0.63", ChangelogKind.NewOption, typeof(MiscConfig), nameof(MiscConfig.UnlockMultibox),
             "CHANGELOG_UnlockMultibox",
             "Unlocking multiboxing is now a setting, and it is off by default. Up to and including 7.20.0.62 the plugin closed the game's single-instance mutex on every load, unconditionally and without telling you. Tick the option if you want that behaviour back; read its tooltip first."),

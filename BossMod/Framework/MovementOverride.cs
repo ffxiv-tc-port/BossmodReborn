@@ -60,6 +60,45 @@ public sealed unsafe class MovementOverride : IDisposable
 
     public bool IsForceUnblocked() => IsModifierHeld(_tweaksConfig.MoveEscapeHatch);
 
+    /// <summary>
+    /// 這一幀使用者有沒有按著「暫停自動移動」那顆鍵（<see cref="ActionTweaksConfig.PauseAutoMoveKey"/>）。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>刻意是每幀快照而不是即時查詢</b>：唯一的讀取者 <see cref="DirectionToDestination"/> 住在
+    /// <see cref="RMIWalkDetour"/>／<see cref="RMIFlyDetour"/> 裡，而那兩支是遊戲讀輸入時呼叫的 detour，
+    /// <b>不在 Dalamud 的 Draw 回呼裡</b> —— 見 <see cref="IsModifierHeld"/> 上面那條「只能在 Draw 回呼裡呼叫」。
+    /// 由 <c>Plugin.DrawUI</c> 每幀呼叫 <see cref="UpdateAutoMovementPause"/> 拍一次快照，detour 只讀 bool。
+    /// <para>
+    /// 📌 代價是最多落後一幀（約 16ms）——按下與放開都感覺不出來，換到的是 detour 完全不碰 ImGui。
+    /// </para>
+    /// </remarks>
+    public bool AutoMovementPaused { get; private set; }
+
+    /// <summary>上一次記過的暫停狀態；用來只在<b>翻轉</b>時記一行 log。</summary>
+    private bool _loggedAutoMovementPaused;
+
+    /// <summary>
+    /// 拍下這一幀的「暫停自動移動」鍵狀態。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>只能從 <c>Plugin.DrawUI</c> 呼叫</b>（要有 ImGui context）。搬走之前先讀
+    /// <see cref="IsModifierHeld"/> 的備註。
+    /// 📌 log 走 <c>Information</c>：使用者的 LogLevel 是 2。用途是讓「我按著 Alt 它怎麼還在自己走」
+    /// 這種回報能一眼分辨「鍵根本沒被認到」與「認到了但走的人不是 BMR」（例如 vnavmesh 在走）。
+    /// 只在翻轉時印——這支每幀都會被呼叫到。
+    /// </remarks>
+    public void UpdateAutoMovementPause()
+    {
+        var key = _tweaksConfig.PauseAutoMoveKey;
+        AutoMovementPaused = key != ActionTweaksConfig.ModifierKey.None && IsModifierHeld(key);
+        if (AutoMovementPaused == _loggedAutoMovementPaused)
+            return;
+        _loggedAutoMovementPaused = AutoMovementPaused;
+        Service.Logger.Information(AutoMovementPaused
+            ? $"[MovementOverride] 暫停自動移動:啟動（{key}）——這段期間 BMR 完全不注入移動輸入(走路與飛行都是),操作權整個交回使用者;出招、閃避提示、方位提示與減傷照常。"
+            : "[MovementOverride] 暫停自動移動:放開——自動移動當幀恢復。");
+    }
+
     public bool MovementBlocked
     {
         get => field && !IsForceUnblocked();
@@ -314,6 +353,14 @@ public sealed unsafe class MovementOverride : IDisposable
 
     private (Angle h, Angle v)? DirectionToDestination(bool allowVertical)
     {
+        // 🔴 閘門放在**消費端**而不是 DesiredDirection 的指派端,是刻意的:
+        //    這一支是走路(RMIWalkDetour)與飛行(RMIFlyDetour)兩條注入唯一共用的出口,
+        //    擋在這裡＝以後不管誰寫 DesiredDirection(Plugin.ExecuteHints、Debug 視窗、將來新增的)
+        //    都自動被同一道閘門涵蓋,不會漏掉一個寫入點。
+        // 📌 回 null 的語意與「沒有想去的方向」逐字相同 ⇒ 呼叫端不必改,ActualMove 保持使用者自己的輸入。
+        if (AutoMovementPaused)
+            return null;
+
         if (DesiredDirection == null || DesiredDirection.Value == default)
             return null;
 

@@ -381,6 +381,9 @@ public sealed class Plugin : IDalamudPlugin
     private void DrawUI()
     {
         var tsStart = DateTime.Now;
+        // 🔴 必須在這裡拍(Draw 回呼裡),因為它會讀 ImGui 的按鍵狀態;真正的讀取者是
+        //    MovementOverride 的兩支移動 detour,那邊不在 Draw 回呼裡、只能讀這一幀的快照。
+        _movementOverride.UpdateAutoMovementPause();
         var moveImminent = _movementOverride.IsMoveRequested() && (!ActionManagerEx.Config.PreventMovingWhileCasting || _movementOverride.IsForceUnblocked());
 
         _dtr.Update();

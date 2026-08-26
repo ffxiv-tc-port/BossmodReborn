@@ -44,6 +44,18 @@ public sealed class ActionTweaksConfig : ConfigNode
     [PropertyDisplay("Key to hold to allow movement while casting", tooltip: "Requires the above setting checked as well")]
     public ModifierKey MoveEscapeHatch = ModifierKey.None;
 
+    // 🔴 這是全 repo 少數「預設非停用」的新設定,是使用者本人指名要的預設值
+    //    （原話:「我需要一個功能是 按住alt時 停止自動移動」）。
+    //    BMR 的 ConfigNode.Deserialize 只遍歷存檔 JSON 裡「已存在」的鍵,新欄位在既有存檔裡不存在
+    //    ⇒ 這裡的初始值 Alt 會真的落到既有使用者身上（與 EzConfig 的行為相反,不要照那邊的直覺推）。
+    //    要關掉就在這一格選 "None"。
+    // ⚠️ 這顆鍵與上面的 MoveEscapeHatch 是**互相獨立**的兩件事,即使兩格都選 Alt 也不衝突:
+    //    MoveEscapeHatch 解除的是「BMR 擋住你自己的移動」,這一顆停的是「BMR 自己在走」。
+    //    兩格都設 Alt 時,按住 Alt ＝ 詠唱中可自己移動 ＋ 自動移動同時放手,那正是使用者要的組合。
+    [PropertyDisplay("Key to hold to pause automatic movement",
+        tooltip: "While this key is held, BossMod stops injecting any movement input of its own - AI mode, the Normal Movement autorotation module, quest battles and boss module repositioning all let go of your character, and you steer manually. Movement resumes on the very frame you release the key.\n\nOnly movement is paused. Actions, dodging hints, positional hints, mitigation and targeting all keep running exactly as before, and nothing about your own input is blocked.\n\nSet to \"None\" to disable this entirely.\n\nNote: this does not stop the deep dungeon \"Walk to room\" button, because that route is walked by vnavmesh rather than by BossMod - press its stop button instead.")]
+    public ModifierKey PauseAutoMoveKey = ModifierKey.Alt;
+
     // 📌 預設 false 是刻意的:這是新行為(以前引導技完全不在封鎖範圍內),既有使用者不該被它改到。
     //    BMR 的 ConfigNode.Deserialize 只遍歷存檔 JSON 裡「已存在」的鍵,新欄位在既有存檔裡不存在,
     //    所以會保留這裡的初始值 —— 也就是既有使用者拿到的就是 false。
