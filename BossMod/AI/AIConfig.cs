@@ -3,6 +3,9 @@
 [ConfigDisplay(Name = "AI configuration (AI is very experimental, use at your own risk!)", Order = 7)]
 sealed class AIConfig : ConfigNode
 {
+    [PropertyDisplay("Enable AI automatically when the plugin loads", tooltip: "Starts AI in follow mode (using the configured follow slot) as soon as party/world data is available after plugin load, instead of starting idle and requiring a manual /bmrai on or UI toggle every session.")]
+    public bool AutoEnableOnLoad = true;
+
     [PropertyDisplay("Show status in DTR bar")]
     public bool ShowDTR = false;
 

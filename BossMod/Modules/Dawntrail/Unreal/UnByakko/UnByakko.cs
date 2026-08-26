@@ -32,7 +32,7 @@ class HighestStakes(BossModule module) : Components.SimpleAOEs(module, (uint)AID
 // Using GroupType.None for now: GroupType.CFC does an unchecked Lumina row lookup at plugin startup for
 // EVERY registered module (BossMod/Config/ModuleViewer.cs Classify()), so a wrong CFC id crashes the
 // entire plugin on load, not just this module. Switch back to GroupType.CFC once the real row id is confirmed.
-[ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "Lother", GroupType = BossModuleInfo.GroupType.None, GroupID = 1042, NameID = 7092, PlanLevel = 100)]
+[ModuleInfo(BossModuleInfo.Maturity.WIP, GroupType = BossModuleInfo.GroupType.None, GroupID = 1042, NameID = 7092, PlanLevel = 100)]
 public sealed class UnByakko(WorldState ws, Actor primary) : BossModule(ws, primary, default, Ex6.Ex6Byakko.NormalBounds)
 {
     // borrowed directly from Ex6Byakko - arena geometry is very likely shared 1:1 between Unreal and Extreme

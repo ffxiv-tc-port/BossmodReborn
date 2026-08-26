@@ -15,6 +15,7 @@ sealed class AIManager : IDisposable
     public int MasterSlot = PartyState.PlayerSlot; // non-zero means corresponding player is master
     public AIBehaviour? Beh;
     public Preset? AiPreset;
+    private bool _autoEnableAttempted;
 
     public WorldState WorldState => Autorot.Bossmods.WorldState;
     public float ForceMovementIn => Beh?.ForceMovementIn ?? float.MaxValue;
@@ -27,7 +28,13 @@ sealed class AIManager : IDisposable
         Autorot = autorot;
         Controller = new(autorot.WorldState, amex, movement);
         Service.CommandManager.AddHandler("/bmrai", new Dalamud.Game.Command.CommandInfo(OnCommand) { HelpMessage = "Toggle AI mode" });
+        // the plugin instance (and this manager) survives character switches and full relogs
+        // within the same game client session - re-arm the one-shot auto-enable attempt on
+        // every new character login, not just once for the plugin's entire lifetime
+        Service.ClientState.Login += OnLogin;
     }
+
+    private void OnLogin() => _autoEnableAttempted = false;
 
     public void SetAIPreset(Preset? p)
     {
@@ -41,11 +48,29 @@ sealed class AIManager : IDisposable
         SwitchToIdle();
         _wndAI.Dispose();
         Service.CommandManager.RemoveHandler("/bmrai");
+        Service.ClientState.Login -= OnLogin;
         Instance = null;
     }
 
     public void Update()
     {
+        if (!_autoEnableAttempted && _config.AutoEnableOnLoad && Beh == null && WorldState.Party.Player() != null
+            && WorldState.Party.Members[_config.FollowSlot].IsValid())
+        {
+            // deferred to the first tick where party data actually exists (rather than done
+            // in the constructor) so this doesn't race plugin load happening before the
+            // character/party is fully in world - only ever attempted once per session, so it
+            // won't fight a player who deliberately switches AI back off afterward. Player()
+            // (world actor) and Members[].IsValid() (party-list network state) are two
+            // independent data streams that don't necessarily land on the same tick - gating
+            // on both, not just Player(), avoids the immediately-following
+            // "!Members[MasterSlot].IsValid() -> SwitchToIdle()" check undoing this on the
+            // same frame it just enabled AI (which then never retried, since the attempt flag
+            // was already set) - this is why AI stayed off by default in practice.
+            _autoEnableAttempted = true;
+            SwitchToFollow(_config.FollowSlot);
+        }
+
         if (!WorldState.Party.Members[MasterSlot].IsValid())
             SwitchToIdle();
 
