@@ -8,7 +8,8 @@ public static class UICombo
     public static string EnumString(Enum v)
     {
         var name = v.ToString();
-        return v.GetType().GetField(name)?.GetCustomAttribute<PropertyDisplayAttribute>()?.Label ?? name;
+        var label = v.GetType().GetField(name)?.GetCustomAttribute<PropertyDisplayAttribute>()?.Label ?? name;
+        return Loc.T(label, label);
     }
 
     public static bool Enum<T>(string label, ref T v, Func<T, string>? print = null) where T : Enum

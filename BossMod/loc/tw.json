@@ -1,0 +1,1679 @@
+{
+  "Tab_Settings": {
+    "message": "設定"
+  },
+  "Tab_SupportedFights": {
+    "message": "支援的戰鬥"
+  },
+  "Tab_AutorotPresets": {
+    "message": "自動循環預設"
+  },
+  "Tab_SlashCommands": {
+    "message": "斜線指令"
+  },
+  "Tab_About": {
+    "message": "關於"
+  },
+  "CFG_AvailableCommands": {
+    "message": "可用指令："
+  },
+  "CFG_AI": {
+    "message": "AI："
+  },
+  "CFG_AutorotCommands": {
+    "message": "自動循環指令："
+  },
+  "CFG_OtherCommands": {
+    "message": "其他指令："
+  },
+  "ABOUT_Intro": {
+    "message": "BossModReborn（BMR）提供 Boss 戰雷達、自動循環、冷卻計劃及 AI 功能，所有模組均可個別開關。支援請至頁面底部的 Discord 伺服器尋求。"
+  },
+  "ABOUT_ForkNote": {
+    "message": "本插件為原版 BossMod（VBM）的分支，請僅在 Combat Reborn Discord 尋求支援。"
+  },
+  "ABOUT_NoDouble": {
+    "message": "請勿同時載入 VBM 與本分支，後果未知且不受支援。"
+  },
+  "ABOUT_Radar": {
+    "message": "雷達"
+  },
+  "ABOUT_Radar_1": {
+    "message": "提供螢幕視窗，顯示玩家位置、Boss 位置、即將到來的各種 AOE 及其他機制的小地圖。"
+  },
+  "ABOUT_Radar_2": {
+    "message": "無需記住技能名稱代表的意義。"
+  },
+  "ABOUT_Radar_3": {
+    "message": "精確查看是否被即將到來的 AOE 影響。"
+  },
+  "ABOUT_Radar_4": {
+    "message": "支援的 Boss 可在「支援的戰鬥」標籤查看並啟用。"
+  },
+  "ABOUT_Autorot": {
+    "message": "自動循環"
+  },
+  "ABOUT_Autorot_1": {
+    "message": "以最佳能力執行完全最優的輸出循環。"
+  },
+  "ABOUT_Autorot_2": {
+    "message": "前往「自動循環預設」標籤建立預設。"
+  },
+  "ABOUT_Autorot_3": {
+    "message": "各循環模組的成熟度可在工具提示中查看。"
+  },
+  "ABOUT_Autorot_4": {
+    "message": "使用說明請參閱 wiki。"
+  },
+  "ABOUT_CDPlanner": {
+    "message": "冷卻計劃器"
+  },
+  "ABOUT_CDPlanner_1": {
+    "message": "為支援的 Boss 建立冷卻技能計劃。"
+  },
+  "ABOUT_CDPlanner_2": {
+    "message": "在特定戰鬥中取代自動循環。"
+  },
+  "ABOUT_CDPlanner_3": {
+    "message": "允許在特定時間點施放特定技能。"
+  },
+  "ABOUT_CDPlanner_4": {
+    "message": "使用說明請參閱 wiki。"
+  },
+  "ABOUT_AI": {
+    "message": "AI"
+  },
+  "ABOUT_AI_1": {
+    "message": "自動化 Boss 戰中的移動。"
+  },
+  "ABOUT_AI_2": {
+    "message": "根據 Boss 模組判定的安全區域（雷達可見）自動移動角色。"
+  },
+  "ABOUT_AI_3": {
+    "message": "與陌生玩家遊玩時不應使用。"
+  },
+  "ABOUT_AI_4": {
+    "message": "可由其他插件掛接以自動化整個副本。"
+  },
+  "ABOUT_Replays": {
+    "message": "重播"
+  },
+  "ABOUT_Replays_1": {
+    "message": "適用於建立 Boss 模組、分析問題及制作冷卻計劃。"
+  },
+  "ABOUT_Replays_2": {
+    "message": "尋求協助時，請務必提供重播！注意重播將包含您的角色名稱！"
+  },
+  "ABOUT_Replays_3": {
+    "message": "在設定 > 顯示重播管理 UI 中啟用（或啟用自動錄製）。"
+  },
+  "ABOUT_Replays_4": {
+    "message": "檔案位於"
+  },
+  "ABOUT_BtnDiscord": {
+    "message": "Combat Reborn Discord"
+  },
+  "ABOUT_BtnGitHub": {
+    "message": "BossModReborn GitHub"
+  },
+  "ABOUT_BtnWiki": {
+    "message": "BossMod Wiki"
+  },
+  "ABOUT_BtnOpenFolder": {
+    "message": "開啟重播資料夾"
+  },
+  "ABOUT_ErrOpenLink": {
+    "message": "無法開啟連結 '{0}'，請在瀏覽器手動開啟。"
+  },
+  "ABOUT_ErrOpenDir": {
+    "message": "無法開啟資料夾 '{0}'，請手動開啟。"
+  },
+  "ABOUT_ErrDirNotFound": {
+    "message": "找不到資料夾 '{0}'。"
+  },
+  "MV_Search": {
+    "message": "搜尋："
+  },
+  "MV_SearchTip": {
+    "message": "在此輸入以搜尋特定副本名稱。"
+  },
+  "PRC_InvalidAssign": {
+    "message": "分配無效：每個站位應各有一名隊員"
+  },
+  "PRC_AllGood": {
+    "message": "設定正確！"
+  },
+  "AI_Title_Off": {
+    "message": "AI：關閉"
+  },
+  "AI_ForbidActions": {
+    "message": "禁止技能"
+  },
+  "AI_ForbidMovement": {
+    "message": "禁止移動"
+  },
+  "AI_IdleMounted": {
+    "message": "騎乘時閒置"
+  },
+  "AI_FollowCombat": {
+    "message": "戰鬥中跟隨"
+  },
+  "AI_FollowCombat_Tip": {
+    "message": "必須啟用才能使用跟隨目標。"
+  },
+  "AI_FollowBossModule": {
+    "message": "Boss模組中跟隨"
+  },
+  "AI_FollowBossModule_Tip": {
+    "message": "必須啟用才能在Boss模組中跟隨目標。"
+  },
+  "AI_FollowOutOfCombat": {
+    "message": "戰鬥外跟隨"
+  },
+  "AI_FollowTarget": {
+    "message": "跟隨目標"
+  },
+  "AI_FollowTarget_Tip": {
+    "message": "依照您的距離設定跟隨目標。\n需同時啟用「戰鬥中跟隨」及「Boss模組中跟隨」。"
+  },
+  "AI_ManualTarget": {
+    "message": "手動選目標"
+  },
+  "AI_ManualTarget_Tip": {
+    "message": "允許在AI自動循環啟用時手動選取目標。"
+  },
+  "AI_DisableObstacleMaps": {
+    "message": "停用障礙物地圖載入"
+  },
+  "AI_ActivationTimeCushion": {
+    "message": "閃避時機安全緩衝"
+  },
+  "AI_ActivationTimeCushion_Tip": {
+    "message": "機制真正結算前多少秒，AI 仍會把該處視為「還算安全」。\n數值越小＝越晚才閃避（越貼近最後安全時刻，輸出時間越長，但延遲/頓卡的容錯空間越少）。預設 1 秒；想要更積極輸出可以試試 0.1~0.2。"
+  },
+  "AI_ReturnToPreDodgePosition": {
+    "message": "閃避後歸位"
+  },
+  "AI_ReturnToPreDodgePosition_Tip": {
+    "message": "強制閃避結束後，嘗試走回閃避前站立的位置以維持輸出/站位。\n若該位置目前處於禁區內或超出場地邊界，會立即放棄歸位。"
+  },
+  "AI_ReturnToPreDodgePositionTimeout": {
+    "message": "逾時"
+  },
+  "AI_ReturnToPreDodgePositionTimeout_Tip": {
+    "message": "嘗試走回閃避前位置的最長時間，超過就放棄並交還給一般站位邏輯。"
+  },
+  "AI_MovementUrgencyThreshold": {
+    "message": "移動急迫度緩衝"
+  },
+  "AI_MovementUrgencyThreshold_Tip": {
+    "message": "新的AOE預兆一出現，尋路系統常會馬上找到一個「稍微更安全」的位置，即使其實還不需要移動。\n設定大於 0 時，AI 會在安全緩衝時間低於此數值前先站著不動（維持輸出），而不是立刻重新站位。\n但若是為了跟上目標/隊員距離而需要的移動，不會被延遲。預設 0＝維持舊行為（立即移動）。"
+  },
+  "AI_FollowSlot": {
+    "message": "跟隨隊員槽位"
+  },
+  "AI_Idle": {
+    "message": "<閒置>"
+  },
+  "AI_Unknown": {
+    "message": "<未知>"
+  },
+  "AI_FollowSlot_Tip": {
+    "message": "選擇要跟隨的玩家以啟用AI。通常選擇自己。"
+  },
+  "AI_DesiredPositional": {
+    "message": "期望站位"
+  },
+  "AI_MaxDistTarget": {
+    "message": "最大距離 - 目標"
+  },
+  "AI_MaxDistTarget_Tip": {
+    "message": "與目標保持的最大距離（碼）。"
+  },
+  "AI_ToSlots": {
+    "message": "- 槽位"
+  },
+  "AI_MaxDistSlot_Tip": {
+    "message": "與跟隨隊友保持的最大距離（碼）。"
+  },
+  "AI_MinDistance": {
+    "message": "最小距離"
+  },
+  "AI_MinDistance_Tip": {
+    "message": "與目標判定框保持的距離（碼）。"
+  },
+  "AI_PrefDistForbidden": {
+    "message": "禁區偏好距離"
+  },
+  "AI_PrefDistForbidden_Tip": {
+    "message": "與禁區保持的距離（碼）。"
+  },
+  "AI_MoveDelay": {
+    "message": "移動決策延遲"
+  },
+  "AI_MoveDelay_Tip": {
+    "message": "移動決策後開始移動的最短時間。\n請勿依據內容設定過高。"
+  },
+  "AI_AIPreset": {
+    "message": "自動循環AI預設"
+  },
+  "AI_Deactivate": {
+    "message": "停用"
+  },
+  "ROT_TransientStrategies": {
+    "message": "暫時策略："
+  },
+  "ROT_Presets": {
+    "message": "預設："
+  },
+  "ROT_Disabled": {
+    "message": "已停用"
+  },
+  "PRESET_Add": {
+    "message": "新增"
+  },
+  "PRESET_AddOrSelect": {
+    "message": "新增或選取循環模組以設定策略"
+  },
+  "PRESET_SelectModulePreview": {
+    "message": "選取模組以預覽不同修飾鍵下的策略結果"
+  },
+  "PRESET_SelectStrategyEdit": {
+    "message": "選取策略以編輯其偏好設定"
+  },
+  "PRESETDB_SelectOrCreate": {
+    "message": "選取預設進行編輯，或建立新的預設。"
+  },
+  "PRESETDB_UnsavedMsg": {
+    "message": "若要選取新預設，必須先儲存或捨棄目前的修改。"
+  },
+  "PRESETDB_HowToProceed": {
+    "message": "請問您要如何處理？"
+  },
+  "PRESETDB_Discard": {
+    "message": "捨棄"
+  },
+  "PRESETDB_Cancel": {
+    "message": "取消"
+  },
+  "STRAT_OverridePriority": {
+    "message": "覆蓋優先權"
+  },
+  "SMW_Settings": {
+    "message": "設定"
+  },
+  "SMW_DrawUnnamed": {
+    "message": "繪製未命名節點"
+  },
+  "SMW_DrawTankbuster": {
+    "message": "僅繪製坦克死刑節點"
+  },
+  "SMW_DrawRaidwide": {
+    "message": "僅繪製全體傷害節點"
+  },
+  "BMCW_EncounterConfig": {
+    "message": "副本專屬設定"
+  },
+  "BMCW_PartyRoles": {
+    "message": "隊伍站位分配"
+  },
+  "BMCW_NoConfig": {
+    "message": "此模組無任何可設定項目"
+  },
+  "Color scheme": {
+    "message": "色彩方案"
+  },
+  "Boss modules and radar": {
+    "message": "Boss模組與雷達"
+  },
+  "Party roles assignment": {
+    "message": "隊伍站位分配"
+  },
+  "Encounter-specific settings": {
+    "message": "副本專屬設定"
+  },
+  "Autorotation": {
+    "message": "自動循環"
+  },
+  "Action tweaks": {
+    "message": "技能調整"
+  },
+  "AI configuration (AI is very experimental, use at your own risk!)": {
+    "message": "AI設定（功能仍在實驗階段，請自行承擔風險！）"
+  },
+  "Full duty automation": {
+    "message": "完整副本自動化"
+  },
+  "Automatic out-of-combat utility actions": {
+    "message": "戰鬥外自動輔助技能"
+  },
+  "Smart character orientation": {
+    "message": "智慧角色朝向"
+  },
+  "Cross-class actions": {
+    "message": "跨職業技能"
+  },
+  "Minimal maturity for the module to be loaded": {
+    "message": "模組載入的最低成熟度"
+  },
+  "Some modules will have the \"WIP\" status and will not automatically load unless you change this": {
+    "message": "部分模組為「開發中」狀態，更改此設定前不會自動載入"
+  },
+  "Allow modules to automatically use actions": {
+    "message": "允許模組自動使用技能"
+  },
+  "Example: modules can automatically use anti-knockback abilities before a knockback happens": {
+    "message": "例如：模組可在擊退發生前自動使用防擊退技能"
+  },
+  "Show testing radar and hint window": {
+    "message": "顯示測試雷達與提示視窗"
+  },
+  "Useful for configuring your radar and hint windows without being inside of a boss encounter": {
+    "message": "無需進入Boss戰即可設定雷達與提示視窗"
+  },
+  "Enable radar": {
+    "message": "啟用雷達"
+  },
+  "Lock radar and hint window movement and mouse interaction": {
+    "message": "鎖定雷達與提示視窗的移動及滑鼠互動"
+  },
+  "Transparent radar window background": {
+    "message": "雷達視窗背景透明"
+  },
+  "Removes the black window around the radar; this will not work if you move the radar to a different monitor": {
+    "message": "移除雷達周圍的黑色視窗；若將雷達移至其他螢幕則無效"
+  },
+  "Add opaque background to the arena in the radar": {
+    "message": "在雷達地圖中加入不透明背景"
+  },
+  "Show outlines and shadows on various radar markings": {
+    "message": "在雷達標記上顯示輪廓與陰影"
+  },
+  "Radar arena scale factor": {
+    "message": "雷達地圖縮放比例"
+  },
+  "Scale of the arena inside of the radar window": {
+    "message": "雷達視窗內地圖的縮放大小"
+  },
+  "Radar element thickness scale factor": {
+    "message": "雷達元素線條粗細比例"
+  },
+  "Globally scales the outline thickness of radar elements": {
+    "message": "全域縮放雷達元素的輪廓粗細"
+  },
+  "Rotate radar to match camera orientation": {
+    "message": "旋轉雷達以匹配攝影機方向"
+  },
+  "Rotate map by 180° if rotating map is off": {
+    "message": "若未啟用旋轉地圖則旋轉180°"
+  },
+  "Give radar extra space for rotations": {
+    "message": "旋轉時為雷達預留額外空間"
+  },
+  "If you are using the above setting, you can give the radar extra space on the sides before the edges are clipped in order to account for rotating your camera during an encounter or to give the cardinal directions space.": {
+    "message": "使用上述設定時，可為旋轉攝影機或顯示方位預留側邊空間，避免邊緣被裁切。"
+  },
+  "Show arena border in radar": {
+    "message": "在雷達中顯示地圖邊界"
+  },
+  "Change arena border color if player is at risk": {
+    "message": "玩家處於危險時變更地圖邊界顏色"
+  },
+  "Changes the white border to red when you are standing somewhere you are likely to be hit by a mechanic": {
+    "message": "當玩家站在可能受到機制傷害的位置時，將白色邊界改為紅色"
+  },
+  "Show cardinal direction names on radar": {
+    "message": "在雷達上顯示方位名稱"
+  },
+  "Cardinal direction font size": {
+    "message": "方位字型大小"
+  },
+  "Waymark font size": {
+    "message": "場地標記字型大小"
+  },
+  "Actor triangle scale factor": {
+    "message": "角色三角形縮放比例"
+  },
+  "Show waymarks on radar": {
+    "message": "在雷達上顯示場地標記"
+  },
+  "Always show all alive party members": {
+    "message": "始終顯示所有存活隊員"
+  },
+  "Show role-based colors on otherwise uncolored players in the radar": {
+    "message": "在雷達中依職能顯示玩家顏色"
+  },
+  "Always show focus targeted party member": {
+    "message": "始終顯示焦點目標隊員"
+  },
+  "Show text hints in separate window": {
+    "message": "在獨立視窗顯示文字提示"
+  },
+  "Separates the radar window from the hints window, allowing you to reposition the hints window": {
+    "message": "將雷達視窗與提示視窗分離，讓您可以自由調整提示視窗位置"
+  },
+  "Make separate hints window transparent": {
+    "message": "將獨立提示視窗設為透明"
+  },
+  "Show mechanic sequence and timer hints": {
+    "message": "顯示機制順序與計時提示"
+  },
+  "Show raidwide hints": {
+    "message": "顯示全體傷害提示"
+  },
+  "Show player hints and warnings": {
+    "message": "顯示玩家提示與警告"
+  },
+  "Show movement hints in world": {
+    "message": "在遊戲世界顯示移動提示"
+  },
+  "Not used very much, but can show you arrows in the game world to indicate where to move for certain mechanics": {
+    "message": "使用不多，但可在遊戲世界顯示箭頭指示特定機制的移動方向"
+  },
+  "Show melee range indicator": {
+    "message": "顯示近戰範圍指示"
+  },
+  "Show in-game UI": {
+    "message": "顯示遊戲內UI"
+  },
+  "Show autorotation preset in the server info bar": {
+    "message": "在伺服器資訊欄顯示自動循環預設"
+  },
+  "Disabled": {
+    "message": "停用"
+  },
+  "Text only": {
+    "message": "僅文字"
+  },
+  "With icon": {
+    "message": "含圖示"
+  },
+  "Hide VBM Default preset": {
+    "message": "隱藏VBM預設預設集"
+  },
+  "If you've created your own presets and no longer need the included default, this option will prevent it from being shown in the Autorotation and Preset Editor windows.": {
+    "message": "如果您已建立自己的預設集且不再需要預設值，此選項可防止其顯示在自動循環和預設編輯器視窗中。"
+  },
+  "Show positional hints in world": {
+    "message": "在遊戲世界顯示站位提示"
+  },
+  "Show tips for positional abilities, indicating to move to the flank or rear of your target": {
+    "message": "顯示站位技能提示，指示移動到目標的側面或後面"
+  },
+  "Automatically disable autorotation when exiting combat": {
+    "message": "離開戰鬥時自動停用自動循環"
+  },
+  "Automatically reenable force-disabled autorotation when exiting combat": {
+    "message": "離開戰鬥時自動重新啟用被強制停用的自動循環"
+  },
+  "Early pull threshold": {
+    "message": "提早拉怪閾值"
+  },
+  "If someone enters combat with a boss when the countdown is longer than this value, it's consider a ninja-pull and autorotation is force disabled": {
+    "message": "若有人在倒數時間長於此值時進入Boss戰鬥，視為偷拉並強制停用自動循環"
+  },
+  "Arena: background": {
+    "message": "地圖：背景"
+  },
+  "Arena: border": {
+    "message": "地圖：邊界"
+  },
+  "Arena: typical danger zone (AOE)": {
+    "message": "地圖：危險區域（AOE）"
+  },
+  "Arena: typical safe zone": {
+    "message": "地圖：安全區域"
+  },
+  "Arena: typical danger foreground element (tether, etc)": {
+    "message": "地圖：危險前景元素（連線等）"
+  },
+  "Arena: typical safe foreground element (tether, etc)": {
+    "message": "地圖：安全前景元素（連線等）"
+  },
+  "Arena: enemy": {
+    "message": "地圖：敵人"
+  },
+  "Arena: non-enemy important object (untargetable origin of a tether, interactible object, etc)": {
+    "message": "地圖：重要非敵人物件（連線起點、可互動物件等）"
+  },
+  "Arena: player character": {
+    "message": "地圖：玩家角色"
+  },
+  "Arena: trap": {
+    "message": "地圖：陷阱"
+  },
+  "Arena: vulnerable, needs special attention": {
+    "message": "地圖：易傷，需特別注意"
+  },
+  "Arena: future vulnerable": {
+    "message": "地圖：即將易傷"
+  },
+  "Arena: melee range indicator": {
+    "message": "地圖：近戰範圍指示"
+  },
+  "Arena: other": {
+    "message": "地圖：其他"
+  },
+  "Arena: interesting player, important for a mechanic": {
+    "message": "地圖：與機制相關的玩家"
+  },
+  "Arena: generic/irrelevant player (can be overridden by role-specific colors, depending on settings)": {
+    "message": "地圖：一般玩家（可依職能覆蓋顏色）"
+  },
+  "Arena: player not in current party/alliance (usually not drawn on map)": {
+    "message": "地圖：非當前隊伍玩家（通常不顯示）"
+  },
+  "Arena: generic/irrelevant tank": {
+    "message": "地圖：坦克"
+  },
+  "Arena: generic/irrelevant healer": {
+    "message": "地圖：治療"
+  },
+  "Arena: generic/irrelevant melee": {
+    "message": "地圖：近戰"
+  },
+  "Arena: generic/irrelevant caster": {
+    "message": "地圖：法系"
+  },
+  "Arena: generic/irrelevant phys. ranged": {
+    "message": "地圖：物理遠程"
+  },
+  "Arena: generic/irrelevant focus target": {
+    "message": "地圖：焦點目標"
+  },
+  "Outlines and shadows": {
+    "message": "輪廓與陰影"
+  },
+  "Waymark: A": {
+    "message": "場標：A"
+  },
+  "Waymark: B": {
+    "message": "場標：B"
+  },
+  "Waymark: C": {
+    "message": "場標：C"
+  },
+  "Waymark: D": {
+    "message": "場標：D"
+  },
+  "Waymark: 1": {
+    "message": "場標：1"
+  },
+  "Waymark: 2": {
+    "message": "場標：2"
+  },
+  "Waymark: 3": {
+    "message": "場標：3"
+  },
+  "Waymark: 4": {
+    "message": "場標：4"
+  },
+  "Cardinal: North": {
+    "message": "方位：北"
+  },
+  "Cardinal: East": {
+    "message": "方位：東"
+  },
+  "Cardinal: South": {
+    "message": "方位：南"
+  },
+  "Cardinal: West": {
+    "message": "方位：西"
+  },
+  "Positional colors": {
+    "message": "站位顏色"
+  },
+  "Planner: background": {
+    "message": "計劃器：背景"
+  },
+  "Planner: background highlight": {
+    "message": "計劃器：背景高亮"
+  },
+  "Planner: cooldown": {
+    "message": "計劃器：冷卻"
+  },
+  "Planner: fallback color for options": {
+    "message": "計劃器：預設顏色"
+  },
+  "Planner: effect": {
+    "message": "計劃器：效果"
+  },
+  "Planner: window": {
+    "message": "計劃器：視窗"
+  },
+  "Button push colors": {
+    "message": "按鈕按下顏色"
+  },
+  "Text colors": {
+    "message": "文字顏色"
+  },
+  "Collision debug colors": {
+    "message": "碰撞偵錯顏色"
+  },
+  "Pathfinding debug colors": {
+    "message": "路徑偵錯顏色"
+  },
+  "Auto-DeepDungeon (Experimental)": {
+    "message": "深牢自動化（實驗性）"
+  },
+  "Bozja duel farming": {
+    "message": "Bozja 決鬥農怪"
+  },
+  "Bozja": {
+    "message": "Bozja"
+  },
+  "Zadnor": {
+    "message": "Zadnor"
+  },
+  "Eureka": {
+    "message": "Eureka"
+  },
+  "Pyros": {
+    "message": "Pyros"
+  },
+  "Hydatos": {
+    "message": "Hydatos"
+  },
+  "Enable module": {
+    "message": "啟用模組"
+  },
+  "Enable minimap": {
+    "message": "啟用小地圖"
+  },
+  "Try to avoid traps": {
+    "message": "嘗試避開陷阱"
+  },
+  "Avoid known trap locations sourced from PalacePal data. Does not need PalacePal installed since data is included in BMR. (Traps revealed by a Pomander of Sight will always be avoided regardless of this setting.)": {
+    "message": "根據 PalacePal 資料迴避已知陷阱位置。無需安裝 PalacePal，資料已內建於 BMR 中。（視野藥水揭示的陷阱無論此設定如何都會被迴避。）"
+  },
+  "Automatically navigate to Cairn of Passage": {
+    "message": "自動移動至通道石"
+  },
+  "Automatic mob targeting behavior": {
+    "message": "自動怪物目標選取方式"
+  },
+  "Do not auto target": {
+    "message": "不自動選目標"
+  },
+  "Target everything": {
+    "message": "攻擊所有怪物"
+  },
+  "Stop when passage opens": {
+    "message": "通道開啟後停止"
+  },
+  "Target everything if not at level cap, otherwise stop when passage opens": {
+    "message": "未達等級上限時攻擊所有怪物，達到後通道開啟即停止"
+  },
+  "Max number of mobs to pull before pausing navigation (set to 0 to disable navigation while in combat)": {
+    "message": "暫停導航前可拉取的最大怪物數（設為 0 則戰鬥中停止導航）"
+  },
+  "Try to use terrain to LOS attacks": {
+    "message": "嘗試利用地形進行視線遮擋攻擊"
+  },
+  "Automatically navigate to coffers": {
+    "message": "自動移動至寶箱"
+  },
+  "Prioritize opening coffers over Cairn of Passage": {
+    "message": "優先開啟寶箱而非前往通道石"
+  },
+  "Open gold coffers": {
+    "message": "開啟金寶箱"
+  },
+  "Open silver coffers": {
+    "message": "開啟銀寶箱"
+  },
+  "Open bronze coffers": {
+    "message": "開啟銅寶箱"
+  },
+  "Reveal all rooms before proceeding to next floor": {
+    "message": "前往下一層前探索所有房間"
+  },
+  "Allow automatic pomander use": {
+    "message": "允許自動使用道具"
+  },
+  "Required for AI to not step on occupied tiles.": {
+    "message": "AI 需要此功能才能避免踩上已佔用的地板。"
+  },
+  "Show occupied tiles on radar": {
+    "message": "在雷達上顯示已佔用地板"
+  },
+  "Enable path 12 lantern AI": {
+    "message": "啟用 12 路燈籠 AI"
+  },
+  "Max range to look for new mobs to pull": {
+    "message": "尋找新怪物的最大範圍"
+  },
+  "Max number of mobs to pull at once (0 for no limit)": {
+    "message": "一次拉取的最大怪物數（0 為無限制）"
+  },
+  "Show auto farm window": {
+    "message": "顯示自動農怪視窗"
+  },
+  "Titan gaols priorities (close < far)": {
+    "message": "泰坦監獄優先順序（近 < 遠）"
+  },
+  "Intermission: safespot hints": {
+    "message": "中場：安全點提示"
+  },
+  "W->NE for 1/2/5/6, E->SW for 3/4/7/8": {
+    "message": "1/2/5/6 西→東北，3/4/7/8 東→西南"
+  },
+  "Always show W->NE hints": {
+    "message": "始終顯示西→東北提示"
+  },
+  "Remove extra lag-induced animation lock delay from instant casts (read tooltip!)": {
+    "message": "移除即發技能因延遲造成的額外動作鎖定（請閱讀工具提示！）"
+  },
+  "Configures the maximum simulated delay in milliseconds when using animation lock removal - this is required and cannot be reduced to zero. Setting this to 20ms will enable triple-weaving when using autorotation. The minimum setting to remove triple-weaving is 26ms. The minimum of 20ms has been accepted by FFLogs and should not cause issues with your logs.": {
+    "message": "設定動作鎖定移除功能的最大模擬延遲（毫秒），此值無法設為零。設為 20ms 可在自動循環中啟用三重插入。移除三重插入的最低值為 26ms。20ms 已被 FFLogs 接受，不會影響紀錄。"
+  },
+  "Animation lock max. simulated delay (read tooltip!)": {
+    "message": "動作鎖定最大模擬延遲（請閱讀工具提示！）"
+  },
+  "Remove extra framerate-induced cooldown delay": {
+    "message": "移除因幀率造成的額外冷卻延遲"
+  },
+  "Dynamically adjusts cooldown and animation locks to ensure queued actions resolve immediately regardless of framerate limitations": {
+    "message": "動態調整冷卻與動作鎖定，確保排隊技能無論幀率限制都能立即執行"
+  },
+  "Do NOT use with XivAlexander or NoClippy - this should automatically disable itself if they are detected, but double check first!": {
+    "message": "請勿與 XivAlexander 或 NoClippy 同時使用——偵測到這些插件時應自動停用，但請先確認！"
+  },
+  "Use custom queueing for manually pressed actions": {
+    "message": "手動按下技能時使用自訂排隊"
+  },
+  "This setting allows better integration with autorotations and will prevent you from triple-weaving or drifting GCDs if you press a healing ability while autorotation is going on": {
+    "message": "此設定可更好地與自動循環整合，在自動循環運行時按下治療技能不會導致三重插入或 GCD 偏移"
+  },
+  "Automatically manage auto attacks": {
+    "message": "自動管理普通攻擊"
+  },
+  "This setting prevents starting autos early during countdown, starts them automatically at pull, when switching targets and when using any actions that don't explicitly cancel autos.": {
+    "message": "此設定可防止倒數時提早發動普攻，並在拉怪、切換目標及使用技能時自動開始普攻"
+  },
+  "Restore character orientation after action use": {
+    "message": "使用技能後恢復角色朝向"
+  },
+  "Smart ability targeting": {
+    "message": "智慧技能目標選取"
+  },
+  "If the usual (mouseover/primary) target is not valid for an action, select the next best target automatically (e.g. co-tank for Shirk)": {
+    "message": "當常規目標（滑鼠懸停/主目標）對技能無效時，自動選取次佳目標（例如：Shirk 選取協同坦克）"
+  },
+  "Use actions on mouseover target": {
+    "message": "對滑鼠懸停目標使用技能"
+  },
+  "Automatic target selection for ground-targeted abilities": {
+    "message": "地面目標技能的自動目標選取"
+  },
+  "Cast at current mouse position": {
+    "message": "在目前滑鼠位置施放"
+  },
+  "Cast at selected target's position": {
+    "message": "在選定目標位置施放"
+  },
+  "Manually select position by extra click (normal game behaviour)": {
+    "message": "透過額外點擊手動選取位置（遊戲預設行為）"
+  },
+  "Automatically avoid gazes": {
+    "message": "自動迴避凝視攻擊"
+  },
+  "Time before gaze activation to start avoiding": {
+    "message": "凝視生效前開始迴避的時間"
+  },
+  "Automatically cancel a cast when target is dead": {
+    "message": "目標死亡時自動取消詠唱"
+  },
+  "Automatically dismount to execute actions": {
+    "message": "自動下坐騎以執行技能"
+  },
+  "Replace in-game 'auto face target' option with a smarter alternative.\nWhen using an action, changes direction only if target is not in frontal cone.\nDuring cast, keep character facing the target.": {
+    "message": "以更智慧的方式取代遊戲內「自動面向目標」選項。\n使用技能時，僅在目標不在正面錐形範圍內時才改變朝向。\n詠唱期間保持角色面向目標。"
+  },
+  "Auto use Peloton when moving out of combat": {
+    "message": "戰鬥外移動時自動使用 Peloton"
+  },
+  "Enable auto AFK": {
+    "message": "啟用自動 AFK"
+  },
+  "Auto AFK timer": {
+    "message": "AFK 計時器"
+  },
+  "Time in seconds out of combat until AFK mode enables. Any movement will reset timer or disable AFK mode if already active.": {
+    "message": "離開戰鬥後啟動 AFK 模式的等待秒數。任何移動將重置計時器或停用已啟動的 AFK 模式。"
+  },
+  "Enables auto AFK if out of combat. While AFK AI will not use autorotation or target anything": {
+    "message": "戰鬥外啟用自動 AFK。AFK 期間 AI 不會使用自動循環或選取任何目標"
+  },
+  "Prevent movement while casting": {
+    "message": "詠唱期間禁止移動"
+  },
+  "Key to hold to allow movement while casting": {
+    "message": "詠唱期間允許移動需按住的按鍵"
+  },
+  "None": {
+    "message": "無"
+  },
+  "Shift": {
+    "message": "Shift"
+  },
+  "Control": {
+    "message": "Ctrl"
+  },
+  "Alt": {
+    "message": "Alt"
+  },
+  "LMB + RMB": {
+    "message": "左鍵 + 右鍵"
+  },
+  "Prevent movement and action execution when pyretic-like mechanics are imminent (set to 0 to disable, otherwise increase threshold depending on your ping).": {
+    "message": "當類似灼熱的機制即將發動時禁止移動與技能使用（設為 0 停用，否則依據網路延遲調整閾值）。"
+  },
+  "Try to prevent dashing into AOEs": {
+    "message": "嘗試防止衝刺進入 AOE"
+  },
+  "Prevent automatic use of targeted dashes (like WAR Onslaught) if they would move you into a dangerous area. May not work as expected in instances that do not have modules.\n\nThis option will also apply to manually pressed dashes if you have \"": {
+    "message": "若目標式衝刺（如戰士強攻）會將您移入危險區域則禁止自動使用。在沒有模組的副本中可能不如預期運作。\n\n若您已啟用「"
+  },
+  "Use dash abilities for navigation (Smudge, Elusive Jump, etc)": {
+    "message": "使用衝刺技能輔助移動（Smudge、閃避跳躍等）"
+  },
+  "Elusive Jump direction": {
+    "message": "閃避跳躍方向"
+  },
+  "Align Hell's Egress/Ingress with camera direction": {
+    "message": "使地獄出入口方向與攝影機方向一致"
+  },
+  "Align Smudge with camera direction": {
+    "message": "使 Smudge 方向與攝影機方向一致"
+  },
+  "Align Aetherial Shift with camera direction": {
+    "message": "使以太轉移方向與攝影機方向一致"
+  },
+  "Align En Avant with camera direction": {
+    "message": "使 En Avant 方向與攝影機方向一致"
+  },
+  "Camera-relative, backwards": {
+    "message": "相對攝影機，向後"
+  },
+  "Camera-relative, forwards": {
+    "message": "相對攝影機，向前"
+  },
+  "Character-relative, forwards": {
+    "message": "相對角色，向前"
+  },
+  "Game default (character-relative, backwards)": {
+    "message": "遊戲預設（相對角色，向後）"
+  },
+  "Passage of Arms direction": {
+    "message": "臂展防護方向"
+  },
+  "Delay Thunderclap if already in melee range of target": {
+    "message": "已在目標近戰範圍內時延遲使用雷擊"
+  },
+  "Forbid Harpe too early in prepull": {
+    "message": "在預拉怪中禁止過早使用 Harpe"
+  },
+  "Forbid tomahawk too early in prepull": {
+    "message": "在預拉怪中禁止過早使用戰斧投擲"
+  },
+  "Prefer self-targeted holmgang; requires smart targeting to be enabled (and allows overriding target by mouseover)": {
+    "message": "偏好對自身使用霍姆幫；需啟用智慧目標（並允許以滑鼠懸停覆蓋目標）"
+  },
+  "Pause autorotation while channeling Flamethrower": {
+    "message": "使用火焰噴射器引導期間暫停自動循環"
+  },
+  "Prevent use of 'Broil' too early when in pre-pull": {
+    "message": "預拉怪時禁止過早使用 Broil"
+  },
+  "Prevent use of 'Holy Spirit' too early when in pre-pull": {
+    "message": "預拉怪時禁止過早使用神聖靈"
+  },
+  "Prevent use of 'Lightning Shot' too early when in pre-pull": {
+    "message": "預拉怪時禁止過早使用閃雷箭"
+  },
+  "Prevent use of 'Shield Lob' too early when in pre-pull (if Holy Spirit is not unlocked)": {
+    "message": "預拉怪時禁止過早使用盾牌投擲（若神聖靈尚未解鎖）"
+  },
+  "Apply the previous option to all dashes, not just gap closers": {
+    "message": "將前述選項套用至所有衝刺，而非僅限於縮短距離的衝刺"
+  },
+  "Includes backdashes (e.g. SAM Yaten), teleports (e.g. NIN Shukuchi), and fixed-length dashes (e.g. DRG Elusive Jump)": {
+    "message": "包含後退衝刺（如武士夜天）、瞬移（如忍者縮地）及固定距離衝刺（如龍騎士閃避跳躍）"
+  },
+  "Auto misdirection: prevent movement under misdirection if angle between normal movement and misdirected is greater than this threshold (set to 180 to disable).": {
+    "message": "自動誤導：若正常移動方向與誤導方向的夾角大於此閾值則禁止移動（設為 180 停用）。"
+  },
+  "Draw waypoints in game world": {
+    "message": "在遊戲世界中繪製路徑點"
+  },
+  "Broadcast keypresses to other windows": {
+    "message": "將按鍵輸入廣播至其他視窗"
+  },
+  "Can cause hitching on some computers. Only enable it if it is actually needed! It is only useful for multiboxers.": {
+    "message": "可能在部分電腦上造成卡頓，僅在確實需要時啟用！僅對多開玩家有用。"
+  },
+  "Focus target master": {
+    "message": "焦點目標主控"
+  },
+  "Follow during combat": {
+    "message": "戰鬥中跟隨"
+  },
+  "Follow during active boss module": {
+    "message": "Boss模組啟用時跟隨"
+  },
+  "Follow out of combat": {
+    "message": "戰鬥外跟隨"
+  },
+  "Follow party slot": {
+    "message": "跟隨隊伍槽位"
+  },
+  "Follow target": {
+    "message": "跟隨目標"
+  },
+  "Forbid actions": {
+    "message": "禁止技能"
+  },
+  "Forbid movement": {
+    "message": "禁止移動"
+  },
+  "Idle while mounted": {
+    "message": "騎乘時閒置"
+  },
+  "Manual targeting": {
+    "message": "手動選目標"
+  },
+  "Disable loading obstacle maps": {
+    "message": "停用障礙物地圖載入"
+  },
+  "Desired positional when following target": {
+    "message": "跟隨目標時的期望站位"
+  },
+  "Max distance to target": {
+    "message": "最大距離 - 目標"
+  },
+  "Max distance to slot": {
+    "message": "最大距離 - 槽位"
+  },
+  "Minimum distance to hitbox": {
+    "message": "最小距離 - 判定框"
+  },
+  "Preferred distance to forbidden zones": {
+    "message": "禁區偏好距離"
+  },
+  "Extra safety margin in Gold Saucer minigames": {
+    "message": "黃金碟小遊戲額外安全距離"
+  },
+  "Adds extra distance-from-danger buffer on top of \"Preferred distance to forbidden zones\", so the AI stands further into a safe zone when there's room to spare instead of hugging the edge of danger.\nOnly applies in Gold Saucer minigames - never in dungeons/trials/raids, where positioning still needs to stay precise.": {
+    "message": "在「禁區偏好距離」之上再加一段安全距離，讓 AI 在安全區夠大時盡量往裡面站，而不是卡在危險邊界。\n只在黃金碟小遊戲生效，副本/團戰不受影響，仍維持原本精準閃避。"
+  },
+  "Movement decision delay": {
+    "message": "移動決策延遲"
+  },
+  "Show AI interface": {
+    "message": "顯示 AI 介面"
+  },
+  "Show status in DTR bar": {
+    "message": "在 DTR 欄顯示狀態"
+  },
+  "Required maturity for zone modules to be loaded": {
+    "message": "區域模組載入的最低成熟度"
+  },
+  "Enable automatic execution of quest battles / solo duties": {
+    "message": "啟用任務戰鬥 / 個人副本的自動執行"
+  },
+  "WARNING: This feature is very experimental and most likely will contain bugs or unintended behavior.\nTo enable this feature in its current state, you must activate 'Work-in-Progress' maturity modules in the `Full Duty Automation` tab.": {
+    "message": "警告：此功能仍在高度實驗階段，極有可能存在錯誤或非預期行為。\n若要在目前狀態下使用此功能，您必須在「完整副本自動化」標籤中啟用「開發中」成熟度模組。"
+  },
+  "Enable the feature": {
+    "message": "啟用此功能"
+  },
+  "Might be required to be enabled for some some content such as deep dungeons.": {
+    "message": "部分內容（如深牢）可能需要啟用此功能。"
+  },
+  "If disabled the add phase priority list below will not be used.": {
+    "message": "若停用，以下增援階段優先順序列表將不會被使用。"
+  },
+  "Add phase priorities for autorotation (from highest to lowest)": {
+    "message": "自動循環的增援階段優先順序（由高到低）"
+  },
+  "Only used by AI": {
+    "message": "僅供 AI 使用"
+  },
+  "Stay within arena bounds": {
+    "message": "保持在地圖邊界內"
+  },
+  "When following, do not move outside the current arena/pathfind map boundary (useful in boss modules to prevent walking out of the arena)": {
+    "message": "跟隨時不移出目前地圖邊界（在Boss模組中可防止走出競技場）"
+  },
+  "Treat all forbidden zones as immediate": {
+    "message": "視所有禁區為立即生效"
+  },
+  "Never move into an AOE zone even if you could pass through before it activates; safer but may reduce uptime": {
+    "message": "即使能在AOE激活前穿越也不進入，更安全但可能降低輸出效率"
+  },
+  "Dodge timing safety cushion (seconds)": {
+    "message": "閃避時機安全緩衝（秒）"
+  },
+  "How many seconds before a mechanic actually resolves the AI still treats it as \"safe to be in\" for pathfinding purposes. Lower = dodges later/closer to the last safe moment (more uptime, less margin for lag/hitching). Higher = dodges earlier/more conservatively. Default is 1s; try 0.1-0.2 for aggressive uptime, only if you trust your connection and this fight's pathfinding.": {
+    "message": "機制真正結算前多少秒，AI 仍會把該處視為尋路上「還算安全」。數值越小＝越晚才閃避（越貼近最後安全時刻，輸出時間越長，但延遲/頓卡的容錯空間越少）；數值越大＝越早閃避、越保守。預設 1 秒；想要更積極輸出可以試試 0.1~0.2，但只有在確定網路穩定且熟悉該戰鬥尋路狀況時才建議這麼做。"
+  },
+  "Return to pre-dodge position": {
+    "message": "閃避後歸位"
+  },
+  "After a forced dodge is over, try to walk back to the spot you were standing at right before it started, for better uptime/positioning. Abandoned immediately if that spot is currently inside a forbidden zone or outside the arena bounds.": {
+    "message": "強制閃避結束後，嘗試走回閃避前站立的位置以維持輸出/站位。若該位置目前處於禁區內或超出場地邊界，會立即放棄歸位。"
+  },
+  "Return to pre-dodge position timeout (seconds)": {
+    "message": "閃避後歸位逾時（秒）"
+  },
+  "How long to keep trying to walk back to the pre-dodge position before giving up and letting normal positioning take over.": {
+    "message": "嘗試走回閃避前位置的最長時間，超過就放棄並交還給一般站位邏輯。"
+  },
+  "Movement urgency threshold (seconds)": {
+    "message": "移動急迫度緩衝（秒）"
+  },
+  "The pathfinder often finds a marginally \"safer\" spot to stand at the moment a new AOE telegraph appears, even though there's no need to move yet. This keeps the AI standing still (for uptime) until fewer than this many seconds of safety margin remain, instead of relocating right away. Does not delay movement that's actually needed to stay in range of your target/master.": {
+    "message": "新的AOE預兆一出現，尋路系統常會馬上找到一個稍微更安全的位置，即使其實還不需要移動。此設定會讓 AI 在安全緩衝時間低於此數值前先站著不動（維持輸出），而不是立刻重新站位。但若是為了跟上目標/隊員距離而需要的移動，不會被延遲。"
+  },
+  "Obstacle map development": {
+    "message": "障礙物地圖開發"
+  },
+  "Developer mode: load obstacle maps from source rather than from plugin distribution": {
+    "message": "開發者模式：從原始碼載入障礙物地圖而非插件發行版"
+  },
+  "Developer mode: source path": {
+    "message": "開發者模式：原始碼路徑"
+  },
+  "Work in progress; might be incomplete or have severe bugs": {
+    "message": "開發中；可能不完整或有嚴重錯誤"
+  },
+  "Third-party contributed module that wasn't verified by the plugin author; might be working fine, might have any sorts of inconsistencies with other modules - YMMV": {
+    "message": "第三方貢獻模組，未經插件作者驗證；可能正常運作，也可能與其他模組存在各種不相容問題"
+  },
+  "First-party module created by the plugin author, or a third-party contributed module that was thoroughly verified and effectively taken over by the plugin author": {
+    "message": "插件作者製作的官方模組，或經過徹底驗證並由作者接手維護的第三方貢獻模組"
+  },
+  "Replays": {
+    "message": "重播"
+  },
+  "Show replay management UI": {
+    "message": "顯示重播管理介面"
+  },
+  "Show chat alert when a duty with no module is entered or recorded": {
+    "message": "進入或錄製無模組副本時顯示聊天提示"
+  },
+  "Auto record replays on duty start/end or outdoor module start/end": {
+    "message": "副本開始/結束或野外模組開始/結束時自動錄製"
+  },
+  "Auto record in Duty Recorder replays": {
+    "message": "在副本錄製器中自動錄製"
+  },
+  "Requires auto-record to be turned on": {
+    "message": "需要先開啟自動錄製"
+  },
+  "Max replays to keep before removal": {
+    "message": "自動刪除前保留的最大重播數"
+  },
+  "Record and store server packets in the replay": {
+    "message": "在重播中錄製並儲存伺服器封包"
+  },
+  "Dump server packets into dalamud.log": {
+    "message": "將伺服器封包輸出至 dalamud.log"
+  },
+  "Ignore packets for other players when dumping to dalamud.log": {
+    "message": "輸出至 dalamud.log 時忽略其他玩家的封包"
+  },
+  "Dump client packets into dalamud.log": {
+    "message": "將客戶端封包輸出至 dalamud.log"
+  },
+  "Format for recorded logs": {
+    "message": "錄製日誌格式"
+  },
+  "Compressed binary": {
+    "message": "壓縮二進位"
+  },
+  "Open previously open replays on plugin reload": {
+    "message": "重新載入插件時開啟上次的重播"
+  },
+  "Remember playback position for previously opened replays": {
+    "message": "記住上次開啟的重播播放位置"
+  },
+  "Absolute Authority: ignore flares, stack together": {
+    "message": "絕對權威：無視核彈，集合站位"
+  },
+  "Act 4: go 1/8 CCW to soak tower with dark debuff": {
+    "message": "第4幕：逆時針轉1/8位置，帶著暗屬性減益踩塔"
+  },
+  "Act 4: go 3/8 CCW to break water tether": {
+    "message": "第4幕：逆時針轉3/8位置，扯斷水連線"
+  },
+  "Align dash actions with camera direction (Lost Swift, Occult Featherfoot, etc)": {
+    "message": "衝刺類技能依鏡頭方向對齊（迅捷之刃、隱秘趾風等）"
+  },
+  "All prey roles rotate clockwise": {
+    "message": "所有獵物角色皆順時針輪轉"
+  },
+  "All prey roles rotate counterclockwise": {
+    "message": "所有獵物角色皆逆時針輪轉"
+  },
+  "Always use preferred direction": {
+    "message": "永遠使用偏好方向"
+  },
+  "Assign closest unambiguous inner tower": {
+    "message": "分配最近且無歧義的內塔"
+  },
+  "Assign first CW tower that is not assigned to someone closer": {
+    "message": "分配順時針方向第一個尚未被更近者分配到的塔"
+  },
+  "Assume G1 left, G2 right when looking at boss from arena center": {
+    "message": "假設從場地中心面向 Boss 時，G1 在左、G2 在右"
+  },
+  "Assume G1 right, G2 left when looking at boss from arena center": {
+    "message": "假設從場地中心面向 Boss 時，G1 在右、G2 在左"
+  },
+  "Basic - expect the standard rotation to work, but not much more - suitable for leveling or casual content, expect green/blue logs": {
+    "message": "基礎 - 標準循環可以運作，但不會做更多事 - 適合練功或休閒內容，預期取得綠字/藍字紀錄"
+  },
+  "Condensed text": {
+    "message": "精簡文字"
+  },
+  "Curtain call: DD break debuff first": {
+    "message": "謝幕：DD 先解除減益"
+  },
+  "Dangerous rose tile color:": {
+    "message": "危險玫瑰花磚顏色："
+  },
+  "Darts 2: supports relative west, dd relative east": {
+    "message": "飛鏢2：輔助職業相對站西邊，DD相對站東邊"
+  },
+  "Don't assume any order": {
+    "message": "不預設任何順序"
+  },
+  "Don't show any hints": {
+    "message": "不顯示任何提示"
+  },
+  "Don't try to assign inner towers": {
+    "message": "不嘗試分配內塔"
+  },
+  "Don't try to assign outer towers": {
+    "message": "不嘗試分配外塔"
+  },
+  "Draw moving exaflare pattern": {
+    "message": "繪製移動式連環爆炸（exaflare）圖案"
+  },
+  "E/W always": {
+    "message": "永遠東/西"
+  },
+  "E/W, unless both preys start at N & S": {
+    "message": "東/西，除非兩個獵物都從南北起始"
+  },
+  "Enable custom priority list": {
+    "message": "啟用自訂優先順序清單"
+  },
+  "Enable lariat prediction": {
+    "message": "啟用迴旋摔（lariat）預判"
+  },
+  "Enable seed AOE prediction": {
+    "message": "啟用種子 AOE 預判"
+  },
+  "Engravement of Souls 1: resolution hints": {
+    "message": "靈魂銘刻1：解法提示"
+  },
+  "Excellent - expect to be able to get orange/pink logs consistently if you utilize planner correctly": {
+    "message": "優秀 - 若正確使用計劃器，預期能穩定取得橘字/粉字紀錄"
+  },
+  "Fixed bridge spots for West/East tethers": {
+    "message": "西/東連線固定橋位"
+  },
+  "Good - expect to execute optimal actions in most cases, and planner should cover the remaining situations - suitable for all content, expect purple/orange logs": {
+    "message": "良好 - 大多數情況下能執行最佳行動，計劃器可涵蓋剩餘狀況 - 適合所有內容，預期取得紫字/橘字紀錄"
+  },
+  "Heavensflame resolution hints": {
+    "message": "天焱（Heavensflame）解法提示"
+  },
+  "High concept 1: long debuffs take S towers": {
+    "message": "至高理念1：長時間減益者踩南邊的塔"
+  },
+  "ID and name": {
+    "message": "ID 與名稱"
+  },
+  "ID only": {
+    "message": "僅 ID"
+  },
+  "If disabled the full Ride the Waves exaflare pattern is drawn from the beginning. Otherwise it will move like in normal mode.": {
+    "message": "停用時，會從一開始就繪製完整的「乘風破浪」連環爆炸圖案。否則將如一般模式般隨時間移動顯示。"
+  },
+  "If enabled all spotlight positions are shown that do not match your own order.": {
+    "message": "啟用時，會顯示所有與自己指令不相符的聚光燈位置。"
+  },
+  "If enabled all spotlight positions are shown that match your own order.": {
+    "message": "啟用時，會顯示所有與自己指令相符的聚光燈位置。"
+  },
+  "Intemperance: corner that swaps with N on asymmetrical pattern": {
+    "message": "放縱：非對稱圖案中與北邊互換的角落"
+  },
+  "LPDU (inter)cardinals: cross=N/S, square=NE/SW, circle=E/W, triangle=SE/NW": {
+    "message": "LPDU（斜）正位：叉=南/北，方=東北/西南，圓=東/西，三角=東南/西北"
+  },
+  "LPDU: MT->OT->M1 (M2 as fallback)->R1": {
+    "message": "LPDU：MT→OT→M1（M2備用）→R1"
+  },
+  "LPDU: MT->OT->M1 (M2 as fallback)->R2": {
+    "message": "LPDU：MT→OT→M1（M2備用）→R2"
+  },
+  "Limitless desolation: tanks/healers use right side": {
+    "message": "無限荒蕪：坦克/補師站右側"
+  },
+  "Lunar": {
+    "message": "月"
+  },
+  "Match waymark colors: circle=red, triangle=green, cross=blue, square=purple": {
+    "message": "配對標點顏色：圓=紅，三角=綠，叉=藍，方=紫"
+  },
+  "N/S always": {
+    "message": "永遠南/北"
+  },
+  "N/S, unless both preys start at E & W": {
+    "message": "南/北，除非兩個獵物都從東西起始"
+  },
+  "No text": {
+    "message": "無文字"
+  },
+  "OK - expect to execute reasonable actions in most circumstances, recover from deaths, have basic planning support - suitable for savages, expect blue/purple logs": {
+    "message": "尚可 - 大多數情況下能執行合理行動，可從死亡中恢復，具備基本計劃支援 - 適合零式，預期取得藍字/紫字紀錄"
+  },
+  "Only change this at your own risk and keep this value low! Too high and it won't move in time for some mechanics. Make sure to readjust the value for different content.": {
+    "message": "更改此值請自行承擔風險，並盡量保持較低數值！數值過高會導致某些機制來不及移動。請針對不同內容重新調整此數值。"
+  },
+  "P1 Bound of Faith (light party tethers): group assignments & flex priority (lower number flexes)": {
+    "message": "P1 信念枷鎖（小隊連線）：分組分配與補位優先度（數字越小越優先補位）"
+  },
+  "P1 Cyclonic Break (proteans): bait clock spots (supports should be near dd to resolve pairs)": {
+    "message": "P1 大陸性強風（放射狀分散）：引導鐘點位置（輔助應靠近DD以完成配對）"
+  },
+  "P1 Cyclonic Break (proteans): pairs dodge direction": {
+    "message": "P1 大陸性強風（放射狀分散）：配對閃避方向"
+  },
+  "P1 Cyclonic Break (proteans): spread dodge direction for DD": {
+    "message": "P1 大陸性強風（放射狀分散）：DD 分散閃避方向"
+  },
+  "P1 Cyclonic Break (proteans): spread dodge direction for supports": {
+    "message": "P1 大陸性強風（放射狀分散）：輔助分散閃避方向"
+  },
+  "P1 Explosions: flex roles only fill 3/4 if their natural tower is 1 (instead of doing conga)": {
+    "message": "P1 爆炸：若補位角色原本的塔是1號，僅補到3/4號位（而非排長蛇陣）"
+  },
+  "P1 Explosions: have tanks stack on tankbuster (survivable with saves, simplifies uptime)": {
+    "message": "P1 爆炸：坦克於坦克死刑時集合（配合減傷可承受，簡化輸出時間安排）"
+  },
+  "P1 Explosions: tower fill priority (lower number goes north)": {
+    "message": "P1 爆炸：踩塔優先度（數字越小越靠北）"
+  },
+  "P1 Fall of Faith (cone tethers): conga priority (two people without tethers with lower priorities join odd group)": {
+    "message": "P1 信念墜落（扇形連線）：長蛇陣優先度（無連線且優先度較低的兩人加入奇數組）"
+  },
+  "P1 Fall of Faith (cone tethers): odd groups go W (rather than N)": {
+    "message": "P1 信念墜落（扇形連線）：奇數組前往西邊（而非北邊）"
+  },
+  "P1 Pantokrator: assignments (G1 N, G2 S, adjust CW by default, in case of conflict 'lower' number flexes)": {
+    "message": "P1 全能之神：分配（G1北、G2南，預設順時針調整，若衝突則數字較小者補位）"
+  },
+  "P1 Pantokrator: group positions": {
+    "message": "P1 全能之神：分組位置"
+  },
+  "P1 Pantokrator: use global priority instead - consider G1 lower-numbered than G2 (so G1 more likely to flex)": {
+    "message": "P1 全能之神：改用全域優先度 - 視 G1 編號小於 G2（因此 G1 較容易補位）"
+  },
+  "P1 Program Loop: assignments (G1 CW from NW, G2 CCW by default, in case of conflict 'lower' number flexes)": {
+    "message": "P1 程式循環：分配（G1由西北順時針、G2預設逆時針，若衝突則數字較小者補位）"
+  },
+  "P1 Program Loop: use global priority instead - consider G1 lower-numbered than G2 (so G1 more likely to flex)": {
+    "message": "P1 程式循環：改用全域優先度 - 視 G1 編號小於 G2（因此 G1 較容易補位）"
+  },
+  "P1 Utopian Sky: initial clock spots (MT should be near OT to resolve tankbuster)": {
+    "message": "P1 理想鄉之空：初始鐘點位置（MT應靠近OT以應對坦克死刑）"
+  },
+  "P1 Utopian Sky: spread spots (G1 CCW from N, G2 CW from NE)": {
+    "message": "P1 理想鄉之空：分散位置（G1由北逆時針、G2由東北順時針）"
+  },
+  "P2 Banish after Light Rampant: direction to move to resolve pairs": {
+    "message": "P2 光牢後放逐：移動以完成配對的方向"
+  },
+  "P2 Banish after Light Rampant: role that moves from their default spread spot to resolve pairs": {
+    "message": "P2 光牢後放逐：從預設分散位置移動以完成配對的職能"
+  },
+  "P2 Banish after Light Rampant: spread clock spots (supports should be near dd to resolve pairs)": {
+    "message": "P2 光牢後放逐：分散鐘點位置（輔助應靠近DD以完成配對）"
+  },
+  "P2 Diamond Dust: DD go to CCW intercardinal": {
+    "message": "P2 鑽石星塵：DD 前往逆時針方向的斜角"
+  },
+  "P2 Diamond Dust: cardinal assignments": {
+    "message": "P2 鑽石星塵：正位分配"
+  },
+  "P2 Diamond Dust: knockback groups": {
+    "message": "P2 鑽石星塵：擊退分組"
+  },
+  "P2 Diamond Dust: supports go to CCW intercardinal": {
+    "message": "P2 鑽石星塵：輔助前往逆時針方向的斜角"
+  },
+  "P2 Intermission: clock spots (cardinals prioritize their crystals, intercardinals bait)": {
+    "message": "P2 幕間：鐘點位置（站正位者優先處理自己的水晶，站斜角者負責引導）"
+  },
+  "P2 Light Rampant: conga spots (lower numbers to the west, assume CW rotation)": {
+    "message": "P2 光牢：長蛇陣位置（數字越小越靠西，假設順時針輪轉）"
+  },
+  "P2 Mirror Mirror: spread spots for first proteans (looking from boss toward blue mirror)": {
+    "message": "P2 鏡像對鏡像：第一次放射分散位置（從Boss面向藍鏡方向）"
+  },
+  "P2 Mirror Mirror: spread spots for second proteans (looking toward red mirror, if both red mirrors are symmetrical assume CW rotation)": {
+    "message": "P2 鏡像對鏡像：第二次放射分散位置（面向紅鏡方向，若兩面紅鏡對稱則假設順時針輪轉）"
+  },
+  "P2 Party Synergy: G2 order for Remote Glitch (far tether)": {
+    "message": "P2 小隊共鳴：G2 於遠端故障（遠距連線）的順序"
+  },
+  "P2 Party Synergy: Swap priority if both stacks are in the same group": {
+    "message": "P2 小隊共鳴：若兩個集合點在同一組則互換優先度"
+  },
+  "P2 Party Synergy: assignments (G1 left, G2 right if looking at eye, in case of conflict 'lower' number flexes)": {
+    "message": "P2 小隊共鳴：分配（面向眼睛時G1在左、G2在右，若衝突則數字較小者補位）"
+  },
+  "P2 Party Synergy: use global priority instead - consider G1 lower-numbered than G2 (so G1 more likely to flex)": {
+    "message": "P2 小隊共鳴：改用全域優先度 - 視 G1 編號小於 G2（因此 G1 較容易補位）"
+  },
+  "P2 Sanctity of the Ward (charges): group assignments": {
+    "message": "P2 結界聖域（衝鋒）：分組分配"
+  },
+  "P2 Sanctity of the Ward (charges): groups relative to DRK (across/behind) rather than absolute (west/east)": {
+    "message": "P2 結界聖域（衝鋒）：分組相對於暗黑騎士（對面/背後）而非絕對方位（西/東）"
+  },
+  "P2 Sanctity of the Ward (charges): role responsible for balancing groups (if not set, swap with role partner instead)": {
+    "message": "P2 結界聖域（衝鋒）：負責平衡分組人數的職能（若未設定，則改與同職能夥伴互換）"
+  },
+  "P2 Sanctity of the Ward (meteors): automatically use knockback immunity if needed": {
+    "message": "P2 結界聖域（隕石）：需要時自動使用擊退免疫"
+  },
+  "P2 Sanctity of the Ward (meteors): force preferred cardinals even for 120-degree pattern (simpler swaps, but trickier movement)": {
+    "message": "P2 結界聖域（隕石）：即使是120度圖案也強制使用偏好正位（互換較簡單，但移動較刁鑽）"
+  },
+  "P2 Sanctity of the Ward (meteors): inner tower assignment strategy": {
+    "message": "P2 結界聖域（隕石）：內塔分配策略"
+  },
+  "P2 Sanctity of the Ward (meteors): intercardinal for non-prey role for second towers": {
+    "message": "P2 結界聖域（隕石）：非獵物職能於第二輪塔的斜角位置"
+  },
+  "P2 Sanctity of the Ward (meteors): outer tower assignment strategy": {
+    "message": "P2 結界聖域（隕石）：外塔分配策略"
+  },
+  "P2 Sanctity of the Ward (meteors): pair assignments": {
+    "message": "P2 結界聖域（隕石）：配對分配"
+  },
+  "P2 Sanctity of the Ward (meteors): preferred cardinals for prey targets": {
+    "message": "P2 結界聖域（隕石）：獵物目標的偏好正位"
+  },
+  "P2 Sanctity of the Ward (meteors): preferred outer tower for prey role": {
+    "message": "P2 結界聖域（隕石）：獵物職能的偏好外塔"
+  },
+  "P2 Sanctity of the Ward (meteors): swap direction if both prey targets are on wrong cardinals": {
+    "message": "P2 結界聖域（隕石）：若兩個獵物目標都站錯正位時的互換方向"
+  },
+  "P2: nisi pair assignments": {
+    "message": "P2：鎳西（nisi）配對分配"
+  },
+  "P3 Apocalypse: assignments (G1 CCW from N, G2 CW from NE, in case of conflict 'lower' number flexes)": {
+    "message": "P3 天啟：分配（G1由北逆時針、G2由東北順時針，若衝突則數字較小者補位）"
+  },
+  "P3 Apocalypse: dark water 1 direction for group 1 (group 2 is opposite)": {
+    "message": "P3 天啟：第一組的暗水1方向（第二組相反）"
+  },
+  "P3 Apocalypse: ignore swaps and use initial static positions for spreads": {
+    "message": "P3 天啟：忽略互換，分散時使用初始固定位置"
+  },
+  "P3 Apocalypse: uptime swaps (only consider swaps within prio 1/2 and 3/4, assuming these are melee and ranged)": {
+    "message": "P3 天啟：輸出時間互換（僅考慮優先度1/2與3/4之間互換，假設分別為近戰與遠程）"
+  },
+  "P3 Darkest Dance: baiter": {
+    "message": "P3 至暗之舞：引導者"
+  },
+  "P3 Dive from Grace: look west for arrows rather than east (so forward arrow takes E spot, backward arrow takes W spot)": {
+    "message": "P3 榮光墜落：箭頭朝西而非朝東判斷（前箭頭站東邊位置，後箭頭站西邊位置）"
+  },
+  "P3 Heavensfall Trio: tower priority, CW starting from nael": {
+    "message": "P3 天墜三重奏：踩塔優先度，從涅爾開始順時針"
+  },
+  "P3 Intermission: spread/stack position": {
+    "message": "P3 幕間：分散/集合位置"
+  },
+  "P3 Intermission: spread/stack spot assignments, from West to East": {
+    "message": "P3 幕間：分散/集合位置分配，從西到東"
+  },
+  "P3 Monitors: position for safe side monitor": {
+    "message": "P3 監視器：安全側監視器的位置"
+  },
+  "P3 Monitors: priority, from North to South": {
+    "message": "P3 監視器：優先度，從北到南"
+  },
+  "P3 Quickmarch/Heavensfall Trio: safespot assignments (assuming bahamut is relative north/up, group L goes left; L1/R1 closest to bosses)": {
+    "message": "P3 疾行軍/天墜三重奏：安全點分配（假設巴哈姆特相對於北/上方，L組往左；L1/R1最靠近Boss）"
+  },
+  "P3 Ultimate Relativity: spot assignments (lower number goes NW/SW)": {
+    "message": "P3 究極相對性：位置分配（數字越小越靠西北/西南）"
+  },
+  "P3 enumeration towers: assignments": {
+    "message": "P3 數字塔：分配"
+  },
+  "P3 enumeration towers: prefer flexing to CCW tower (rather than to CW)": {
+    "message": "P3 數字塔：優先補逆時針方向的塔（而非順時針）"
+  },
+  "P4 Crystallize Time: assignments for claws (lower prio goes west)": {
+    "message": "P4 結晶時間：利爪分配（優先度越小越靠西）"
+  },
+  "P4 Darklit Dragonsong: assignments (lower prio stays more clockwise, lowest prio support takes N tower)": {
+    "message": "P4 闇龍詩：分配（優先度越小越靠順時針方向，優先度最低的輔助站北塔）"
+  },
+  "P4 Somber Dance: baiter": {
+    "message": "P4 沉鬱之舞：引導者"
+  },
+  "P4 Wave Cannon: priority, from North to South (assuming south flex)": {
+    "message": "P4 波動炮：優先度，從北到南（假設南邊補位）"
+  },
+  "P5 Akh Morn: side assignments": {
+    "message": "P5 死亡之宣告：側邊分配"
+  },
+  "P5 Polarizing Strikes: bait order": {
+    "message": "P5 極性衝擊：引導順序"
+  },
+  "P6 Mortal Vow pass order": {
+    "message": "P6 死亡誓約：傳遞順序"
+  },
+  "Pairwise: N <-> E, S <-> W": {
+    "message": "配對：北<->東，南<->西"
+  },
+  "Pairwise: N <-> W, S <-> E": {
+    "message": "配對：北<->西，南<->東"
+  },
+  "Pangenesis: tower assignment strategy": {
+    "message": "泛生論：踩塔分配策略"
+  },
+  "Platform number colors:": {
+    "message": "平台編號顏色："
+  },
+  "Platform number font size": {
+    "message": "平台編號字型大小"
+  },
+  "Prevent automatic use of targeted dashes (like WAR Onslaught) if they would move you into a dangerous area. May not work as expected in instances that do not have modules.\n\nThis option will also apply to manually pressed dashes if you have \"Use custom queueing for manually pressed actions\" enabled.": {
+    "message": "當指向性衝刺技能（如戰士的突擊）會將你移入危險區域時，阻止自動使用該技能。在沒有對應模組的副本中可能無法正常運作。\n\n若你已啟用「對手動按下的技能使用自訂佇列」，此選項也會套用到手動按下的衝刺技能。"
+  },
+  "Prey targets both use common opposite direction, if it gives better angle; players in all quadrants use same direction": {
+    "message": "獵物目標若能取得更好的角度，則兩者共用相同的相反方向；所有象限的玩家皆使用相同方向"
+  },
+  "Prey targets both use common opposite direction, if it gives better angle; players in quadrants without prey targets still use preferred direction": {
+    "message": "獵物目標若能取得更好的角度，則兩者共用相同的相反方向；沒有獵物目標的象限玩家仍使用偏好方向"
+  },
+  "Prey targets use whatever direction gives the best angle; players in quadrants without prey targets still use preferred direction": {
+    "message": "獵物目標使用能取得最佳角度的方向；沒有獵物目標的象限玩家仍使用偏好方向"
+  },
+  "Raw binary": {
+    "message": "原始二進位"
+  },
+  "Requires the above setting checked as well": {
+    "message": "需要同時勾選上方的設定"
+  },
+  "Revolutionary/Eminent Reign positioning hints": {
+    "message": "革命／卓越支配：站位提示"
+  },
+  "Should be <repo root>/BossModReborn/Pathfinding/ObstacleMaps/maplist.json": {
+    "message": "應為 <repo root>/BossModReborn/Pathfinding/ObstacleMaps/maplist.json"
+  },
+  "Show all spotlight positions of different order": {
+    "message": "顯示所有不同指令的聚光燈位置"
+  },
+  "Show all spotlight positions of same order": {
+    "message": "顯示所有相同指令的聚光燈位置"
+  },
+  "Show both safespots for current role": {
+    "message": "顯示目前職能的兩個安全點"
+  },
+  "Show platform numbers": {
+    "message": "顯示平台編號"
+  },
+  "Snake 1: assignments": {
+    "message": "蛇形1：分配"
+  },
+  "Snake 2: assignments": {
+    "message": "蛇形2：分配"
+  },
+  "Snake 2: use cardinal priorities (G1 N/W, PF strat) instead of ordering (G1 first safe CCW from NW, Hector strat)": {
+    "message": "蛇形2：使用正位優先度（G1北/西，PF策略）而非順序判定（G1從西北開始第一個安全的逆時針位置，Hector策略）"
+  },
+  "Solar": {
+    "message": "日"
+  },
+  "Supports CW from N, look for first matching person in final spot": {
+    "message": "輔助從北邊順時針，尋找第一個在最終位置相符的人"
+  },
+  "Time left before spotlights get drawn": {
+    "message": "聚光燈繪製前剩餘時間"
+  },
+  "Verbose text": {
+    "message": "詳細文字"
+  },
+  "West/East stretch tethers without crossing is typically used on EU/NA partyfinder, the other option is usually used by JP": {
+    "message": "西/東方向不交叉拉開連線通常用於歐美的隨機小隊，另一種選項通常為日服所使用"
+  },
+  "Work-in-progress - expect it to break a lot (or just be straight broken)": {
+    "message": "開發中 - 預期會頻繁出錯（或根本無法正常運作）"
+  },
+  "[1] High-level strategy module. Responsible for targeting and enemy prioritization.": {
+    "message": "[1] 高階策略模組。負責選定目標與敵人優先順序。"
+  },
+  "[2] Standard rotation/utility module. Responsible for deciding which actions to use and setting up goal zones.": {
+    "message": "[2] 標準循環／輔助模組。負責決定使用哪些技能並設定目標區域。"
+  },
+  "[3] Movement module. Responsible for pathfinding and executing movement.": {
+    "message": "[3] 移動模組。負責尋路與執行移動。"
+  },
+  "QB_LeaveDuty": {
+    "message": "離開副本"
+  },
+  "QB_LeaveDutyTip": {
+    "message": "按住Shift以離開"
+  },
+  "QB_LeaveDutyHelp": {
+    "message": "嘗試直接傳送「放棄副本」封包以離開，可能繞過戰鬥中限制。僅部分副本可用。"
+  },
+  "QB_CopyVec": {
+    "message": "複製座標"
+  },
+  "QB_CopyMoveto": {
+    "message": "複製移動指令"
+  },
+  "QB_RecordPosition": {
+    "message": "記錄位置"
+  },
+  "QB_CopyAll": {
+    "message": "全部複製"
+  },
+  "QB_Resume": {
+    "message": "繼續"
+  },
+  "QB_Pause": {
+    "message": "暫停"
+  },
+  "QB_SkipStep": {
+    "message": "跳過目前步驟"
+  },
+  "QB_RestartStep1": {
+    "message": "從第1步重新開始"
+  },
+  "QB_GenerateModuleStub": {
+    "message": "產生模組範本"
+  },
+  "PATH_ResetPf": {
+    "message": "重置尋路"
+  },
+  "PATH_StepPf": {
+    "message": "單步尋路"
+  },
+  "PATH_RunPf": {
+    "message": "執行尋路"
+  },
+  "PATH_StepBack": {
+    "message": "退回一步"
+  },
+  "PATH_RunUntilReopen": {
+    "message": "執行至重新開啟"
+  },
+  "PATH_Step100": {
+    "message": "執行100步"
+  },
+  "PATH_Waypoints": {
+    "message": "路徑點"
+  },
+  "TL_Modules": {
+    "message": "模組"
+  },
+  "TL_ColumnVisibility": {
+    "message": "欄位顯示"
+  },
+  "TL_ExportToClipboard": {
+    "message": "匯出至剪貼簿"
+  },
+  "TL_ImportFromClipboard": {
+    "message": "從剪貼簿匯入"
+  },
+  "TL_Name": {
+    "message": "名稱"
+  },
+  "TL_HoldShiftToRemove": {
+    "message": "按住Shift以移除"
+  },
+  "TL_HideColumn": {
+    "message": "隱藏欄位"
+  },
+  "TL_AppliesWholeEncounter": {
+    "message": "此數值套用於整場戰鬥，但會被個別項目覆蓋。"
+  },
+  "TL_ChangeBySelecting": {
+    "message": "可透過選取"
+  },
+  "TL_AtTopOfTimeline": {
+    "message": "（位於時間軸頂端）來變更此設定。"
+  },
+  "DD_ReloadObstacles": {
+    "message": "重新載入障礙物"
+  },
+  "DD_SetClosestTrapIgnored": {
+    "message": "將最近的陷阱位置設為忽略"
+  },
+  "BME_WheelZoomTip": {
+    "message": "滾輪縮放，Shift+滾輪調整筆刷大小"
+  },
+  "BME_Undo": {
+    "message": "復原"
+  },
+  "BME_Redo": {
+    "message": "重做"
+  }
+}

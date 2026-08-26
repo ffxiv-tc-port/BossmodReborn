@@ -1,8 +1,8 @@
-name: Publish
+name: Release
 on:
   push:
     tags:
-      - '*.*.*.*'
+      - 'v*'
 jobs:
   Build:
     permissions:
@@ -16,25 +16,25 @@ jobs:
 
       - name: Get Environment Variables
         run: |
-          $tag = "${{ github.ref }}" -replace 'refs/tags/', ''
+          $tag = "${{ github.ref }}" -replace 'refs/tags/', '' -replace '^v', ''
 
           "tag=$tag" | Out-File -Append -FilePath $Env:GITHUB_ENV
           
       - name: Set up .NET
-        uses: actions/setup-dotnet@v1
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 9.0.x
 
-      - name: Download Dalamud Latest
+      - name: Download Dalamud (pinned TC-compatible build)
         run: |
-          Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile latest.zip
-          Expand-Archive -Force latest.zip "$env:AppData\XIVLauncher\addon\Hooks\dev"
+          Invoke-WebRequest -Uri https://github.com/Lother/dalamud-tc-pin/releases/download/v12.0.2/dalamud-api12-net9.zip -OutFile dalamud-pinned.zip
+          Expand-Archive -Force dalamud-pinned.zip "$env:AppData\FFXIVSimpleLauncher\Dalamud\Injector\"
 
       - name: Restore Nuget Packages
         run: dotnet restore BossMod\BossModReborn.csproj
 
       - name: Build Plugin
-        run: dotnet build --no-restore -c Release BossMod\BossModReborn.csproj -p:AssemblyVersion=${{ env.tag }} -p:FileVersion=${{ env.tag }} -p:InformationalVersion=${{ env.tag }} --output .\build
+        run: dotnet build --no-restore -c Release BossMod\BossModReborn.csproj -p:Version=${{ env.tag }} -p:AssemblyVersion=${{ env.tag }} -p:FileVersion=${{ env.tag }} -p:InformationalVersion=${{ env.tag }} --output .\build
 
       - name: Zip Plugin
         run: Compress-Archive -Path .\build\* -DestinationPath .\build\BossModReborn.zip
@@ -42,5 +42,7 @@ jobs:
       - name: Publish Plugin
         uses: softprops/action-gh-release@v2
         with:
-          files: ./build/BossModReborn.zip
+          files: |
+            ./build/BossModReborn.zip
+            ./build/BossModReborn.json
           token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,18 +1,33 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Authors></Authors>
-    <Company></Company>
-    <Version>0.0.0.0</Version>
+    <Authors>
+    </Authors>
+    <Company>
+    </Company>
     <Description>Boss mod.</Description>
-    <Copyright></Copyright>
-    <PackageProjectUrl></PackageProjectUrl>
+    <Copyright>
+    </Copyright>
+    <PackageProjectUrl>
+    </PackageProjectUrl>
   </PropertyGroup>
-
-<PropertyGroup>
-  <AssemblyName>BossModReborn</AssemblyName>
-</PropertyGroup>
-
+  <!-- Auto-Incrementing Build Number -->
+  <PropertyGroup>
+    <BuildNumberFile>$(MSBuildProjectDirectory)\BuildNumber.txt</BuildNumberFile>
+    <_PreviousBuildNumber Condition="Exists('$(BuildNumberFile)')">$([System.IO.File]::ReadAllText('$(BuildNumberFile)').Trim())</_PreviousBuildNumber>
+    <_PreviousBuildNumber Condition="'$(_PreviousBuildNumber)' == ''">0</_PreviousBuildNumber>
+    <BuildNumber>$([MSBuild]::Add($(_PreviousBuildNumber), 1))</BuildNumber>
+    <VersionPrefix>7.15.0</VersionPrefix>
+    <Version>$(VersionPrefix).$(BuildNumber)</Version>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <FileVersion>$(Version)</FileVersion>
+  </PropertyGroup>
+  <Target Name="PersistBuildNumber" AfterTargets="Build">
+    <WriteLinesToFile File="$(BuildNumberFile)" Lines="$(BuildNumber)" Overwrite="true" />
+  </Target>
+  <PropertyGroup>
+    <AssemblyName>BossModReborn</AssemblyName>
+  </PropertyGroup>
   <PropertyGroup>
     <TargetFramework>net9.0-windows</TargetFramework>
     <Platforms>x64</Platforms>
@@ -24,7 +39,6 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
   </PropertyGroup>
-
   <ItemGroup>
     <Using Include="System" />
     <Using Include="System.Collections" />
@@ -38,20 +52,19 @@
     <Using Include="System.Threading.Tasks;" />
     <Using Include="System.Text" />
   </ItemGroup>
-
   <PropertyGroup>
-    <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+    <DalamudLibPath>$(appdata)\FFXIVSimpleLauncher\Dalamud\Injector\</DalamudLibPath>
   </PropertyGroup>
-
   <PropertyGroup Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))'">
     <DalamudLibPath>$(DALAMUD_HOME)/</DalamudLibPath>
   </PropertyGroup>
-
+  <ItemGroup>
+    <EmbeddedResource Include="loc\*.json" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="DalamudPackager" Version="12.0.0" />
     <PackageReference Include="SharpDX.Mathematics" Version="4.2.0" />
     <ProjectReference Include="..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" />
-
     <Reference Include="Dalamud">
       <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
       <Private>false</Private>
@@ -85,13 +98,11 @@
       <Private>False</Private>
     </Reference>
   </ItemGroup>
-
   <ItemGroup>
     <None Update="DefaultRotationPresets.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-
   <ItemGroup>
     <EmbeddedResource Include="Pathfinding\ObstacleMaps\*" />
   </ItemGroup>

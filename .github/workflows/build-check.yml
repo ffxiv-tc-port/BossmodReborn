@@ -1,0 +1,53 @@
+name: Build Check
+
+on:
+  push:
+    branches: '*'
+    tags-ignore: '*'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check if VersionPrefix changed from baseline
+        id: check
+        shell: bash
+        run: |
+          PREFIX=$(grep -oP '(?<=<VersionPrefix>)[^<]+' BossMod/BossModReborn.csproj)
+          echo "Current VersionPrefix: $PREFIX (baseline: 7.15.0)"
+          if [ "$PREFIX" = "7.15.0" ]; then
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: gate
+    if: needs.gate.outputs.proceed == 'true'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Download Dalamud (pinned TC-compatible build)
+        run: |
+          Invoke-WebRequest -Uri https://github.com/Lother/dalamud-tc-pin/releases/download/v12.0.2/dalamud-api12-net9.zip -OutFile dalamud-pinned.zip
+          Expand-Archive -Force dalamud-pinned.zip "$env:AppData\FFXIVSimpleLauncher\Dalamud\Injector\"
+
+      - name: Restore Nuget Packages
+        run: dotnet restore BossMod\BossModReborn.csproj
+
+      - name: Build Plugin
+        run: dotnet build --no-restore -c Release BossMod\BossModReborn.csproj

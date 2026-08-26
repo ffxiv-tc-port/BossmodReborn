@@ -76,7 +76,7 @@ public class UIBitmapEditor
     {
         DrawModeButtons();
         DrawUndoRedoButtons();
-        UIMisc.HelpMarker("Wheel to zoom, shift-wheel to change brush size");
+        UIMisc.HelpMarker(Loc.T("BME_WheelZoomTip", "Wheel to zoom, shift-wheel to change brush size"));
         ImGui.SameLine();
         ImGui.TextUnformatted($"Brush radius: {BrushRadius}");
         if (HoveredPixel.x >= 0 && HoveredPixel.y >= 0)
@@ -104,11 +104,11 @@ public class UIBitmapEditor
     protected void DrawUndoRedoButtons()
     {
         using (ImRaii.Disabled(!CanUndo()))
-            if (ImGui.Button("Undo"))
+            if (ImGui.Button(Loc.T("BME_Undo", "Undo")))
                 Undo();
         ImGui.SameLine();
         using (ImRaii.Disabled(!CanRedo()))
-            if (ImGui.Button("Redo"))
+            if (ImGui.Button(Loc.T("BME_Redo", "Redo")))
                 Redo();
     }
 

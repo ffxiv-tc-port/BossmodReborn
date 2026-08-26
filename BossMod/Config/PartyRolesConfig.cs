@@ -107,12 +107,12 @@ public class PartyRolesConfig : ConfigNode
         if (AssignmentsPerSlot(ws.Party).Length == 0)
         {
             using var color = ImRaii.PushColor(ImGuiCol.Text, Colors.TextColor2);
-            ImGui.TextUnformatted("Invalid assignments: there should be exactly one raid member per role");
+            ImGui.TextUnformatted(Loc.T("PRC_InvalidAssign", "Invalid assignments: there should be exactly one raid member per role"));
         }
         else
         {
             using var color = ImRaii.PushColor(ImGuiCol.Text, Colors.TextColor4);
-            ImGui.TextUnformatted("All good!");
+            ImGui.TextUnformatted(Loc.T("PRC_AllGood", "All good!"));
         }
     }
 }

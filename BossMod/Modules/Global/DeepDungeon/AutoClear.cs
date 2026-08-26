@@ -80,6 +80,7 @@ public abstract class AutoClear : ZoneModule
     private int Kills;
     private int DesiredRoom;
     private bool BetweenFloors;
+    private (int from, int to) _lastPathfindFailureLogged = (-1, -1);
 
     protected struct PlayerImmuneState
     {
@@ -117,11 +118,14 @@ public abstract class AutoClear : ZoneModule
             }),
             ws.Actors.EventOpenTreasure.Subscribe(OnOpenTreasure),
             ws.Actors.EventObjectAnimation.Subscribe(OnEObjAnim),
-            ws.DeepDungeon.MapDataChanged.Subscribe(_ =>
+            ws.DeepDungeon.MapDataChanged.Subscribe(op =>
             {
                 BetweenFloors = false;
                 if (Walls.Count == 0)
                     LoadWalls();
+                // TEMP DEBUG: dump raw per-room flag bytes to figure out what actually flips as rooms get explored
+                Service.Log($"[DD debug] room flags: {string.Join(' ', op.Rooms.Select((r, i) => $"{i}={(byte)r:X2}"))}");
+                Service.Log($"[DD debug] floor={Palace.Floor} isBossFloor={Palace.IsBossFloor} enableMinimap={Config.EnableMinimap} wantDrawExtra={WantDrawExtra()}");
             })
         );
 
@@ -307,7 +311,7 @@ public abstract class AutoClear : ZoneModule
             Config.Modified.Fire();
         }
 
-        if (ImGui.Button("Reload obstacles"))
+        if (ImGui.Button(Loc.T("DD_ReloadObstacles", "Reload obstacles")))
         {
             _obstacles.Dispose();
             _obstacles = new(World);
@@ -329,7 +333,7 @@ public abstract class AutoClear : ZoneModule
             UIMisc.HelpMarker(() => $"Wrong resolution for map; should be 0.5, got {data.PixelSize}", Dalamud.Interface.FontAwesomeIcon.ExclamationTriangle);
         }
 
-        if (ImGui.Button("Set closest trap location as ignored"))
+        if (ImGui.Button(Loc.T("DD_SetClosestTrapIgnored", "Set closest trap location as ignored")))
         {
             WPos? pos = null;
             var minDistanceSq = float.MaxValue;
@@ -766,9 +770,15 @@ public abstract class AutoClear : ZoneModule
         var path = new FloorPathfind(Palace.Rooms).Pathfind(playerRoom, DesiredRoom);
         if (path.Count == 0)
         {
-            Service.Log($"uh-oh, no path from {playerRoom} to {DesiredRoom}");
+            // expected while the connecting rooms haven't been explored/revealed yet - only log once per (from, to) pair to avoid spamming every frame
+            if (_lastPathfindFailureLogged != (playerRoom, DesiredRoom))
+            {
+                _lastPathfindFailureLogged = (playerRoom, DesiredRoom);
+                Service.Log($"uh-oh, no path from {playerRoom} to {DesiredRoom}");
+            }
             return;
         }
+        _lastPathfindFailureLogged = (-1, -1);
         var next = path[0];
         Direction d;
         if (next == playerRoom + 1)

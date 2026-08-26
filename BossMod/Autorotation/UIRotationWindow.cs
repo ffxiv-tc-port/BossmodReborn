@@ -100,7 +100,7 @@ public sealed class UIRotationWindow : UIWindow
             if (ImGui.IsItemHovered())
             {
                 using var tooltip = ImRaii.Tooltip();
-                ImGui.TextUnformatted("Transient strategies:");
+                ImGui.TextUnformatted(Loc.T("ROT_TransientStrategies", "Transient strategies:"));
                 foreach (var m in _mgr.Preset.Modules.Where(m => m.TransientSettings.Count > 0))
                 {
                     ImGui.TextUnformatted($"> {m.Type.FullName}");
@@ -129,7 +129,7 @@ public sealed class UIRotationWindow : UIWindow
         if (mgr.Player == null)
             return modified;
 
-        ImGui.TextUnformatted("Presets:");
+        ImGui.TextUnformatted(Loc.T("ROT_Presets", "Presets:"));
 
         ImGui.SameLine();
 
@@ -137,7 +137,7 @@ public sealed class UIRotationWindow : UIWindow
         using (ImRaii.PushColor(ImGuiCol.ButtonHovered, Colors.ButtonPushColor3, mgr.Preset == RotationModuleManager.ForceDisable))
         using (ImRaii.PushColor(ImGuiCol.ButtonActive, Colors.ButtonPushColor4, mgr.Preset == RotationModuleManager.ForceDisable))
         {
-            if (ImGui.Button("Disabled"))
+            if (ImGui.Button(Loc.T("ROT_Disabled", "Disabled")))
             {
                 mgr.Preset = mgr.Preset == RotationModuleManager.ForceDisable ? null : RotationModuleManager.ForceDisable;
                 modified |= true;

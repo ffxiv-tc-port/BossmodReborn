@@ -160,7 +160,7 @@ public sealed class UIPresetEditor
 
         using var d = ImRaii.Disabled(_sourcePresetDefault);
 
-        if (ImGui.Button("Add##module", width))
+        if (ImGui.Button(Loc.T("PRESET_Add", "Add") + "##module", width))
             ImGui.OpenPopup("add_module");
 
         if (UIMisc.Button("Remove##module", width.X, (_selectedModuleIndex < 0, "Select any module to remove"), (!ImGui.GetIO().KeyShift, "Hold shift")))
@@ -214,7 +214,7 @@ public sealed class UIPresetEditor
     {
         if (_selectedModuleIndex < 0)
         {
-            ImGui.TextUnformatted("Add or select rotation module to configure its strategies");
+            ImGui.TextUnformatted(Loc.T("PRESET_AddOrSelect", "Add or select rotation module to configure its strategies"));
             return;
         }
 
@@ -290,8 +290,8 @@ public sealed class UIPresetEditor
     {
         if (_selectedModuleIndex < 0)
         {
-            ImGui.TextUnformatted("Select module to preview resulting strategies with different modifiers");
-            ImGui.TextUnformatted("Select strategy to edit its preferences");
+            ImGui.TextUnformatted(Loc.T("PRESET_SelectModulePreview", "Select module to preview resulting strategies with different modifiers"));
+            ImGui.TextUnformatted(Loc.T("PRESET_SelectStrategyEdit", "Select strategy to edit its preferences"));
         }
         else if (_selectedSettingIndex < 0)
         {

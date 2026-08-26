@@ -93,7 +93,7 @@ sealed class AIExperiment(RotationModuleManager manager, Actor player) : AIRotat
             if (!centerUnsafe)
                 return uptimePos;
             var vertShiftW = burst.Casters.Sum(c => c.Origin.X - module.Center.X) < 0;
-            var downtimePos = uptimePos with { X = module.Center.X - 16.2f + (vertShiftW ? -1.5f : +1.5f) };
+            var downtimePos = new WPos(module.Center.X - 16.2f + (vertShiftW ? -1.5f : +1.5f), uptimePos.Z);
             var timeToSafety = (uptimePos - downtimePos).Length() / Speed();
             return module.StateMachine.TimeSinceTransition + GCD + timeToSafety < (module.StateMachine.ActiveState?.Duration ?? 0) ? uptimePos : downtimePos;
         }

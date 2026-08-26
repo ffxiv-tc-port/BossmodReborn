@@ -38,8 +38,8 @@ public sealed class ColumnPlannerTrackStrategy(Timeline timeline, StateMachineTr
         {
             Timeline.AddTooltip([config.Options[DefaultOverride.Option].DisplayName]);
             Timeline.AddTooltip([
-                "This value applies to the whole encounter, but will be overridden by entries.",
-                $"It can be changed by selecting \"{Name}\" at the top of the timeline."
+                Loc.T("TL_AppliesWholeEncounter", "This value applies to the whole encounter, but will be overridden by entries."),
+                $"{Loc.T("TL_ChangeBySelecting", "It can be changed by selecting")} \"{Name}\" {Loc.T("TL_AtTopOfTimeline", "at the top of the timeline.")}"
             ]);
         }
     }
@@ -74,7 +74,7 @@ public sealed class ColumnPlannerTrackStrategy(Timeline timeline, StateMachineTr
                     ImGui.CloseCurrentPopup();
                 }
                 ImGui.Separator();
-                if (ImGui.Selectable("Hide column"))
+                if (ImGui.Selectable(Loc.T("TL_HideColumn", "Hide column")))
                     Width = 0;
             }
         }

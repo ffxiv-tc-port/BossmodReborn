@@ -78,7 +78,7 @@ public static class UIStrategyValue
     {
         var modified = false;
         var overridePriority = !float.IsNaN(value.PriorityOverride);
-        if (ImGui.Checkbox("Override priority", ref overridePriority))
+        if (ImGui.Checkbox(Loc.T("STRAT_OverridePriority", "Override priority"), ref overridePriority))
         {
             modified = true;
             value.PriorityOverride = overridePriority ? ActionQueue.Priority.Low : float.NaN;

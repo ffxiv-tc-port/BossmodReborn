@@ -23,6 +23,9 @@ internal sealed class FloorPathfind(ReadOnlySpan<RoomFlags> Map)
     {
         if (startRoom == destRoom)
             return [];
+        // defend against garbage/out-of-range room indices (e.g. stale or misread game data) instead of crashing
+        if ((uint)startRoom >= 25 || (uint)destRoom >= 25)
+            return [];
 
         Explored[startRoom] = true;
         Queue.Enqueue([startRoom]);
@@ -39,7 +42,7 @@ internal sealed class FloorPathfind(ReadOnlySpan<RoomFlags> Map)
             for (var i = 0; i < len; ++i)
             {
                 var w = edges[i];
-                if (!Explored[w])
+                if ((uint)w < 25 && !Explored[w])
                 {
                     Explored[w] = true;
                     Queue.Enqueue([.. v, w]);

@@ -18,63 +18,63 @@ public sealed class AboutTab(DirectoryInfo? replayDir)
     {
         using var wrap = ImRaii.TextWrapPos(0);
 
-        ImGui.TextUnformatted("BossModReborn (BMR) provides boss fight radar, auto-rotation, cooldown planning, and AI. All of its modules can be toggled individually. Support for it can be found in the Discord server linked at the bottom of this tab.");
-        ImGui.TextUnformatted("This is a FORK of the original BossMod (VBM). Only ask for support on the Combat Reborn Discord.");
-        ImGui.TextUnformatted("Please also make sure to not load VBM and this fork at the same time. The consequences of doing that are unexplored and unsupported.");
+        ImGui.TextUnformatted(Loc.T("ABOUT_Intro", "BossModReborn (BMR) provides boss fight radar, auto-rotation, cooldown planning, and AI. All of its modules can be toggled individually. Support for it can be found in the Discord server linked at the bottom of this tab."));
+        ImGui.TextUnformatted(Loc.T("ABOUT_ForkNote", "This is a FORK of the original BossMod (VBM). Only ask for support on the Combat Reborn Discord."));
+        ImGui.TextUnformatted(Loc.T("ABOUT_NoDouble", "Please also make sure to not load VBM and this fork at the same time. The consequences of doing that are unexplored and unsupported."));
         ImGui.Spacing();
-        DrawSection("Radar",
+        DrawSection(Loc.T("ABOUT_Radar", "Radar"),
         [
-            "Provides an on-screen window that contains an area mini-map showing player positions, boss position(s), various imminent AOEs, and other mechanics.",
-            "Useful because you don't have to remember what ability names mean.",
-            "See exactly whether you're getting clipped by incoming AOEs or not.",
-            "Enabled for supported bosses, visible in the \"Supported bosses\" tab.",
+            Loc.T("ABOUT_Radar_1", "Provides an on-screen window that contains an area mini-map showing player positions, boss position(s), various imminent AOEs, and other mechanics."),
+            Loc.T("ABOUT_Radar_2", "Useful because you don't have to remember what ability names mean."),
+            Loc.T("ABOUT_Radar_3", "See exactly whether you're getting clipped by incoming AOEs or not."),
+            Loc.T("ABOUT_Radar_4", "Enabled for supported bosses, visible in the \"Supported bosses\" tab."),
         ]);
         ImGui.Spacing();
-        DrawSection("Autorotation",
+        DrawSection(Loc.T("ABOUT_Autorot", "Autorotation"),
         [
-            "Executes fully optimal rotations to the best of its ability.",
-            "Go to the \"Autorotation presets\" tab to create a preset.",
-            "Maturity of each rotation module is present in a tooltip.",
-            "Guide for using this feature can be found on the wiki.",
+            Loc.T("ABOUT_Autorot_1", "Executes fully optimal rotations to the best of its ability."),
+            Loc.T("ABOUT_Autorot_2", "Go to the \"Autorotation presets\" tab to create a preset."),
+            Loc.T("ABOUT_Autorot_3", "Maturity of each rotation module is present in a tooltip."),
+            Loc.T("ABOUT_Autorot_4", "Guide for using this feature can be found on the wiki."),
         ]);
         ImGui.Spacing();
-        DrawSection("Cooldown planner",
+        DrawSection(Loc.T("ABOUT_CDPlanner", "Cooldown planner"),
         [
-            "Creates a CD plan for supported bosses.",
-            "Replaces autorotations in specific fights.",
-            "Allows you to time specific abilities to cast at specific times.",
-            "Guide for using this feature can be found on the wiki.",
+            Loc.T("ABOUT_CDPlanner_1", "Creates a CD plan for supported bosses."),
+            Loc.T("ABOUT_CDPlanner_2", "Replaces autorotations in specific fights."),
+            Loc.T("ABOUT_CDPlanner_3", "Allows you to time specific abilities to cast at specific times."),
+            Loc.T("ABOUT_CDPlanner_4", "Guide for using this feature can be found on the wiki."),
         ]);
         ImGui.Spacing();
-        DrawSection("AI",
+        DrawSection(Loc.T("ABOUT_AI", "AI"),
         [
-            "Automates movement during boss fights.",
-            "Automatically moves your character based on safe zones determined by a boss's module, visible on the radar.",
-            "Should not be used in when playing with unknown players.",
-            "Can be hooked by other plugins to automate entire duties.",
+            Loc.T("ABOUT_AI_1", "Automates movement during boss fights."),
+            Loc.T("ABOUT_AI_2", "Automatically moves your character based on safe zones determined by a boss's module, visible on the radar."),
+            Loc.T("ABOUT_AI_3", "Should not be used in when playing with unknown players."),
+            Loc.T("ABOUT_AI_4", "Can be hooked by other plugins to automate entire duties."),
         ]);
         ImGui.Spacing();
-        DrawSection("Replays",
+        DrawSection(Loc.T("ABOUT_Replays", "Replays"),
         [
-            "Useful for creating boss modules, analyzing problems with them, and making CD plans.",
-            "When asking for help, make sure to provide a replay! Please note that replays will contain your player name!",
-            "Enabled in Settings > Show replay management UI (or enable auto recording).",
-            $"Files are located in '{replayDir}'.",
+            Loc.T("ABOUT_Replays_1", "Useful for creating boss modules, analyzing problems with them, and making CD plans."),
+            Loc.T("ABOUT_Replays_2", "When asking for help, make sure to provide a replay! Please note that replays will contain your player name!"),
+            Loc.T("ABOUT_Replays_3", "Enabled in Settings > Show replay management UI (or enable auto recording)."),
+            $"{Loc.T("ABOUT_Replays_4", "Files are located in")} '{replayDir}'.",
         ]);
         ImGui.Spacing();
         ImGui.Spacing();
 
         using (ImRaii.PushColor(ImGuiCol.Button, DiscordColor.ABGR))
-            if (ImGui.Button("Combat Reborn Discord", new(220, 0)))
+            if (ImGui.Button(Loc.T("ABOUT_BtnDiscord", "Combat Reborn Discord"), new(220, 0)))
                 _lastErrorMessage = OpenLink("https://discord.gg/p54TZMPnC9");
         ImGui.SameLine();
-        if (ImGui.Button("BossModReborn GitHub", new(220, 0)))
+        if (ImGui.Button(Loc.T("ABOUT_BtnGitHub", "BossModReborn GitHub"), new(220, 0)))
             _lastErrorMessage = OpenLink("https://github.com/FFXIV-CombatReborn/BossmodReborn");
         ImGui.SameLine();
-        if (ImGui.Button("BossMod Wiki", new(130, 0)))
+        if (ImGui.Button(Loc.T("ABOUT_BtnWiki", "BossMod Wiki"), new(130, 0)))
             _lastErrorMessage = OpenLink("https://github.com/awgil/ffxiv_bossmod/wiki");
         ImGui.SameLine();
-        if (ImGui.Button("Open replay folder", new(180, 0)) && replayDir != null)
+        if (ImGui.Button(Loc.T("ABOUT_BtnOpenFolder", "Open replay folder"), new(180, 0)) && replayDir != null)
             _lastErrorMessage = OpenDirectory(replayDir);
 
         if (_lastErrorMessage.Length > 0)
@@ -118,14 +118,14 @@ public sealed class AboutTab(DirectoryInfo? replayDir)
         catch (Exception e)
         {
             Service.Log($"Error opening link {link}: {e}");
-            return $"Failed to open link '{link}', open it manually in the browser.";
+            return string.Format(Loc.T("ABOUT_ErrOpenLink", "Failed to open link '{0}', open it manually in the browser."), link);
         }
     }
 
     private static string OpenDirectory(DirectoryInfo dir)
     {
         if (!dir.Exists)
-            return $"Directory '{dir}' not found.";
+            return string.Format(Loc.T("ABOUT_ErrDirNotFound", "Directory '{0}' not found."), dir);
 
         try
         {
@@ -135,7 +135,7 @@ public sealed class AboutTab(DirectoryInfo? replayDir)
         catch (Exception e)
         {
             Service.Log($"Error opening directory {dir}: {e}");
-            return $"Failed to open folder '{dir}', open it manually.";
+            return string.Format(Loc.T("ABOUT_ErrOpenDir", "Failed to open folder '{0}', open it manually."), dir);
         }
     }
 }
