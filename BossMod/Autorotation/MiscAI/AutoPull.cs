@@ -47,7 +47,7 @@ public sealed class AutoPull(RotationModuleManager manager, Actor player) : Rota
         {
             Hints.PrioritizeAll();
             Hints.PotentialTargets.Sort((b, a) => a.Priority.CompareTo(b.Priority));
-            Hints.HighestPotentialTargetPriority = Math.Max(0, Hints.PotentialTargets[0].Priority);
+            Hints.HighestPotentialTargetPriority = Hints.PotentialTargets.Count != 0 ? Math.Max(0, Hints.PotentialTargets[0].Priority) : 0;
 
             if (primaryTarget == null && Hints.PotentialTargets.MinBy(t => t.Actor.DistanceToHitbox(Player)) is AIHints.Enemy tar)
                 primaryTarget = Hints.ForcedTarget = tar.Actor;
