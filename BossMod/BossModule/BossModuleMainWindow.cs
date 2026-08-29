@@ -55,6 +55,10 @@ public sealed class BossModuleMainWindow : UIWindow
             _mgr.ActiveModule = null;
             IsOpen = true;
         }
+        // Dalamud 的 Window 基底類別在 PreDraw() 裡推每視窗不透明度(標題列右鍵選單的
+        // 「不透明度」滑桿)，並在 PostDraw() 裡 pop 掉。這個類別只覆寫了 PostDraw 而沒有
+        // 呼叫 base，等於使用者一調不透明度就每幀漏掉一次 pop，樣式堆疊會失衡。
+        base.PostDraw();
     }
 
     public override void Draw()
