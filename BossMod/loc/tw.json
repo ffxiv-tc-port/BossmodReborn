@@ -953,6 +953,12 @@
   "Auto use Peloton when moving out of combat": {
     "message": "戰鬥外移動時自動使用速行"
   },
+  "Only auto use Peloton inside duties": {
+    "message": "僅在副本內自動使用速行"
+  },
+  "Restricts the option above to instanced content - anything entered through the duty finder. When off, Peloton is also used while moving around the overworld.": {
+    "message": "讓上方選項只在副本內生效（任何從任務搜尋器進入的區域）。關閉時在野外移動也會自動使用速行。"
+  },
   "Enable auto AFK": {
     "message": "啟用自動 AFK"
   },
