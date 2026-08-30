@@ -765,7 +765,23 @@ sealed class WorldStateGameSync : IDisposable
         var pc = (Character*)GameObjectManager.Instance()->Objects.IndexSorted[0].Value;
         if (pc != null)
         {
-            var baseSpeed = *(float*)((nint)Control.Instance() + 0x7108);
+            // 🔑 玩家的基礎移動速度＝走路控制器的 BaseMovementSpeed。
+            //    0x7118 ＝ 走路控制器在 Control 內的偏移 0x70C0 ＋ 欄位偏移 0x58。
+            //    來源（台服 7.20 離線鑑識 2026-08-30，兩個互相獨立的來源一致）：
+            //      ① 0x70C0：把 Control 與 PlayerMoveControllerWalk 兩個單例的 lea rip-relative
+            //         靜態位址各自解出來相減（Control=0x142903460、走路控制器=0x14290A520）。
+            //         工具 tools/sigscan/lea_static_delta.py，帶正負校準閘門。
+            //      ② 0x58：OmenTools 的 PlayerMoveControllerWalk 欄位表 BaseMovementSpeed（decimal 88）。
+            //         同一份表的 IsMoving（0x3C）已被遊戲自己的 GetTargetSpeed（0x141712970）第一條指令
+            //         `cmp byte ptr [rcx+0x3c], 0` 逐字證實 ⇒ 這份欄位表對台服是可信的。
+            //    🔴 舊值 0x7108 ＝ 走路控制器 +0x48，落在 CurrentSpeed（+0x44）與 BaseMovementSpeed（+0x58）
+            //       之間的**未定義欄位**，比正確欄位少 0x10。實機表現是每幀在 0 與 0.45 之間交替、
+            //       從來不是玩家的真實速度（約 6 碼/秒），一天洗出 9 萬行 log。
+            //    ⚠️ 坐騎／飛行／游泳的基礎速度**不在這個欄位**，本行在那些狀態下讀到的仍是走路值。
+            //       這是刻意的：另一個候選來源（走路控制器 +0x50 指向的子結構）無法離線證明它真的是指標，
+            //       而每幀解一個沒被證實的指標＝AccessViolation＝try/catch 攔不到的當場崩潰。
+            //       讀到偏低的速度只會讓尋路的 ETA 保守一點，不會壞掉；崩潰會。
+            var baseSpeed = *(float*)((nint)Control.Instance() + 0x7118);
             var c8 = new CharacterContainer() { Character = pc };
             var factor = _calculateMoveSpeedMulti((ContainerInterface*)&c8);
             var speed = baseSpeed * factor;

@@ -555,26 +555,61 @@ public sealed class NormalMovement : RotationModule
     /// <summary>上一次記過的「移動速度是不是被代打了」；用來只在<b>狀態翻轉</b>時記一行 log。</summary>
     private bool _loggedSpeedSubstituted;
 
+    /// <summary>上一次真的把速度狀態寫進 log 的時刻；<c>null</c> ＝ 這場還沒寫過。</summary>
+    private DateTime? _lastSpeedLogTime;
+
+    /// <summary>冷卻期間被吞掉的<b>翻轉次數</b>；下一次真的印的時候一起報出來。</summary>
+    private int _speedFlipsSuppressed;
+
+    /// <summary>兩行速度 log 之間至少要隔這麼久。</summary>
+    /// <remarks>
+    /// 🔴 只靠「狀態翻轉才印」擋不住<b>每幀都在翻轉</b>的情況：欄位偏移錯的時候讀到的值在
+    /// 0 與 0.45 之間逐幀交替，等於每一幀都是一次翻轉，實機一天洗出 9 萬行。
+    /// 翻轉節流的前提是「狀態會穩定下來」，那個前提在故障時正好不成立 ⇒ 必須再加一道時間閘門。
+    /// </remarks>
+    private const double SpeedLogCooldownSeconds = 10d;
+
     /// <summary>
     /// 把「移動速度讀到不合理的值、這一段改用名目速度算路徑」講出來。
     /// </summary>
     /// <remarks>
     /// 🔑 這一行是「速度來源到底有沒有壞」唯一的離線證據，而且<b>修好之後才更需要它</b>：
     /// 夾限一旦生效，「算不出目的地」那一行就不會再出現，速度是 0 這件事會重新變成隱形的。
-    /// 速度來源是 <c>WorldStateGameSync</c> 的 <c>Control.Instance() + 0x7108</c>（寫死偏移）
-    /// 乘上特徵碼掃到的 <c>CalculateMovementSpeedMultiplier</c>，兩者在台服都無法離線證明正確；
-    /// 這一行印的是<b>相乘之後的原始值</b>，可以直接判讀。
-    /// 📌 走 <c>Information</c>：使用者的 LogLevel 是 2。🔴 只在翻轉時印，這支每幀都會被呼叫到。
+    /// 速度來源是 <c>WorldStateGameSync</c> 的 <c>Control.Instance() + 0x7118</c>
+    /// （＝走路控制器 0x70C0 ＋ BaseMovementSpeed 0x58，台服 2026-08-30 離線鑑識已證實）
+    /// 乘上特徵碼掃到的 <c>CalculateMovementSpeedMultiplier</c>；這一行印的是<b>相乘之後的原始值</b>。
+    /// 🔑 偏移修對之後這兩行應該<b>幾乎不再出現</b>；<b>還在洗</b>就是「偏移假設不成立」的自證，
+    /// 不需要再去猜別的成因。
+    /// 📌 走 <c>Information</c>：使用者的 LogLevel 是 2。
+    /// 🔴 這支每幀都會被呼叫到 ⇒ 翻轉閘門與時間閘門<b>兩道都要過</b>才准寫。
     /// </remarks>
     private void LogSpeedSubstitution(bool substituted, float rawSpeed)
     {
         if (substituted == _loggedSpeedSubstituted)
             return;
+        // ⚠️ 狀態一律更新，不受冷卻影響：吞掉的是「寫 log」這個動作，不是狀態追蹤本身。
+        //    漏更新會讓冷卻結束後的第一次比較拿舊狀態去比，把真正的翻轉再吞一次。
         _loggedSpeedSubstituted = substituted;
+
+        var now = World.CurrentTime;
+        if (_lastSpeedLogTime is { } last && (now - last).TotalSeconds < SpeedLogCooldownSeconds)
+        {
+            ++_speedFlipsSuppressed;
+            return;
+        }
+        _lastSpeedLogTime = now;
+
+        // 吞掉的次數就是「這段冷卻裡速度來源到底抖了幾次」的規模，本身是診斷資料的一部分。
+        var suppressed = _speedFlipsSuppressed;
+        _speedFlipsSuppressed = 0;
+        var tail = suppressed > 0
+            ? $"（前 {SpeedLogCooldownSeconds:f0} 秒內另有 {suppressed} 次狀態翻轉被冷卻吞掉＝速度來源正在逐幀跳動）"
+            : "";
+
         Service.Logger.Information(substituted
-            ? $"[NormalMovement] 移動速度讀到 {rawSpeed:f3}（不在合理範圍），這一段改用名目速度 {NavigationDecision.NominalPlayerSpeed:f0} 碼/秒算路徑。" +
+            ? $"[NormalMovement] 移動速度讀到 {rawSpeed:f3}（不在合理範圍），這一段改用名目速度 {NavigationDecision.NominalPlayerSpeed:f0} 碼/秒算路徑。{tail}" +
               "沒有這道代打的話，尋路的餘裕會變成負無限大、每一格都被評成「和起點一樣不安全」，結果是算不出目的地＝角色站著不動。"
-            : $"[NormalMovement] 移動速度恢復正常（{rawSpeed:f3} 碼/秒），改回用實際速度算路徑。");
+            : $"[NormalMovement] 移動速度恢復正常（{rawSpeed:f3} 碼/秒），改回用實際速度算路徑。{tail}");
     }
 
     /// <summary>

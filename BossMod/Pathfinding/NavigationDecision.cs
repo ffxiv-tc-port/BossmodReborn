@@ -157,8 +157,7 @@ public struct NavigationDecision
     /// </list>
     /// </para>
     /// <para>
-    /// 📌 刻意<b>不</b>去改 <c>WorldStateGameSync</c> 那個速度來源（<c>Control.Instance() + 0x7108</c>
-    /// 是寫死的偏移，台服對不對無法離線證明），也刻意不去動 <c>ClientState.MoveSpeed</c> 本身：
+    /// 📌 刻意<b>不</b>去動 <c>ClientState.MoveSpeed</c> 本身：
     /// 讓 <c>MainDebugWindow</c> 的「Player move speed」繼續顯示<b>真值</b>，
     /// 這裡只負責讓尋路不被它拖垮，並把原始值寫進 <see cref="DiagRawSpeed"/> 供離線判讀。
     /// </para>
