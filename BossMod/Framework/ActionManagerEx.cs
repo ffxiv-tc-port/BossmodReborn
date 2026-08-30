@@ -49,6 +49,15 @@ public sealed unsafe class ActionManagerEx : IDisposable
     public bool MoveMightInterruptCast; // if true, moving now might cause cast interruption (for current or queued cast)
     private readonly ActionManager* _inst = ActionManager.Instance();
     private readonly WorldState _ws;
+
+    // 🔴 「技能被遊戲拒絕」那行原本每幀印一次：AI 想用的技能被拒（受狀態限制、PvP 區域不可用…）之後，
+    //    下一幀還是會拿同一支來問，實機一分鐘 1813 行。改成同一組 (技能, 拒絕原因) 在
+    //    RejectLogInterval 秒內只印一次；拒絕原因改變、換成別的技能、或該技能終於送出去時立刻重置，
+    //    所以「卡住的原因變了」與「恢復正常了」兩件事都不會被節流吃掉。
+    private const double RejectLogInterval = 10;
+    private ActionID _lastRejectAction;
+    private uint _lastRejectStatus;
+    private DateTime _lastRejectLogTime;
     private readonly AIHints _hints;
     private readonly MovementOverride _movement;
     private readonly ManualActionQueueTweak _manualQueue;
@@ -586,6 +595,9 @@ public sealed unsafe class ActionManagerEx : IDisposable
                     // disable in-game auto rotation, to prevent fucking up with our logic
                     if (autoRotateConfig != null)
                         autoRotateConfig->Value.UInt = _smartRotationTweak.Enabled || AI.AIManager.Instance?.Beh != null ? 0 : autoRotateOriginal;
+                    // 送得出去＝上一次的拒絕原因已經不成立，清掉才不會讓下一次的拒絕被誤判成「同一次」而不印。
+                    _lastRejectAction = default;
+                    _lastRejectStatus = 0;
                     var res = ExecuteAction(actionAdj, targetID, AutoQueue.TargetPos);
                     //Service.Log($"[AMEx] Auto-execute {AutoQueue.Source} action {AutoQueue.Action} (=> {actionAdj}) @ {targetID:X} {Utils.Vec3String(AutoQueue.TargetPos)} => {res}");
                 }
@@ -596,7 +608,14 @@ public sealed unsafe class ActionManagerEx : IDisposable
                 }
                 else
                 {
-                    Service.Log($"[AMEx] Can't execute prio {AutoQueue.Priority} action {AutoQueue.Action} (=> {actionAdj}) @ {targetID:X}: status {status} '{Service.LuminaRow<Lumina.Excel.Sheets.LogMessage>(status)?.Text}'");
+                    var rejectNow = _ws.CurrentTime;
+                    if (actionAdj != _lastRejectAction || status != _lastRejectStatus || (rejectNow - _lastRejectLogTime).TotalSeconds >= RejectLogInterval)
+                    {
+                        _lastRejectAction = actionAdj;
+                        _lastRejectStatus = status;
+                        _lastRejectLogTime = rejectNow;
+                        Service.Log($"[AMEx] Can't execute prio {AutoQueue.Priority} action {AutoQueue.Action} (=> {actionAdj}) @ {targetID:X}: status {status} '{Service.LuminaRow<Lumina.Excel.Sheets.LogMessage>(status)?.Text}'");
+                    }
                     blockMovement = false;
                 }
             }

@@ -170,8 +170,17 @@ public sealed class PredictiveMitigation(RotationModuleManager manager, Actor pl
         return def;
     }
 
-    private ActionID _lastLogged;
-    private DateTime _lastLogTime;
+    // 🔴 每個技能各自節流。舊版只記「上一個推過的技能」一個格子，戰慄／泰然自若／戮罪三支輪流推時
+    //    每一幀都會換人，10 秒節流因此每幀都失效（實機一分鐘 1521 行）。字典的鍵只會是本模組推過的
+    //    減傷技，正常是個位數；換職業會慢慢累積，所以在視窗滾動時順手清一次過期項目。
+    private readonly Dictionary<ActionID, DateTime> _lastLogTimes = [];
+
+    // 第二層閘門：就算 per-action 節流被某種沒想到的組合打穿，同一秒也最多印 MaxLogsPerSecond 行，
+    //    其餘只留一行計數摘要 —— 診斷訊息本身絕不該變成效能問題，而「有東西沒印出來」要看得見。
+    private const int MaxLogsPerSecond = 4;
+    private DateTime _logWindowStart;
+    private int _logWindowCount;
+    private int _logWindowSuppressed;
 
     // 判不出屬性時的處置；每幀由 Execute 更新，供 TryMit 讀取（同一輪推送裡是固定值，不必層層傳）。
     private UnknownSchoolStrategy _unknownSchool;
@@ -400,15 +409,32 @@ public sealed class PredictiveMitigation(RotationModuleManager manager, Actor pl
 
     /// <summary>
     /// 要使用者回報時看得到的診斷。刻意寫 <c>Information</c>（使用者跑 LogLevel 2，Debug/Verbose 收不到），
-    /// 並且對「同一個技能連續推」節流，否則每幀一行會把 log 灌爆。
+    /// 並且對「每一個技能各自」節流（外加每秒行數上限），否則每幀一行會把 log 灌爆。
     /// </summary>
     private void LogPush(ActionID action, ActionDamageType.Kind incoming)
     {
         var now = World.CurrentTime;
-        if (action == _lastLogged && (now - _lastLogTime).TotalSeconds < 10)
+        if (_lastLogTimes.TryGetValue(action, out var lastForAction) && (now - lastForAction).TotalSeconds < 10)
             return;
-        _lastLogged = action;
-        _lastLogTime = now;
+        _lastLogTimes[action] = now;
+
+        if ((now - _logWindowStart).TotalSeconds >= 1)
+        {
+            // 先把上一個視窗被壓下來的次數補一行摘要，再開新視窗。
+            if (_logWindowSuppressed > 0)
+                Service.Logger.Information($"[PredMit] 前一秒另有 {_logWindowSuppressed} 次推送未列出（每秒上限 {MaxLogsPerSecond} 行）。");
+            _logWindowStart = now;
+            _logWindowCount = 0;
+            _logWindowSuppressed = 0;
+            PruneLogTimes(now);
+        }
+
+        if (_logWindowCount >= MaxLogsPerSecond)
+        {
+            ++_logWindowSuppressed;
+            return;
+        }
+        ++_logWindowCount;
         // 📌 把判出來的屬性一起記下來：使用者回報「該開的沒開」時，這一行是唯一能分辨
         //    「屬性判不出所以沒推」與「冷卻沒好／職業不對」的離線證據。
         var kind = incoming switch
@@ -419,6 +445,19 @@ public sealed class PredictiveMitigation(RotationModuleManager manager, Actor pl
             _ => "不適用"
         };
         Service.Logger.Information($"[PredMit] 推送減傷 {action}（傷害屬性：{kind}，HP {Player.PendingHPRatio:P0}）。");
+    }
+
+    /// <summary>清掉已經超過節流窗的字典項目；只在視窗滾動且字典明顯偏大時呼叫，不在每幀路徑上。</summary>
+    private void PruneLogTimes(DateTime now)
+    {
+        if (_lastLogTimes.Count <= 32)
+            return;
+        List<ActionID> stale = [];
+        foreach (var kv in _lastLogTimes)
+            if ((now - kv.Value).TotalSeconds >= 10)
+                stale.Add(kv.Key);
+        foreach (var k in stale)
+            _lastLogTimes.Remove(k);
     }
 
     #endregion
