@@ -543,8 +543,11 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
     /// <c>NavigationDecision.Build</c> 在最佳格就是玩家腳下時回傳 <c>Destination == null</c>，
     /// 而那有兩種完全不同的成因：<b>真的已經站在最好的位置</b>，或<b>目標區根本沒被 rasterize</b>
     /// （玩家格出了尋路視窗、或本地副本與存活 List 的 race）。有目標區卻回 null 就是後者的徵兆。
-    /// 🔴 2026-09-04 實機修正：上面最後那句判準寫太寬。105 次命中全部都是「玩家格權重
-    /// ＝場上最高權重」，也就是正常結果。真正的判準見 <see cref="IsNaviStuck"/>。
+    /// 🔴 2026-09-04 實機修正：上面最後那句判準寫太寬，而且「權重全 0 就是沒有 rasterize」
+    /// 也是錯的。六份實機 log 共 580 筆命中，分組之後是：317 筆玩家真的就站在最高權重格、
+    /// 20 筆是安全優先閘門（已畫上權重場＝否）—— 這 337 筆都是正常結果；
+    /// 189 筆已畫上權重場＝是、整張場卻還是 0（畫了等於沒畫）；54 筆場上有更高的格子卻回 null
+    /// —— 後面這 243 筆才是異常。判準見 <see cref="IsNaviStuck"/>。
     /// </remarks>
     private void LogNoDestination(bool evaluated, bool stuck)
     {
@@ -567,12 +570,22 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
     /// 尋路回 <c>null</c> 是不是<b>真的</b>異常。
     /// </summary>
     /// <remarks>
-    /// 兩個判準：①玩家格根本不在尋路視窗內 ⇒ 目標區對他完全沒有作用；
-    /// ②場上有權重更高的格子，尋路卻回 null ⇒ 明明有更好的位置卻不去。
-    /// 其餘情形（玩家格權重就是場上最高、或整張權重場是平的 0）都是<b>正確行為</b>，不該報。
+    /// 三個判準，任一成立就算異常：
+    /// ①玩家格根本不在尋路視窗內 ⇒ 目標區對他完全沒有作用。
+    /// ②目標區畫上去了，整張權重場卻還是 0（或更低）⇒ 畫了等於沒畫。
+    /// ③場上有權重更高的格子，尋路卻回 null ⇒ 明明有更好的位置卻不去。
+    /// 其餘情形（玩家格權重就是場上最高，而且那個最高是正的）都是<b>正確行為</b>，不該報。
+    /// 🔴 ②一定要帶上 <c>DiagGoalsRasterized</c>：沒有 rasterize 而權重全 0 是
+    /// 「詠唱中／玩家腳下即將被打到」的安全優先閘門（見 <c>NavigationDecision.Build</c>），
+    /// 那是刻意行為，不是異常（實機 20 筆）。只判權重是 0 會把它們一起報出來。
+    /// 📌 <c>Map.MaxPriority</c> 的初值就是 <c>0f</c>，所以②用 <c>&lt;= 0f</c> 是對
+    /// 「從來沒有被抬高過」的精確比對，不需要 epsilon —— 用寬的 epsilon 會把「玩家站在一個
+    /// 小的、真實存在的最高點」（實機看得到 0.10）誤報成異常。
     /// </remarks>
     private static bool IsNaviStuck(in NavigationDecision navi)
-        => !navi.DiagPlayerInWindow || navi.DiagMaxPriority > navi.DiagPlayerPriority + 1e-4f;
+        => !navi.DiagPlayerInWindow
+        || (navi.DiagGoalsRasterized && navi.DiagMaxPriority <= 0f)
+        || navi.DiagMaxPriority > navi.DiagPlayerPriority + 1e-4f;
 
     #endregion
 
@@ -664,8 +677,8 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             }
 
             // 只在「我方負責移動」時才有意義：讓位期間目的地本來就不該由這裡產生 ⇒ 那時是「沒問」不是「沒事」。
-            // 收緊判準：只有「回 null」加「場上有目標區」還不夠。實機 105 次命中裡
-            // 全部都是玩家真的就站在最高權重格（權重場在腳下是平的）＝正常結果。
+            // 收緊判準：只有「回 null」加「場上有目標區」還不夠。六份實機 log 的 580 筆命中裡，
+            // 337 筆是玩家真的就站在最高權重格、或是安全優先閘門，兩種都是正常結果。
             LogNoDestination(!yieldMovement, _naviDecision.Destination == null && _naviGoalZoneCount != 0 && IsNaviStuck(in _naviDecision));
 
             ctrl.NaviTargetPos = !yieldMovement && WorldState.CurrentTime >= _navStartTime && mustMoveNow ? _naviDecision.Destination : null;
