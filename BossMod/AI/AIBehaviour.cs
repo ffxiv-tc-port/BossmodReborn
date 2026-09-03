@@ -498,6 +498,9 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
     }
 
     private bool _loggedYieldMovement;
+    /// <summary>兩個方向的長說明各印過了沒；印過之後只留短行。</summary>
+    private bool _explainedYieldMovement;
+    private bool _explainedTakeBackMovement;
 
     /// <summary>
     /// 把「AI 把移動讓給預設集的自動移動模組」講出來。
@@ -511,9 +514,22 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         if (yield == _loggedYieldMovement)
             return;
         _loggedYieldMovement = yield;
+        // 長說明只印第一次：翻轉本身是有用的訊號（實機兩天約 3,150 行），但每次都重印
+        // 整段兩百字的說明純粹是雜訊。兩個方向各記一個旗標，兩邊的說明都至少出現一次。
+        bool explain;
+        if (yield)
+        {
+            explain = !_explainedYieldMovement;
+            _explainedYieldMovement = true;
+        }
+        else
+        {
+            explain = !_explainedTakeBackMovement;
+            _explainedTakeBackMovement = true;
+        }
         Service.Logger.Information(yield
-            ? "[AI] 移動擁有權交給預設集的「自動移動」模組：本 AI 這段期間完全不設導航目標。若角色同時站著不動，代表接手的那一方也沒寫出移動方向。"
-            : "[AI] 移動擁有權回到 AI 自動走位：預設集裡的「自動移動」模組沒有舉手（不在預設集裡、Destination 軌設成 None、或它這一段算不出目的地而主動交還——後者上一行會有 [NormalMovement] 的說明）。");
+            ? (explain ? "[AI] 移動擁有權交給預設集的「自動移動」模組：本 AI 這段期間完全不設導航目標。若角色同時站著不動，代表接手的那一方也沒寫出移動方向。" : "[AI] 移動擁有權交給預設集的「自動移動」模組")
+            : (explain ? "[AI] 移動擁有權回到 AI 自動走位：預設集裡的「自動移動」模組沒有舉手（不在預設集裡、Destination 軌設成 None、或它這一段算不出目的地而主動交還——後者上一行會有 [NormalMovement] 的說明）。" : "[AI] 移動擁有權回到 AI 自動走位"));
     }
 
     /// <summary>建導航決策那一刻場上有幾個目標區；給下面那支診斷區分「沒人給方向」與「給了方向但算不出來」。</summary>
@@ -527,6 +543,8 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
     /// <c>NavigationDecision.Build</c> 在最佳格就是玩家腳下時回傳 <c>Destination == null</c>，
     /// 而那有兩種完全不同的成因：<b>真的已經站在最好的位置</b>，或<b>目標區根本沒被 rasterize</b>
     /// （玩家格出了尋路視窗、或本地副本與存活 List 的 race）。有目標區卻回 null 就是後者的徵兆。
+    /// 🔴 2026-09-04 實機修正：上面最後那句判準寫太寬。105 次命中全部都是「玩家格權重
+    /// ＝場上最高權重」，也就是正常結果。真正的判準見 <see cref="IsNaviStuck"/>。
     /// </remarks>
     private void LogNoDestination(bool evaluated, bool stuck)
     {
@@ -544,6 +562,17 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             ? $"[AI] 導航算不出目的地：丟進尋路時場上有 {_naviGoalZoneCount} 個目標區，尋路卻回報「已經在最佳位置」⇒ 這一段不會移動。{_naviDecision.DiagSummary()}"
             : "[AI] 導航恢復：尋路重新算得出目的地。");
     }
+
+    /// <summary>
+    /// 尋路回 <c>null</c> 是不是<b>真的</b>異常。
+    /// </summary>
+    /// <remarks>
+    /// 兩個判準：①玩家格根本不在尋路視窗內 ⇒ 目標區對他完全沒有作用；
+    /// ②場上有權重更高的格子，尋路卻回 null ⇒ 明明有更好的位置卻不去。
+    /// 其餘情形（玩家格權重就是場上最高、或整張權重場是平的 0）都是<b>正確行為</b>，不該報。
+    /// </remarks>
+    private static bool IsNaviStuck(in NavigationDecision navi)
+        => !navi.DiagPlayerInWindow || navi.DiagMaxPriority > navi.DiagPlayerPriority + 1e-4f;
 
     #endregion
 
@@ -635,7 +664,9 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             }
 
             // 只在「我方負責移動」時才有意義：讓位期間目的地本來就不該由這裡產生 ⇒ 那時是「沒問」不是「沒事」。
-            LogNoDestination(!yieldMovement, _naviDecision.Destination == null && _naviGoalZoneCount != 0);
+            // 收緊判準：只有「回 null」加「場上有目標區」還不夠。實機 105 次命中裡
+            // 全部都是玩家真的就站在最高權重格（權重場在腳下是平的）＝正常結果。
+            LogNoDestination(!yieldMovement, _naviDecision.Destination == null && _naviGoalZoneCount != 0 && IsNaviStuck(in _naviDecision));
 
             ctrl.NaviTargetPos = !yieldMovement && WorldState.CurrentTime >= _navStartTime && mustMoveNow ? _naviDecision.Destination : null;
             ctrl.NaviTargetVertical = master != player ? master.PosRot.Y : null;

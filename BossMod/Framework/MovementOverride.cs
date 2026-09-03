@@ -76,6 +76,8 @@ public sealed unsafe class MovementOverride : IDisposable
 
     /// <summary>上一次記過的暫停狀態；用來只在<b>翻轉</b>時記一行 log。</summary>
     private bool _loggedAutoMovementPaused;
+    /// <summary>「暫停自動移動」的長說明印過了沒；印過之後只留短行。</summary>
+    private bool _explainedAutoMovementPause;
 
     /// <summary>
     /// 拍下這一幀的「暫停自動移動」鍵狀態。
@@ -94,9 +96,15 @@ public sealed unsafe class MovementOverride : IDisposable
         if (AutoMovementPaused == _loggedAutoMovementPaused)
             return;
         _loggedAutoMovementPaused = AutoMovementPaused;
-        Service.Logger.Information(AutoMovementPaused
-            ? $"[MovementOverride] 暫停自動移動:啟動（{key}）——這段期間 BMR 完全不注入移動輸入(走路與飛行都是),操作權整個交回使用者;出招、閃避提示、方位提示與減傷照常。"
-            : "[MovementOverride] 暫停自動移動:放開——自動移動當幀恢復。");
+        if (AutoMovementPaused)
+        {
+            // 長說明只印第一次：實機兩天翻轉 2,184 次，整段兩百字每次重印是純雜訊；
+            // 翻轉本身仍然每次都印，那才是要保留的訊號。
+            Service.Logger.Information(_explainedAutoMovementPause ? $"[MovementOverride] 暫停自動移動:啟動（{key}）" : $"[MovementOverride] 暫停自動移動:啟動（{key}）——這段期間 BMR 完全不注入移動輸入(走路與飛行都是),操作權整個交回使用者;出招、閃避提示、方位提示與減傷照常。");
+            _explainedAutoMovementPause = true;
+        }
+        else
+            Service.Logger.Information("[MovementOverride] 暫停自動移動:放開——自動移動當幀恢復。");
     }
 
     public bool MovementBlocked
@@ -390,10 +398,22 @@ public sealed unsafe class MovementOverride : IDisposable
         return false;
     }
 
+    // 上一次寫進 log 的 legacy mode 值；null ＝ 還沒印過任何一行。
+    private bool? _loggedLegacyMode;
+
     private void OnConfigChanged(object? sender, ConfigChangeEvent evt) => UpdateLegacyMode();
     private void UpdateLegacyMode()
     {
+        // UiControlChanged 會對「任何」UI 設定變更觸發，所以這個方法被呼叫得非常頻繁。
+        // LegacyMode 必須每次重讀（那是行為），但 log 只在值真的變了時才印：
+        // 無條件重印在實機兩天累積了 74,373 行，佔全部 log 的 11.7%（曾同一毫秒印 6 行）。
         LegacyMode = Service.GameConfig.UiControl.TryGetUInt("MoveMode", out var mode) && mode == 1;
-        Service.Log($"Legacy mode is now {(LegacyMode ? "enabled" : "disabled")}");
+        if (_loggedLegacyMode == LegacyMode)
+            return;
+        var firstLegacyModeLog = _loggedLegacyMode is null;
+        _loggedLegacyMode = LegacyMode;
+        Service.Log(firstLegacyModeLog
+            ? $"Legacy mode is initially {(LegacyMode ? "enabled" : "disabled")}"
+            : $"Legacy mode is now {(LegacyMode ? "enabled" : "disabled")}");
     }
 }
