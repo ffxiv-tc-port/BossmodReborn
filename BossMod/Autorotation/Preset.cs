@@ -98,7 +98,10 @@ public class JsonPresetConverter : JsonConverter<Preset>
             var mt = Type.GetType(jm.Name);
             if (mt == null || !RotationModuleRegistry.Modules.TryGetValue(mt, out var md))
             {
-                Service.Log($"Error while deserializing preset {res.Name}: failed to find module {jm.Name}");
+                // 📌 走 Information：使用者跑 LogLevel 2，Service.Log 是 Debug 級收不到。
+                //    模組整個被丟掉比單一軌道嚴重（該模組在這個預設集裡的所有設定一起消失），
+                //    卻反而是三者中唯一寫 Debug 的；這裡與下面的軌道／選項訊息對齊。
+                Service.Logger.Information($"[Autorotation] 預設集「{res.Name}」找不到模組 {jm.Name}，該模組的所有設定已略過（其餘模組不受影響）");
                 continue;
             }
 
