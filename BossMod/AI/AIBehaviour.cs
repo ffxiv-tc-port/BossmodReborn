@@ -424,7 +424,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
 
     #region 移動為什麼沒發生 —— 三個狀態轉換診斷
 
-    // 📌 三支都走 Information（使用者跑 LogLevel 2，Debug/Verbose 收不到），而且**只在狀態翻轉時記一行**：
+    // 📌 三支都走 Information（使用者跑 LogLevel 1，盲區只有 Verbose,Debug 收得到但單檔數十萬行會淹沒），而且**只在狀態翻轉時記一行**：
     //    這些判斷每幀都會走到，每幀印等於把 log 洗掉。
     // 🔑 三行合起來可以把「角色不動」拆成互斥的三種原因，不需要實機旁觀就能定案：
     //      ① 預設集根本沒掛上（沒有主要目標）⇒ 自動移動模組整段不執行
@@ -479,7 +479,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
     /// 2026-08-17 查「preset 開著卻不迴避」時就卡在這個分辨上：同一次 <c>Execute</c> 裡
     /// <see cref="LogMovementOwnership"/> 印了 114 行、<see cref="LogPresetGate"/> 0 行，
     /// 只能反推出是第 2 種，但無從得知是被哪個開關擋的。
-    /// 📌 走 <c>Information</c>：使用者的 LogLevel 是 2。只在翻轉時印。
+    /// 📌 走 <c>Information</c>：使用者的 LogLevel 是 1。只在翻轉時印。
     /// </remarks>
     private void LogPresetGateReachable(bool runs, bool forbidTargeting, bool cancelled)
     {

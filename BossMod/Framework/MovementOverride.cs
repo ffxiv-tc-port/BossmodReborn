@@ -83,7 +83,7 @@ public sealed unsafe class MovementOverride : IDisposable
     /// <remarks>
     /// 🔴 <b>只能從 <c>Plugin.DrawUI</c> 呼叫</b>（要有 ImGui context）。搬走之前先讀
     /// <see cref="IsModifierHeld"/> 的備註。
-    /// 📌 log 走 <c>Information</c>：使用者的 LogLevel 是 2。用途是讓「我按著 Alt 它怎麼還在自己走」
+    /// 📌 log 走 <c>Information</c>：使用者的 LogLevel 是 1。用途是讓「我按著 Alt 它怎麼還在自己走」
     /// 這種回報能一眼分辨「鍵根本沒被認到」與「認到了但走的人不是 BMR」（例如 vnavmesh 在走）。
     /// 只在翻轉時印——這支每幀都會被呼叫到。
     /// </remarks>
@@ -294,7 +294,7 @@ public sealed unsafe class MovementOverride : IDisposable
     /// ⚠️ <paramref name="evaluated"/> 為 false 代表這一幀連問都沒問（遊戲自己就停用了移動輸入），
     /// 那就<b>什麼都不宣稱</b>——維持上一次的判斷，不要把「不知道」印成「已恢復」。
     /// </para>
-    /// 📌 走 <c>Information</c>：使用者的 LogLevel 是 2。這條路徑完全隱形——
+    /// 📌 走 <c>Information</c>：使用者的 LogLevel 是 1。這條路徑完全隱形——
     /// vnavmesh 留了殘路徑時，注入會被永久壓住，而手動輸入與世界標線都正常，看不出任何異狀。
     /// </remarks>
     private void LogFollowPathYield(bool evaluated, bool followPathActive)
