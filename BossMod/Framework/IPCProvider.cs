@@ -10,6 +10,10 @@ sealed class IPCProvider : IDisposable
 
     public IPCProvider(BossModuleManager bossmod, AIHints hints, RotationModuleManager autorotation, ActionManagerEx amex, MovementOverride movement, AIManager ai)
     {
+        // 🔴 執行緒：IPC 端點跑在**呼叫端的執行緒**上（CallGate 是直接方法呼叫）。凡是碰得到
+        //    「每幀重建的集合」「存檔」「外掛狀態改變」的端點，本檔一律包進 IpcFrameworkGate.Get/Run
+        //    交回遊戲主執行緒；已經在主執行緒上呼叫時就地執行，行為與延遲逐字不變。
+        //    純值型別／參考比較的唯讀端點不包（包了只是白花一幀）—— 判準與清單見 IpcFrameworkGate.cs。
         Register("HasModuleByDataId", (uint dataId) => BossModuleRegistry.FindByOID(dataId) != null);
 
         #region 機制感知（回移自上游；端點名稱逐字對齊 upstream/main:BossMod/Framework/IPCProvider.cs）
@@ -112,17 +116,17 @@ sealed class IPCProvider : IDisposable
         Register("Timeline.NextVulnerableEndIn", () => nextTransitionIn(StateMachine.StateHint.VulnerableEnd));
 
         // 預測傷害類：AIHints.PredictedDamage 由 boss 模組每幀重建。
-        Register("Hints.NextDamageIn", () =>
+        Register("Hints.NextDamageIn", () => IpcFrameworkGate.Get("Hints.NextDamageIn", () =>
         {
             var predicted = hints.PredictedDamage;
             return predicted.Count == 0 ? float.MaxValue : (float)(predicted[0].Activation - DateTime.Now).TotalSeconds;
-        });
+        }, float.MaxValue));
 
-        Register("Hints.NextDamageType", () =>
+        Register("Hints.NextDamageType", () => IpcFrameworkGate.Get("Hints.NextDamageType", () =>
         {
             var predicted = hints.PredictedDamage;
             return predicted.Count == 0 ? 0 : (int)predicted[0].Type;
-        });
+        }, 0));
 
         // 分屬性的版本：掃**全部**條目找第一筆吻合的類型（不是只看 [0]）。
         float nextDamageOfType(AIHints.PredictedDamageType type)
@@ -140,9 +144,9 @@ sealed class IPCProvider : IDisposable
             return float.MaxValue;
         }
 
-        Register("Hints.NextRaidwideDamageIn", () => nextDamageOfType(AIHints.PredictedDamageType.Raidwide));
-        Register("Hints.NextTankbusterDamageIn", () => nextDamageOfType(AIHints.PredictedDamageType.Tankbuster));
-        Register("Hints.PredictedDamagePlayers", () => hints.PredictedDamage.Count == 0 ? 0ul : hints.PredictedDamage[0].Players.Raw);
+        Register("Hints.NextRaidwideDamageIn", () => IpcFrameworkGate.Get("Hints.NextRaidwideDamageIn", () => nextDamageOfType(AIHints.PredictedDamageType.Raidwide), float.MaxValue));
+        Register("Hints.NextTankbusterDamageIn", () => IpcFrameworkGate.Get("Hints.NextTankbusterDamageIn", () => nextDamageOfType(AIHints.PredictedDamageType.Tankbuster), float.MaxValue));
+        Register("Hints.PredictedDamagePlayers", () => IpcFrameworkGate.Get("Hints.PredictedDamagePlayers", () => hints.PredictedDamage.Count == 0 ? 0ul : hints.PredictedDamage[0].Players.Raw, 0ul));
 
         Register("Hints.MaxCastTime", () => hints.MaxCastTime);
 
@@ -163,7 +167,7 @@ sealed class IPCProvider : IDisposable
         Register("Movement.IsMoveRequested", movement.IsMoveRequested);
 
         Register("Hints.ForbiddenZonesCount", () => hints.ForbiddenZones.Count);
-        Register("Hints.ForbiddenZonesNextActivation", () => hints.ForbiddenZones.Count == 0 ? float.MaxValue : (float)(hints.ForbiddenZones[0].activation - DateTime.Now).TotalSeconds);
+        Register("Hints.ForbiddenZonesNextActivation", () => IpcFrameworkGate.Get("Hints.ForbiddenZonesNextActivation", () => hints.ForbiddenZones.Count == 0 ? float.MaxValue : (float)(hints.ForbiddenZones[0].activation - DateTime.Now).TotalSeconds, float.MaxValue));
         Register("Hints.ForbiddenDirectionsCount", () => hints.ForbiddenDirections.Count);
         Register("Hints.ArenaCenter", () => new Vector2(hints.PathfindMapCenter.X, hints.PathfindMapCenter.Z));
         Register("Hints.ArenaRadius", () => hints.PathfindMapBounds.Radius);
@@ -219,8 +223,8 @@ sealed class IPCProvider : IDisposable
             return j == n ? res : res[..j];
         }
 
-        Register("Hints.ShouldInterruptTargets", () => flaggedEnemies(hints.PotentialTargets, static e => e.ShouldBeInterrupted));
-        Register("Hints.ShouldStunTargets", () => flaggedEnemies(hints.PotentialTargets, static e => e.ShouldBeStunned));
+        Register("Hints.ShouldInterruptTargets", () => IpcFrameworkGate.Get<ulong[]>("Hints.ShouldInterruptTargets", () => flaggedEnemies(hints.PotentialTargets, static e => e.ShouldBeInterrupted), []));
+        Register("Hints.ShouldStunTargets", () => IpcFrameworkGate.Get<ulong[]>("Hints.ShouldStunTargets", () => flaggedEnemies(hints.PotentialTargets, static e => e.ShouldBeStunned), []));
 
         Register("Hints.SpecialModeIn", () => hints.ImminentSpecialMode == default
             ? float.MaxValue
@@ -232,17 +236,17 @@ sealed class IPCProvider : IDisposable
         // 🔑 刻意用 IsDashDangerous 這支「純幾何」的，不是 DashFixedDistanceCheck 那些條件委派 ——
         //    後者還會看 DashSafety/DashSafetyExtra 設定與 PendingKnockbacks，
         //    那是「我方要不要攔這一發」的策略，不是呼叫端問的「這個落點安不安全」。
-        Register("Hints.IsPositionSafe", (Vector3 to) =>
+        Register("Hints.IsPositionSafe", (Vector3 to) => IpcFrameworkGate.Get("Hints.IsPositionSafe", () =>
         {
             var player = bossmod.WorldState.Party.Player();
             return player != null && !ActionDefinitions.IsDashDangerous(player.Position, new WPos(to.X, to.Z), hints);
-        });
+        }, false));
 
-        Register("Hints.IsDashSafe", (Vector3 from, Vector3 to) =>
-            !ActionDefinitions.IsDashDangerous(new WPos(from.X, from.Z), new WPos(to.X, to.Z), hints));
+        Register("Hints.IsDashSafe", (Vector3 from, Vector3 to) => IpcFrameworkGate.Get("Hints.IsDashSafe", () =>
+            !ActionDefinitions.IsDashDangerous(new WPos(from.X, from.Z), new WPos(to.X, to.Z), hints), false));
 
         // 對齊 DashFixedDistanceCheck 的落點算法：dest = playerPos + playerRotation * range（backwards 時取負）。
-        Register("Hints.IsFixedDashSafe", (float range, bool backwards) =>
+        Register("Hints.IsFixedDashSafe", (float range, bool backwards) => IpcFrameworkGate.Get("Hints.IsFixedDashSafe", () =>
         {
             var player = bossmod.WorldState.Party.Player();
             if (player == null)
@@ -252,10 +256,10 @@ sealed class IPCProvider : IDisposable
 
             var dest = player.Position + player.Rotation.ToDirection() * range * (backwards ? -1f : 1f);
             return !ActionDefinitions.IsDashDangerous(player.Position, dest, hints);
-        });
+        }, false));
 
         // 對齊 BackdashCheck：dir = normalize(playerPos - enemyPos)，dest = playerPos + dir * range。
-        Register("Hints.IsBackdashSafe", (Vector3 enemyPos, float range) =>
+        Register("Hints.IsBackdashSafe", (Vector3 enemyPos, float range) => IpcFrameworkGate.Get("Hints.IsBackdashSafe", () =>
         {
             var player = bossmod.WorldState.Party.Player();
             if (player == null)
@@ -266,7 +270,7 @@ sealed class IPCProvider : IDisposable
             var dir = (player.Position - new WPos(enemyPos.X, enemyPos.Z)).Normalized();
             var dest = player.Position + dir * range;
             return !ActionDefinitions.IsDashDangerous(player.Position, dest, hints);
-        });
+        }, false));
 
         Register("AI.IsNavigating", () => ai.Controller.NaviTargetPos != null);
         Register("AI.NaviTargetPos", () =>
@@ -278,7 +282,7 @@ sealed class IPCProvider : IDisposable
 
         // 冷卻計畫（cooldown planner）：回傳沿著**當前生效分支**解析出來的預定動作。
         // 沒有計畫在跑時回空陣列的 JSON，不是 null —— 呼叫端可以無條件丟給 JSON 解析器。
-        Register("Plan.GetUpcomingActions", (float lookAheadSeconds) =>
+        Register("Plan.GetUpcomingActions", (float lookAheadSeconds) => IpcFrameworkGate.Get("Plan.GetUpcomingActions", () =>
         {
             var planner = autorotation.Planner;
             if (planner == null)
@@ -286,7 +290,7 @@ sealed class IPCProvider : IDisposable
 
             var actions = planner.GetUpcomingPlannedActions(bossmod.WorldState, autorotation.PlayerSlot, lookAheadSeconds);
             return JsonSerializer.Serialize(actions);
-        });
+        }, "[]"));
 
         // 推播：生效中的計畫換掉時發一次訊號，讓呼叫端知道該重新問 Plan.GetUpcomingActions。
         // 🔴 這個是唯一在本類別裡「訂閱別人事件」的端點，所以退訂必須掛進 _disposeActions ——
@@ -304,7 +308,7 @@ sealed class IPCProvider : IDisposable
         Service.Config.Modified.Subscribe(() => lastModified = DateTime.Now);
         Register("Configuration.LastModified", () => lastModified);
 
-        Register("Rotation.ActionQueue.HasEntries", () =>
+        Register("Rotation.ActionQueue.HasEntries", () => IpcFrameworkGate.Get("Rotation.ActionQueue.HasEntries", () =>
         {
             var entries = CollectionsMarshal.AsSpan(autorotation.Hints.ActionsToExecute.Entries);
             var len = entries.Length;
@@ -317,7 +321,7 @@ sealed class IPCProvider : IDisposable
                 }
             }
             return false;
-        });
+        }, false));
 
         // 完整 IPC 名稱:BossMod.ActionQueue.UseManualQueueEnabled
         // 回「手動佇列接管是否啟用」。唯讀、無副作用,每次呼叫讀設定現值(使用者中途改也拿得到新值)。
@@ -325,11 +329,11 @@ sealed class IPCProvider : IDisposable
         //    這個開關為 true 時會,為 false 時不會(見 ActionManagerEx.UseActionDetour)。
         Register("ActionQueue.UseManualQueueEnabled", () => Service.Config.Get<ActionTweaksConfig>().UseManualQueue);
 
-        Register("Presets.Get", (string name) =>
+        Register("Presets.Get", (string name) => IpcFrameworkGate.Get<string?>("Presets.Get", () =>
         {
             var preset = autorotation.Database.Presets.FindPresetByName(name);
             return preset != null ? JsonSerializer.Serialize(preset, Serialization.BuildSerializationOptions()) : null;
-        });
+        }, null));
         Register("Presets.Create", (string presetSerialized, bool overwrite) =>
         {
             var p = JsonSerializer.Deserialize<Preset>(presetSerialized, Serialization.BuildSerializationOptions());
