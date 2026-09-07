@@ -417,13 +417,69 @@ public sealed class Plugin : IDalamudPlugin
         var tsStart = DateTime.Now;
         // 🔴 必須在這裡拍(Draw 回呼裡),因為它會讀 ImGui 的按鍵狀態;真正的讀取者是
         //    MovementOverride 的兩支移動 detour,那邊不在 Draw 回呼裡、只能讀這一幀的快照。
-        _movementOverride.UpdateAutoMovementPause();
-        var moveImminent = _movementOverride.IsMoveRequested() && (!ActionManagerEx.Config.PreventMovingWhileCasting || _movementOverride.IsForceUnblocked());
+        // 🔴 這一步起到 _bossmod.Update() 為止,原本是六個裸敘述串在一起:任何一個擲出受管理
+        //    例外,同一幀後面的**全部**處理就整段不執行 —— 包含 _hintsBuilder.Update(危險區)、
+        //    _amex 的技能佇列、_rotation、_ai、WindowSystem.Draw() 與 ExecuteHints()。
+        //    而 Dalamud 那一側不會把 BMR 關掉:UiBuilder 的 Draw 走的是 InvokeSafely
+        //    (Dalamud/Utility/EventHandlerExtensions.cs:66 —— 逐個訂閱者 try/catch 之後只寫
+        //    一行 Log.Error,而且**每一幀**都寫),所以外面看到的只是「log 一直在噴、BMR 半死不活」。
+        //    ⇒ 逐一隔離:壞掉的那一步跳過,同一幀後面的照常跑;失敗訊息自己節流。
+        // 🔴 這不是 AccessViolationException 的防護 —— AVE 在 .NET Core 是 corrupted-state
+        //    exception,catch(Exception) 攔不到;這裡處理的只有受管理例外。
+        try
+        {
+            _movementOverride.UpdateAutoMovementPause();
+        }
+        catch (Exception ex)
+        {
+            LogDrawStepFailure("MovementOverride.UpdateAutoMovementPause", ex);
+        }
+        // 🔴 擲例外時退回 false ＝「這一幀沒有移動意圖」,那是保守值:唯一的消費端
+        //    AIHintsBuilder.Update(:62)只在它為 true 時把 hints.MaxCastTime 壓成 0
+        //    (＝這一幀不建議起長詠唱),回 false 只是少壓一次,不會多下任何指令。
+        //    表達式本身一字未動,只是把宣告與賦值拆開。
+        var moveImminent = false;
+        try
+        {
+            moveImminent = _movementOverride.IsMoveRequested() && (!ActionManagerEx.Config.PreventMovingWhileCasting || _movementOverride.IsForceUnblocked());
+        }
+        catch (Exception ex)
+        {
+            LogDrawStepFailure("MovementOverride.IsMoveRequested/IsForceUnblocked", ex);
+        }
 
-        _dtr.Update();
-        Camera.Instance?.Update();
-        _wsSync.Update(_prevUpdateTime);
-        _bossmod.Update();
+        try
+        {
+            _dtr.Update();
+        }
+        catch (Exception ex)
+        {
+            LogDrawStepFailure("DTRProvider.Update", ex);
+        }
+        try
+        {
+            Camera.Instance?.Update();
+        }
+        catch (Exception ex)
+        {
+            LogDrawStepFailure("Camera.Update", ex);
+        }
+        try
+        {
+            _wsSync.Update(_prevUpdateTime);
+        }
+        catch (Exception ex)
+        {
+            LogDrawStepFailure("WorldStateGameSync.Update", ex);
+        }
+        try
+        {
+            _bossmod.Update();
+        }
+        catch (Exception ex)
+        {
+            LogDrawStepFailure("BossModuleManager.Update", ex);
+        }
         _zonemod.ActiveModule?.Update();
         _hintsBuilder.Update(_hints, PartyState.PlayerSlot, moveImminent);
         // 危險區這時候才剛建好（hints.Clear -> 模組填 -> Normalize 都在上面那一行裡跑完）。
@@ -455,6 +511,61 @@ public sealed class Plugin : IDalamudPlugin
         Camera.Instance?.DrawWorldPrimitives();
         UpdatePendingConfigSave();
         _prevUpdateTime = DateTime.Now - tsStart;
+    }
+
+    /// <summary>DrawUI 開頭那幾步各自隔離之後,失敗訊息的節流表(鍵＝隔離點名稱)。</summary>
+    /// <remarks>
+    /// 📌 鍵是原始碼裡寫死的六個字面值,所以這張表不會長大,不需要淘汰。
+    /// 🔴 刻意<b>不用</b> <c>ECommons.Throttlers.EzThrottler</c>:那是整個外掛共用的靜態實例、
+    /// 內部是零同步的 <c>Dictionary</c>,而且首次必放行、key 全域持久。
+    /// </remarks>
+    private static readonly Dictionary<string, DateTime> _drawStepLastLog = [];
+
+    /// <summary>只保護 <see cref="_drawStepLastLog"/>。</summary>
+    /// <remarks>
+    /// 🔴 <b>鎖內只查表與寫回:不寫 log、不做 I/O、不碰 ImGui、不呼叫 IPC。</b>
+    /// 📌 現況這張表只有繪製執行緒會碰,上鎖是廉價的保險 —— 這個「字典＋時間戳」的形狀
+    /// 在艦隊裡已經以裸字典的形式壞過兩次(失敗形式是字典本身壞掉,不是拿到舊值)。
+    /// </remarks>
+    private static readonly object _drawStepLogGate = new();
+
+    /// <summary>同一個隔離點的失敗訊息最快每 10 秒一則。</summary>
+    /// <remarks>
+    /// ⚠️ 沒有節流的話,一個穩定重現的例外會以畫面更新率(每秒數十次)寫 log —— 那正是
+    /// 隔離之前 Dalamud 自己在做的事,把它原封不動搬過來就白隔離了。
+    /// </remarks>
+    private static readonly TimeSpan DrawStepLogThrottle = TimeSpan.FromSeconds(10d);
+
+    /// <summary>把 DrawUI 某一步的失敗記一行 Error(節流),然後回去繼續跑同一幀後面的處理。</summary>
+    /// <remarks>
+    /// 🔴 時間軸用 <see cref="DateTime.UtcNow"/>(牆鐘)而不是 <c>World.CurrentTime</c>:後者是
+    /// frame 時間戳,回放視窗裡會跳來跳去,拿它當節流基準會在倒帶時整批放行或整批卡死。
+    /// 🔴 最外層再包一次 catch:走到這裡的時候呼叫端正在收拾殘局,連「寫 log 本身失敗」
+    /// 也必須吞掉,否則例外會從 catch 區塊裡再飛出去,等於沒隔離。
+    /// </remarks>
+    private static void LogDrawStepFailure(string step, Exception ex)
+    {
+        try
+        {
+            var now = DateTime.UtcNow;
+            bool shouldLog;
+            lock (_drawStepLogGate)
+            {
+                shouldLog = !_drawStepLastLog.TryGetValue(step, out var last) || now - last >= DrawStepLogThrottle;
+                if (shouldLog)
+                {
+                    _drawStepLastLog[step] = now;
+                }
+            }
+            // 🔴 寫 log 一定在鎖外。
+            if (shouldLog)
+            {
+                Service.Logger.Error(ex, $"[Draw] 「{step}」擲出例外,這一幀只跳過它一步,DrawUI 後面的處理照常執行。相同的失敗最多每 {DrawStepLogThrottle.TotalSeconds:f0} 秒記一次。");
+            }
+        }
+        catch
+        {
+        }
     }
 
     /// <summary>
