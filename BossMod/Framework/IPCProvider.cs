@@ -485,6 +485,25 @@ sealed class IPCProvider : IDisposable
         //    Presets.Create/Delete/FindPresetByName 也開始 Trim，可能把本來區分得開的名字折在一起。
         Register("AI.SetPreset", (string name) => IpcFrameworkGate.Run("AI.SetPreset", () => ai.SetAIPreset(autorotation.Database.Presets.AllPresets.FirstOrDefault(x => x.Name.Trim().Equals(name.Trim(), PresetDatabase.NameComparison)))));
         Register("AI.GetPreset", () => ai.GetAIPreset);
+
+        // 🔑 給「全艦隊急停」用（TCToolbox 一鍵關掉所有會自己動的外掛）：外部外掛要能直接開關 AI。
+        //    走的是 /bmrai on|off 完全同一條路徑（AIManager.EnableConfig），不複製邏輯；
+        //    關閉時 SwitchToIdle() 本身就會 Controller.Clear()，導航目標一併清掉，不必另外停。
+        // 🔴 這是「改變外掛狀態」的端點（會 Dispose 生效中的循環模組、清導航、動 Autorot.Preset），
+        //    一定要交回主執行緒；逾時回「呼叫前的狀態」，讓急停的呼叫端看得出來它沒生效。
+        Register("AI.SetEnabled", (bool enable) =>
+        {
+            var before = ai.IsEnabled;
+            return IpcFrameworkGate.Get("AI.SetEnabled", () =>
+            {
+                ai.EnableConfig(enable);
+                var now = ai.IsEnabled;
+                Service.Logger.Information($"[BMR IPC] AI 由 IPC {(enable ? "開啟" : "關閉")}，目前狀態：{(now ? "開啟" : "關閉")}。");
+                return now;
+            }, before);
+        });
+        // 唯讀且只是參考比較（Beh != null），照本檔慣例不包閘門。
+        Register("AI.IsEnabled", () => ai.IsEnabled);
     }
 
     public void Dispose() => _disposeActions?.Invoke();
