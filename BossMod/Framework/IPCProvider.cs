@@ -302,7 +302,7 @@ sealed class IPCProvider : IDisposable
 
         #endregion
 
-        Register("Configuration", (List<string> args, bool save) => Service.Config.ConsoleCommand(args.AsSpan(), save));
+        Register("Configuration", (List<string> args, bool save) => IpcFrameworkGate.Get<List<string>>("Configuration", () => Service.Config.ConsoleCommand(args.AsSpan(), save), []));
 
         DateTime lastModified = DateTime.Now;
         Service.Config.Modified.Subscribe(() => lastModified = DateTime.Now);
@@ -349,45 +349,53 @@ sealed class IPCProvider : IDisposable
                 return false;
             }
             // 查重用與 FindPresetByName/CheckNameConflict 同一個比較器（見 PresetDatabase.NameComparison）。
-            var index = autorotation.Database.Presets.UserPresets.FindIndex(x => string.Equals(x.Name, p.Name, PresetDatabase.NameComparison));
-            if (index >= 0 && !overwrite)
-                return false;
-            autorotation.Database.Presets.Modify(index, p);
-            return true;
+            // 🔑 上面的反序列化與空名檢查是純受管理的工作，刻意留在呼叫端的執行緒上
+            //    （外部字串可能很大，沒必要佔用遊戲主執行緒的一幀）。從這裡開始才需要閘門：
+            //    UserPresets 是 framework 執行緒會改動的裸 List，Modify 之後還會 Save()（檔案 I/O）
+            //    並 Fire PresetModified（訂閱者 RotationModuleManager 會 Dispose 全部生效中的循環模組）。
+            Preset created = p;
+            return IpcFrameworkGate.Get("Presets.Create", () =>
+            {
+                var index = autorotation.Database.Presets.UserPresets.FindIndex(x => string.Equals(x.Name, created.Name, PresetDatabase.NameComparison));
+                if (index >= 0 && !overwrite)
+                    return false;
+                autorotation.Database.Presets.Modify(index, created);
+                return true;
+            }, false);
         });
-        Register("Presets.Delete", (string name) =>
+        Register("Presets.Delete", (string name) => IpcFrameworkGate.Get("Presets.Delete", () =>
         {
             var index = autorotation.Database.Presets.UserPresets.FindIndex(x => string.Equals(x.Name, name, PresetDatabase.NameComparison));
             if (index < 0)
                 return false;
             autorotation.Database.Presets.Modify(index, null);
             return true;
-        });
+        }, false));
 
         Register("Presets.GetActive", () => autorotation.Preset?.Name);
-        Register("Presets.SetActive", (string name) =>
+        Register("Presets.SetActive", (string name) => IpcFrameworkGate.Get("Presets.SetActive", () =>
         {
             var preset = autorotation.Database.Presets.FindPresetByName(name);
             if (preset == null)
                 return false;
             autorotation.Preset = preset;
             return true;
-        });
-        Register("Presets.ClearActive", () =>
+        }, false));
+        Register("Presets.ClearActive", () => IpcFrameworkGate.Get("Presets.ClearActive", () =>
         {
             if (autorotation.Preset == null)
                 return false;
             autorotation.Preset = null;
             return true;
-        });
+        }, false));
         Register("Presets.GetForceDisabled", () => autorotation.Preset == RotationModuleManager.ForceDisable);
-        Register("Presets.SetForceDisabled", () =>
+        Register("Presets.SetForceDisabled", () => IpcFrameworkGate.Get("Presets.SetForceDisabled", () =>
         {
             if (autorotation.Preset == RotationModuleManager.ForceDisable)
                 return false;
             autorotation.Preset = RotationModuleManager.ForceDisable;
             return true;
-        });
+        }, false));
 
         bool addTransientStrategy(string presetName, string moduleTypeName, string trackName, string value, StrategyTarget target = StrategyTarget.Automatic, int targetParam = 0)
         {
@@ -430,10 +438,10 @@ sealed class IPCProvider : IDisposable
                 ms.TransientSettings[index] = setting;
             return true;
         }
-        Register("Presets.AddTransientStrategy", (string presetName, string moduleTypeName, string trackName, string value) => addTransientStrategy(presetName, moduleTypeName, trackName, value));
-        Register("Presets.AddTransientStrategyTargetEnemyOID", (string presetName, string moduleTypeName, string trackName, string value, int oid) => addTransientStrategy(presetName, moduleTypeName, trackName, value, StrategyTarget.EnemyByOID, oid));
+        Register("Presets.AddTransientStrategy", (string presetName, string moduleTypeName, string trackName, string value) => IpcFrameworkGate.Get("Presets.AddTransientStrategy", () => addTransientStrategy(presetName, moduleTypeName, trackName, value), false));
+        Register("Presets.AddTransientStrategyTargetEnemyOID", (string presetName, string moduleTypeName, string trackName, string value, int oid) => IpcFrameworkGate.Get("Presets.AddTransientStrategyTargetEnemyOID", () => addTransientStrategy(presetName, moduleTypeName, trackName, value, StrategyTarget.EnemyByOID, oid), false));
 
-        Register("Presets.ClearTransientStrategy", (string presetName, string moduleTypeName, string trackName) =>
+        Register("Presets.ClearTransientStrategy", (string presetName, string moduleTypeName, string trackName) => IpcFrameworkGate.Get("Presets.ClearTransientStrategy", () =>
         {
             var mt = Type.GetType(moduleTypeName);
             if (mt == null || !RotationModuleRegistry.Modules.TryGetValue(mt, out var md))
@@ -449,8 +457,8 @@ sealed class IPCProvider : IDisposable
                 return false;
             ms.TransientSettings.RemoveAt(index);
             return true;
-        });
-        Register("Presets.ClearTransientModuleStrategies", (string presetName, string moduleTypeName) =>
+        }, false));
+        Register("Presets.ClearTransientModuleStrategies", (string presetName, string moduleTypeName) => IpcFrameworkGate.Get("Presets.ClearTransientModuleStrategies", () =>
         {
             var mt = Type.GetType(moduleTypeName);
             if (mt == null || !RotationModuleRegistry.Modules.TryGetValue(mt, out var md))
@@ -460,8 +468,8 @@ sealed class IPCProvider : IDisposable
                 return false;
             ms.TransientSettings.Clear();
             return true;
-        });
-        Register("Presets.ClearTransientPresetStrategies", (string presetName) =>
+        }, false));
+        Register("Presets.ClearTransientPresetStrategies", (string presetName) => IpcFrameworkGate.Get("Presets.ClearTransientPresetStrategies", () =>
         {
             var preset = autorotation.Database.Presets.FindPresetByName(presetName);
             if (preset == null)
@@ -469,13 +477,13 @@ sealed class IPCProvider : IDisposable
             foreach (var ms in preset.Modules)
                 ms.TransientSettings.Clear();
             return true;
-        });
+        }, false));
 
         // 🔑 preset 名查找統一走 PresetDatabase.NameComparison（見該常數，跨外掛 IPC 契約的唯一比較器）。
         //    這裡兩側都 .Trim() 是 SetPreset 這個呼叫點的區域輸入正規化（去掉呼叫方傳來的 preset 名頭尾空白），
         //    與大小寫敏感度是兩件事——刻意保留在此呼叫點，不提進 canonical 比較器：那會回頭讓已出貨的
         //    Presets.Create/Delete/FindPresetByName 也開始 Trim，可能把本來區分得開的名字折在一起。
-        Register("AI.SetPreset", (string name) => ai.SetAIPreset(autorotation.Database.Presets.AllPresets.FirstOrDefault(x => x.Name.Trim().Equals(name.Trim(), PresetDatabase.NameComparison))));
+        Register("AI.SetPreset", (string name) => IpcFrameworkGate.Run("AI.SetPreset", () => ai.SetAIPreset(autorotation.Database.Presets.AllPresets.FirstOrDefault(x => x.Name.Trim().Equals(name.Trim(), PresetDatabase.NameComparison)))));
         Register("AI.GetPreset", () => ai.GetAIPreset);
     }
 
