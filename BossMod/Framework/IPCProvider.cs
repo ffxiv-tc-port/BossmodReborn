@@ -568,6 +568,9 @@ sealed class IPCProvider : IDisposable
         });
         // 唯讀且只是參考比較（Beh != null），照本檔慣例不包閘門。
         Register("AI.IsEnabled", () => ai.IsEnabled);
+
+        // 深宮「拉這隻會不會一次帶上太多隻」；快照由 AutoClear 在框架執行緒每幀發佈，端點只讀快照、不經 IpcFrameworkGate。
+        Register("DeepDungeon.IsPullSafe", (ulong gameObjectId) => Global.DeepDungeon.DeepDungeonPullSafety.IsPullSafe(gameObjectId));
     }
 
     public void Dispose() => _disposeActions?.Invoke();

@@ -322,6 +322,7 @@ public abstract partial class AutoClear : ZoneModule
         // 🔴 離開深牢／卸載外掛都要把租約還回去。WrathComboBridge 內部已經把
         //    「WrathCombo 先卸載了」的情況包起來（IpcError 與非 IpcError 都接）。
         _wrathCombo.Dispose();
+        DeepDungeonPullSafety.Clear();
 
         _subscriptions.Dispose();
         _obstacles.Dispose();
@@ -2407,6 +2408,7 @@ public abstract partial class AutoClear : ZoneModule
     {
         if (!Config.Enable)
             return;
+        PublishPullSafety(player);
         RecordTrapDiagFrame(player, hints);
 
         // 🔴 保命藥水排在其他閘門**之前**。
