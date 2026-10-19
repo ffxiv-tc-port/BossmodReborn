@@ -2463,8 +2463,7 @@ public abstract partial class AutoClear : ZoneModule
             HandleFloorPathfind(player, hints);
         }
 
-        // 仇恨迴避只在「這一幀真的有加趕路目標區」時才疊。見 AddAggroAvoidance。
-        AddAggroAvoidance(player, hints);
+        // 仇恨迴避要等寶箱／傳送裝置／光點的目標區都決定了才疊（在本方法後段）。見 AddAggroAvoidance。
 
         DrawAOEs(playerSlot, player, hints);
         CalculateExtraHints(playerSlot, player, hints);
@@ -2588,6 +2587,7 @@ public abstract partial class AutoClear : ZoneModule
             {
                 _chestContentsGold[coffer.InstanceID] = p;
                 _lastChestContentsGold = null;
+                AddAggroAvoidance(player, hints, null, null, null);
                 return;
             }
 
@@ -2596,6 +2596,7 @@ public abstract partial class AutoClear : ZoneModule
                 // TODO figure out why the system log args arent working
                 _chestContentsSilver[coffer.InstanceID] = 1;
                 _lastChestMagicite = false;
+                AddAggroAvoidance(player, hints, null, null, null);
                 return;
             }
         }
@@ -2664,6 +2665,7 @@ public abstract partial class AutoClear : ZoneModule
         }
 
         Actor? usePassage = null;
+        Actor? passageGoal = null;
         // 同上：按住時連「戰鬥中」與「自動移動至下層傳送裝置」開關一起放行，
         // 但真的按下傳送裝置仍然只看 Config.AutoUsePassage（在下面），按住這顆鍵不會意外下一層。
         if (Palace.PassageActive && !HoardWalkSteering && (forceTravel || (!player.InCombat && Config.AutoPassage)))
@@ -2681,6 +2683,7 @@ public abstract partial class AutoClear : ZoneModule
                 hints.GoalZones.Add(_passageGoalNear.SingleTarget(hints, c.Position, 2f, 0.5f));
                 // give pathfinder a little help lmao
                 hints.GoalZones.Add(_passageGoalFar.SingleTarget(hints, c.Position, 25f, 0.25f));
+                passageGoal = c;
                 // 通道石比寶箱近就先去通道石——連互動也一起讓開，否則 InteractWithTarget
                 // 還是會把 AI 拉回寶箱那邊，等於這個「先去通道石」完全沒效果
                 if (player.DistanceToHitbox(c) < player.DistanceToHitbox(coffer) && !Config.OpenChestsFirst)
@@ -2720,8 +2723,14 @@ public abstract partial class AutoClear : ZoneModule
 
         // 直感魔石照出來的埋藏寶藏光點：純移動，所以歸「自動移動至寶箱」管，
         // 但埋藏的寶藏整個關掉時也不必再走過去
+        Actor? hoardLightGoal = null;
         if (!IsPlayerTransformed(player) && canNavigate && Config.AutoMoveTreasure && Config.BandedCoffer && hoardLight is Actor h && Palace.GetPomanderState(PomanderID.Intuition).Active)
+        {
             hints.GoalZones.Add(_hoardLightGoal.SingleTarget(hints, h.Position, 2f, 10f));
+            hoardLightGoal = h;
+        }
+
+        AddAggroAvoidance(player, hints, moveToCoffer, passageGoal, hoardLightGoal);
 
         var shouldTargetMobs = Config.AutoClear switch
         {
@@ -4622,8 +4631,8 @@ public abstract partial class AutoClear : ZoneModule
 
     /// <summary>這一幀 <see cref="HandleFloorPathfind"/> 真的加了趕路目標區。</summary>
     /// <remarks>
-    /// 🔴 仇恨迴避只在這個旗標為真的幀生效，不能只看 <c>canNavigate</c>：迴避的語意是「趕路時繞開」，
-    /// 沒有趕路目標區的幀不該因為被動怪而影響走位。
+    /// 🔴 仇恨迴避只在這個旗標為真、或這一幀有走去寶箱／傳送裝置／光點的目標區時生效，不能只看 <c>canNavigate</c>：
+    /// 迴避的語意是「趕路時繞開」，沒有任何目標區的幀不該因為被動怪而影響走位。
     /// </remarks>
     private bool _travelGoalAdded;
 
@@ -4829,9 +4838,9 @@ public abstract partial class AutoClear : ZoneModule
     /// <para>
     /// 🔴 <b>三個安全裝置，缺一個就會踩到已知的壞行為</b>：
     /// <list type="number">
-    /// <item><b>玩家已經在裡面的形狀一律不加</b>：玩家格落在禁區時 <c>NavigationDecision.Build</c> 整批不畫目標區，導航退成純逃離（「不趕路了，自己往後跑」）；跳過之後的語意剛好是「已經站在人家眼皮下就別再閃，直接走」。</item>
+    /// <item><b>玩家已經在裡面的形狀一律不加</b>（目標寶箱／傳送裝置／光點本身在裡面的也不加，照舊走過去）：玩家格落在禁區時 <c>NavigationDecision.Build</c> 整批不畫目標區，導航退成純逃離（「不趕路了，自己往後跑」）；跳過之後的語意剛好是「已經站在人家眼皮下就別再閃，直接走」。</item>
     /// <item><b>卡住就抑制</b>：禁區是硬的，繞不過去會走到邊緣停住。<see cref="AggroStuckSeconds"/> 秒內位移不到 <see cref="AggroStuckDistance"/>y 就把迴避整個關掉 <see cref="AggroSuppressSeconds"/> 秒、照舊行為直穿；互動期間暫停這個計時（見 <see cref="IsInteracting"/>）。</item>
-    /// <item><b>只在趕路的那些幀</b>（<see cref="_travelGoalAdded"/>）而且非戰鬥。戰鬥中一根汗毛都不動，陷阱迴避與風箏不受影響。</item>
+    /// <item><b>只在趕路、或走去寶箱／傳送裝置／埋藏寶藏光點的那些幀</b>（<see cref="_travelGoalAdded"/> 或呼叫端給了目標）而且非戰鬥。戰鬥中一根汗毛都不動，陷阱迴避與風箏不受影響。</item>
     /// </list>
     /// </para>
     /// <para>
@@ -4847,9 +4856,14 @@ public abstract partial class AutoClear : ZoneModule
     /// 大約是圓的兩到三倍常數成本，所以 <see cref="MaxAggroCircles"/> 維持 6 不放寬。
     /// </para>
     /// </remarks>
-    private void AddAggroAvoidance(Actor player, AIHints hints)
+    private void AddAggroAvoidance(Actor player, AIHints hints, Actor? coffer, Actor? passage, Actor? hoardLight)
     {
-        if (Config.AggroAvoidRadius <= 0f || !Config.AggroAvoid || !_travelGoalAdded || player.InCombat)
+        // 已經走到的目標不算「走去」：站在傳送裝置旁等人按確認時會被卡住偵測誤判成繞不過去。
+        coffer = Approaching(player, coffer);
+        passage = Approaching(player, passage);
+        hoardLight = Approaching(player, hoardLight);
+        var approaching = coffer != null || passage != null || hoardLight != null;
+        if (Config.AggroAvoidRadius <= 0f || !Config.AggroAvoid || !(_travelGoalAdded || approaching) || player.InCombat)
         {
             _aggroProgressSample = null;
             _aggroInteractSince = default;
@@ -4903,7 +4917,7 @@ public abstract partial class AutoClear : ZoneModule
             }
         }
 
-        int cones = 0, circles = 0, unknown = 0, skippedInside = 0, mimics = 0;
+        int cones = 0, circles = 0, unknown = 0, skippedInside = 0, mimics = 0, skippedTarget = 0;
         var pp = player.Position;
         _aggroInsideFrame.Clear();
         // 死者宮殿的擬態怪偵測距離比別的怪遠，見 MimicExtraRadius。每幀算一次就好。
@@ -4942,6 +4956,13 @@ public abstract partial class AutoClear : ZoneModule
                 continue;
             }
 
+            // 目標本身在形狀裡：加了就走不到，這一隻照舊（退路，與安全裝置 #1 同理）。
+            if (InsideShape(shape, coffer) || InsideShape(shape, passage) || InsideShape(shape, hoardLight))
+            {
+                ++skippedTarget;
+                continue;
+            }
+
             if (kind == MobAggroKind.Sight)
                 ++cones;
             else if (kind == null)
@@ -4963,6 +4984,8 @@ public abstract partial class AutoClear : ZoneModule
         }
 
         var added = cones + circles + unknown;
+        if ((coffer ?? passage ?? hoardLight) is Actor approachTarget)
+            LogAggroApproach(approachTarget, coffer != null ? "寶箱" : passage != null ? "傳送裝置" : "埋藏寶藏光點", added, skippedTarget, player.DistanceToHitbox(approachTarget));
         if (added == 0)
         {
             _aggroProgressSample = null;
@@ -5053,6 +5076,33 @@ public abstract partial class AutoClear : ZoneModule
                 $"，另有 {skippedInside} 隻因為玩家已在其範圍內而跳過（上限 {MaxAggroCircles}）" +
                 $"；候選裡有 {mimics} 隻死者宮殿擬態怪（半徑另加 {MimicExtraRadius:f0}y）。");
         }
+    }
+
+    private static bool InsideShape(Func<WPos, float> shape, Actor? target) => target != null && shape(target.Position) <= 0f;
+
+    private const float ApproachArrivedDistance = 3.5f;
+
+    private static Actor? Approaching(Actor player, Actor? target) => target != null && player.DistanceToHitbox(target) > ApproachArrivedDistance ? target : null;
+
+    private ulong _aggroApproachLoggedId;
+    private (bool Avoid, bool Skip) _aggroApproachLoggedState;
+    private DateTime _aggroApproachLoggedAt;
+
+    /// <summary>走去寶箱／傳送裝置／光點時的迴避診斷；同一個目標、同一種狀態 30 秒一行，狀態或目標換了 5 秒一行。</summary>
+    private void LogAggroApproach(Actor target, string label, int added, int skippedTarget, float distance)
+    {
+        if (added == 0 && skippedTarget == 0)
+            return;
+        var now = World.CurrentTime;
+        var state = (added > 0, skippedTarget > 0);
+        var same = target.InstanceID == _aggroApproachLoggedId && state == _aggroApproachLoggedState;
+        if ((now - _aggroApproachLoggedAt).TotalSeconds < (same ? 30d : 5d))
+            return;
+        (_aggroApproachLoggedId, _aggroApproachLoggedState, _aggroApproachLoggedAt) = (target.InstanceID, state, now);
+        var skip = skippedTarget > 0 ? $"{skippedTarget} 隻的偵測範圍蓋住{label}本身，避不開，那些照舊走過去" : "";
+        Service.Logger.Information(added > 0
+            ? $"[DD] 仇恨迴避：樓層 {Palace.Floor}，走去{label}的路上為了避開 {added} 隻未仇恨怪的偵測範圍改走禁區外的路{(skip.Length > 0 ? "；另有 " + skip : "")}（{label}在 {distance:f1}y 外）。"
+            : $"[DD] 仇恨迴避：樓層 {Palace.Floor}，{skip}（{label}在 {distance:f1}y 外）。");
     }
 
     #endregion
