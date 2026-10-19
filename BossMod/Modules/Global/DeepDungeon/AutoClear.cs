@@ -2407,6 +2407,7 @@ public abstract partial class AutoClear : ZoneModule
     {
         if (!Config.Enable)
             return;
+        RecordTrapDiagFrame(player, hints);
 
         // 🔴 保命藥水排在其他閘門**之前**。
         //    它若掛在 DeepDungeonAI（自動循環模組）上，沒有目標時那整條管線是關的——
@@ -2568,6 +2569,7 @@ public abstract partial class AutoClear : ZoneModule
                 fullClear = true;
             }
         }
+        _diagTrapZones = !Config.TrapHints ? TrapZoneDiag.Off : !_trapsHidden ? TrapZoneDiag.Revealed : HoardWalkIgnoringTraps ? TrapZoneDiag.HoardWalkIgnore : TrapZoneDiag.Added;
         if (Config.TrapHints && _trapsHidden && !HoardWalkIgnoringTraps)
         {
             var traps = _trapCircles;
