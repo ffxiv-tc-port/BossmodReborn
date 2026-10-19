@@ -731,6 +731,9 @@ public sealed class DeepDungeonAI : AIBase
 
     private bool ShouldPotion(StrategyValues strategy)
     {
+        // 判斷模組（AutoClear.UpdatePotions）在跑就交給它，免得兩套門檻同時推；它沒在跑（模組沒載入）時照舊。
+        if (Config.PotionAdvisor && (World.CurrentTime - Global.DeepDungeon.AutoClear.PotionAdvisorActiveAt).TotalSeconds < 1d)
+            return false;
         // 直接 foreach（結構列舉器）：LINQ Any 走介面會每幀裝箱一個列舉器
         foreach (var w in World.Actors)
             if (w.OID == (uint)OID.Unei)

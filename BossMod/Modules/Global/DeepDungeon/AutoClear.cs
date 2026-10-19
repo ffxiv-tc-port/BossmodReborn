@@ -323,6 +323,7 @@ public abstract partial class AutoClear : ZoneModule
         //    「WrathCombo 先卸載了」的情況包起來（IpcError 與非 IpcError 都接）。
         _wrathCombo.Dispose();
         DeepDungeonPullSafety.Clear();
+        FlushPotionSummary();
 
         _subscriptions.Dispose();
         _obstacles.Dispose();
@@ -572,32 +573,31 @@ public abstract partial class AutoClear : ZoneModule
     }
 
     private bool OpenGold => Config.GoldCoffer;
-    private bool OpenSilver
+    private bool OpenSilver => SilverCofferState() == SilverState.Open;
+
+    private enum SilverState : byte { No, LowHP, Open }
+
+    /// <summary>LowHP＝除了血量以外都會開（喝藥判斷模組拿它當血量閘門）。</summary>
+    private SilverState SilverCofferState()
     {
-        get
+        // disabled
+        if (!Config.SilverCoffer)
+            return SilverState.No;
+
+        // sanity check
+        if (World.Party.Player() is not { } player)
+            return SilverState.No;
+
+        // explosive silver chests deal 70% max hp damage
+        var lowHP = player.HPMP.CurHP <= player.HPMP.MaxHP * 0.7f;
+
+        // upgrade weapon if desired
+        var wanted = Palace.Progress.WeaponLevel + Palace.Progress.ArmorLevel < 198 || Palace.DungeonId switch
         {
-            // disabled
-            if (!Config.SilverCoffer)
-                return false;
-
-            // sanity check
-            if (World.Party.Player() is not { } player)
-                return false;
-
-            // explosive silver chests deal 70% max hp damage
-            if (player.HPMP.CurHP <= player.HPMP.MaxHP * 0.7f)
-                return false;
-
-            // upgrade weapon if desired
-            if (Palace.Progress.WeaponLevel + Palace.Progress.ArmorLevel < 198)
-                return true;
-
-            return Palace.DungeonId switch
-            {
-                DeepDungeonState.DungeonType.HOH or DeepDungeonState.DungeonType.EO => Palace.Floor >= 7, // magicite/demiclones start dropping on floor 7
-                _ => false,
-            };
-        }
+            DeepDungeonState.DungeonType.HOH or DeepDungeonState.DungeonType.EO => Palace.Floor >= 7, // magicite/demiclones start dropping on floor 7
+            _ => false,
+        };
+        return !wanted ? SilverState.No : lowHP ? SilverState.LowHP : SilverState.Open;
     }
 
     private bool OpenBronze => Config.BronzeCoffer;
@@ -2415,7 +2415,7 @@ public abstract partial class AutoClear : ZoneModule
         //    它若掛在 DeepDungeonAI（自動循環模組）上，沒有目標時那整條管線是關的——
         //    踩到陷阱多半正是趕路、沒有目標的時候，也就是說它在最需要的那一刻保證不會觸發。
         //    Boss 層與換層途中一樣會被打，所以也不受下面兩個條件限制。
-        UpdateEmergencyPotion(player, hints);
+        UpdatePotions(player, hints);
 
         if (Palace.IsBossFloor || BetweenFloors)
             return;
@@ -2465,6 +2465,8 @@ public abstract partial class AutoClear : ZoneModule
             AddHoardWalkGoal(player, hints);
             HandleFloorPathfind(player, hints);
         }
+        else if (canNavigate)
+            MarkHPGate(HPGate.Travel, Config.StopTravelBelowHPPercent);
 
         // 仇恨迴避要等寶箱／傳送裝置／光點的目標區都決定了才疊（在本方法後段）。見 AddAggroAvoidance。
 
@@ -2486,6 +2488,7 @@ public abstract partial class AutoClear : ZoneModule
         ulong magiciteChest = 0;
         var bronzeBlock = BronzeCofferBlock(player);
         Actor? blockedBronze = null;
+        var silverLowHP = (Config.AutoMoveTreasure || Config.AutoOpenTreasure) && SilverCofferState() == SilverState.LowHP;
 
         foreach (var a in World.Actors)
         {
@@ -2531,6 +2534,8 @@ public abstract partial class AutoClear : ZoneModule
             var isBronze = BronzeChestIDs.Contains(oid);
             if (isBronze && OpenBronze && bronzeBlock != BronzeBlock.None && a.IsTargetable && (blockedBronze?.DistanceToHitbox(player) ?? float.MaxValue) > a.DistanceToHitbox(player))
                 blockedBronze = a;
+            if (silverLowHP && oid == (uint)OID.SilverCoffer && a.IsTargetable)
+                MarkHPGate(HPGate.Silver, 70);
             if (a.IsTargetable && (
                 oid == (uint)OID.GoldCoffer && OpenGold ||
                 oid == (uint)OID.SilverCoffer && OpenSilver && player.HPMP.CurHP > player.HPMP.MaxHP * 0.7f ||
@@ -2556,6 +2561,8 @@ public abstract partial class AutoClear : ZoneModule
                 revealedTraps.Add((a.Position, 2f));
         }
         LogBronzeBlocked(player, bronzeBlock, blockedBronze);
+        if (bronzeBlock == BronzeBlock.LowHP && blockedBronze != null && (Config.AutoMoveTreasure || Config.AutoOpenTreasure))
+            MarkHPGate(HPGate.Bronze, (int)BronzeMinHPPercent);
 
         var fullClear = false;
         if (Config.FullClear && !HoardWalkSteering)

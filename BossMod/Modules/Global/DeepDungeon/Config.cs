@@ -50,7 +50,7 @@ public sealed class AutoDDConfig : ConfigNode
         //    （模組本身還有一層：AIBehaviour 的 `Preset = target.Target != null ? … : null`
         //    ——沒有目標時整條管線是關的。）
         ImGui.TextColored(PrereqNoteColor, Loc.T("DD_PrereqRotationModule",
-            "Note: the four \"Kite\" settings and \"also drink the deep dungeon's own potions\" are consumed by the \"Deep Dungeon AI\" autorotation module, not by this module. They do nothing unless that module is part of your active preset with the matching track switched on - and that module only runs while you have a target."));
+            "Note: the four \"Kite\" settings are consumed by the \"Deep Dungeon AI\" autorotation module, not by this module (so is \"also drink the deep dungeon's own potions\" while the potion advisor is off). They do nothing unless that module is part of your active preset with the matching track switched on - and that module only runs while you have a target."));
 
         ImGui.Separator();
     }
@@ -543,6 +543,41 @@ public sealed class AutoDDConfig : ConfigNode
     //    「替使用者自動花掉他刻意保留的資源」屬於不該預設開啟的那一類。
     //    ⚠️ 不影響低血量的保命藥水——那條只用一般治療劑（頂級／聖級／上級），買得到、無爭議。
     [PropertyDisplay("Also drink the deep dungeon's own potions automatically",
-        tooltip: "The deep-dungeon-only potions (Sustaining / Empyrean / Orthos) come from a special vendor, cannot be sold, and are usually saved for a moment you pick yourself - so they are NOT used automatically by default.\n\nTick this to let the module drink them below 40%/60% HP, which is what it used to do.\n\nSeparate from the emergency potion below 30% HP: that one only ever uses ordinary Max / Hyper / Super Potions.")]
+        tooltip: "The deep-dungeon-only potions (Sustaining / Empyrean / Orthos) come from a special vendor, cannot be sold, and are usually saved for a moment you pick yourself - so they are NOT used automatically by default.\n\nTick this to let BMR drink them. With the potion advisor below switched on, it decides when (see its settings). With the advisor off, they are drunk in combat below 60% HP (40% for tanks) by the \"Deep Dungeon AI\" autorotation module, which is what it used to do.\n\nOrdinary Max / Hyper / Super Potions are a separate matter and do not need this.")]
     public bool AutoUseDeepDungeonPotion = false;
+
+    // ── 喝藥判斷模組 ──────────────────────────────────────────────────
+    // 📌 BMR 的設定反序列化只覆寫 JSON 裡有的鍵，既有使用者缺鍵時拿到這裡的初始值。
+    // 預設開是使用者裁決（可推翻）；關掉＝逐字回到舊的兩段邏輯（30% 治療劑＋xan 的 60%／40% 秘藥）。
+    [PropertyDisplay("Potion advisor: decide when to drink potions",
+        tooltip: "One place decides both the ordinary healing potions and the deep dungeon's own potions, instead of two fixed HP thresholds.\n\nIn combat it estimates your HP 10 seconds ahead - from the damage you actually took over the last 10 seconds, or from how many enemies are attacking you, whichever is worse - and drinks the deep dungeon potion early when that estimate is low (only if \"also drink the deep dungeon's own potions\" is ticked). A healing potion is used below the threshold below, or when you are about to drop under 15% within 4 seconds, and it picks whichever potion in your bags heals the most at your current max HP.\n\nOut of combat it does not use healing potions by default. Below 50% HP, while low HP is what keeps you from travelling or opening a coffer, it drinks the deep dungeon potion instead.\n\nEvery potion it uses is written to the log, plus a one-line summary per floor.\n\nUntick for the old behaviour: a healing potion below 30% HP at any time, and the deep dungeon potion below 60% HP (tanks 40%) in combat.")]
+    public bool PotionAdvisor = true;
+
+    [PropertyDisplay("Potion advisor: in combat, drink the deep dungeon potion below this HP (%)",
+        tooltip: "Drunk once your HP is below this and is not expected to climb back above it within 10 seconds. Not drunk while its regen effect is still on you.\n\nNeeds \"also drink the deep dungeon's own potions\".")]
+    [PropertySlider(0, 100)]
+    public int RegenPotionCombatHP = 75;
+
+    [PropertyDisplay("Potion advisor: also drink it when HP is expected to fall below this within 10 seconds (%)",
+        tooltip: "The estimate takes the larger of the damage you actually took over the last 10 seconds and the number of enemies attacking you times a typical damage per enemy for this deep dungeon and floor, then adds natural regen and whatever is left of a deep dungeon potion already ticking. This catches a big pull before your HP has dropped much.")]
+    [PropertySlider(0, 100)]
+    public int RegenPotionProjectedHP = 45;
+
+    [PropertyDisplay("Potion advisor: use a healing potion below this HP (%)",
+        tooltip: "Ordinary Max / Hyper / Super Potions. Also used when HP is expected to fall below 15% within 4 seconds.\n\nThe one that heals the most at your current max HP is picked: above about 9,600 max HP a Super Potion (HQ) heals more than a Max Potion (HQ).")]
+    [PropertySlider(0, 100)]
+    public int EmergencyPotionHP = 30;
+
+    [PropertyDisplay("Potion advisor: also use healing potions out of combat",
+        tooltip: "Off by default. Out of combat your HP comes back by 10% every 3 seconds on its own, and almost every out-of-combat healing potion in your recordings was drunk right after a landmine or an exploding coffer - while a fight often starts within seconds of a trap. Keeping the potion's cooldown for that fight is worth more.\n\nTick to use one out of combat as well, below the healing potion threshold above.")]
+    public bool EmergencyPotionOutOfCombat = false;
+
+    [PropertyDisplay("Potion advisor: out of combat, drink the deep dungeon potion when low HP is holding you up",
+        tooltip: "Below 50% HP and out of combat, while low HP is the reason you are not travelling (\"stop travelling below this much HP\") or not opening a bronze or silver coffer, the deep dungeon potion is drunk so you can move on sooner - from 22% to 70% that is about 8 seconds instead of about 15.\n\nNeeds \"also drink the deep dungeon's own potions\".")]
+    public bool RegenPotionWhenHPGateBlocks = true;
+
+    [PropertyDisplay("Potion advisor: keep this many deep dungeon potions for manual use",
+        tooltip: "The advisor does not drink the deep dungeon potion when you have this many or fewer left. 0 = it may use all of them.")]
+    [PropertySlider(0, 20)]
+    public int RegenPotionReserve = 0;
 }

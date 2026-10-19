@@ -53,6 +53,10 @@ public sealed class ConfigChangelogWindow : UIWindow
     /// </remarks>
     private static readonly ConfigChangelogEntry[] Registry =
     [
+        new("7.25.0.66", ChangelogKind.NewOption, typeof(Global.DeepDungeon.AutoDDConfig), nameof(Global.DeepDungeon.AutoDDConfig.PotionAdvisor),
+            "CHANGELOG_DeepDungeonPotionAdvisor",
+            "Deep dungeon auto-clear now decides potion use in one place, and it is ON by default. In combat it drinks the deep dungeon's own potion earlier (below 75% HP, or when HP is expected to drop under 45% within 10 seconds) - only if you already allowed it to use those potions at all. Healing potions are used below 30%, or when you are about to fall under 15%, and the one that heals the most at your max HP is picked. Out of combat it no longer uses healing potions; below 50% HP while low HP stops travelling or opening a coffer, it drinks the deep dungeon potion instead. Every potion and a per-floor summary go to the log. Untick the option to get the old behaviour back."),
+
         // 沒有新增任何設定，但「右鍵雷達什麼都不會發生」變成了「會開選單」——
         // 而且它是唯一的入口：預設的透明雷達沒有標題列，齒輪與關閉鈕根本畫不出來。
         new("7.20.0.110", ChangelogKind.ChangedBehaviour, null, null,

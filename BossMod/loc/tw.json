@@ -3752,8 +3752,50 @@
   "Also drink the deep dungeon's own potions automatically": {
     "message": "同時自動使用深層迷宮專屬藥水"
   },
-  "The deep-dungeon-only potions (Sustaining / Empyrean / Orthos) come from a special vendor, cannot be sold, and are usually saved for a moment you pick yourself - so they are NOT used automatically by default.\n\nTick this to let the module drink them below 40%/60% HP, which is what it used to do.\n\nSeparate from the emergency potion below 30% HP: that one only ever uses ordinary Max / Hyper / Super Potions.": {
-    "message": "深層迷宮專屬藥水（生者秘藥／天之秘藥／正統治療劑）需向特殊商店購入、不可出售，通常會留著由你自己決定何時使用，因此預設不會自動使用。\n\n勾選後，模組會在血量低於 40%／60% 時自動喝掉它們，也就是以前的行為。\n\n這與血量低於 30% 的保命藥水是分開的：那條只會使用一般的頂級／聖級／上級治療劑。"
+  "The deep-dungeon-only potions (Sustaining / Empyrean / Orthos) come from a special vendor, cannot be sold, and are usually saved for a moment you pick yourself - so they are NOT used automatically by default.\n\nTick this to let BMR drink them. With the potion advisor below switched on, it decides when (see its settings). With the advisor off, they are drunk in combat below 60% HP (40% for tanks) by the \"Deep Dungeon AI\" autorotation module, which is what it used to do.\n\nOrdinary Max / Hyper / Super Potions are a separate matter and do not need this.": {
+    "message": "深層迷宮專屬藥水（生者秘藥／天之秘藥／正統治療劑）需向特殊商店購入、不可出售，通常會留著由你自己決定何時使用，因此預設不會自動使用。\n\n勾選後由 BMR 自動喝。開啟下方的喝藥判斷模組時，由它決定何時喝（見它的設定）；關閉時，由自動循環模組「Deep Dungeon AI」在戰鬥中血量低於 60%（坦克 40%）時喝，也就是以前的行為。\n\n一般的頂級／聖級／上級治療劑是另一回事，不需要這個選項。"
+  },
+  "Potion advisor: decide when to drink potions": {
+    "message": "喝藥判斷模組：由插件判斷何時喝藥"
+  },
+  "One place decides both the ordinary healing potions and the deep dungeon's own potions, instead of two fixed HP thresholds.\n\nIn combat it estimates your HP 10 seconds ahead - from the damage you actually took over the last 10 seconds, or from how many enemies are attacking you, whichever is worse - and drinks the deep dungeon potion early when that estimate is low (only if \"also drink the deep dungeon's own potions\" is ticked). A healing potion is used below the threshold below, or when you are about to drop under 15% within 4 seconds, and it picks whichever potion in your bags heals the most at your current max HP.\n\nOut of combat it does not use healing potions by default. Below 50% HP, while low HP is what keeps you from travelling or opening a coffer, it drinks the deep dungeon potion instead.\n\nEvery potion it uses is written to the log, plus a one-line summary per floor.\n\nUntick for the old behaviour: a healing potion below 30% HP at any time, and the deep dungeon potion below 60% HP (tanks 40%) in combat.": {
+    "message": "由同一處判斷一般治療劑與深層迷宮專屬藥水何時使用，取代原本兩個固定的血量門檻。\n\n戰鬥中會推算 10 秒後的血量——依近 10 秒實際受到的傷害，或正在攻擊你的敵人數量，取較嚴重的那個——推算值偏低時提早喝深層迷宮專屬藥水（需勾選「同時自動使用深層迷宮專屬藥水」）。治療劑在血量低於下方門檻、或預估 4 秒內會跌破 15% 時使用，並從背包裡挑出以你目前最大 HP 計算回復量最多的那一瓶。\n\n脫離戰鬥時預設不使用治療劑。血量低於 50%、而且正是因為血量低而無法趕路或開寶箱時，改喝深層迷宮專屬藥水。\n\n每喝一瓶都會在 log 寫一行，每層另有一行摘要。\n\n取消勾選即回到舊行為：任何時候血量低於 30% 喝治療劑，戰鬥中血量低於 60%（坦克 40%）喝深層迷宮專屬藥水。"
+  },
+  "Potion advisor: in combat, drink the deep dungeon potion below this HP (%)": {
+    "message": "喝藥判斷模組：戰鬥中血量低於此百分比時喝深層迷宮專屬藥水"
+  },
+  "Drunk once your HP is below this and is not expected to climb back above it within 10 seconds. Not drunk while its regen effect is still on you.\n\nNeeds \"also drink the deep dungeon's own potions\".": {
+    "message": "血量低於此值、而且預估 10 秒內不會回到此值以上時喝。身上還有它的持續回復效果時不喝。\n\n需勾選「同時自動使用深層迷宮專屬藥水」。"
+  },
+  "Potion advisor: also drink it when HP is expected to fall below this within 10 seconds (%)": {
+    "message": "喝藥判斷模組：預估 10 秒內血量會低於此百分比時也喝"
+  },
+  "The estimate takes the larger of the damage you actually took over the last 10 seconds and the number of enemies attacking you times a typical damage per enemy for this deep dungeon and floor, then adds natural regen and whatever is left of a deep dungeon potion already ticking. This catches a big pull before your HP has dropped much.": {
+    "message": "推算時取「近 10 秒實際受到的傷害」與「正在攻擊你的敵人數 × 這座深層迷宮、這個樓層每隻敵人的典型傷害」中較大者，再加上自然回復與已在生效中的深層迷宮專屬藥水剩餘的回復量。這能在血量還沒掉多少時，就應對一次拉到一大群敵人的情況。"
+  },
+  "Potion advisor: use a healing potion below this HP (%)": {
+    "message": "喝藥判斷模組：血量低於此百分比時使用治療劑"
+  },
+  "Ordinary Max / Hyper / Super Potions. Also used when HP is expected to fall below 15% within 4 seconds.\n\nThe one that heals the most at your current max HP is picked: above about 9,600 max HP a Super Potion (HQ) heals more than a Max Potion (HQ).": {
+    "message": "一般的頂級／聖級／上級治療劑。預估 4 秒內血量會跌破 15% 時也會使用。\n\n會挑出以你目前最大 HP 計算回復量最多的那一瓶：最大 HP 超過約 9,600 時，上級治療劑（HQ）回復得比頂級治療劑（HQ）多。"
+  },
+  "Potion advisor: also use healing potions out of combat": {
+    "message": "喝藥判斷模組：脫離戰鬥時也使用治療劑"
+  },
+  "Off by default. Out of combat your HP comes back by 10% every 3 seconds on its own, and almost every out-of-combat healing potion in your recordings was drunk right after a landmine or an exploding coffer - while a fight often starts within seconds of a trap. Keeping the potion's cooldown for that fight is worth more.\n\nTick to use one out of combat as well, below the healing potion threshold above.": {
+    "message": "預設關閉。脫離戰鬥時血量本來就每 3 秒自然回復 10%，而你的錄影裡脫離戰鬥時喝的治療劑，幾乎都是在踩到地雷或寶箱爆炸之後——陷阱之後常常幾秒內就開打，把治療劑的冷卻留給那場戰鬥更有價值。\n\n勾選後，脫離戰鬥時血量低於上方的治療劑門檻也會使用。"
+  },
+  "Potion advisor: out of combat, drink the deep dungeon potion when low HP is holding you up": {
+    "message": "喝藥判斷模組：脫離戰鬥時若因血量低而卡住，喝深層迷宮專屬藥水"
+  },
+  "Below 50% HP and out of combat, while low HP is the reason you are not travelling (\"stop travelling below this much HP\") or not opening a bronze or silver coffer, the deep dungeon potion is drunk so you can move on sooner - from 22% to 70% that is about 8 seconds instead of about 15.\n\nNeeds \"also drink the deep dungeon's own potions\".": {
+    "message": "脫離戰鬥、血量低於 50%，而且正是因為血量低才停止趕路（「血量低於這個百分比時停止趕路」）或不開銅寶箱／銀寶箱時，喝深層迷宮專屬藥水讓你早點繼續前進——從 22% 回到 70% 約 8 秒，不喝約 15 秒。\n\n需勾選「同時自動使用深層迷宮專屬藥水」。"
+  },
+  "Potion advisor: keep this many deep dungeon potions for manual use": {
+    "message": "喝藥判斷模組：保留這麼多瓶深層迷宮專屬藥水給手動使用"
+  },
+  "The advisor does not drink the deep dungeon potion when you have this many or fewer left. 0 = it may use all of them.": {
+    "message": "剩下的深層迷宮專屬藥水不多於此數量時，判斷模組不會自動喝。0＝可以全部用掉。"
   },
   "DD_PassageGeneric": {
     "message": "下一層傳送點"
@@ -8526,7 +8568,7 @@
     "message": "正統優雷卡"
   },
   "DD_PrereqRotationModule": {
-    "message": "注意：四個「風箏」設定與「同時自動喝深層迷宮專屬秘藥」是由自動循環模組「Deep Dungeon AI」讀取的，不是這個模組。那個模組沒有加進你目前使用的預設、或對應的 track 沒開，這幾項就完全不會作用——而且該模組只有在你有目標時才會執行。"
+    "message": "注意：四個「風箏」設定是由自動循環模組「Deep Dungeon AI」讀取的，不是這個模組（喝藥判斷模組關閉時，「同時自動使用深層迷宮專屬藥水」也是）。那個模組沒有加進你目前使用的預設、或對應的 track 沒開，這幾項就完全不會作用——而且該模組只有在你有目標時才會執行。"
   },
   "Use up a magicite / demiclone when a silver coffer is skipped because you are at cap": {
     "message": "銀寶箱因為魔石已滿而被跳過時，自動用掉一個騰位置"
@@ -8635,6 +8677,9 @@
   },
   "CHANGELOG_DeepDungeonWalkPause": {
     "message": "「按住暫停自動移動」現在連深層迷宮的「走到房間」一起管了。那一段路是 vnavmesh 在走而不是 BossMod，所以在此之前它完全不理會這顆鍵——那個選項自己的提示也是這樣寫的。現在按住的期間 BossMod 會請 vnavmesh 停住，放開就立刻放手。已經算好的路徑會保留，你會從當下所在的位置直接續走，不會重算路徑，也不會倒回去補走。"
+  },
+  "CHANGELOG_DeepDungeonPotionAdvisor": {
+    "message": "深層迷宮自動探索現在由同一處判斷何時喝藥，而且預設開啟。戰鬥中會更早喝深層迷宮專屬藥水（血量低於 75%，或預估 10 秒內會跌破 45%）——前提是你本來就允許它使用這種藥水。治療劑在血量低於 30%、或即將跌破 15% 時使用，並挑以你最大 HP 計算回復量最多的那一瓶。脫離戰鬥時不再使用治療劑；血量低於 50%、而且因血量低而停止趕路或不開寶箱時，改喝深層迷宮專屬藥水。每一瓶與每層摘要都會寫進 log。取消勾選這個選項即可回到舊行為。"
   },
   "CHANGELOG_PauseAutoMoveKey": {
     "message": "現在可以「按住一顆鍵暫停 BossMod 的自動移動」。跟幾乎所有其他新選項不同，這一個預設是「開」，綁定 Alt：按住 Alt 的期間插件完全不控制你的角色，走位完全回到你手上，放開當幀恢復。只有移動受影響——出招、閃避提示、方位提示與減傷都照舊。不想要的話，到「技能調整」把它設成「無」。"
