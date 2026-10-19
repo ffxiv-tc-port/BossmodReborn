@@ -21,12 +21,12 @@ sealed class P3Inception1(BossModule module) : Components.CastCounter(module, (u
         if (sphere != null)
         {
             if (!sphere.IsDead && Raid.WithSlot(true, true, true).WhereSlot(s => _tetherSources[s] != null).InRadiusExcluding(actor, _sphereRadius * 2f).Any())
-                hints.Add("GTFO from other tethers!");
+                hints.Add(Loc.T("GTFO from other tethers!"));
         }
         else if (!CrystalsDone)
         {
             if (Raid.WithSlot(true, true, true).WhereSlot(s => _tetherSources[s] == null).InRadiusExcluding(actor, _crystalRadius * 2f).Any())
-                hints.Add("GTFO from other crystals!");
+                hints.Add(Loc.T("GTFO from other crystals!"));
         }
     }
 

@@ -51,8 +51,10 @@ public sealed class SmartRotationTweak(WorldState ws, AIHints hints)
         if (_config.AvoidGazes || aiEnabled)
         {
             var deadline = ws.FutureTime(_config.MinTimeToAvoid);
-            foreach (var d in hints.ForbiddenDirections.Where(d => d.activation <= deadline))
+            foreach (var d in hints.ForbiddenDirections)
             {
+                if (d.activation > deadline)
+                    continue;
                 var center = (d.center - midpoint).Normalized();
                 var min = center - d.halfWidth;
                 if (min.Rad < -MathF.PI)

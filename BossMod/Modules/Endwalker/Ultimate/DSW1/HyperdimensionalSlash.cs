@@ -51,21 +51,21 @@ sealed class HyperdimensionalSlash(BossModule module) : BossComponent(module)
             if (_riskyTears[tearIndex])
                 hints.Add("Aim away from other tears!");
             if (actor.Position.InCircle(_tears[tearIndex].Pos, _linkRadius))
-                hints.Add("Stay closer to center!");
+                hints.Add(Loc.T("Stay closer to center!"));
         }
 
         // make sure actor is not clipped by any lasers
         var otherLasers = _laserTargets;
         otherLasers.Clear(slot);
         if (Raid.WithSlot(false, true, true).IncludedInMask(otherLasers).WhereActor(target => _aoeLaser.Check(actor.Position, Arena.Center, Angle.FromDirection(target.Position - Arena.Center))).Any())
-            hints.Add("GTFO from laser aoe!");
+            hints.Add(Loc.T("GTFO from laser aoe!"));
 
         // make sure actor is either not hit by cone (if is target of a laser) or is hit by a cone (otherwise)
         var hitByCone = _aoeCone.Check(actor.Position, Arena.Center, _coneDir);
         if (tearIndex >= 0 && hitByCone)
-            hints.Add("GTFO from cone aoe!");
+            hints.Add(Loc.T("GTFO from cone aoe!"));
         else if (tearIndex < 0 && !hitByCone)
-            hints.Add("Stack with others!");
+            hints.Add(Loc.T("Stack with others!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

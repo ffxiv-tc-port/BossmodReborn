@@ -93,7 +93,7 @@ sealed class PoisonGasMarch(BossModule module) : Components.StatusDrivenForcedMa
             return;
         var last = movements[count - 1];
         if (last.from != last.to && DestinationUnsafe(slot, actor, last.to))
-            hints.Add("Aim for green safe spot!");
+            hints.Add(Loc.T("Aim for green safe spot!"));
     }
 }
 

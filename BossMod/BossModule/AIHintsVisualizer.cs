@@ -1,6 +1,6 @@
 ﻿using BossMod.Autorotation.xan;
 using BossMod.Pathfinding;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace BossMod;
 
@@ -8,7 +8,7 @@ public sealed class AIHintsVisualizer(AIHints hints, WorldState ws, Actor player
 {
     private readonly MapVisualizer?[] _zoneVisualizers = new MapVisualizer?[hints.ForbiddenZones.Count];
     private MapVisualizer? _pathfindVisualizer;
-    private readonly NavigationDecision.Context _naviCtx = new();
+    private readonly NavigationDecision.Context _naviCtx = new() { LogLookahead = false }; // 偵錯視窗每幀重算，不要跟 AI 重複記閃避預判
     private NavigationDecision _navi;
     private float _naviTime;
     private readonly TrackPartyHealth _partyHealth = new(ws);

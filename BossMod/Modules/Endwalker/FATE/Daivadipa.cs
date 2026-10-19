@@ -200,16 +200,16 @@ class DivineCall(BossModule module) : Components.StatusDrivenForcedMarch(module,
         switch (Module.PrimaryActor.CastInfo?.Action.ID)
         {
             case (uint)AID.DivineCall1:
-                hints.Add("Apply backwards march debuff");
+                hints.Add(Loc.T("Apply backwards march debuff"));
                 break;
             case (uint)AID.DivineCall2:
-                hints.Add("Apply right march debuff");
+                hints.Add(Loc.T("Apply right march debuff"));
                 break;
             case (uint)AID.DivineCall3:
-                hints.Add("Apply fowards march debuff");
+                hints.Add(Loc.T("Apply fowards march debuff"));
                 break;
             case (uint)AID.DivineCall4:
-                hints.Add("Apply left march debuff");
+                hints.Add(Loc.T("Apply left march debuff"));
                 break;
         }
     }
@@ -229,7 +229,7 @@ class DivineCall(BossModule module) : Components.StatusDrivenForcedMarch(module,
         }
         else if (_lit.AOEs.Count != 0)
         {
-            hints.Add("Aim into AOEs!", DestinationUnsafe(slot, actor, movements[count - 1].to));
+            hints.Add(Loc.T("Aim into AOEs!"), DestinationUnsafe(slot, actor, movements[count - 1].to));
         }
     }
 }
@@ -255,5 +255,5 @@ class DaivadipaStates : StateMachineBuilder
 [ModuleInfo(BossModuleInfo.Maturity.Verified, Contributors = "Malediktus", GroupType = BossModuleInfo.GroupType.Fate, GroupID = 1763, NameID = 10269)]
 public class Daivadipa(WorldState ws, Actor primary) : BossModule(ws, primary, new(-608f, 811f), new ArenaBoundsSquare(24.5f))
 {
-    protected override bool CheckPull() => base.CheckPull() && (Center - Raid.Player()!.Position).LengthSq() < 625f;
+    protected override bool CheckPull() => base.CheckPull() && Raid.Player() is { } p && (Center - p.Position).LengthSq() < 625f;
 }

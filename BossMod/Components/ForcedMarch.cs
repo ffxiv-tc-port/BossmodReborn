@@ -34,7 +34,7 @@ public class GenericForcedMarch(BossModule module, float activationLimit = float
             return;
         var last = movements[count - 1];
         if (last.from != last.to && DestinationUnsafe(slot, actor, last.to))
-            hints.Add("Aim for safe spot!");
+            hints.Add(Loc.T("Aim for safe spot!"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

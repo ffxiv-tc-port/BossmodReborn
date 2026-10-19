@@ -38,7 +38,7 @@ class HellsGate(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (_targets.Count > 0 && !_targets.Contains(actor))
-            hints.Add("Kill the Iron Chain on bound players!");
+            hints.Add(Loc.T("Kill the Iron Chain on bound players!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

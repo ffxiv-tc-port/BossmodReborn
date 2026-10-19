@@ -28,11 +28,11 @@ sealed class ThornsOfDeath(BossModule module) : BossComponent(module)
 
         if (actor.Role != Role.Tank)
         {
-            hints.Add("Stay close to tethered wall!");
+            hints.Add(Loc.T("Stay close to tethered wall!"));
         }
         else
         {
-            hints.Add("Stay close to tethered wall or pass aggro to co-tank if needed!");
+            hints.Add(Loc.T("Stay close to tethered wall or pass aggro to co-tank if needed!"));
         }
     }
 

@@ -137,10 +137,10 @@ class SeduceOld(BossModule module) : Components.GenericAOEs(module)
             var aoes = ActiveAOEs(slot, actor);
             ref readonly var aoe = ref aoes[0];
             if (aoe.Color != Colors.SafeFromAOE && aoe.Check(actor.Position))
-                hints.Add("GTFO from chests!");
+                hints.Add(Loc.T("GTFO from chests!"));
         }
         else if (!isOld && active)
-            hints.Add("Get morphed!");
+            hints.Add(Loc.T("Get morphed!"));
     }
 }
 

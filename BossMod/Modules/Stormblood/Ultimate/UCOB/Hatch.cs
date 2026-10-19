@@ -23,9 +23,9 @@ class Hatch(BossModule module) : Components.CastCounter(module, (uint)AID.Hatch)
 
         var inNeurolink = _neurolinks.InRadius(actor.Position, 2).Any();
         if (_targets[slot])
-            hints.Add("Go to neurolink!", !inNeurolink);
+            hints.Add(Loc.T("Go to neurolink!"), !inNeurolink);
         else if (inNeurolink)
-            hints.Add("GTFO from neurolink!");
+            hints.Add(Loc.T("GTFO from neurolink!"));
     }
 
     public override PlayerPriority CalcPriority(int pcSlot, Actor pc, int playerSlot, Actor player, ref uint customColor)

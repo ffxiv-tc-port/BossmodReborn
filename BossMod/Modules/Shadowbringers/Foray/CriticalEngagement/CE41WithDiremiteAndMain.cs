@@ -152,7 +152,7 @@ class Shardstrike(BossModule module) : Components.SpreadFromCastTargets(module, 
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (IsSpreadTarget(actor))
-            hints.Add("Spread, avoid intersecting cage hitboxes!");
+            hints.Add(Loc.T("Spread, avoid intersecting cage hitboxes!"));
     }
 }
 
@@ -217,5 +217,5 @@ public class CE41WithDiremiteAndMain(WorldState ws, Actor primary) : BossModule(
         Arena.Actors(filteredcrystals, Colors.Object, true);
     }
 
-    protected override bool CheckPull() => base.CheckPull() && Raid.Player()!.Position.InCircle(Arena.Center, 30f);
+    protected override bool CheckPull() => base.CheckPull() && Raid.Player() is { } p && p.Position.InCircle(Arena.Center, 30f);
 }

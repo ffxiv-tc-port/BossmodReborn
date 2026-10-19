@@ -47,8 +47,23 @@ class TerminusEst(BossModule module) : Components.GenericAOEs(module)
 
     public override void OnActorCreated(Actor actor)
     {
+        // 6s is just a rough guess for the telegraph-only phase before the actor actually starts casting; once the real
+        // cast is visible (see Update below) we switch to the server-reported time so pathfinding sees the true, possibly
+        // staggered, per-caster resolve order instead of assuming they're all simultaneous
         if (actor.OID == (uint)OID.TerminusEst)
-            _aoes.Add(new(rect, actor.Position.Quantized(), actor.Rotation, WorldState.FutureTime(6d)));
+            _aoes.Add(new(rect, actor.Position.Quantized(), actor.Rotation, WorldState.FutureTime(6d), actorID: actor.InstanceID));
+    }
+
+    public override void Update()
+    {
+        var span = CollectionsMarshal.AsSpan(_aoes);
+        for (var i = 0; i < span.Length; ++i)
+        {
+            ref var aoe = ref span[i];
+            var caster = WorldState.Actors.Find(aoe.ActorID);
+            if (caster?.CastInfo != null && (caster.CastInfo.IsSpell(AID.TerminusEstTriple) || caster.CastInfo.IsSpell(AID.TerminusEstQuintuple)))
+                aoe.Activation = WorldState.FutureTime(caster.CastInfo.NPCRemainingTime);
+        }
     }
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
@@ -85,7 +100,7 @@ class AddEnrage(BossModule module) : BossComponent(module)
     }
 }
 
-class Heirsbane(BossModule module) : Components.SingleTargetCast(module, (uint)AID.Innocence, "");
+class Heirsbane(BossModule module) : Components.SingleTargetCast(module, (uint)AID.Heirsbane, "");
 
 class D143GaiusStates : StateMachineBuilder
 {

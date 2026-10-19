@@ -1,5 +1,5 @@
 using BossMod.Autorotation;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using System.IO;
 using System.Reflection;
 using Dalamud.Interface.Utility.Raii;
@@ -15,6 +15,9 @@ public sealed class ConfigUI : IDisposable
         public int Order;
         public UINode? Parent;
         public List<UINode> Children = [];
+
+        /// <summary>從根到本節點的名稱路徑（英文內部名），搜尋比對用。</summary>
+        public List<string> Path = [];
     }
 
     private readonly List<UINode> _roots = [];
@@ -32,13 +35,13 @@ public sealed class ConfigUI : IDisposable
         _ws = ws;
         _about = new(replayDir);
         _mv = new(rotationDB?.Plans, ws);
-        _presets = rotationDB != null ? new(rotationDB.Presets) : null;
+        _presets = rotationDB != null ? new(rotationDB) : null;
 
-        _tabs.Add("Settings", DrawSettings);
-        _tabs.Add("Supported bosses", () => _mv.Draw(_tree, _ws));
-        _tabs.Add("Autorotation presets", () => _presets?.Draw());
-        _tabs.Add("Slash commands", DrawAvailableCommands);
-        _tabs.Add("About", _about.Draw);
+        _tabs.Add(Loc.T("Tab_Settings", "Settings"), DrawSettings);
+        _tabs.Add(Loc.T("Tab_SupportedFights", "Supported bosses"), () => _mv.Draw(_tree, _ws));
+        _tabs.Add(Loc.T("Tab_AutorotPresets", "Autorotation presets"), () => _presets?.Draw());
+        _tabs.Add(Loc.T("Tab_SlashCommands", "Slash commands"), DrawAvailableCommands);
+        _tabs.Add(Loc.T("Tab_About", "About"), _about.Draw);
 
         Dictionary<Type, UINode> nodes = [];
         var nodes2 = _root.Nodes;
@@ -60,6 +63,7 @@ public sealed class ConfigUI : IDisposable
         }
 
         SortByOrder(_roots);
+        ResolvePaths(_roots, []);
     }
 
     public void Dispose()
@@ -126,56 +130,191 @@ public sealed class ConfigUI : IDisposable
         ( "r", "Opens the replay menu." ),
         ( "r on/off", "Starts/stops recording a replay." ),
         ( "gc", "Triggers the garbage collection." ),
+        ( "radar", "toggles radar display" ),
+        ( "radar on/off", "Sets radar display to on or off." ),
         ( "cfg", "Lists all configs." )
     ];
 
     private static void DrawAvailableCommands()
     {
-        ImGui.Text("Available Commands:");
+        ImGui.Text(Loc.T("CFG_AvailableCommands", "Available Commands:"));
         ImGui.Separator();
-        ImGui.Text("AI:");
+        ImGui.Text(Loc.T("CFG_AI", "AI:"));
         ImGui.Separator();
         for (var i = 0; i < 28; ++i)
         {
             ref readonly var text = ref _availableAICommands[i];
-            ImGui.Text($"/bmrai {text.Item1}: {text.Item2}");
+            ImGui.Text($"/bmrai {text.Item1}: {Loc.T(text.Item2)}");
         }
         ImGui.Separator();
-        ImGui.Text("Autorotation commands:");
+        ImGui.Text(Loc.T("CFG_AutorotCommands", "Autorotation commands:"));
         ImGui.Separator();
         for (var i = 0; i < 6; ++i)
         {
             ref readonly var text = ref _autorotationCommands[i];
-            ImGui.Text($"/bmr {text.Item1}: {text.Item2}");
+            ImGui.Text($"/bmr {text.Item1}: {Loc.T(text.Item2)}");
         }
         ImGui.Separator();
-        ImGui.Text("Other commands:");
+        ImGui.Text(Loc.T("CFG_OtherCommands", "Other commands:"));
         ImGui.Separator();
-        for (var i = 0; i < 7; ++i)
+        for (var i = 0; i < 9; ++i)
         {
             ref readonly var text = ref _availableOtherCommands[i];
-            ImGui.Text($"/bmr {text.Item1}: {text.Item2}");
+            ImGui.Text($"/bmr {text.Item1}: {Loc.T(text.Item2)}");
         }
     }
 
+    private string _searchText = "";
+    private readonly List<List<string>> _filterNodes = [];
+
     private void DrawSettings()
     {
+        ImGui.SetNextItemWidth(300f);
+        if (ImGui.InputTextWithHint("###configsearch", Loc.T("CFG_SearchHint", "Search for a setting..."), ref _searchText, 128))
+            FilterNodes();
+
+        ImGui.SameLine();
+        using (ImRaii.Disabled(_searchText.Length == 0))
+        {
+            if (ImGui.Button(Loc.T("CFG_SearchClear", "Clear")))
+            {
+                _searchText = "";
+                FilterNodes();
+            }
+        }
+
         using var child = ImRaii.Child("SettingsWindow", new Vector2(0, 0), true);
         if (child)
             DrawNodes(_roots);
     }
 
-    public static void DrawNode(ConfigNode node, ConfigRoot root, UITree tree, WorldState ws)
+    private void ResolvePaths(List<UINode> nodes, IEnumerable<string> parent)
     {
-        // draw standard properties
-        foreach (var field in node.GetType().GetFields())
+        foreach (var n in nodes)
+        {
+            n.Path = [.. parent, n.Name];
+            ResolvePaths(n.Children, n.Path);
+        }
+    }
+
+    /// <summary>
+    /// 比對一段文字是否命中搜尋詞。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>必須同時比對原文與譯文。</b>我們的設定頁標籤是在繪製當下才經
+    /// <c>Loc.T</c> 翻成繁中的，資料結構裡存的仍是英文原文。只比英文的話，
+    /// 使用者看著滿頁繁中、輸入繁中卻永遠零結果——搜尋框等於壞的。
+    /// 反過來只比譯文則會讓缺譯的項目搜不到，所以兩邊都要比。
+    /// </remarks>
+    private bool TextMatches(string text)
+        => text.Length > 0
+        && (text.Contains(_searchText, StringComparison.InvariantCultureIgnoreCase)
+            || Loc.T(text, text).Contains(_searchText, StringComparison.InvariantCultureIgnoreCase));
+
+    private void FilterNodes()
+    {
+        _filterNodes.Clear();
+        if (_searchText.Length == 0)
+            return;
+
+        foreach (var r in _roots)
+            WalkNodes(r, [], _filterNodes);
+    }
+
+    /// <summary>
+    /// 節點名的搜尋比對。除了 <see cref="TextMatches"/> 的原文／譯文兩軸，還要比對
+    /// <see cref="NodeDisplayName"/> 的結果——職業節點顯示的是「舞者（DNC）」，
+    /// 那個中文名不在 tw.json 的 <c>DNC</c> 鍵下（根本沒有那個鍵），
+    /// 只比 <c>Loc.T(name, name)</c> 的話使用者搜「舞者」會永遠零結果。
+    /// </summary>
+    private bool NodeNameMatches(string name)
+        => TextMatches(name)
+        || NodeDisplayName(name).Contains(_searchText, StringComparison.InvariantCultureIgnoreCase);
+
+    private void WalkNodes(UINode node, List<string> path, List<List<string>> results)
+    {
+        // 整頁命中：用 "*" 當萬用尾綴，代表這一頁底下所有項目都要顯示
+        if (NodeNameMatches(node.Name))
+        {
+            results.Add([.. path, node.Name, "*"]);
+            return;
+        }
+
+        foreach (var field in node.Node.GetType().GetFields())
         {
             var props = field.GetCustomAttribute<PropertyDisplayAttribute>();
-            if (props == null)
+            if (props != null && (TextMatches(props.Label) || TextMatches(props.Tooltip)))
+                results.Add([.. path, node.Name, props.Label]);
+        }
+
+        path.Add(node.Name);
+        foreach (var child in node.Children)
+            WalkNodes(child, path, results);
+        path.RemoveAt(path.Count - 1);
+    }
+
+    private bool MatchesFilter(List<string> path)
+    {
+        if (_filterNodes.Count == 0)
+            return true;
+
+        foreach (var filter in _filterNodes)
+        {
+            var i = 0;
+            var ok = true;
+            foreach (var f in filter)
+            {
+                if (f == "*" || i >= path.Count)
+                    break;
+                if (f != path[i])
+                {
+                    ok = false;
+                    break;
+                }
+                ++i;
+            }
+            if (ok)
+                return true;
+        }
+        return false;
+    }
+
+    // 一個設定欄位畫起來要用的反射結果；型別的欄位與屬性在執行期不變，所以每個型別只反射一次。
+    private sealed record class FieldDisplay(FieldInfo Field, PropertyDisplayAttribute Props, PropertyComboAttribute? Combo, PropertySliderAttribute? Slider, GroupDetailsAttribute? Group);
+
+    // 契約：只在繪製執行緒上讀寫。順序＝GetFields() 的順序、只留有 PropertyDisplay 的欄位。
+    private static readonly Dictionary<Type, FieldDisplay[]> _fieldDisplays = [];
+
+    private static FieldDisplay[] GetFieldDisplays(Type type)
+    {
+        if (!_fieldDisplays.TryGetValue(type, out var res))
+        {
+            List<FieldDisplay> list = [];
+            foreach (var field in type.GetFields())
+            {
+                var props = field.GetCustomAttribute<PropertyDisplayAttribute>();
+                if (props != null)
+                    list.Add(new(field, props, field.GetCustomAttribute<PropertyComboAttribute>(), field.GetCustomAttribute<PropertySliderAttribute>(), field.GetCustomAttribute<GroupDetailsAttribute>()));
+            }
+            _fieldDisplays[type] = res = [.. list];
+        }
+        return res;
+    }
+
+    public static void DrawNode(ConfigNode node, ConfigRoot root, UITree tree, WorldState ws, Func<PropertyDisplayAttribute, bool>? filter = null)
+    {
+        // draw page-wide preconditions/warnings *before* the options they apply to
+        node.DrawHeader(tree, ws);
+
+        // draw standard properties
+        foreach (var fd in GetFieldDisplays(node.GetType()))
+        {
+            var props = fd.Props;
+            if (filter != null && !filter(props))
                 continue;
 
-            var value = field.GetValue(node);
-            if (DrawProperty(props.Label, props.Tooltip, node, field, value, root, tree, ws))
+            var value = fd.Field.GetValue(node);
+            if (DrawProperty(Loc.T(props.Label, props.Label), Loc.T(props.Tooltip, props.Tooltip), node, fd, value, root, tree, ws))
             {
                 node.Modified.Fire();
             }
@@ -192,6 +331,36 @@ public sealed class ConfigUI : IDisposable
 
     private static string GenerateNodeName(Type t) => t.Name.EndsWith("Config", StringComparison.Ordinal) ? t.Name[..^"Config".Length] : t.Name;
 
+    /// <summary>節點名（英文內部名）→ 職業列舉；只在名稱剛好等於某個 <see cref="Class"/> 成員時命中。</summary>
+    private static readonly Dictionary<string, Class> _classNodeNames =
+        Enum.GetValues<Class>().Where(c => c != Class.None).ToDictionary(c => c.ToString());
+
+    /// <summary>
+    /// 設定樹節點的顯示名稱。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 <b>職業設定節點原本顯示的是三字母縮寫</b>——<see cref="GenerateNodeName"/> 由型別名
+    /// （<c>DNCConfig</c>）產生節點名 <c>DNC</c>，而「技能調整」底下十一個職業節點都沒有指定
+    /// <c>ConfigDisplay.Name</c>，於是整排都是 DNC／DRG／GNB…。對照官方繁中介面完全認不出來。
+    /// 這裡把剛好等於 <see cref="Class"/> 成員的節點名，改用既有的 <c>CLASS_*</c> 譯名顯示，
+    /// 縮寫保留在括號裡（縮寫是 BMR 各處通用的稱呼，拿掉反而不好對照）。
+    /// <para>
+    /// ⚠️ <b>只改顯示</b>：<c>UINode.Name</c>／<c>UINode.Path</c> 仍是英文內部名，
+    /// 而設定檔的序列化鍵是<b>型別名</b>（<c>ConfigRoot.LoadFromFile</c> 走 <c>Type.GetType</c>），
+    /// 兩者都不受影響。沒有 <c>CLASS_*</c> 譯文時（例如英文語系）退回原本的行為。
+    /// </para>
+    /// </remarks>
+    private static string NodeDisplayName(string name)
+    {
+        if (_classNodeNames.TryGetValue(name, out var c))
+        {
+            var localized = Loc.T($"CLASS_{c}", "");
+            if (localized.Length > 0)
+                return $"{localized}（{name}）";
+        }
+        return Loc.T(name, name);
+    }
+
     private static void SortByOrder(List<UINode> nodes)
     {
         nodes.Sort((a, b) => a.Order.CompareTo(b.Order));
@@ -201,12 +370,15 @@ public sealed class ConfigUI : IDisposable
 
     private void DrawNodes(List<UINode> nodes)
     {
-        foreach (var n in _tree.Nodes(nodes, n => new(n.Name)))
+        foreach (var n in _tree.Nodes(nodes.Where(n => MatchesFilter(n.Path)), n => new(NodeDisplayName(n.Name))))
         {
-            DrawNode(n.Node, _root, _tree, _ws);
+            // 沒有搜尋時 MatchesFilter 恆真：不傳過濾器，省掉每個欄位每幀組一份路徑
+            DrawNode(n.Node, _root, _tree, _ws, _filterNodes.Count == 0 ? null : PathFilter(n.Path));
             DrawNodes(n.Children);
         }
     }
+
+    private Func<PropertyDisplayAttribute, bool> PathFilter(List<string> path) => props => MatchesFilter([.. path, props.Label]);
 
     private static void DrawHelp(string tooltip)
     {
@@ -224,23 +396,22 @@ public sealed class ConfigUI : IDisposable
         ImGui.SameLine();
     }
 
-    private static bool DrawProperty(string label, string tooltip, ConfigNode node, FieldInfo member, object? value, ConfigRoot root, UITree tree, WorldState ws) => value switch
+    private static bool DrawProperty(string label, string tooltip, ConfigNode node, FieldDisplay fd, object? value, ConfigRoot root, UITree tree, WorldState ws) => value switch
     {
-        bool v => DrawProperty(label, tooltip, node, member, v),
-        Enum v => DrawProperty(label, tooltip, node, member, v),
-        float v => DrawProperty(label, tooltip, node, member, v),
-        int v => DrawProperty(label, tooltip, node, member, v),
-        string v => DrawProperty(label, tooltip, node, member, v),
-        Color v => DrawProperty(label, tooltip, node, member, v),
-        Color[] v => DrawProperty(label, tooltip, node, member, v),
-        GroupAssignment v => DrawProperty(label, tooltip, node, member, v, root, tree, ws),
+        bool v => DrawProperty(label, tooltip, node, fd.Field, fd.Combo, v),
+        Enum v => DrawProperty(label, tooltip, node, fd.Field, v),
+        float v => DrawProperty(label, tooltip, node, fd.Field, fd.Slider, v),
+        int v => DrawProperty(label, tooltip, node, fd.Field, fd.Slider, v),
+        string v => DrawProperty(label, tooltip, node, fd.Field, v),
+        Color v => DrawProperty(label, tooltip, node, fd.Field, v),
+        Color[] v => DrawProperty(label, tooltip, node, fd.Field, v),
+        GroupAssignment v => DrawProperty(label, tooltip, node, fd.Field, fd.Group, v, root, tree, ws),
         _ => false
     };
 
-    private static bool DrawProperty(string label, string tooltip, ConfigNode node, FieldInfo member, bool v)
+    private static bool DrawProperty(string label, string tooltip, ConfigNode node, FieldInfo member, PropertyComboAttribute? combo, bool v)
     {
         DrawHelp(tooltip);
-        var combo = member.GetCustomAttribute<PropertyComboAttribute>();
         if (combo != null)
         {
             if (UICombo.Bool(label, combo.Values, ref v))
@@ -271,10 +442,9 @@ public sealed class ConfigUI : IDisposable
         return false;
     }
 
-    private static bool DrawProperty(string label, string tooltip, ConfigNode node, FieldInfo member, float v)
+    private static bool DrawProperty(string label, string tooltip, ConfigNode node, FieldInfo member, PropertySliderAttribute? slider, float v)
     {
         DrawHelp(tooltip);
-        var slider = member.GetCustomAttribute<PropertySliderAttribute>();
         if (slider != null)
         {
             var flags = ImGuiSliderFlags.None;
@@ -298,10 +468,9 @@ public sealed class ConfigUI : IDisposable
         return false;
     }
 
-    private static bool DrawProperty(string label, string tooltip, ConfigNode node, FieldInfo member, int v)
+    private static bool DrawProperty(string label, string tooltip, ConfigNode node, FieldInfo member, PropertySliderAttribute? slider, int v)
     {
         DrawHelp(tooltip);
-        var slider = member.GetCustomAttribute<PropertySliderAttribute>();
         if (slider != null)
         {
             var flags = ImGuiSliderFlags.None;
@@ -365,9 +534,8 @@ public sealed class ConfigUI : IDisposable
         return modified;
     }
 
-    private static bool DrawProperty(string label, string tooltip, ConfigNode node, FieldInfo member, GroupAssignment v, ConfigRoot root, UITree tree, WorldState ws)
+    private static bool DrawProperty(string label, string tooltip, ConfigNode node, FieldInfo member, GroupDetailsAttribute? group, GroupAssignment v, ConfigRoot root, UITree tree, WorldState ws)
     {
-        var group = member.GetCustomAttribute<GroupDetailsAttribute>();
         if (group == null)
             return false;
 
@@ -383,7 +551,7 @@ public sealed class ConfigUI : IDisposable
             foreach (var n in group.Names)
                 ImGui.TableSetupColumn(n);
             ImGui.TableSetupColumn("----");
-            ImGui.TableSetupColumn("Name");
+            ImGui.TableSetupColumn(Loc.T("Name"));
             ImGui.TableHeadersRow();
 
             var assignments = root.Get<PartyRolesConfig>().SlotsPerAssignment(ws.Party);

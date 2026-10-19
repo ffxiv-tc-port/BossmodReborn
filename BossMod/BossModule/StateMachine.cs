@@ -1,4 +1,4 @@
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace BossMod;
 
@@ -106,39 +106,66 @@ public sealed class StateMachine(List<StateMachine.Phase> phases)
         }
     }
 
+    // 繪製用的暫存：只在繪製執行緒用、Draw 不重入。
+    private static readonly StringBuilder _drawText = new();
+    private static char[] _drawChars = new char[256];
+
     public void Draw()
     {
-        (var activeName, var next) = ActiveState != null ? BuildComplexStateNameAndDuration(ActiveState, TimeSinceTransition, true) : ("Inactive", null);
-        ImGui.TextUnformatted($"Cur: {activeName}");
+        var sb = _drawText;
+        sb.Clear().Append(Loc.T("SM_Cur", "Cur: "));
+        State? next = null;
+        if (ActiveState != null)
+            next = AppendComplexStateNameAndDuration(sb, ActiveState, TimeSinceTransition, true);
+        else
+            sb.Append(Loc.T("SM_Inactive", "Inactive"));
+        DrawText(sb);
 
-        var future = BuildStateChain(next, " ---> ");
-        if (future.Length == 0)
+        sb.Clear().Append(Loc.T("SM_Then", "Then: "));
+        var prefix = sb.Length;
+        AppendStateChain(sb, next, " ---> ", 5);
+        if (sb.Length == prefix)
         {
             ImGui.TextUnformatted("");
         }
         else
         {
-            ImGui.TextUnformatted($"Then: {future}");
+            DrawText(sb);
         }
+    }
+
+    private static void DrawText(StringBuilder sb)
+    {
+        var len = sb.Length;
+        if (_drawChars.Length < len)
+            _drawChars = new char[Math.Max(len, _drawChars.Length * 2)];
+        sb.CopyTo(0, _drawChars, 0, len);
+        ImGui.TextUnformatted(_drawChars.AsSpan(0, len));
     }
 
     public string BuildStateChain(State? start, string sep, int maxCount = 5)
     {
-        var count = 0;
         var res = new StringBuilder();
+        AppendStateChain(res, start, sep, maxCount);
+        return res.ToString();
+    }
+
+    private static void AppendStateChain(StringBuilder res, State? start, string sep, int maxCount)
+    {
+        var count = 0;
         while (start != null && count < maxCount)
         {
-            (var name, var next) = BuildComplexStateNameAndDuration(start, 0, false);
-            if (name.Length > 0)
-            {
-                if (res.Length > 0)
-                    res.Append(sep);
-                res.Append(name);
+            var mark = res.Length;
+            if (count > 0)
+                res.Append(sep);
+            var nameStart = res.Length;
+            var next = AppendComplexStateNameAndDuration(res, start, 0, false);
+            if (res.Length > nameStart)
                 ++count;
-            }
+            else
+                res.Length = mark; // 空名字不算一段，也不留分隔
             start = next;
         }
-        return res.ToString();
     }
 
     public DateTime NextTransitionWithFlag(StateHint flag)
@@ -155,13 +182,17 @@ public sealed class StateMachine(List<StateMachine.Phase> phases)
         return DateTime.MaxValue;
     }
 
-    private (string, State?) BuildComplexStateNameAndDuration(State start, float timeActive, bool writeTime)
+    // this whole chain (Draw -> AppendStateChain -> AppendComplexStateNameAndDuration) exists purely to render the sequence/timer line,
+    // so it is safe to localize the state names here - nothing else ever sees these strings
+    // 把狀態名（含 GroupWithNext 併進來的）與剩餘時間接在 res 後面；「名字是不是空的」只看這次接上去的部分。
+    private static State? AppendComplexStateNameAndDuration(StringBuilder res, State start, float timeActive, bool writeTime)
     {
-        var res = new StringBuilder(start.Name);
+        var baseLen = res.Length;
+        res.Append(HintText.Translate(start.Name));
         var timeLeft = Math.Max(0, start.Duration - timeActive);
-        if (writeTime && res.Length > 0)
+        if (writeTime && res.Length > baseLen)
         {
-            res.Append($" in {timeLeft:f1}s");
+            AppendTimeLeft(res, timeLeft);
             timeLeft = 0;
         }
 
@@ -171,13 +202,13 @@ public sealed class StateMachine(List<StateMachine.Phase> phases)
             timeLeft += Math.Max(0, start.Duration);
             if (start.Name.Length > 0)
             {
-                if (res.Length > 0)
+                if (res.Length > baseLen)
                     res.Append(" + ");
-                res.Append(start.Name);
+                res.Append(HintText.Translate(start.Name));
 
                 if (writeTime && timeLeft > 0)
                 {
-                    res.Append($" in {timeLeft:f1}s");
+                    AppendTimeLeft(res, timeLeft);
                     timeLeft = 0;
                 }
             }
@@ -185,12 +216,20 @@ public sealed class StateMachine(List<StateMachine.Phase> phases)
 
         if (writeTime && timeLeft > 0)
         {
-            if (res.Length == 0)
+            if (res.Length == baseLen)
                 res.Append("???");
-            res.Append($" in {timeLeft:f1}s");
+            AppendTimeLeft(res, timeLeft);
         }
 
-        return (res.ToString(), start.NextStates?.Length == 1 ? start.NextStates[0] : null);
+        return start.NextStates?.Length == 1 ? start.NextStates[0] : null;
+    }
+
+    // english reads "<name> in 3.5s", chinese reads "<name> 3.5 秒後" - hence a prefix + suffix pair rather than a format string
+    private static void AppendTimeLeft(StringBuilder res, float timeLeft)
+    {
+        res.Append(Loc.T("SM_TimePrefix", " in "));
+        res.Append($"{timeLeft:f1}");
+        res.Append(Loc.T("SM_TimeSuffix", "s"));
     }
 
     private void TransitionToPhase(int nextIndex)

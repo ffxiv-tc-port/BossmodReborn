@@ -52,25 +52,25 @@ class WreathOfThorns3(BossModule module) : BossComponent(module)
             var soakedTower = (CurState == State.RangedTowers ? RangedTowers : MeleeTowers).InRadius(actor.Position, P4S2.WreathTowerRadius).FirstOrDefault();
             if (shouldSoakTower)
             {
-                hints.Add("Soak the tower!", soakedTower == null);
+                hints.Add(Loc.T("Soak the tower!"), soakedTower == null);
             }
             else if (soakedTower != null)
             {
-                hints.Add("GTFO from tower!");
+                hints.Add(Loc.T("GTFO from tower!"));
             }
         }
 
         if (_playersInAOE[slot])
         {
-            hints.Add("GTFO from aoe!");
+            hints.Add(Loc.T("GTFO from aoe!"));
         }
         if (NumCones == NumJumps && actor == _jumpTarget && _playersInAOE.Any())
         {
-            hints.Add("GTFO from raid!");
+            hints.Add(Loc.T("GTFO from raid!"));
         }
         if (NumCones != NumJumps && actor == _jumpTarget && _coneTargets[slot])
         {
-            hints.Add("GTFO from boss!");
+            hints.Add(Loc.T("GTFO from boss!"));
         }
     }
 

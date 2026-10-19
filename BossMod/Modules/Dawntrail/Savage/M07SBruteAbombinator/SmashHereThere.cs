@@ -30,7 +30,7 @@ sealed class BrutalSmash(BossModule module) : Components.GenericSharedTankbuster
                         break;
                     }
                 }
-                hints.Add("Stack with other tanks or press invuln!", !otherTanksInAOE);
+                hints.Add(Loc.T("Stack with other tanks or press invuln!"), !otherTanksInAOE);
             }
             else
             {
@@ -44,11 +44,11 @@ sealed class BrutalSmash(BossModule module) : Components.GenericSharedTankbuster
                 hints.Add(!close ? "Move further away from boss!" : "Move closer to boss!");
             }
             else
-                hints.Add("Stack with tank!", !InAOE(actor));
+                hints.Add(Loc.T("Stack with tank!"), !InAOE(actor));
         }
         else if (Target.Role == Role.Tank)
         {
-            hints.Add("GTFO from tank!", InAOE(actor));
+            hints.Add(Loc.T("GTFO from tank!"), InAOE(actor));
         }
         bool InAOE(Actor actor) => Source != null && Target != null && Shape.Check(actor.Position, Target);
     }

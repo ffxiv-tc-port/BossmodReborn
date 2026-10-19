@@ -73,14 +73,14 @@ class BirdTether(BossModule module) : BossComponent(module)
                 var tetherSource = numCharges > 0 ? p1 : bird;
                 if (tetherSource?.Tether.ID != (uint)TetherID.LargeBirdFar)
                 {
-                    hints.Add("Too close!");
+                    hints.Add(Loc.T("Too close!"));
                 }
             }
         }
 
         if (_playersInAOE[slot])
         {
-            hints.Add("GTFO from charge zone!");
+            hints.Add(Loc.T("GTFO from charge zone!"));
         }
     }
 

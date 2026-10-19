@@ -199,7 +199,7 @@ sealed class CorePlatform(BossModule module) : Components.GenericAOEs(module)
             ref var a = ref aoe;
             if (!a.Check(actor.Position))
             {
-                hints.Add("Walk into the glowing circle!");
+                hints.Add(Loc.T("Walk into the glowing circle!"));
             }
         }
     }

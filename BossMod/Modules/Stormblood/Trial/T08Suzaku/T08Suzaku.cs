@@ -23,7 +23,9 @@ class Hotspot(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Hotsp
 class Swoop(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Swoop, new AOEShapeRect(55, 3));
 class WellOfFlame(BossModule module) : Components.SimpleAOEs(module, (uint)AID.WellOfFlame, new AOEShapeRect(41, 10));
 
-[ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 596, NameID = 6221)]
+// NameID only labels the entry in ModuleViewer. 7702 is 朱雀 in the TC BNpcName sheet; upstream's 6221
+// is Susano's row.
+[ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 596, NameID = 7702)]
 public class T08Suzaku(WorldState ws, Actor primary) : BossModule(ws, primary, ArenaCenter, new ArenaBoundsCircle(20))
 {
     private static readonly WPos ArenaCenter = new(100, 100);

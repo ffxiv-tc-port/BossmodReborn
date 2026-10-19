@@ -39,7 +39,18 @@ public sealed class ObstacleMapManager : IDisposable
         _subscriptions.Dispose();
     }
 
-    public (ObstacleMapDatabase.Entry? entry, Bitmap? data) Find(Vector3 pos) => _entries.FirstOrDefault(e => e.entry.Contains(pos));
+    // 每幀呼叫：第一個包含這個位置的條目，沒有就回 (null, null)。
+    public (ObstacleMapDatabase.Entry? entry, Bitmap? data) Find(Vector3 pos)
+    {
+        var count = _entries.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var e = _entries[i];
+            if (e.entry.Contains(pos))
+                return e;
+        }
+        return default;
+    }
     public bool CanEditDatabase() => _config.LoadFromSource;
     public uint ZoneKey(ushort zoneId, ushort cfcId) => ((uint)zoneId << 16) | cfcId;
     public uint CurrentKey() => ZoneKey(World.CurrentZone, World.CurrentCFCID);

@@ -36,7 +36,7 @@ class Haste(BossModule module) : BossComponent(module)
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (HasteB)
-            hints.Add("Getting hit by the needle attack will instantly kill you from now on!");
+            hints.Add(Loc.T("Getting hit by the needle attack will instantly kill you from now on!"));
     }
 }
 

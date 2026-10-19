@@ -84,25 +84,50 @@ internal sealed class PacketInterceptor : IDisposable
         _sendHook?.Dispose();
     }
 
+    // fail-closed 約定（見 Util/DetourGuard.cs）：自訂邏輯（含訂閱者的回呼）進 try，Original 一律照樣呼叫、照樣回傳其結果。
+    // outData 刻意不補判空：Original 就是負責**寫入** outData 的遊戲函式，它已經先解參考過了；packet 則是我們比 Original 先讀，有判空。
+    // Original 回 false（這次沒取到封包）時不讀 outData。現行台服執行檔裡呼叫端每次呼叫前都把 outData->IPC 清成 null，
+    //    所以今天這個判斷與下面的判空等價；留著是為了改版後呼叫端若不再清，沒取到那次不會去讀上一個已釋放封包的指標。
+
     private unsafe bool FetchReceivedPacketDetour(void* self, ReceivedPacket* outData)
     {
         var res = _fetchHook!.Original(self, outData);
-        if (outData->IPC != null)
+        try
         {
-            ServerIPCReceived?.Invoke(
-                DateTimeOffset.FromUnixTimeMilliseconds(outData->SendTimestamp).DateTime,
-                outData->IPC->SourceActor,
-                outData->IPC->TargetActor,
-                outData->IPC->PacketData->MessageType,
-                outData->IPC->PacketData->Epoch,
-                new(outData->IPC->PacketData + 1, (int)outData->IPC->PacketSize - sizeof(ServerIPC.IPCHeader)));
+            // 🔴 IPC 與 IPC->PacketData 都要判 —— 下面連著解參考 PacketData->MessageType／
+            //    ->Epoch，並拿 PacketData+1 當 Span 的起點，少判一層是 AVE（攔不到）。
+            //    null 時只是這一個封包不進網路記錄。
+            if (res && outData->IPC != null && outData->IPC->PacketData != null)
+            {
+                ServerIPCReceived?.Invoke(
+                    DateTimeOffset.FromUnixTimeMilliseconds(outData->SendTimestamp).DateTime,
+                    outData->IPC->SourceActor,
+                    outData->IPC->TargetActor,
+                    outData->IPC->PacketData->MessageType,
+                    outData->IPC->PacketData->Epoch,
+                    new(outData->IPC->PacketData + 1, (int)outData->IPC->PacketSize - sizeof(ServerIPC.IPCHeader)));
+            }
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(FetchReceivedPacketDetour), ex);
         }
         return res;
     }
 
     private unsafe byte SendPacketDetour(void* self, SentIPCHeader* packet, int* a3, byte a4)
     {
-        ClientIPCSent?.Invoke(packet->Opcode, new((byte*)packet + 0x20, (int)packet->PayloadSize - 0x10));
+        try
+        {
+            // 🔴 這支是**我們比 Original 先解參考封包**（Original 在最後才呼叫），所以這裡的判空
+            //    是有意義的：null 時我們不會搶在遊戲之前崩，且崩的堆疊會正確落在遊戲自己身上。
+            if (packet != null)
+                ClientIPCSent?.Invoke(packet->Opcode, new((byte*)packet + 0x20, (int)packet->PayloadSize - 0x10));
+        }
+        catch (Exception ex)
+        {
+            DetourGuard.Report(nameof(SendPacketDetour), ex);
+        }
         return _sendHook!.Original(self, packet, a3, a4);
     }
 }

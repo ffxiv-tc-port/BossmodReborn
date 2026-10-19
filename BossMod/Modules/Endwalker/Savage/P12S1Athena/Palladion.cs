@@ -100,7 +100,7 @@ sealed class PalladionShockwave(BossModule module) : Components.GenericAOEs(modu
     {
         base.AddHints(slot, actor, hints);
         if (_palladion != null && NumCasts < _palladion.JumpTargets.Length && _palladion.JumpTargets[NumCasts] is var target && (target == actor || target == _palladion.Partners[NumCasts]) && actor.Position.InCircle(_origin, 23))
-            hints.Add("Too close!");
+            hints.Add(Loc.T("Too close!"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)
@@ -213,7 +213,7 @@ sealed class PalladionWhiteFlame : Components.GenericBaitAway
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (NumCasts < 4 && !ForbiddenPlayers[slot])
-            hints.Add("Bait next aoe", CurrentBaits.Count != 0 && ActiveBaitsOn(actor).Count == 0);
+            hints.Add(Loc.T("Bait next aoe"), CurrentBaits.Count != 0 && ActiveBaitsOn(actor).Count == 0);
         base.AddHints(slot, actor, hints);
     }
 

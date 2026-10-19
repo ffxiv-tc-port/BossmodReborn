@@ -34,7 +34,7 @@ sealed class P2Nisi : BossComponent
     {
         if (PassPartnerSlot(slot) >= 0)
         {
-            hints.Add("Pass nisi!");
+            hints.Add(Loc.T("Pass nisi!"));
         }
     }
 

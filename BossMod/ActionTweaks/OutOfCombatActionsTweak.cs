@@ -8,6 +8,9 @@ class OutOfCombatActionsConfig : ConfigNode
 
     [PropertyDisplay("Auto use Peloton when moving out of combat")]
     public bool AutoPeloton = false;
+
+    [PropertyDisplay("Only auto use Peloton inside duties", tooltip: "Restricts the option above to instanced content - anything entered through the duty finder. When off, Peloton is also used while moving around the overworld.")]
+    public bool AutoPelotonOnlyInDuty = false;
 }
 
 // Tweak to automatically use out-of-combat convenience actions (peloton, pet summoning, etc).
@@ -38,7 +41,10 @@ public sealed class OutOfCombatActionsTweak : IDisposable
         if (!_config.Enabled || player.InCombat || _ws.Client.CountdownRemaining != null || player.MountId != 0 || player.Statuses.Any(s => s.ID is 418u or 2648u)) // note: in overworld content, you leave combat on death...
             return;
 
-        if (_config.AutoPeloton && player.ClassCategory == ClassCategory.PhysRanged && _ws.CurrentTime >= _nextAutoPeloton)
+        // 「只在副本內」：CurrentCFCID 由 WorldStateGameSync 從 GameMain.CurrentContentFinderConditionId 同步，
+        // 野外恆為 0、進副本才是該副本的 ContentFinderCondition row id，所以拿它當「人在副本裡」的旗標。
+        // 走 WorldState 而不是 Service.Condition，是為了讓錄影重播也拿得到同一個判斷。
+        if (_config.AutoPeloton && (!_config.AutoPelotonOnlyInDuty || _ws.CurrentCFCID != 0) && player.ClassCategory == ClassCategory.PhysRanged && _ws.CurrentTime >= _nextAutoPeloton)
         {
             var movementThreshold = 5f * _ws.Frame.Duration;
             if (player.LastFrameMovement.LengthSq() >= movementThreshold * movementThreshold)

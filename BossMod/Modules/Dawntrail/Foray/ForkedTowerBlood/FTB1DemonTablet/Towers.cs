@@ -84,7 +84,7 @@ sealed class EraseGravity(BossModule module) : Components.GenericAOEs(module)
     {
         if (_aoes.Count != 0)
         {
-            hints.Add("Stand under a statue if assigned for floating towers!");
+            hints.Add(Loc.T("Stand under a statue if assigned for floating towers!"));
         }
     }
 

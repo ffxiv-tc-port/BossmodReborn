@@ -19,12 +19,12 @@ class PalladianGrasp(BossModule module) : Components.CastCounter(module, default
             if (actor.InstanceID == target.InstanceID)
             {
                 if (Raid.WithoutSlot(false, true, true).Exclude(actor).InShape(_shape, Origin(target), default).Count != 0)
-                    hints.Add("Bait away from raid!");
+                    hints.Add(Loc.T("Bait away from raid!"));
             }
             else
             {
                 if (_shape.Check(actor.Position, Origin(target), default))
-                    hints.Add("GTFO from cleaved side!");
+                    hints.Add(Loc.T("GTFO from cleaved side!"));
             }
         }
     }

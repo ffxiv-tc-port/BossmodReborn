@@ -18,13 +18,13 @@ class WreathOfThorns5(BossModule module) : BossComponent(module)
 
             if (order >= _castsDone && order < _towersOrder.Count)
             {
-                hints.Add("Soak tower!", !actor.Position.InCircle(_towersOrder[order].Position, P4S2.WreathTowerRadius));
+                hints.Add(Loc.T("Soak tower!"), !actor.Position.InCircle(_towersOrder[order].Position, P4S2.WreathTowerRadius));
             }
         }
 
         if (_playersOrder.Count < 8)
         {
-            hints.Add("Spread!", Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _impulseAOERadius).Any());
+            hints.Add(Loc.T("Spread!"), Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _impulseAOERadius).Any());
         }
     }
 

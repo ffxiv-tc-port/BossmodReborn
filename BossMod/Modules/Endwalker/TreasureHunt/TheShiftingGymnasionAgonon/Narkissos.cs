@@ -87,9 +87,9 @@ class SapShowerTendrilsHint(BossModule module) : BossComponent(module)
         if (active)
         {
             if (NumCasts is <= 4 and > 0)
-                hints.Add("Circles resolve before cross");
+                hints.Add(Loc.T("Circles resolve before cross"));
             else if (NumCasts > 4)
-                hints.Add("Circles resolve before cross, aim forced march into cross");
+                hints.Add(Loc.T("Circles resolve before cross, aim forced march into cross"));
         }
     }
 }

@@ -59,7 +59,7 @@ sealed class ScarletPlumeTailFeather(BossModule module) : Components.GenericAOEs
             {
                 if (feathers[i].IsTargetable)
                 {
-                    hints.Add("Kill birds outside of AOEs!");
+                    hints.Add(Loc.T("Kill birds outside of AOEs!"));
                     return;
                 }
             }

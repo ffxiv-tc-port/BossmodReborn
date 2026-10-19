@@ -70,6 +70,7 @@ public enum AID : uint
     Shatterstone = 9823,
     Deflect = 10006,
     DeflectVeryEasy = 18863,
+    MegaPotion = 10229, // The Great Hunt (Extreme/Trial), Rathalos
 
     // Variant actions
     VariantCure1 = 29729, // available in sil'dih
@@ -240,6 +241,7 @@ public sealed class Definitions : IDisposable
         d.RegisterSpell(AID.Shatterstone);
         d.RegisterSpell(AID.Deflect);
         d.RegisterSpell(AID.DeflectVeryEasy);
+        d.RegisterSpell(AID.MegaPotion);
 
         // variant actions
         d.RegisterSpell(AID.VariantCure1);
@@ -313,19 +315,8 @@ public sealed class Definitions : IDisposable
         //d.Spell(AID.Surecast)!.EffectDuration = 6;
 
         // regular dash check doesn't work since this one is awkwardly fixed distance
-        d.Spell(PhantomID.PhantomKick)!.ForbidExecute = (_, player, action, hints) =>
-        {
-            var cfg = Service.Config.Get<ActionTweaksConfig>();
-            var target = action.Target;
-            if (target == null || !cfg.DashSafety)
-                return false;
-
-            if (player.PendingKnockbacks.Count > 0)
-                return true;
-
-            var dir = player.DirectionTo(target).Normalized() * 15;
-            return ActionDefinitions.IsDashDangerous(player.Position, player.Position + dir, hints);
-        };
+        // 走登記過的判定式，UseAction 那一關的位移攔截與手動佇列才認得它是位移技；15 碼＝Action 表的直線 EffectRange
+        d.Spell(PhantomID.PhantomKick)!.ForbidExecute = ActionDefinitions.DashTowardTargetFixedCheck(15);
 
         d.Spell(PhantomID.OccultFeatherfoot)!.ForbidExecute = ActionDefinitions.DashFixedDistanceCheck(15);
         d.Spell(PhantomID.OccultFeatherfoot)!.TransformAngle = (ws, _, _, _) => _config.AlignDashToCamera ? ws.Client.CameraAzimuth + 180.Degrees() : null;

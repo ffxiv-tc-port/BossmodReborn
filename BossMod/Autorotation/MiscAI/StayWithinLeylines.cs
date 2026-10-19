@@ -1,4 +1,6 @@
-﻿namespace BossMod.Autorotation.MiscAI;
+﻿using BossMod.Autorotation.xan;
+
+namespace BossMod.Autorotation.MiscAI;
 
 public sealed class StayWithinLeylines(RotationModuleManager manager, Actor player) : RotationModule(manager, player)
 {
@@ -8,12 +10,14 @@ public sealed class StayWithinLeylines(RotationModuleManager manager, Actor play
         UseBetweenTheLines
     }
 
+    [Renderer(typeof(DefaultOffRenderer))]
     public enum RetraceDefinition
     {
         No = 0,
         Yes = 1,
     }
 
+    [Renderer(typeof(DefaultOffRenderer))]
     public enum BetweenTheLinesDefinition
     {
         No = 0,

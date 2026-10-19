@@ -36,8 +36,76 @@ public abstract record class ArenaBounds(float Radius, float MapResolution, floa
     public abstract WDir ClampToBounds(WDir offset);
 
     // functions for clipping various shapes to bounds; all shapes are expected to be defined relative to bounds center
-    public List<RelTriangle> ClipAndTriangulate(ReadOnlySpan<WDir> poly) => Clipper.Intersect(new PolygonClipper.Operand(poly), _clipOperand).Triangulate();
-    public List<RelTriangle> ClipAndTriangulate(RelSimplifiedComplexPolygon poly) => Clipper.Intersect(new(poly), _clipOperand).Triangulate();
+    // 結果與 Clipper.Intersect(new Operand(poly), _clipOperand).Triangulate() 逐一相同；被裁的形狀用本執行緒的暫存運算元（static，不進 record 的欄位比較）。
+    [ThreadStatic] private static PolygonClipper.Operand? t_subject;
+
+    public List<RelTriangle> ClipAndTriangulate(ReadOnlySpan<WDir> poly)
+    {
+        var subject = t_subject ??= new();
+        subject.Clear();
+        subject.AddContour(poly);
+        return ClipAndTriangulateSubject(subject);
+    }
+
+    public List<RelTriangle> ClipAndTriangulate(RelSimplifiedComplexPolygon poly)
+    {
+        var subject = t_subject ??= new();
+        subject.Clear();
+        subject.AddPolygon(poly);
+        return ClipAndTriangulateSubject(subject);
+    }
+
+    // 圓與環的頂點只由「種類、半徑、誤差」決定（不看實例）：本執行緒記最近用過的幾組，平移進暫存再裁。
+    // 平移與原本的 points[i] += offset 是同一個浮點運算，所以交給裁切的頂點逐位元相同；鍵用 float 的位元（分得出 -0 與 NaN）。
+    [ThreadStatic] private static Dictionary<(int, int, int, int), WDir[]>? t_curves;
+    [ThreadStatic] private static WDir[]? t_shifted;
+    private const int CurveCacheLimit = 64;
+
+    private static WDir[] CachedCurve(int kind, float a, float b, float maxError)
+    {
+        var cache = t_curves ??= [];
+        var key = (kind, BitConverter.SingleToInt32Bits(a), BitConverter.SingleToInt32Bits(b), BitConverter.SingleToInt32Bits(maxError));
+        if (!cache.TryGetValue(key, out var pts))
+        {
+            if (cache.Count >= CurveCacheLimit)
+                cache.Clear();
+            cache[key] = pts = kind == 0 ? CurveApprox.Circle(a, maxError) : CurveApprox.Donut(a, b, maxError);
+        }
+        return pts;
+    }
+
+    private List<RelTriangle> ClipAndTriangulateShifted(WDir[] points, WDir offset)
+    {
+        var len = points.Length;
+        var shifted = t_shifted;
+        if (shifted == null || shifted.Length < len)
+            t_shifted = shifted = new WDir[Math.Max(len, (shifted?.Length ?? 0) * 2)];
+        for (var i = 0; i < len; ++i)
+            shifted[i] = points[i] + offset;
+        return ClipAndTriangulate(shifted.AsSpan(0, len));
+    }
+
+    // 三角化快取淘汰下來的結果清單：下一次裁切直接裝進去（清單換一個主人，不會同時有兩個）。本執行緒專用、最多留 FreeResultsLimit 份。
+    [ThreadStatic] private static Stack<List<RelTriangle>>? t_freeResults;
+    private const int FreeResultsLimit = 32;
+
+    internal static void RecycleTriangulation(List<RelTriangle> list)
+    {
+        var free = t_freeResults ??= new();
+        if (free.Count < FreeResultsLimit)
+        {
+            list.Clear();
+            free.Push(list);
+        }
+    }
+
+    private List<RelTriangle> ClipAndTriangulateSubject(PolygonClipper.Operand subject)
+    {
+        List<RelTriangle> result = t_freeResults is { Count: > 0 } free ? free.Pop() : [];
+        Clipper.IntersectAndTriangulate(subject, _clipOperand, result);
+        subject.Clear();
+        return result;
+    }
 
     public List<RelTriangle> ClipAndTriangulateCone(WDir centerOffset, float innerRadius, float outerRadius, Angle centerDirection, Angle halfAngle)
     {
@@ -47,6 +115,8 @@ public abstract record class ArenaBounds(float Radius, float MapResolution, floa
 
         var fullCircle = halfAngle.Rad >= MathF.PI;
         var donut = innerRadius != 0;
+        if (fullCircle)
+            return ClipAndTriangulateShifted(donut ? CachedCurve(1, innerRadius, outerRadius, MaxApproxError) : CachedCurve(0, outerRadius, 0f, MaxApproxError), centerOffset);
         var points = (donut, fullCircle) switch
         {
             (false, false) => CurveApprox.CircleSector(outerRadius, centerDirection - halfAngle, centerDirection + halfAngle, MaxApproxError),
@@ -64,16 +134,7 @@ public abstract record class ArenaBounds(float Radius, float MapResolution, floa
     }
 
     public List<RelTriangle> ClipAndTriangulateCircle(WDir centerOffset, float radius)
-    {
-        var points = CurveApprox.Circle(radius, MaxApproxError);
-        var len = points.Length;
-        var offset = centerOffset;
-        for (var i = 0; i < len; ++i)
-        {
-            points[i] += offset;
-        }
-        return ClipAndTriangulate(points);
-    }
+        => ClipAndTriangulateShifted(CachedCurve(0, radius, 0f, MaxApproxError), centerOffset);
 
     public List<RelTriangle> ClipAndTriangulateCapsule(WDir centerOffset, WDir direction, float radius, float length)
     {
@@ -90,16 +151,7 @@ public abstract record class ArenaBounds(float Radius, float MapResolution, floa
     public List<RelTriangle> ClipAndTriangulateDonut(WDir centerOffset, float innerRadius, float outerRadius)
     {
         if (innerRadius < outerRadius && innerRadius >= 0f)
-        {
-            var points = CurveApprox.Donut(innerRadius, outerRadius, MaxApproxError);
-            var len = points.Length;
-            var offset = centerOffset;
-            for (var i = 0; i < len; ++i)
-            {
-                points[i] += offset;
-            }
-            return ClipAndTriangulate(points);
-        }
+            return ClipAndTriangulateShifted(CachedCurve(1, innerRadius, outerRadius, MaxApproxError), centerOffset);
         return [];
     }
 

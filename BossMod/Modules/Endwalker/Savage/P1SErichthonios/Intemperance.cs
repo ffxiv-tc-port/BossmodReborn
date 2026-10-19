@@ -59,7 +59,7 @@ class Intemperance(BossModule module) : BossComponent(module)
     {
         if (_delimiterCenters.Any(c => _delimiterAOE.Check(actor.Position, c.Item1, c.Item2)))
         {
-            hints.Add("GTFO from delimiter!");
+            hints.Add(Loc.T("GTFO from delimiter!"));
         }
         else
         {
@@ -69,12 +69,12 @@ class Intemperance(BossModule module) : BossComponent(module)
                 var expectedCell = NumExplosions == 1 ? Position2(_playerAssignment[slot]) : Position3(_playerAssignment[slot]);
                 if (actorCell != expectedCell)
                 {
-                    hints.Add("Go to assigned cell!");
+                    hints.Add(Loc.T("Go to assigned cell!"));
                 }
             }
             else if (Raid.WithoutSlot(false, true, true).Exclude(actor).Any(other => PositionFromCoords(other.Position) == actorCell))
             {
-                hints.Add("Stand in own cell!");
+                hints.Add(Loc.T("Stand in own cell!"));
             }
         }
     }

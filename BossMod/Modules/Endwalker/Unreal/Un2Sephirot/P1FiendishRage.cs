@@ -15,12 +15,12 @@ class P1FiendishRage(BossModule module) : Components.CastCounter(module, (uint)A
             {
                 if (numClips > 0)
                 {
-                    hints.Add("GTFO from marked players!");
+                    hints.Add(Loc.T("GTFO from marked players!"));
                 }
             }
             else if (numClips != 1)
             {
-                hints.Add("Stack with single group!");
+                hints.Add(Loc.T("Stack with single group!"));
             }
         }
     }

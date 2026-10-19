@@ -1,7 +1,8 @@
 ﻿namespace BossMod.Components;
 
 // generic 'concentric aoes' component - a sequence of aoes (typically cone then donuts) with same origin and increasing size
-public class ConcentricAOEs(BossModule module, AOEShape[] shapes, bool showall = false, double riskyWithSecondsLeft = default) : GenericAOEs(module)
+// stepIntervals[i]＝第 i 段到第 i+1 段相隔幾秒，由模組提供；有提供才把後面幾段預告給 AI 的閃避預判（長度不對或沒提供＝不預告）
+public class ConcentricAOEs(BossModule module, AOEShape[] shapes, bool showall = false, double riskyWithSecondsLeft = default, double[]? stepIntervals = null) : GenericAOEs(module)
 {
     public struct Sequence
     {
@@ -15,6 +16,7 @@ public class ConcentricAOEs(BossModule module, AOEShape[] shapes, bool showall =
 
     public readonly AOEShape[] Shapes = shapes;
     public readonly List<Sequence> Sequences = [];
+    private readonly double[]? _stepIntervals = stepIntervals?.Length == shapes.Length - 1 ? stepIntervals : null;
 
     public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor)
     {
@@ -50,6 +52,28 @@ public class ConcentricAOEs(BossModule module, AOEShape[] shapes, bool showall =
             }
         }
         return aoes;
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        if (_stepIntervals == null || showall || !AIHints.LookaheadEnabled)
+            return;
+        var time = WorldState.CurrentTime;
+        var sequences = CollectionsMarshal.AsSpan(Sequences);
+        var len = Shapes.Length;
+        for (var i = 0; i < sequences.Length; ++i)
+        {
+            ref var s = ref sequences[i];
+            var act = s.NextActivation;
+            if (RiskyWithSecondsLeft != default && act.AddSeconds(-RiskyWithSecondsLeft) > time)
+                continue; // 這一段還沒標危險，後面幾段也先不預告
+            for (var j = s.NumCastsDone + 1; j < len; ++j)
+            {
+                act = act.AddSeconds(_stepIntervals[j - 1]);
+                hints.AddFutureForbiddenZone(Shapes[j], s.Origin, s.Rotation, act);
+            }
+        }
     }
 
     public void AddSequence(WPos origin, DateTime activation = default, Angle rotation = default) => Sequences.Add(new() { Origin = origin, Rotation = rotation, NextActivation = activation });

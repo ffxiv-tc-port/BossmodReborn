@@ -22,11 +22,11 @@ class Paradeigma(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (RotatedBirds().Any(b => _birdAOE.Check(actor.Position, b)) || RotatedBehemoths().Any(b => _behemothAOE.Check(actor.Position, b)))
-            hints.Add("GTFO from bird/behemoth aoe!");
+            hints.Add(Loc.T("GTFO from bird/behemoth aoe!"));
         if (RotatedSnakes().Any(s => _snakeAOE.Check(actor.Position, s.Item1, s.Item2)))
-            hints.Add("GTFO from snake aoe!");
+            hints.Add(Loc.T("GTFO from snake aoe!"));
         if (_fireLine.Any(c => InFireAOE(c, actor.Position)))
-            hints.Add("GTFO from fire aoe!");
+            hints.Add(Loc.T("GTFO from fire aoe!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

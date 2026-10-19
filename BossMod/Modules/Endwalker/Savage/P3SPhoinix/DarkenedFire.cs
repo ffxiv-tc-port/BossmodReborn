@@ -20,11 +20,11 @@ class DarkenedFire(BossModule module) : BossComponent(module)
 
         if (haveTooClose)
         {
-            hints.Add("Too close to other players!");
+            hints.Add(Loc.T("Too close to other players!"));
         }
         else if (numInRange < 2)
         {
-            hints.Add("Too far from other players!");
+            hints.Add(Loc.T("Too far from other players!"));
         }
     }
 

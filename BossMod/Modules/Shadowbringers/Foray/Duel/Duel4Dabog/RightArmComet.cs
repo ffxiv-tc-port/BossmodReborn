@@ -18,7 +18,7 @@ class RightArmComet(BossModule module, uint aid, float distance) : Components.Si
             ref readonly var c = ref casters[i];
             if (!Shape!.Check(actor.Position, c.Origin, default))
             {
-                hints.Add("Soak the tower!");
+                hints.Add(Loc.T("Soak the tower!"));
                 return;
             }
         }

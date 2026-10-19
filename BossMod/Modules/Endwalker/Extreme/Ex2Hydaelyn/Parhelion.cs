@@ -10,7 +10,7 @@ class Parhelion(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (ActiveParhelions().Any(p => _beacon.Check(actor.Position, p)))
-            hints.Add("GTFO from aoe!");
+            hints.Add(Loc.T("GTFO from aoe!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

@@ -6,7 +6,9 @@ public sealed class ActorState : IEnumerable<Actor>
 {
     public readonly Dictionary<ulong, Actor> Actors = [];
 
-    public IEnumerator<Actor> GetEnumerator() => Actors.Values.GetEnumerator();
+    // foreach 走這個公開的結構列舉器（不裝箱、每次 foreach 不配置）；LINQ 等走介面的呼叫照舊。順序與介面版相同（同一個字典的 Values）。
+    public Dictionary<ulong, Actor>.ValueCollection.Enumerator GetEnumerator() => Actors.Values.GetEnumerator();
+    IEnumerator<Actor> IEnumerable<Actor>.GetEnumerator() => Actors.Values.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => Actors.Values.GetEnumerator();
 
     public const uint StatusIDDirectionalDisregard = 3808u;
@@ -17,6 +19,7 @@ public sealed class ActorState : IEnumerable<Actor>
     // in addition to worldstate's modification event, extra event with actor pointer is dispatched for all actor events
     public abstract record class Operation(ulong InstanceID) : WorldState.Operation
     {
+        public ulong InstanceID { get; private protected set; } = InstanceID; // 可寫只為了 OpMove.Refill
         protected abstract void ExecActor(WorldState ws, Actor actor);
         protected override void Exec(WorldState ws)
         {
@@ -77,7 +80,7 @@ public sealed class ActorState : IEnumerable<Actor>
             var castinfo = act.CastInfo;
             if (castinfo != null)
                 act.CastInfo!.ElapsedTime = Math.Min(castinfo.ElapsedTime + frame.Duration, castinfo.AdjustedTotalTime);
-            RemovePendingEffects(act, (in p) => p.Expiration < ts);
+            RemoveExpiredPendingEffects(act, ts);
         }
     }
 
@@ -140,6 +143,40 @@ public sealed class ActorState : IEnumerable<Actor>
         target.PendingDispels.RemoveAll(e => predicate(e.Effect));
         target.PendingKnockbacks.RemoveAll(e => predicate(e));
     }
+
+    // Tick 每幀對每個 actor 都呼叫，走 RemovePendingEffects 每次要配 1 個閉包＋5 個委派；這裡是不配置的版本。
+    // 結果與 RemovePendingEffects(target, (in p) => p.Expiration < ts) 逐項相同，五個清單的處理順序也相同。
+    private static void RemoveExpiredPendingEffects(Actor target, DateTime ts)
+    {
+        RemoveExpired<PendingEffectDelta, DeltaExpiration>(target.PendingHPDifferences, ts);
+        RemoveExpired<PendingEffectDelta, DeltaExpiration>(target.PendingMPDifferences, ts);
+        RemoveExpired<PendingEffectStatusExtra, StatusExtraExpiration>(target.PendingStatuses, ts);
+        RemoveExpired<PendingEffectStatus, StatusExpiration>(target.PendingDispels, ts);
+        RemoveExpired<PendingEffect, KnockbackExpiration>(target.PendingKnockbacks, ts);
+    }
+
+    // 與 List<T>.RemoveAll 同語意：依索引順序逐項判斷、留下的項維持原相對順序、沒刪到東西時不動 list（version 也不變）。
+    private static void RemoveExpired<T, TExpiration>(List<T> list, DateTime ts) where TExpiration : struct, IPendingExpiration<T>
+    {
+        var items = CollectionsMarshal.AsSpan(list);
+        var kept = 0;
+        for (var i = 0; i < items.Length; ++i)
+        {
+            if (TExpiration.Of(in items[i]) < ts)
+                continue;
+            if (kept != i)
+                items[kept] = items[i];
+            ++kept;
+        }
+        if (kept != items.Length)
+            list.RemoveRange(kept, items.Length - kept);
+    }
+
+    private interface IPendingExpiration<T> { static abstract DateTime Of(in T item); }
+    private readonly struct DeltaExpiration : IPendingExpiration<PendingEffectDelta> { public static DateTime Of(in PendingEffectDelta item) => item.Effect.Expiration; }
+    private readonly struct StatusExtraExpiration : IPendingExpiration<PendingEffectStatusExtra> { public static DateTime Of(in PendingEffectStatusExtra item) => item.Effect.Expiration; }
+    private readonly struct StatusExpiration : IPendingExpiration<PendingEffectStatus> { public static DateTime Of(in PendingEffectStatus item) => item.Effect.Expiration; }
+    private readonly struct KnockbackExpiration : IPendingExpiration<PendingEffect> { public static DateTime Of(in PendingEffect item) => item.Expiration; }
 
     // implementation of operations
     public Event<Actor> Added = new();
@@ -243,6 +280,17 @@ public sealed class ActorState : IEnumerable<Actor>
     public Event<Actor> Moved = new();
     public sealed record class OpMove(ulong InstanceID, Vector4 PosRot) : Operation(InstanceID)
     {
+        public Vector4 PosRot { get; private set; } = PosRot;
+
+        // 契約同 WorldState.OpFrameStart.Refill：只給即時同步路徑重填同一個實例，收到它的訂閱者當場用完、不留著；重播路徑每筆仍各自新建。
+        internal OpMove Refill(ulong instanceID, Vector4 posRot)
+        {
+            Timestamp = default;
+            InstanceID = instanceID;
+            PosRot = posRot;
+            return this;
+        }
+
         protected override void ExecActor(WorldState ws, Actor actor)
         {
             actor.PosRot = PosRot;

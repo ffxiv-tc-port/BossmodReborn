@@ -104,7 +104,7 @@ class Slapstick(BossModule module) : BossComponent(module)
         {
             if (party[i].FindStatus((uint)SID.Fetters) != null)
             {
-                hints.Add("Kill the small dolls to free the players!");
+                hints.Add(Loc.T("Kill the small dolls to free the players!"));
                 return;
             }
         }

@@ -29,33 +29,33 @@ class Coherence(BossModule module) : Components.CastCounter(module, (uint)AID.Co
         {
             if (actor.Role != Role.Tank)
             {
-                hints.Add("Pass tether to tank!");
+                hints.Add(Loc.T("Pass tether to tank!"));
             }
             else if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _aoeRadius).Any())
             {
-                hints.Add("GTFO from raid!");
+                hints.Add(Loc.T("GTFO from raid!"));
             }
         }
         else if (actor == _rayTarget)
         {
             if (actor.Role != Role.Tank)
             {
-                hints.Add("Go behind tank!");
+                hints.Add(Loc.T("Go behind tank!"));
             }
             else if (_inRay.NumSetBits() < 7)
             {
-                hints.Add("Make sure ray hits everyone!");
+                hints.Add(Loc.T("Make sure ray hits everyone!"));
             }
         }
         else
         {
             if (actor.Role == Role.Tank)
             {
-                hints.Add("Go in front of raid!");
+                hints.Add(Loc.T("Go in front of raid!"));
             }
             else if (!_inRay[slot])
             {
-                hints.Add("Go behind tank!");
+                hints.Add(Loc.T("Go behind tank!"));
             }
         }
     }

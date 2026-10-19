@@ -14,7 +14,7 @@ class Exoterikos(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (ActiveKnockbacks().Any(actShape => actShape.Item2.Check(actor.Position, actShape.Item1)))
-            hints.Add("GTFO from exo aoe!");
+            hints.Add(Loc.T("GTFO from exo aoe!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

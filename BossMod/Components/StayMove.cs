@@ -5,10 +5,11 @@
 public class StayMove(BossModule module, double maxTimeToShowHint = 1e3d) : BossComponent(module)
 {
     public enum Requirement { None, Stay, Stay2, Move }
-    public readonly struct PlayerState(Requirement requirement, DateTime activation, int priority = 0)
+    public readonly struct PlayerState(Requirement requirement, DateTime activation, int priority = 0, DateTime finish = default)
     {
         public readonly Requirement Requirement = requirement;
         public readonly DateTime Activation = activation;
+        public readonly DateTime Finish = finish;
         public readonly int Priority = priority;
     }
 
@@ -23,19 +24,19 @@ public class StayMove(BossModule module, double maxTimeToShowHint = 1e3d) : Boss
             case Requirement.Stay:
                 if (state.Activation <= WorldState.FutureTime(MaxTimeToShowHint))
                 {
-                    hints.Add("Stop everything!", actor.PrevPosition != actor.PrevPosition || actor.CastInfo != null || actor.TargetID != default); // note: assume if target is selected, we might autoattack...
+                    hints.Add(Loc.T("Stop everything!"), actor.PrevPosition != actor.PrevPosition || actor.CastInfo != null || actor.TargetID != default); // note: assume if target is selected, we might autoattack...
                 }
                 break;
             case Requirement.Stay2:
                 if (state.Activation <= WorldState.FutureTime(MaxTimeToShowHint))
                 {
-                    hints.Add("Don't move!", actor.PrevPosition != actor.PrevPosition); // you are allowed to attack here, only moving is forbidden
+                    hints.Add(Loc.T("Don't move!"), actor.PrevPosition != actor.PrevPosition); // you are allowed to attack here, only moving is forbidden
                 }
                 break;
             case Requirement.Move:
                 if (state.Activation <= WorldState.FutureTime(MaxTimeToShowHint))
                 {
-                    hints.Add("Move!", actor.PrevPosition == actor.PrevPosition);
+                    hints.Add(Loc.T("Move!"), actor.PrevPosition == actor.PrevPosition);
                 }
                 break;
 

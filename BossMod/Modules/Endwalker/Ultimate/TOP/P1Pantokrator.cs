@@ -107,14 +107,14 @@ sealed class P1Pantokrator(BossModule module) : P1CommonAssignments(module)
         var stackOrder = NextStackOrder();
         if (ps.Order == NextSpreadOrder())
         {
-            hints.Add("Spread!", Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _spreadRadius).Any());
+            hints.Add(Loc.T("Spread!"), Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _spreadRadius).Any());
         }
         else if (ps.Order != stackOrder)
         {
             var stackTargetSlot = Array.FindIndex(PlayerStates, s => s.Order == stackOrder && s.Group == ps.Group);
             var stackTarget = Raid[stackTargetSlot];
             if (stackTarget != null && !_stackShape.Check(actor.Position, Module.PrimaryActor.Position, Angle.FromDirection(stackTarget.Position - Module.PrimaryActor.Position)))
-                hints.Add("Stack!");
+                hints.Add(Loc.T("Stack!"));
         }
     }
 

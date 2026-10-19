@@ -112,7 +112,8 @@ sealed class Lunge(BossModule module) : Components.GenericKnockback(module, (uin
                 var count = _aoe.Casters.Count;
                 if (count != 0)
                 {
-                    var aoesC = _aoe.Casters;
+                    // 危險區會在執行緒集區上求值：抄下這一刻的施法清單，主執行緒之後增刪 Casters 不會讓索引越界
+                    var aoesC = _aoe.Casters.ToArray();
                     hints.AddForbiddenZone(p =>
                     {
                         var distanceToWall = float.MaxValue;
@@ -127,10 +128,9 @@ sealed class Lunge(BossModule module) : Components.GenericKnockback(module, (uin
                         }
                         if (distanceToWall < 60f)
                         {
-                            var aoes = CollectionsMarshal.AsSpan(aoesC);
                             for (var i = 0; i < count; ++i)
                             {
-                                ref readonly var aoe = ref aoes[i];
+                                ref readonly var aoe = ref aoesC[i];
                                 if (aoe.Check(p + distanceToWall * dir))
                                 {
                                     return default;

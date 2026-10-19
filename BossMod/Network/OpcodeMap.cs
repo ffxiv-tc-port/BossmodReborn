@@ -22,7 +22,13 @@ public sealed class OpcodeMap
         // lea r11, <__ImageBase_off>
         // cdqe
         // mov r9d, ds::<jumptable_rva>[r11+rax*4]
-        var func = (byte*)Service.SigScanner.ScanText("49 8B 40 10  4C 8B 50 38  41 0F B7 42 02  83 C0 ??  3D ?? ?? ?? ??  0F 87 ?? ?? ?? ??  4C 8D 1D ?? ?? ?? ??  48 98  45 8B 8C 83 ?? ?? ?? ??");
+        // 對不上時兩張表留空（ID()／Opcode() 一律回 -1），插件照常載入。
+        if (!Service.SigScanner.TryScanText("49 8B 40 10  4C 8B 50 38  41 0F B7 42 02  83 C0 ??  3D ?? ?? ?? ??  0F 87 ?? ?? ?? ??  4C 8D 1D ?? ?? ?? ??  48 98  45 8B 8C 83 ?? ?? ?? ??", out var funcAddress))
+        {
+            Service.Logger.Warning("[OpcodeMap] 特徵碼對不上，建不出封包種類對照表：網路記錄與封包傾印（預設關閉）裡的封包都會標成未知種類。其餘功能照常；通常是遊戲改版後特徵碼要更新。");
+            return;
+        }
+        var func = (byte*)funcAddress;
         var minCase = -*(sbyte*)(func + 15);
         var jumptableSize = *(int*)(func + 17) + 1;
         var defaultAddr = ReadRVA(func + 23);

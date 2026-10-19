@@ -21,7 +21,9 @@ public sealed class M08SHowlingBladeConfig() : ConfigNode()
         Standard,
         [PropertyDisplay("Assume G1 right, G2 left when looking at boss from arena center")]
         Inverse,
-        [PropertyDisplay("None")]
+        // 不寫 "None"：PropertyDisplay 的英文原句就是翻譯鍵，會與 ActionTweaksConfig.ModifierKey.None（「無」）
+        // 共用同一個鍵而顯示成「無」；沿用 DSW1Config／TEAConfig 對同型選項既有的措辭。
+        [PropertyDisplay("Don't show any hints")]
         Disabled
     }
 

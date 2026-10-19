@@ -93,7 +93,7 @@ class PassageOfArms(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (EnrageCast != null && Paladin != null && !actor.Position.InCircleCone(Paladin.Position, 8f, Paladin.Rotation + 180.Degrees(), 60.Degrees()))
-            hints.Add("Hide behind tank!");
+            hints.Add(Loc.T("Hide behind tank!"));
     }
 }
 

@@ -105,7 +105,7 @@ class JitteringJounceLOS(BossModule module) : Components.GenericAOEs(module)
                     break;
                 }
             }
-            hints.Add("Hide behind meteor!", risky);
+            hints.Add(Loc.T("Hide behind meteor!"), risky);
         }
     }
 }

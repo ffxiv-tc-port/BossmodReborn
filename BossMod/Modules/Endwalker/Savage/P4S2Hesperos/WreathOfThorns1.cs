@@ -20,7 +20,7 @@ class WreathOfThorns1(BossModule module) : BossComponent(module)
             case State.FirstAOEs:
                 if (FirstAOEs.InRadius(actor.Position, P4S2.WreathAOERadius).Any())
                 {
-                    hints.Add("GTFO from AOE!");
+                    hints.Add(Loc.T("GTFO from AOE!"));
                 }
                 break;
             case State.Towers:
@@ -28,18 +28,18 @@ class WreathOfThorns1(BossModule module) : BossComponent(module)
                     var soakedTower = Towers.InRadius(actor.Position, P4S2.WreathTowerRadius).FirstOrDefault();
                     if (soakedTower == null)
                     {
-                        hints.Add("Soak the tower!");
+                        hints.Add(Loc.T("Soak the tower!"));
                     }
                     else if (Raid.WithoutSlot(false, true, true).Exclude(actor).InRadius(soakedTower.Position, P4S2.WreathTowerRadius).Any())
                     {
-                        hints.Add("Multiple soakers for the tower!");
+                        hints.Add(Loc.T("Multiple soakers for the tower!"));
                     }
                 }
                 break;
             case State.LastAOEs:
                 if (LastAOEs.InRadius(actor.Position, P4S2.WreathAOERadius).Any())
                 {
-                    hints.Add("GTFO from AOE!");
+                    hints.Add(Loc.T("GTFO from AOE!"));
                 }
                 break;
         }

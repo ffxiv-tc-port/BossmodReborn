@@ -32,9 +32,9 @@ class BeastlyBile(BossModule module) : Components.UniformStackSpread(module, 6, 
         if (_comet != null && IsStackTarget(actor))
         {
             if (_comet.Actors.Any(c => !Comet.IsActive(c) && c.Position.InCircle(actor.Position, StackRadius)))
-                hints.Add("GTFO from normal comets!");
+                hints.Add(Loc.T("GTFO from normal comets!"));
             if (!_comet.Actors.Any(c => Comet.IsActive(c) && c.Position.InCircle(actor.Position, StackRadius)))
-                hints.Add("Bait to glowing comet!");
+                hints.Add(Loc.T("Bait to glowing comet!"));
         }
     }
 
@@ -77,7 +77,7 @@ class Thunderbolt(BossModule module) : Components.GenericBaitAway(module, (uint)
         base.AddHints(slot, actor, hints);
         foreach (var b in ActiveBaitsOn(actor))
             if (_comet?.Actors.Any(c => IsClippedBy(c, b)) ?? false)
-                hints.Add("Aim away from comets!");
+                hints.Add(Loc.T("Aim away from comets!"));
     }
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)

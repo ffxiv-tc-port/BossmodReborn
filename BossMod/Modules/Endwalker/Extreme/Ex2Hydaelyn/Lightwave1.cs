@@ -36,7 +36,7 @@ class Lightwave1(BossModule module) : LightwaveCommon(module)
             return;
 
         if (Waves.Any(w => WaveAOE.Check(actor.Position, w)))
-            hints.Add("GTFO from wave!");
+            hints.Add(Loc.T("GTFO from wave!"));
 
         var safe = NumCasts switch
         {
@@ -46,7 +46,7 @@ class Lightwave1(BossModule module) : LightwaveCommon(module)
             _ => true
         };
         if (!safe)
-            hints.Add("Hide behind crystal!");
+            hints.Add(Loc.T("Hide behind crystal!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

@@ -144,11 +144,51 @@ sealed class RotaryGale(BossModule module) : Components.SpreadFromCastTargets(mo
 sealed class CrewelSlice(BossModule module) : Components.SingleTargetDelayableCast(module, (uint)AID.CrewelSlice);
 sealed class BillowingBolts(BossModule module) : Components.RaidwideCast(module, (uint)AID.BillowingBolts);
 
+sealed class SpinningHints(BossModule module) : Components.Spinning(module, (uint)AID.SpinOut)
+{
+    private int _numBlades;
+
+    public override void OnStatusGain(Actor actor, ActorStatus status)
+    {
+        base.OnStatusGain(actor, status);
+        if (status.ID == (uint)SID.Spinning)
+            _numBlades = 0;
+    }
+
+    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
+    {
+        base.OnCastFinished(caster, spell); // CastHint 在這裡收掉「旋轉移動」提示
+        if (spell.Action.ID == (uint)AID.BastingBlade)
+            ++_numBlades;
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (!mask[slot])
+            return;
+        base.AddAIHints(slot, actor, assignment, hints);
+        var center = Arena.Center;
+        if (_numBlades == 0)
+        {
+            var d0 = center + new WDir(0f, -5f);
+            var d1 = center + new WDir(0f, 14f);
+            var dir = new WDir(14f, 0f);
+            hints.GoalZones.Add(p => p.AlmostEqual(d0 + dir, 1f) || p.AlmostEqual(d0 - dir, 1f) || p.AlmostEqual(d1 + dir, 1f) || p.AlmostEqual(d1 - dir, 1f) ? 1f : 0f);
+        }
+        else
+        {
+            var pos = center + new WDir(0f, -10f);
+            hints.GoalZones.Add(p => p.InCircle(pos, 1f) ? 1f : 0f);
+        }
+    }
+}
+
 sealed class D093KapikuluStates : StateMachineBuilder
 {
     public D093KapikuluStates(BossModule module) : base(module)
     {
         TrivialPhase()
+            .ActivateOnEnter<SpinningHints>()
             .ActivateOnEnter<BillowingBoltsArenaChange>()
             .ActivateOnEnter<ManaExplosion>()
             .ActivateOnEnter<BastingBlade>()

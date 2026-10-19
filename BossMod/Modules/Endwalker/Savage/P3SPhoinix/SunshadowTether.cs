@@ -38,13 +38,13 @@ class SunshadowTether(BossModule module) : BossComponent(module)
             var birdTarget = BirdTarget(bird);
             if (birdTarget == actor.InstanceID && bird.Tether.ID != (uint)TetherID.LargeBirdFar)
             {
-                hints.Add("Too close!");
+                hints.Add(Loc.T("Too close!"));
             }
         }
 
         if (_playersInAOE[slot])
         {
-            hints.Add("GTFO from charge zone!");
+            hints.Add(Loc.T("GTFO from charge zone!"));
         }
     }
 

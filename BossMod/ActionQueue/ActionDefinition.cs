@@ -152,6 +152,56 @@ public sealed class ActionDefinitions : IDisposable
 {
     private static readonly ActionTweaksConfig _config = Service.Config.Get<ActionTweaksConfig>();
 
+    /// <summary>
+    /// 位移技的落點算法分類。
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ <c>None</c> 一定要留在 0 —— 沒有零值的列舉會讓 <c>default</c> 落在某個看起來合法的成員上。
+    /// </remarks>
+    public enum DashGeometry
+    {
+        None,
+        ToTargetHitbox,  // 衝向目標：落點＝目標 hitbox 邊緣（近戰突進大宗）
+        ToGroundTarget,  // 落點＝地面指定座標（縮地／魔紋步／回歸這一類）
+        FixedFromFacing, // 面向 ±N 碼；Distance 帶正負號，負值＝往後（前衝步／迴避跳躍）
+        AwayFromTarget,  // 從目標指向玩家的方向 N 碼（夜天／移轉／後躍射擊這類「以目標為基準的後跳」）
+        TowardTargetFixed, // 朝目標方向固定 N 碼，不停在目標身上（新月島「踢擊」）
+    }
+
+    public readonly record struct DashGeometryInfo(DashGeometry Geometry, float Distance);
+
+    /// <summary>
+    /// 「哪些 <see cref="ActionDefinition.ForbidExecute"/> 判定式其實是位移落點檢查」以及它們各自的落點算法。
+    /// </summary>
+    /// <remarks>
+    /// 🔑 <c>ForbidExecute</c> 是通用的「這一發別打」條件（早開飛燕之計、學者搶跑、三連咒已在身上……），
+    /// 只有這幾條是講落點安全的。想在 <c>UseAction</c> 那一關攔外部來源時，只能認這幾條 —— 拿整個
+    /// <c>ForbidExecute</c> 去攔會把一堆純循環判斷也一併擋掉。
+    /// <para>
+    /// 🔴 這個欄位的初始式**必須排在 <see cref="Instance"/> 之前**：靜態欄位初始式照原始碼順序執行，
+    /// 而 <c>Instance = new()</c> 的建構式會走進各職業的 <c>Definitions</c>，那裡就會呼叫
+    /// <see cref="DashFixedDistanceCheck"/>／<see cref="BackdashCheck"/> 往這張表寫入。搬到後面＝載入時 NRE。
+    /// </para>
+    /// <para>
+    /// 📌 寫入全部發生在 <c>ActionDefinitions</c> 建構期間（早於任何 hook 安裝），之後只有讀取，
+    /// 所以這裡用普通 <c>Dictionary</c> 不加鎖。
+    /// </para>
+    /// </remarks>
+    private static readonly Dictionary<ActionDefinition.ConditionDelegate, DashGeometryInfo> _dashGeometry = new()
+    {
+        [DashToTargetCheck] = new(DashGeometry.ToTargetHitbox, 0f),
+        [DashToPositionCheck] = new(DashGeometry.ToGroundTarget, 0f),
+    };
+
+    /// <summary>這個 <c>ForbidExecute</c> 判定式是不是位移落點檢查；是的話一併給出落點算法與距離。</summary>
+    public static bool TryGetDashGeometry(ActionDefinition.ConditionDelegate? check, out DashGeometryInfo info)
+    {
+        if (check != null)
+            return _dashGeometry.TryGetValue(check, out info);
+        info = default;
+        return false;
+    }
+
     private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.Sheets.Action> _actionsSheet = Service.LuminaSheet<Lumina.Excel.Sheets.Action>()!;
     private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.Sheets.Item> _itemsSheet = Service.LuminaSheet<Lumina.Excel.Sheets.Item>()!;
     private readonly Lumina.Excel.ExcelSheet<Lumina.Excel.RawRow> _cjcSheet = Service.LuminaGameData!.Excel.GetSheet<Lumina.Excel.RawRow>(null, "ClassJobCategory")!;
@@ -316,7 +366,8 @@ public sealed class ActionDefinitions : IDisposable
     }
 
     public static ActionDefinition.ConditionDelegate DashFixedDistanceCheck(float range, bool backwards = false)
-        => (ws, player, act, hints) =>
+    {
+        ActionDefinition.ConditionDelegate check = (ws, player, act, hints) =>
         {
             if (!_config.DashSafety || !_config.DashSafetyExtra)
                 return false;
@@ -330,9 +381,14 @@ public sealed class ActionDefinitions : IDisposable
 
             return IsDashDangerous(player.Position, dest, hints);
         };
+        // 落點算法登記在同一個地方，讓 UseAction 那一關的外部攔截能沿用同一組距離，不必另建一張表
+        _dashGeometry[check] = new(DashGeometry.FixedFromFacing, backwards ? -range : range);
+        return check;
+    }
 
     public static ActionDefinition.ConditionDelegate BackdashCheck(float range)
-         => (ws, player, act, hints) =>
+    {
+        ActionDefinition.ConditionDelegate check = (ws, player, act, hints) =>
         {
             if (act.Target == null || !_config.DashSafety || !_config.DashSafetyExtra)
                 return false;
@@ -344,6 +400,28 @@ public sealed class ActionDefinitions : IDisposable
 
             return IsDashDangerous(player.Position, player.Position + dir * range, hints);
         };
+        _dashGeometry[check] = new(DashGeometry.AwayFromTarget, range);
+        return check;
+    }
+
+    // 朝目標方向固定 range 碼：只看 DashSafety（與衝向目標型同一個開關）
+    public static ActionDefinition.ConditionDelegate DashTowardTargetFixedCheck(float range)
+    {
+        ActionDefinition.ConditionDelegate check = (ws, player, act, hints) =>
+        {
+            var target = act.Target;
+            if (target == null || !_config.DashSafety)
+                return false;
+
+            if (player.PendingKnockbacks.Count > 0)
+                return true;
+
+            var dir = player.DirectionTo(target).Normalized() * range;
+            return IsDashDangerous(player.Position, player.Position + dir, hints);
+        };
+        _dashGeometry[check] = new(DashGeometry.TowardTargetFixed, range);
+        return check;
+    }
 
     // check if dashing to target will put the player inside a forbidden zone
     public static bool IsDashDangerous(WPos from, WPos to, AIHints hints)
@@ -353,10 +431,160 @@ public sealed class ActionDefinitions : IDisposable
             return true;
 
         // if arena is a weird shape, try to ensure player won't dash out of it
-        if (from != to && hints.PathfindMapBounds is ArenaBoundsCustom && hints.PathfindMapBounds.IntersectRay(from - center, to - from) is >= 0 and < float.MaxValue)
+        if (from != to && PathCrossesCustomBounds(hints.PathfindMapBounds, from - center, to - from))
             return true;
 
         return hints.ForbiddenZones.Any(d => d.shapeDistance(to) < 0f);
+    }
+
+    // IntersectRay 量的是無限長射線（方向要正規化）：封閉場地裡往哪個方向都打得到牆，只有牆比落點近才算穿過
+    internal static bool PathCrossesCustomBounds(ArenaBounds bounds, WDir fromOffset, WDir path)
+    {
+        if (bounds is not ArenaBoundsCustom)
+            return false;
+        var len = path.Length();
+        var distToWall = bounds.IntersectRay(fromOffset, path.Normalized());
+        return distToWall >= 0f && distToWall < len;
+    }
+
+    /// <summary>照登記的落點算法算出佇列裡這一發的落點（與對應的 ForbidExecute 同一套算式）。目標或座標不足時回 false。</summary>
+    public static bool TryGetDashLanding(DashGeometryInfo geo, Actor player, ActionQueue.Entry entry, out WPos to)
+    {
+        var from = player.Position;
+        var target = entry.Target;
+        switch (geo.Geometry)
+        {
+            case DashGeometry.ToTargetHitbox when target != null:
+                to = from + player.DirectionTo(target).Normalized() * MathF.Max(0f, player.DistanceToHitbox(target));
+                return true;
+            case DashGeometry.TowardTargetFixed when target != null:
+                to = from + player.DirectionTo(target).Normalized() * geo.Distance;
+                return true;
+            case DashGeometry.ToGroundTarget when entry.TargetPos != default:
+                to = new(entry.TargetPos.XZ());
+                return true;
+            case DashGeometry.FixedFromFacing:
+                to = from + (entry.FacingAngle ?? player.Rotation).ToDirection() * geo.Distance;
+                return true;
+            case DashGeometry.AwayFromTarget when target != null:
+                to = from + target.DirectionTo(player).Normalized() * geo.Distance;
+                return true;
+        }
+        to = from;
+        return false;
+    }
+
+    /// <summary>
+    /// 只給診斷用：重算一次 <see cref="IsDashDangerous"/> 的各條件，說明位移技為什麼被擋。判定仍以 ForbidExecute 為準。
+    /// </summary>
+    /// <returns>原因代碼（節流鍵）：1 擊退、2 落點出界、3 穿過不規則邊界、4 落點在危險區、5 落點算不出、0 其他。</returns>
+    public static int DescribeDashDanger(DashGeometryInfo geo, Actor player, ActionQueue.Entry entry, AIHints hints, DateTime now, out string detail)
+    {
+        if (player.PendingKnockbacks.Count > 0)
+        {
+            detail = $"身上有 {player.PendingKnockbacks.Count} 個待生效的擊退，衝出去後會被擊退到哪裡算不準";
+            return 1;
+        }
+        if (!TryGetDashLanding(geo, player, entry, out var to))
+        {
+            detail = "落點算不出來（沒有目標或座標）";
+            return 5;
+        }
+
+        var from = player.Position;
+        var center = hints.PathfindMapCenter;
+        var bounds = hints.PathfindMapBounds;
+        var route = $"起點 ({from.X:f1}, {from.Z:f1}) → 落點 ({to.X:f1}, {to.Z:f1})，長 {(to - from).Length():f1} 碼";
+        if (!bounds.Contains(to - center))
+        {
+            detail = $"落點在{DescribeBounds(hints)}外，{route}";
+            return 2;
+        }
+        if (from != to && PathCrossesCustomBounds(bounds, from - center, to - from))
+        {
+            detail = $"路徑穿過{DescribeBounds(hints)}，{route}";
+            return 3;
+        }
+
+        var count = 0;
+        var soonest = DateTime.MaxValue;
+        foreach (var z in hints.ForbiddenZones)
+        {
+            if (z.shapeDistance(to) < 0f)
+            {
+                ++count;
+                if (z.activation < soonest)
+                    soonest = z.activation;
+            }
+        }
+        if (count > 0)
+        {
+            var when = soonest <= now ? "已經生效" : $"最快 {(soonest - now).TotalSeconds:f1} 秒後生效";
+            detail = $"落點在 {count} 個危險區內（{when}），{route}";
+            return 4;
+        }
+        detail = $"落點檢查以外的條件，{route}";
+        return 0;
+    }
+
+    private static string DescribeBounds(AIHints hints)
+    {
+        var b = hints.PathfindMapBounds;
+        var c = hints.PathfindMapCenter;
+        var kind = hints.PathfindMapBoundsIsArena ? "場地邊界" : ReferenceEquals(b, AIHints.DefaultBounds) ? "預設的 30 碼尋路方形" : "尋路視窗";
+        return $"{kind}（{b.GetType().Name}、半徑 {b.Radius:f1}、中心 ({c.X:f1}, {c.Z:f1})）";
+    }
+
+    // IPC BossMod.Hints.IsActionDashSafe 的回傳值（線上契約，數值不可改）
+    public const int DashQueryUnknown = 0, DashQuerySafe = 1, DashQueryDangerous = 2;
+
+    /// <summary>
+    /// 外部問「這一發位移技的落點安不安全」。落點用登記的算法；危險＝身上有待生效的擊退、落點在任何危險區內（不分生效時間）、
+    /// 在可信的場地邊界（<see cref="AIHints.PathfindMapBoundsIsArena"/>）內起跳而落點出界，或路徑穿過不規則場地的牆
+    /// （與 <see cref="IsDashDangerous"/> 同一個判斷，否則這裡說安全、手動佇列卻擋下）。
+    /// 不是登記的位移技、找不到玩家、需要目標卻找不到（或目標種類不合）、落點算不出（地面指定型）⇒ <see cref="DashQueryUnknown"/>。
+    /// 只問事實：不看 DashSafety 等設定、不看 AI 開關。讀活的 hints ⇒ 只能在遊戲主執行緒呼叫。
+    /// </summary>
+    public static int ClassifyDashLanding(WorldState ws, AIHints hints, uint actionId, ulong targetId)
+    {
+        var def = Instance[new ActionID(ActionType.Spell, actionId)];
+        if (def == null || !TryGetDashGeometry(def.ForbidExecute, out var geo))
+            return DashQueryUnknown;
+        var player = ws.Party.Player();
+        if (player == null)
+            return DashQueryUnknown;
+
+        Actor? target = null;
+        if (geo.Geometry is DashGeometry.ToTargetHitbox or DashGeometry.AwayFromTarget or DashGeometry.TowardTargetFixed)
+        {
+            target = ws.Actors.Find(targetId);
+            if (target == null || ReferenceEquals(target, player))
+                return DashQueryUnknown;
+            var allowed = def.AllowedTargets;
+            var fits = target.IsAlly ? (allowed & (ActionTargets.Party | ActionTargets.Alliance | ActionTargets.Friendly)) != 0 : (allowed & ActionTargets.Hostile) != 0;
+            if (!fits)
+                return DashQueryUnknown; // 例：乙太步只收隊友，拿敵人算出來的落點與實際無關
+        }
+        if (!TryGetDashLanding(geo, player, new ActionQueue.Entry(def.ID, target, 0, 0, 0, 0, default, null, false), out var to))
+            return DashQueryUnknown;
+
+        if (player.PendingKnockbacks.Count > 0)
+            return DashQueryDangerous;
+        if (hints.PathfindMapBoundsIsArena)
+        {
+            var bounds = hints.PathfindMapBounds;
+            var center = hints.PathfindMapCenter;
+            if (bounds.Contains(player.Position - center) && !bounds.Contains(to - center))
+                return DashQueryDangerous;
+        }
+        var from = player.Position;
+        if (from != to && PathCrossesCustomBounds(hints.PathfindMapBounds, from - hints.PathfindMapCenter, to - from))
+            return DashQueryDangerous;
+        var zones = CollectionsMarshal.AsSpan(hints.ForbiddenZones);
+        for (var i = 0; i < zones.Length; ++i)
+            if (zones[i].shapeDistance(to) < 0f)
+                return DashQueryDangerous;
+        return DashQuerySafe;
     }
 
     public BitMask SpellAllowedClasses(Lumina.Excel.Sheets.Action data)

@@ -55,6 +55,20 @@ sealed class MoltAOEs(BossModule module) : Components.GenericAOEs(module)
 
     public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => AOEs.Count != 0 ? CollectionsMarshal.AsSpan(AOEs)[..1] : [];
 
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        if (!AIHints.LookaheadEnabled)
+            return;
+        // 第一個已由基底登記成禁區；後面的交給 AI 的閃避預判
+        var count = AOEs.Count;
+        for (var i = 1; i < count; ++i)
+        {
+            var aoe = AOEs[i];
+            hints.AddFutureForbiddenZone(aoe.Shape, aoe.Origin, aoe.Rotation, aoe.Activation);
+        }
+    }
+
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
         (AOEShape?, bool?) shape = spell.Action.ID switch
@@ -212,9 +226,9 @@ sealed class MoltKB(BossModule module) : Components.GenericKnockback(module)
             if (_aoe!.AOEs.Count == 0)
                 return;
             if (_aoe.AOEs[0].Activation > kb.Activation)
-                hints.Add("Order: Knockback -> AOE");
+                hints.Add(Loc.T("Order: Knockback -> AOE"));
             else
-                hints.Add("Order: AOE -> Knockback");
+                hints.Add(Loc.T("Order: AOE -> Knockback"));
         }
     }
 }
@@ -234,5 +248,5 @@ sealed class CE110FlameOfDuskStates : StateMachineBuilder
 [ModuleInfo(BossModuleInfo.Maturity.Verified, Contributors = "The Combat Reborn Team (Malediktus)", GroupType = BossModuleInfo.GroupType.CriticalEngagement, GroupID = 1018, NameID = 47)]
 public sealed class CE110FlameOfDusk(WorldState ws, Actor primary) : BossModule(ws, primary, new WPos(-570f, -160f).Quantized(), new ArenaBoundsCircle(20f))
 {
-    protected override bool CheckPull() => base.CheckPull() && Raid.Player()!.Position.InCircle(Arena.Center, 25f);
+    protected override bool CheckPull() => base.CheckPull() && Raid.Player() is { } p && p.Position.InCircle(Arena.Center, 25f);
 }

@@ -54,6 +54,7 @@ sealed class TripleFlightCyclone(BossModule module) : Components.GenericAOEs(mod
     private static readonly AOEShapeDonut donut = new(10f, 20f);
     private static readonly AOEShapeCircle circle = new(10f);
     private static readonly AOEShapeRect rect = new(40f, 5f, 40f);
+    private const float FlashFoehnDelay = 4.2f; // 第三段實際約在讀條結束後 4.3 秒放出；取略早，寧可早躲
     private readonly List<AOEInstance> _aoes = new(3);
 
     public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor)
@@ -78,15 +79,30 @@ sealed class TripleFlightCyclone(BossModule module) : Components.GenericAOEs(mod
         {
             AddAOE(donut);
             AddAOE(circle, 2.1f);
-            AddAOE(rect, 2.1f);
+            AddAOE(rect, FlashFoehnDelay);
         }
         else if (id == (uint)AID.Cyclone2)
         {
             AddAOE(circle);
             AddAOE(donut, 2.1f);
-            AddAOE(rect, 2.1f);
+            // Cyclone2 是 helper 讀條（朝向固定 −π）；FlashFoehn 沿王在讀條開始時的朝向
+            AddAOE(rect, FlashFoehnDelay, Module.PrimaryActor.Rotation);
         }
-        void AddAOE(AOEShape shape, float delay = default) => _aoes.Add(new(shape, spell.LocXZ, spell.Rotation, Module.CastFinishAt(spell, delay), risky: false));
+        void AddAOE(AOEShape shape, float delay = default, Angle? rotation = null) => _aoes.Add(new(shape, spell.LocXZ, rotation ?? spell.Rotation, Module.CastFinishAt(spell, delay), risky: false));
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        if (!AIHints.LookaheadEnabled)
+            return;
+        // 第一段已由基底登記成禁區；後面幾段交給 AI 的閃避預判
+        var count = _aoes.Count;
+        for (var i = 1; i < count; ++i)
+        {
+            var aoe = _aoes[i];
+            hints.AddFutureForbiddenZone(aoe.Shape, aoe.Origin, aoe.Rotation, aoe.Activation);
+        }
     }
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)

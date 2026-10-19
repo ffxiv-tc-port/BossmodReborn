@@ -47,7 +47,7 @@ sealed class SwordQuiverLaceration(BossModule module) : Components.CastCounter(m
         var dir = Angle.FromDirection(actor.Position - Arena.Center);
         var clipped = Raid.WithoutSlot(false, true, true).Exclude(actor).InShape(_shape, Arena.Center, dir).CountByCondition(p => p.Class.IsSupport() == actor.Class.IsSupport());
         if (clipped.match != 0 || clipped.mismatch != 1)
-            hints.Add("Spread by roles!");
+            hints.Add(Loc.T("Spread by roles!"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

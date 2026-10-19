@@ -163,7 +163,7 @@ class PomPraise(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (RelevantMoogles.Count != 0)
-            hints.Add("Push defeated moogles out of circles!");
+            hints.Add(Loc.T("Push defeated moogles out of circles!"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

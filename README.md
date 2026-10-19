@@ -1,25 +1,51 @@
-**BossmodReborn**
+# BossmodReborn
 
-![Github Latest Releases](https://img.shields.io/github/downloads/FFXIV-CombatReborn/BossmodReborn/latest/total.svg?style=for-the-badge)
+戰鬥機制輔助插件，社群接手維護的 Bossmod 分支，提供即時戰鬥指引以簡化
+複雜的團隊戰／討伐戰機制。
 
-BossmodReborn is a community-driven fork of the original Bossmod plugin for Final Fantasy XIV. It aims to enhance your gameplay by providing real-time tactical guidance and tools that simplify complex raid mechanics. This tool is invaluable for optimizing in-game strategies, ensuring precise positioning, and enhancing overall raid performance.
+原作者：[FFXIV-CombatReborn](https://github.com/FFXIV-CombatReborn/BossmodReborn)
 
-## Features
+## 功能
 
-- **Advanced Radar System**: A sophisticated on-screen map displaying player and boss positions, imminent AOEs, and other crucial mechanics. This system helps players visualize the battlefield, simplifying decision-making processes.
-- **Mechanic Descriptors**: Near the radar, you’ll find clear, concise descriptions of upcoming mechanics, global hints for resolving current challenges, and personalized player advice to optimize your response to each situation.
-- **Cooldown Planner**: A tool for meticulous planning of ability usage, ensuring optimal timing for cooldowns and abilities in coordination with raid strategies.
-- **User-Friendly Interface**: Designed with accessibility in mind with a wonderful module viewer by Croizat, the interface is intuitive, allowing players of all skill levels to benefit from the plugin.
-- **Regular Updates**: Committed to staying current with the latest game patches, class updates, and community feedback. PRs will be reviewed, tested, and approved.
+- **雷達**：螢幕小地圖顯示玩家位置、Boss 位置、即將到來的各種 AOE 及其他
+  機制，可在「支援的戰鬥」分頁查看並個別啟用支援的頭目戰。
+- **自動循環**：以最佳能力執行輸出循環，可在「自動循環預設」分頁建立與
+  管理自訂預設。
+- **冷卻計劃器**：為支援的頭目戰規劃技能施放時機，僅在沒有啟用任何自動
+  循環預設時取代自動循環。
+- **AI**：依頭目模組判定的安全區域自動移動角色以閃避機制，可與其他插件
+  掛接以自動化整場戰鬥；不建議在與陌生玩家一同遊玩時使用。
+- **機制提示**：雷達旁提供即將發生的機制說明、解法提示與個人化建議。
+- **深層迷宮**：小地圖、自動走到下層傳送點（傳送石塚等）與寶箱、自動選怪、避開已知陷阱、自動使用魔陶器。
+- **模組檢視器**：由 Croizat 製作，瀏覽所有支援頭目戰的機制模組。
 
-## Want to contribute?
+## 指令
 
-- Create a fork
-- Make your changes
-- Test the changes
-- Create a PR and point it to main
+- `/bmr`：開啟設定視窗。
+- `/bmr ar set <預設名稱>`／`ar toggle <預設名稱>`／`ar clear`：切換或清除自動循環預設。
+- `/bmr radar on|off`：開關雷達。
+- `/bmrai on|off|toggle`：開關 AI；`/bmrai follow <隊伍位置或名字>` 等子指令調整跟隨對象與距離。
 
-## Fork for CN client
-- A fork for players on the CN client can be found on https://github.com/44451516-ff14/BossmodRebornCN.
-- It is not directly supported by the Combat Reborn Team, so any bugs exclusive to that fork need to be fixed by the fork maintainer.
-- Bugs that likely affect both BossmodReborn and the CN fork can still be reported to the Combat Reborn Team.
+## 分頁
+
+- 設定、支援的戰鬥、自動循環預設、斜線指令、關於。
+
+## 台服版的修改
+
+- 介面繁體中文化（模組、策略與技能名稱用台服官方譯名）。
+- 補上多場台服普通版／舊版本討伐戰的模組與場地邊界（例：澤羅姆斯殲滅戰、鬼神祖爾宛殲滅戰、神龍殲滅戰、極 火龍狩獵戰）；部分場地是依錄影與遊戲檔碰撞資料畫的近似場地。
+- 沒有專屬模組的討伐戰也會開雷達：畫出場地、敵人與照讀條猜出的危險區（設定「沒有專屬模組的討伐戰也顯示雷達」，預設開）。
+- AI 自動移動的尋路改在背景執行緒算，主執行緒每幀負擔變小（路線晚一幀更新）；閃避會預先考慮接下來幾波 AOE，必要時改用落點安全的位移技。
+- 與 WrathCombo 等循環插件配合：詠唱來不及閃時先讓位給 AI 閃避；位移技放出前會檢查落點安不安全（並提供 IPC 讓其他插件查詢）。
+- 新增「按住指定鍵暫停自動移動」（預設 Alt，只停移動、不停出招）。
+- AI 預設在插件載入時自動開啟（跟隨模式；可在 AI 設定關閉）。
+- 深層迷宮：可結合 PalacePal 的陷阱與「埋藏的寶藏」資料、風箏閃避時避開其他怪物的仇恨範圍、小地圖「走到房間」按鈕（需 vnavmesh）、可在深層迷宮內暫停 WrathCombo 的自動循環。
+- 雷達上按右鍵可開選單：本場模組設定、停用模組與常用顯示開關。
+- 遊戲改版後有特徵碼對不上時，插件照常載入、只停掉對應功能，並跳通知與在聊天視窗列出缺了哪幾項。
+- 多處降低記憶體用量。
+
+## 搭配的插件（皆為選用）
+
+- [vnavmesh](https://github.com/ffxiv-tc-port/vnavmesh)：深層迷宮小地圖的「走到房間」按鈕；vnavmesh 正在走路徑時 BMR 的自動走位會讓路。
+- PalacePal：深層迷宮的陷阱與埋藏的寶藏資料補充。
+- [WrathCombo](https://github.com/ffxiv-tc-port/WrathCombo)：循環插件連動（詠唱讓位、位移技落點檢查）。

@@ -82,7 +82,7 @@ sealed class CantTouchThis(BossModule module) : Components.GenericStackSpread(mo
             var stackPos = stack.Target.Position;
             if (stack.IsInside(stackPos))
             {
-                hints.Add("Touch bomb when ready to resolve stack!");
+                hints.Add(Loc.T("Touch bomb when ready to resolve stack!"));
                 return;
             }
         }
@@ -319,7 +319,7 @@ public sealed class CE23FiresOfWar(WorldState ws, Actor primary) : BossModule(ws
     private Actor? _bossMater;
     public Actor? BossMater() => _bossMater;
 
-    protected override bool CheckPull() => base.CheckPull() && Raid.Player()!.Position.InCircle(Arena.Center, 20f);
+    protected override bool CheckPull() => base.CheckPull() && Raid.Player() is { } p && p.Position.InCircle(Arena.Center, 20f);
 
     protected override void UpdateModule()
     {

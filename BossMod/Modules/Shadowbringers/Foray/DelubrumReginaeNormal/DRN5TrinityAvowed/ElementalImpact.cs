@@ -150,6 +150,6 @@ sealed class ElementalImpactTemperature(BossModule module) : Components.GenericA
 
         if (isInsideDanger)
             hints.Add(WarningText);
-        hints.Add("Get hit by correct AOE!", !isinsideCorrect);
+        hints.Add(Loc.T("Get hit by correct AOE!"), !isinsideCorrect);
     }
 }

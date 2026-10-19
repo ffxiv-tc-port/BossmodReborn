@@ -60,11 +60,11 @@ abstract class InfernWave(BossModule module, bool savage, bool showHints, int ma
         }
 
         if (numBaits > 1)
-            hints.Add("Baiting mulitple cones!");
+            hints.Add(Loc.T("Baiting mulitple cones!"));
         if (clipping)
-            hints.Add("GTFO from raid!");
+            hints.Add(Loc.T("GTFO from raid!"));
         if (clipped)
-            hints.Add("GTFO from other bait!");
+            hints.Add(Loc.T("GTFO from other bait!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

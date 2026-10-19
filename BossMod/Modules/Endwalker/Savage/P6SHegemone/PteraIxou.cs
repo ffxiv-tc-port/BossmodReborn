@@ -10,7 +10,7 @@ class PteraIxou(BossModule module) : Components.CastCounter(module, (uint)AID.Pt
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (ForbiddenCenters(slot).Any(dir => _shape.Check(actor.Position, Arena.Center, dir)))
-            hints.Add("GTFO from aoe!");
+            hints.Add(Loc.T("GTFO from aoe!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

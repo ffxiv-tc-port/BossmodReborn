@@ -118,7 +118,7 @@ sealed class Lanterns(BossModule module) : Components.GenericAOEs(module)
 
     public override void AddGlobalHints(GlobalHints hints)
     {
-        hints.Add("To unlock path 12, pull the ghosts to the marked spots\nand kill them one at a time while they face a lantern.");
+        hints.Add(Loc.T("To unlock path 12, pull the ghosts to the marked spots\nand kill them one at a time while they face a lantern."));
     }
 
     public override void AddHints(int slot, Actor actor, TextHints hints) { }

@@ -82,7 +82,7 @@ class MagitekPulsePlayer(BossModule module) : BossComponent(module)
         {
             if (turrets[i].IsTargetable)
             {
-                hints.Add("Use the turrets to stun the boss!");
+                hints.Add(Loc.T("Use the turrets to stun the boss!"));
                 return;
             }
         }

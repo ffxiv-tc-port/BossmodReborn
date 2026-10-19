@@ -121,7 +121,7 @@ sealed class CradleOfTheSleepless(BossModule module) : Components.GenericAOEs(mo
     {
         if (_aoe is not AOEInstance aoe)
             return;
-        hints.Add("Go behind shield or duty fails!", !aoe.Check(actor.Position));
+        hints.Add(Loc.T("Go behind shield or duty fails!"), !aoe.Check(actor.Position));
     }
 }
 
@@ -155,7 +155,7 @@ public abstract class DreamsOfANewDay(WorldState ws, Actor primary) : BossModule
         Arena.Actors(Enemies(all));
     }
 
-    protected override bool CheckPull() => Raid.Player()!.InCombat;
+    protected override bool CheckPull() => Raid.Player() is { } p && p.InCombat;
 }
 
 sealed class DreamsOfANewDayP1States(BossModule module) : DreamsOfANewDayStates(module) { }

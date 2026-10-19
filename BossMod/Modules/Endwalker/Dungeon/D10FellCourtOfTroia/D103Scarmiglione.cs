@@ -278,7 +278,7 @@ sealed class VacuumWaveHint(BossModule module) : Components.GenericAOEs(module)
             var check = true;
             if (aoe.Check(actor.Position))
                 check = false;
-            hints.Add("Use safewalls for knockback!", check);
+            hints.Add(Loc.T("Use safewalls for knockback!"), check);
         }
     }
 }
@@ -325,7 +325,7 @@ sealed class RottenRampageSpread(BossModule module) : Components.SpreadFromCastT
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (IsSpreadTarget(actor))
-            hints.Add("Spread, avoid intersecting wall hitboxes!");
+            hints.Add(Loc.T("Spread, avoid intersecting wall hitboxes!"));
     }
 }
 

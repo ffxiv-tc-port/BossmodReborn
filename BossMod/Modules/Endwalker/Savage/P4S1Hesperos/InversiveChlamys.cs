@@ -53,19 +53,19 @@ class InversiveChlamys(BossModule module) : BossComponent(module)
             // we should be grabbing tethers
             if (_tetherTargets.None())
             {
-                hints.Add("Tethers: prepare to intercept", false);
+                hints.Add(Loc.T("Tethers: prepare to intercept"), false);
             }
             else if (!_tetherTargets[slot])
             {
-                hints.Add("Tethers: intercept!");
+                hints.Add(Loc.T("Tethers: intercept!"));
             }
             else if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _aoeRange).Any())
             {
-                hints.Add("Tethers: GTFO from others!");
+                hints.Add(Loc.T("Tethers: GTFO from others!"));
             }
             else
             {
-                hints.Add("Tethers: OK", false);
+                hints.Add(Loc.T("Tethers: OK"), false);
             }
         }
         else
@@ -73,19 +73,19 @@ class InversiveChlamys(BossModule module) : BossComponent(module)
             // we should be passing tethers
             if (_tetherTargets.None())
             {
-                hints.Add("Tethers: prepare to pass", false);
+                hints.Add(Loc.T("Tethers: prepare to pass"), false);
             }
             else if (_tetherTargets[slot])
             {
-                hints.Add("Tethers: pass!");
+                hints.Add(Loc.T("Tethers: pass!"));
             }
             else if (_tetherInAOE[slot])
             {
-                hints.Add("Tethers: GTFO from aoe!");
+                hints.Add(Loc.T("Tethers: GTFO from aoe!"));
             }
             else
             {
-                hints.Add("Tethers: avoid", false);
+                hints.Add(Loc.T("Tethers: avoid"), false);
             }
         }
     }

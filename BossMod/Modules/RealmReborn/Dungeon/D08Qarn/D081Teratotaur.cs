@@ -65,7 +65,7 @@ sealed class MortalRay(BossModule module) : Components.GenericAOEs(module)
     {
         if (_dooms[slot])
         {
-            hints.Add("Go to glowing platform!");
+            hints.Add(Loc.T("Go to glowing platform!"));
         }
     }
 

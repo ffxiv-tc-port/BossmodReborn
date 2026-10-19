@@ -16,7 +16,7 @@ class Hints(BossModule module) : BossComponent(module)
             var w = wavetooth[i];
             if (w.IsTargetable && !w.IsDead)
             {
-                hints.Add("Kill Sahagins or lose control!");
+                hints.Add(Loc.T("Kill Sahagins or lose control!"));
                 break;
             }
         }
@@ -42,9 +42,9 @@ class Hints(BossModule module) : BossComponent(module)
         if (tail != null && tail.FindStatus((uint)SID.Invincibility) == null && tail.FindStatus((uint)SID.MantleOfTheWhorl) != null)
         {
             if ((actor.Class.GetClassCategory() is ClassCategory.Caster or ClassCategory.Healer || actor.Class is Class.BLU && actor.FindStatus(2124u) == null) && actor.TargetID == tail.InstanceID)
-                hints.Add("Attack the head! (Attacking the tail will reflect damage onto you)");
+                hints.Add(Loc.T("Attack the head! (Attacking the tail will reflect damage onto you)"));
             else if (actor.Class.GetClassCategory() is ClassCategory.PhysRanged && actor.TargetID == Module.PrimaryActor.InstanceID)
-                hints.Add("Attack the tail! (Attacking the head will reflect damage onto you)");
+                hints.Add(Loc.T("Attack the tail! (Attacking the head will reflect damage onto you)"));
         }
     }
 

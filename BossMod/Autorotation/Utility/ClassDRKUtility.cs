@@ -20,30 +20,30 @@ public sealed class ClassDRKUtility(RotationModuleManager manager, Actor player)
         DefineSimpleConfig(res, Track.DarkMind, "DarkMind", "DMind", 450, DRK.AID.DarkMind, 10); //120s CD, 15s duration
 
         res.Define(Track.ShadowWall).As<WallOption>("ShadowWall", "Wall", 550) //120s CD, 15s duration
-            .AddOption(WallOption.None, "None", "Do not use automatically")
-            .AddOption(WallOption.ShadowWall, "Use", "Use Shadow Wall", 120, 15, ActionTargets.Self, 38, 91)
-            .AddOption(WallOption.ShadowedVigil, "UseEx", "Use Shadowed Vigil", 120, 15, ActionTargets.Self, 92)
+            .AddOption(WallOption.None, "Do not use automatically")
+            .AddOption(WallOption.ShadowWall, "Use Shadow Wall", cooldown: 120, effect: 15, supportedTargets: ActionTargets.Self, minLevel: 38, maxLevel: 91)
+            .AddOption(WallOption.ShadowedVigil, "Use Shadowed Vigil", cooldown: 120, effect: 15, supportedTargets: ActionTargets.Self, minLevel: 92)
             .AddAssociatedActions(DRK.AID.ShadowWall, DRK.AID.ShadowedVigil);
 
         DefineSimpleConfig(res, Track.LivingDead, "LivingDead", "LD", 400, DRK.AID.LivingDead, 10); //300s CD, 10s duration
 
         res.Define(Track.TheBlackestNight).As<TBNStrategy>("TheBlackestNight", "TBN", 550) //60s (120s total), 10s duration, 2 charges
-            .AddOption(TBNStrategy.None, "None", "Do not use automatically")
-            .AddOption(TBNStrategy.Force, "Use", "Use The Blackest Night", 15, 7, ActionTargets.Self | ActionTargets.Party, 70)
+            .AddOption(TBNStrategy.None, "Do not use automatically")
+            .AddOption(TBNStrategy.Force, "Use The Blackest Night", cooldown: 15, effect: 7, supportedTargets: ActionTargets.Self | ActionTargets.Party, minLevel: 70)
             .AddAssociatedActions(DRK.AID.TheBlackestNight);
 
         res.Define(Track.Oblation).As<OblationStrategy>("Oblation", "", 550) //60s (120s total), 10s duration, 2 charges
-            .AddOption(OblationStrategy.None, "None", "Do not use automatically")
-            .AddOption(OblationStrategy.Force, "Use", "Use Oblation", 60, 10, ActionTargets.Self | ActionTargets.Party, 82)
-            .AddOption(OblationStrategy.ForceHold1, "UseHold1", "Use Oblation; Holds 1 charge for manual usage", 60, 10, ActionTargets.Self | ActionTargets.Party, 82)
+            .AddOption(OblationStrategy.None, "Do not use automatically")
+            .AddOption(OblationStrategy.Force, "Use Oblation", cooldown: 60, effect: 10, supportedTargets: ActionTargets.Self | ActionTargets.Party, minLevel: 82)
+            .AddOption(OblationStrategy.ForceHold1, "Use Oblation; Holds 1 charge for manual usage", cooldown: 60, effect: 10, supportedTargets: ActionTargets.Self | ActionTargets.Party, minLevel: 82)
             .AddAssociatedActions(DRK.AID.Oblation);
 
         DefineSimpleConfig(res, Track.DarkMissionary, "DarkMissionary", "Mission", 220, DRK.AID.DarkMissionary, 15); //90s CD, 15s duration
 
         res.Define(Track.Shadowstride).As<DashStrategy>("Shadowstride", "Dash", 20)
-            .AddOption(DashStrategy.None, "None", "No use")
-            .AddOption(DashStrategy.GapClose, "GapClose", "Use as gapcloser if outside melee range", 30, 0, ActionTargets.Hostile, 56)
-            .AddOption(DashStrategy.GapCloseHold1, "GapCloseHold1", "Use as gapcloser if outside melee range; conserves 1 charge for manual usage", 60, 0, ActionTargets.Hostile, 84)
+            .AddOption(DashStrategy.None, "No use")
+            .AddOption(DashStrategy.GapClose, "Use as gapcloser if outside melee range", cooldown: 30, effect: 0, supportedTargets: ActionTargets.Hostile, minLevel: 56)
+            .AddOption(DashStrategy.GapCloseHold1, "Use as gapcloser if outside melee range; conserves 1 charge for manual usage", cooldown: 60, effect: 0, supportedTargets: ActionTargets.Hostile, minLevel: 84)
             .AddAssociatedActions(DRK.AID.Shadowstride);
 
         return res;

@@ -93,7 +93,7 @@ class FlamesOfFuryBait(BossModule module) : Components.GenericBaitAway(module)
         if (CurrentBaits[0].Target != actor)
             base.AddHints(slot, actor, hints);
         else
-            hints.Add("Bait away! (3 times)");
+            hints.Add(Loc.T("Bait away! (3 times)"));
     }
 }
 

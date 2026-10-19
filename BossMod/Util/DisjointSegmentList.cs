@@ -32,15 +32,25 @@ public sealed class DisjointSegmentList
 
     public bool Contains(float x)
     {
-        var firstIndex = Segments.FindIndex(s => s.Max >= x);
+        var firstIndex = FirstWithMaxAtLeast(x);
         return firstIndex != -1 && Segments[firstIndex].Min <= x;
+    }
+
+    // 結果同 Segments.FindIndex(s => s.Max >= value)，但不配閉包與 Predicate（SmartRotationTweak 每幀呼叫）
+    private int FirstWithMaxAtLeast(float value)
+    {
+        var count = Segments.Count;
+        for (var i = 0; i < count; ++i)
+            if (Segments[i].Max >= value)
+                return i;
+        return -1;
     }
 
     // if there is intersection - return index of the first intersecting segment and number of subsequent intersecting segments (touching by endpoint is considered an intersection)
     // otherwise - return index of the first segment greater than range (i.e. insertion point) and 0
     public (int first, int count) Intersect(float min, float max)
     {
-        var index = Segments.FindIndex(s => s.Max >= min);
+        var index = FirstWithMaxAtLeast(min);
         if (index < 0)
             return (Segments.Count, 0); // greater than any existing segments
 

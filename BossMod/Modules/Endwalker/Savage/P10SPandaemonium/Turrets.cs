@@ -44,9 +44,9 @@ class Turrets(BossModule module) : Components.GenericKnockback(module, (uint)AID
         }
 
         if (inCount > 1)
-            hints.Add("GTFO from one of the knockbacks!");
+            hints.Add(Loc.T("GTFO from one of the knockbacks!"));
         else if (inCount > 0 && _forbidden[slot])
-            hints.Add("GTFO from knockback!");
+            hints.Add(Loc.T("GTFO from knockback!"));
     }
 
     public override PlayerPriority CalcPriority(int pcSlot, Actor pc, int playerSlot, Actor player, ref uint customColor)

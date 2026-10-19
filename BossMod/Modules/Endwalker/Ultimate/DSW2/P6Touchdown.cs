@@ -29,7 +29,7 @@ class P6TouchdownCauterize(BossModule module) : BossComponent(module)
         var nidhoggSide = NidhoggSide(actor);
         var forbiddenMask = nidhoggSide ? _boiling : _freezing;
         if (forbiddenMask[slot])
-            hints.Add("GTFO from wrong side!");
+            hints.Add(Loc.T("GTFO from wrong side!"));
 
         // note: assume both dragons are always at north side
         bool isClosest = Raid.WithoutSlot(false, true, true).Where(p => NidhoggSide(p) == nidhoggSide).MinBy(p => p.PosRot.Z) == actor;

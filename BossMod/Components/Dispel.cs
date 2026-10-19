@@ -19,7 +19,7 @@ public class Dispel(BossModule module, uint statusID, uint action = default) : C
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (Targets.Count != 0)
-            hints.Add($"Dispel {Targets[0].Name}!");
+            hints.Add(string.Format(Loc.T("Dispel {0}!"), Targets[0].Name));
     }
 
     public override void OnStatusGain(Actor actor, ActorStatus status)

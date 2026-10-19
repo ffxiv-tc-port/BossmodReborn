@@ -19,7 +19,7 @@ sealed class EngravementOfSoulsTethers(BossModule module) : Components.GenericBa
     {
         base.AddHints(slot, actor, hints);
         if (States[slot].TooClose)
-            hints.Add("Stretch the tether!");
+            hints.Add(Loc.T("Stretch the tether!"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

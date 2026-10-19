@@ -14,6 +14,7 @@ public sealed class ZoneModuleWindow : UIWindow
 
     public override void PreOpenCheck()
     {
+        base.PreOpenCheck();
         IsOpen = _zmm.ActiveModule?.WantDrawExtra() ?? false;
         if (IsOpen)
         {

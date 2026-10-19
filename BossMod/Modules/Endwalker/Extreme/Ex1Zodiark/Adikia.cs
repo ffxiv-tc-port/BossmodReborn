@@ -12,7 +12,7 @@ class Adikia(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (_casters.Any(c => _shape.Check(actor.Position, c)))
-            hints.Add("GTFO from side smash aoe!");
+            hints.Add(Loc.T("GTFO from side smash aoe!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

@@ -48,7 +48,10 @@ sealed class Intake(BossModule module) : Components.GenericKnockback(module, sto
             if (!IsImmune(slot, act))
             {
                 var center = kb.Origin;
-                var kbs = _kbs;
+                // 危險區委派會在背景尋路的執行緒池上求值，而主執行緒的 OnEventCast 會清空 _kbs ⇒ 只抄委派要用的四個原點
+                var origins = new WPos[4];
+                for (var i = 0; i < 4; ++i)
+                    origins[i] = _kbs[i].Origin;
                 var aoes = CollectionsMarshal.AsSpan(_aoe.AOEs);
                 var len = aoes.Length;
                 var donutPos = new WPos[2];
@@ -70,11 +73,9 @@ sealed class Intake(BossModule module) : Components.GenericKnockback(module, sto
                 var centerX = center.X;
                 hints.AddForbiddenZone(p =>
                 {
-                    var kbz = CollectionsMarshal.AsSpan(kbs);
                     for (var i = 0; i < 4; ++i)
                     {
-                        ref var kb = ref kbz[i];
-                        var origin = kb.Origin;
+                        var origin = origins[i];
                         if (p.InRect(origin, dir, 40f, default, 5f))
                         {
                             var projected = p + 25f * (origin - p).Normalized(); // we don't need to clamp the distance since origin is outside of the arena

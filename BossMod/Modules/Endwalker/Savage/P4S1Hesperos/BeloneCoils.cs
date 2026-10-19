@@ -28,11 +28,11 @@ class BeloneCoils(BossModule module) : BossComponent(module)
         var isSoaking = _activeTowers.InRadius(actor.Position, _towerRadius).Any();
         if (IsValidSoaker(actor))
         {
-            hints.Add("Soak the tower", !isSoaking);
+            hints.Add(Loc.T("Soak the tower"), !isSoaking);
         }
         else
         {
-            hints.Add("GTFO from tower", isSoaking);
+            hints.Add(Loc.T("GTFO from tower"), isSoaking);
         }
     }
 

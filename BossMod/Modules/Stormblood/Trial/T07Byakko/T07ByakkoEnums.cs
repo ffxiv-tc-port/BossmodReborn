@@ -9,6 +9,9 @@ public enum OID : uint
     Hakutei1 = 0x20F8, // R4.750, x1
     Hakutei2 = 0x2162, // R4.750, x0 (spawn during fight)
     Helper = 0x18D6, // R0.500, x29, mixed types
+    // 場地本身的 EventObj；它的動畫事件是空中階段場地縮小／還原的訊號（見 ArenaChange）。
+    // 值與 Ex6Byakko 的 ArenaFeatures 相同。
+    ArenaFeatures = 0x1EA1A1, // R2.0
 }
 
 public enum AID : uint
@@ -65,7 +68,10 @@ public enum AID : uint
     UnknownCast = 10794, // Boss->self, no cast, single-target
 
     UnknownSpell1 = 10222, // Boss->self, no cast, single-target
-    UnknownSpell2 = 10817, // Helper->location, no cast, single-target
+
+    // upstream calls this UnknownSpell2; it is the telegraph half of the 荒彈 rain - it lands at the spot
+    // Aratama2 (10818) detonates 6.07s later.
+    AratamaRainTelegraph = 10817, // Helper->location, no cast, spawns the puddle
 
     UnrelentingAnguish = 10221, // Boss->self, 3.0s cast, single-target
     WhiteHerald = 10828, // Hakutei1->self, no cast, range 50 circle

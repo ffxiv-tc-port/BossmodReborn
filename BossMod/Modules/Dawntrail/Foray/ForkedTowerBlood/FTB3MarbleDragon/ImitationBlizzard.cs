@@ -301,7 +301,7 @@ sealed class ImitationBlizzard(BossModule module) : Components.GenericAOEs(modul
                     break;
                 }
             }
-            hints.Add("Get hit by an ice AOE!", !isInside);
+            hints.Add(Loc.T("Get hit by an ice AOE!"), !isInside);
         }
         else
         {

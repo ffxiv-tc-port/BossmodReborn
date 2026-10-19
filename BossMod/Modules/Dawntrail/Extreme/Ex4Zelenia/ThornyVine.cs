@@ -17,7 +17,7 @@ sealed class ThornyVine(BossModule module) : Components.Chains(module, (uint)Tet
     {
         if (!TethersAssigned && _emblazon.WedgeCenterDirection != default)
         {
-            hints.Add("Meet at marked spot for chains!");
+            hints.Add(Loc.T("Meet at marked spot for chains!"));
         }
         else
         {

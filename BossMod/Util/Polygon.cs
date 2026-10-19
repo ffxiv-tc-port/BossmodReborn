@@ -24,15 +24,22 @@ public sealed class RelPolygonWithHoles(List<WDir> vertices, List<int> HoleStart
     public ReadOnlySpan<WDir> AllVertices => CollectionsMarshal.AsSpan(Vertices);
     public ReadOnlySpan<WDir> Exterior => AllVertices[..ExteriorEnd];
     public ReadOnlySpan<WDir> Interior(int index) => AllVertices[HoleStarts[index]..HoleEnd(index)];
+    // 0..洞數-1；全部實例共用一份只增長的遞增序列（內容永不改寫，舊陣列仍可被別條執行緒讀）。
+    private static int[] _holeIndices = [];
     public ReadOnlySpan<int> Holes
     {
         get
         {
             var count = HoleStarts.Count;
-            var result = new int[count];
-            for (var i = 0; i < count; ++i)
-                result[i] = i;
-            return result;
+            var indices = Volatile.Read(ref _holeIndices);
+            if (indices.Length < count)
+            {
+                indices = new int[Math.Max(count, indices.Length * 2)];
+                for (var i = 0; i < indices.Length; ++i)
+                    indices[i] = i;
+                Volatile.Write(ref _holeIndices, indices);
+            }
+            return new(indices, 0, count);
         }
     }
 
@@ -53,20 +60,28 @@ public sealed class RelPolygonWithHoles(List<WDir> vertices, List<int> HoleStart
         Vertices.AddRange(simpleHole);
     }
 
+    [ThreadStatic] private static List<int>? t_tessScratch;
+
     // build a triangulation of the polygon
-    public bool Triangulate(List<RelTriangle> result)
+    public bool Triangulate(List<RelTriangle> result) => TriangulateInto(Vertices, HoleStarts, result);
+
+    internal static bool TriangulateInto(List<WDir> vertices, List<int> holeStarts, List<RelTriangle> result)
     {
-        var vertexCount = Vertices.Count;
+        var vertexCount = vertices.Count;
         Span<double> pts = vertexCount <= 256 ? stackalloc double[vertexCount * 2] : new double[vertexCount * 2];
-        var verticesSpan = CollectionsMarshal.AsSpan(Vertices);
+        var verticesSpan = CollectionsMarshal.AsSpan(vertices);
         for (int i = 0, j = 0; i < vertexCount; ++i, j += 2)
         {
             ref readonly var v = ref verticesSpan[i];
             pts[j] = v.X;
             pts[j + 1] = v.Z;
         }
-        var tess = CollectionsMarshal.AsSpan(Earcut.Tessellate(pts[..(vertexCount * 2)], HoleStarts));
+        var tessList = t_tessScratch ??= [];
+        tessList.Clear();
+        Earcut.Tessellate(pts[..(vertexCount * 2)], holeStarts, tessList);
+        var tess = CollectionsMarshal.AsSpan(tessList);
         var count = tess.Length;
+        result.EnsureCapacity(result.Count + count / 3);
         for (var i = 0; i < count; i += 3)
         {
             result.Add(new(verticesSpan[tess[i]], verticesSpan[tess[i + 1]], verticesSpan[tess[i + 2]]));
@@ -97,33 +112,7 @@ public sealed class RelPolygonWithHoles(List<WDir> vertices, List<int> HoleStart
     {
         ref var edgeBuckets = ref _edgeBuckets;
         if (edgeBuckets == null)
-        {
-            var holecount = HoleStarts.Count;
-            ContourEdgeBuckets[] holeEdgeBuckets;
-            var exterior = BuildEdgeBucketsForContour(Exterior);
-            switch (holecount)
-            {
-                case 0:
-                    holeEdgeBuckets = [];
-                    break;
-                case 1:
-                    holeEdgeBuckets = new ContourEdgeBuckets[1];
-                    holeEdgeBuckets[0] = BuildEdgeBucketsForContour(Interior(0));
-                    break;
-                default:
-                    holeEdgeBuckets = new ContourEdgeBuckets[holecount];
-                    Parallel.For(0, holecount, i =>
-                    {
-                        holeEdgeBuckets[i] = BuildEdgeBucketsForContour(Interior(i));
-                    });
-                    break;
-            }
-
-            var newEdgeBuckets = new EdgeBuckets(exterior, holeEdgeBuckets);
-            var original = Interlocked.CompareExchange(ref _edgeBuckets, newEdgeBuckets, null);
-
-            edgeBuckets = original ?? newEdgeBuckets;
-        }
+            edgeBuckets = BuildEdgeBuckets();
 
         if (!InSimplePolygon(p, edgeBuckets.ExteriorEdgeBuckets))
             return false;
@@ -134,6 +123,36 @@ public sealed class RelPolygonWithHoles(List<WDir> vertices, List<int> HoleStart
                 return false;
         }
         return true;
+    }
+
+    // 冷路徑獨立成方法：下面的 Parallel.For lambda 會讓編譯器在「方法入口」就配閉包，
+    // 留在 Contains 裡等於每一次點查詢（尋路每一格、在執行緒集區上）都配一次。
+    private EdgeBuckets BuildEdgeBuckets()
+    {
+        var holecount = HoleStarts.Count;
+        ContourEdgeBuckets[] holeEdgeBuckets;
+        var exterior = BuildEdgeBucketsForContour(Exterior);
+        switch (holecount)
+        {
+            case 0:
+                holeEdgeBuckets = [];
+                break;
+            case 1:
+                holeEdgeBuckets = new ContourEdgeBuckets[1];
+                holeEdgeBuckets[0] = BuildEdgeBucketsForContour(Interior(0));
+                break;
+            default:
+                holeEdgeBuckets = new ContourEdgeBuckets[holecount];
+                Parallel.For(0, holecount, i =>
+                {
+                    holeEdgeBuckets[i] = BuildEdgeBucketsForContour(Interior(i));
+                });
+                break;
+        }
+
+        var newEdgeBuckets = new EdgeBuckets(exterior, holeEdgeBuckets);
+        var original = Interlocked.CompareExchange(ref _edgeBuckets, newEdgeBuckets, null);
+        return original ?? newEdgeBuckets;
     }
 
     private static bool InSimplePolygon(WDir p, ContourEdgeBuckets buckets)
@@ -359,13 +378,24 @@ public sealed class PolygonClipper
 
         public void Clear() => _data.Clear();
 
+        // AddPaths 當場把點抄進頂點、不留 Path64 參考，所以暫存路徑可以每次重用。
+        [ThreadStatic] private static Path64? t_path;
+        [ThreadStatic] private static Paths64? t_paths;
+
         public void AddContour(ReadOnlySpan<WDir> contour, bool isOpen = false)
         {
             var count = contour.Length;
-            Path64 path = new(count);
+            var path = t_path ??= [];
+            path.Clear();
+            path.EnsureCapacity(count);
             for (var i = 0; i < count; ++i)
                 path.Add(ConvertPoint(contour[i]));
-            AddContour(path, isOpen);
+            var paths = t_paths ??= [];
+            paths.Clear();
+            paths.Add(path);
+            _data.AddPaths(paths, PathType.Subject, isOpen);
+            paths.Clear();
+            path.Clear();
         }
 
         public void AddContour(IEnumerable<WDir> contour, bool isOpen = false) => AddContour([.. contour.Select(ConvertPoint)], isOpen);
@@ -461,6 +491,62 @@ public sealed class PolygonClipper
         subject.Assign(_clipper, PathType.Subject);
         clip.Assign(_clipper, PathType.Clip);
         return Execute(operation, fillRule);
+    }
+
+    // 等同 Intersect(subject, clip).Triangulate()（三角形與順序逐一相同），中間的多邊形物件改用本執行緒的暫存。
+    public void IntersectAndTriangulate(Operand subject, Operand clip, List<RelTriangle> result, FillRule fillRule = FillRule.NonZero)
+    {
+        subject.Assign(_clipper, PathType.Subject);
+        clip.Assign(_clipper, PathType.Clip);
+        var tree = t_tree ??= new();
+        _clipper.Execute(ClipType.Intersection, fillRule, tree, t_openPaths ??= []);
+        _clipper.Clear();
+        TriangulateResult(tree, result, t_vertices ??= [], t_holeStarts ??= []);
+        tree.Clear();
+    }
+
+    [ThreadStatic] private static PolyTree64? t_tree;
+    [ThreadStatic] private static Paths64? t_openPaths;
+    [ThreadStatic] private static List<WDir>? t_vertices;
+    [ThreadStatic] private static List<int>? t_holeStarts;
+
+    // 走訪順序與 BuildResult 相同（外框、它的洞、再遞迴洞裡的島），每一塊照 RelPolygonWithHoles.Triangulate 的寫法三角化。
+    private static void TriangulateResult(PolyPath64 parent, List<RelTriangle> result, List<WDir> vertices, List<int> holeStarts)
+    {
+        var countP = parent.Count;
+        for (var i = 0; i < countP; ++i)
+        {
+            var exterior = parent[i];
+            if (exterior.Polygon == null || exterior.Polygon.Count == 0)
+                continue;
+
+            vertices.Clear();
+            holeStarts.Clear();
+            var extPolygon = exterior.Polygon;
+            var countExt = extPolygon.Count;
+            for (var j = 0; j < countExt; ++j)
+                vertices.Add(ConvertPoint(extPolygon[j]));
+            var countExt2 = exterior.Count;
+            for (var j = 0; j < countExt2; ++j)
+            {
+                var intPolygon = exterior[j].Polygon;
+                if (intPolygon == null || intPolygon.Count == 0)
+                    continue;
+                holeStarts.Add(vertices.Count);
+                var countInt = intPolygon.Count;
+                for (var k = 0; k < countInt; ++k)
+                    vertices.Add(ConvertPoint(intPolygon[k]));
+            }
+            RelPolygonWithHoles.TriangulateInto(vertices, holeStarts, result);
+
+            for (var j = 0; j < countExt2; ++j)
+            {
+                var interior = exterior[j];
+                if (interior.Polygon == null || interior.Polygon.Count == 0)
+                    continue;
+                TriangulateResult(interior, result, vertices, holeStarts);
+            }
+        }
     }
 
     private RelSimplifiedComplexPolygon Execute(ClipType operation, FillRule fillRule)

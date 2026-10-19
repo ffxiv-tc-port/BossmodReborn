@@ -16,7 +16,7 @@ sealed class ScreamOfTheFallen(BossModule module) : Components.UniformStackSprea
     {
         base.AddHints(slot, actor, hints);
         if (!IsSpreadTarget(actor))
-            hints.Add("Soak the tower!", !ActiveTowers(_second[slot]).Any(t => t.Position.InCircle(actor.Position, _towerRadius)));
+            hints.Add(Loc.T("Soak the tower!"), !ActiveTowers(_second[slot]).Any(t => t.Position.InCircle(actor.Position, _towerRadius)));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

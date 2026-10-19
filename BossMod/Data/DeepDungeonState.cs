@@ -41,7 +41,15 @@ public sealed class DeepDungeonState
     public bool IsBossFloor => Progress.Floor % 10 == 0;
 
     public Lumina.Excel.Sheets.DeepDungeon GetDungeonDefinition() => Service.LuminaRow<Lumina.Excel.Sheets.DeepDungeon>((uint)DungeonId)!.Value;
-    public int GetPomanderSlot(PomanderID pid) => GetDungeonDefinition().PomanderSlot.FindIndex(p => p.RowId == (uint)pid);
+    // 每幀都會走到（GetPomanderState）：直接走表，不建捕獲 pid 的委派
+    public int GetPomanderSlot(PomanderID pid)
+    {
+        var slots = GetDungeonDefinition().PomanderSlot;
+        for (var i = 0; i < slots.Count; ++i)
+            if (slots[i].RowId == (uint)pid)
+                return i;
+        return -1;
+    }
     public PomanderState GetPomanderState(PomanderID pid) => GetPomanderSlot(pid) is var s && s >= 0 ? Pomanders[s] : default;
     public PomanderID GetPomanderID(int slot) => GetDungeonDefinition().PomanderSlot is var slots && slot >= 0 && slot < slots.Count ? (PomanderID)slots[slot].RowId : PomanderID.None;
 

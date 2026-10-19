@@ -156,7 +156,7 @@ sealed class Chess(BossModule module) : Components.GenericAOEs(module)
             return;
         if (distancesPending[slot] != default)
         {
-            hints.Add("Prepare for movement!", false);
+            hints.Add(Loc.T("Prepare for movement!"), false);
             return;
         }
         var aoes = ActiveAOEs(slot, actor);
@@ -173,7 +173,7 @@ sealed class Chess(BossModule module) : Components.GenericAOEs(module)
                 break;
             }
         }
-        hints.Add("Move to a safe tile!", !isInside);
+        hints.Add(Loc.T("Move to a safe tile!"), !isInside);
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

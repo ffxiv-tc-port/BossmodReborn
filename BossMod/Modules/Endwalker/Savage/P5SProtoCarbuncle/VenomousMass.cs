@@ -9,7 +9,7 @@ class VenomousMass(BossModule module) : Components.CastCounter(module, (uint)AID
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (_target != null && _target != actor && actor.Position.InCircle(_target.Position, _radius))
-            hints.Add("GTFO from tankbuster!");
+            hints.Add(Loc.T("GTFO from tankbuster!"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

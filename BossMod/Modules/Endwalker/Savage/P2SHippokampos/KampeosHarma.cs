@@ -12,7 +12,7 @@ class KampeosHarma(BossModule module) : Components.CastCounter(module, (uint)AID
         var safePos = GetSafeZone(slot);
         if (safePos != null && !actor.Position.InCircle(safePos.Value, 2))
         {
-            hints.Add("Go to safe zone!");
+            hints.Add(Loc.T("Go to safe zone!"));
         }
     }
 

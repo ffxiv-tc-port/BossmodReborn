@@ -67,7 +67,7 @@ class Dhrupad(BossModule module) : BossComponent(module)
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (active)
-            hints.Add("3 single target hits + DoTs");
+            hints.Add(Loc.T("3 single target hits + DoTs"));
     }
 }
 

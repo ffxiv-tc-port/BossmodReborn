@@ -343,7 +343,7 @@ sealed class P3UltimateRelativitySinboundMeltdownBait(BossModule module) : Compo
         }
 
         if (ActiveBaitsNotOn(actor).Any(b => IsClippedBy(actor, b)))
-            hints.Add("GTFO from baited aoe!");
+            hints.Add(Loc.T("GTFO from baited aoe!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints) { } // handled by main component
@@ -457,7 +457,7 @@ sealed class P3UltimateRelativityShadoweye(BossModule module) : BossComponent(mo
     {
         var pos = _rel?.States[slot].ReturnPos ?? actor.Position;
         if (_eyes.Any(eye => eye != pos && HitByEye(pos, actor.Rotation, eye)))
-            hints.Add("Turn away from gaze!");
+            hints.Add(Loc.T("Turn away from gaze!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

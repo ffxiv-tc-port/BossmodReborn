@@ -16,7 +16,7 @@ public enum AID : uint
     DarkHarvest = 6400, // Boss->player, 2.0s cast, single-target
     Desolation = 6404, // GargoyleSteward->self, 4.0s cast, range 55+R width 6 rect
     InHealthCircle = 6398, // Boss->self, 4.5s cast, range 16 circle
-    InHealthDonut = 6399, // Boss->self, 4.5s cast, range 3+R-50+R donut
+    InHealthDonut = 6399, // Boss->self, 4.5s cast, range 3-50+R donut
     TerrorEye = 6405 // DemonButler->location, 4.0s cast, range 6 circle
 }
 
@@ -25,7 +25,7 @@ class ColdFeet(BossModule module) : Components.CastGaze(module, (uint)AID.ColdFe
 class DarkHarvest(BossModule module) : Components.SingleTargetCast(module, (uint)AID.DarkHarvest);
 class Desolation(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Desolation, new AOEShapeRect(57.3f, 3f));
 class InHeathCircle(BossModule module) : Components.SimpleAOEs(module, (uint)AID.InHealthCircle, 16f);
-class InHeathDonut(BossModule module) : Components.SimpleAOEs(module, (uint)AID.InHealthDonut, new AOEShapeDonut(4.5f, 50f));
+class InHeathDonut(BossModule module) : Components.SimpleAOEs(module, (uint)AID.InHealthDonut, new AOEShapeDonut(3f, 51.5f));
 class TerrorEye(BossModule module) : Components.SimpleAOEs(module, (uint)AID.TerrorEye, 6f);
 
 class DD50EddaBlackbosomStates : StateMachineBuilder

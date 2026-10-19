@@ -61,10 +61,14 @@ public sealed class PartyState
     }
 
     // select non-null and optionally alive raid members
+    // 篩選用的暫存陣列：每條執行緒一份、長度 MaxAllies；回傳的仍是每次新配的剛好大小陣列，暫存在回傳前清空（不留 Actor 參照）
+    [ThreadStatic] private static Actor[]? _withoutSlotScratch;
+    [ThreadStatic] private static (int, Actor)[]? _withSlotScratch;
+
     public Actor[] WithoutSlot(bool includeDead = false, bool excludeAlliance = false, bool excludeNPCs = false)
     {
         var limit = excludeNPCs ? MaxAllianceSize : MaxAllies;
-        var result = new Actor[limit];
+        var result = _withoutSlotScratch ??= new Actor[MaxAllies];
         var count = 0;
 
         if (excludeAlliance)
@@ -98,13 +102,15 @@ public sealed class PartyState
                 result[count++] = player;
             }
         }
-        return result[..count];
+        var res = result[..count];
+        Array.Clear(result, 0, count);
+        return res;
     }
 
     public (int, Actor)[] WithSlot(bool includeDead = false, bool excludeAlliance = false, bool excludeNPCs = false)
     {
         var limit = excludeNPCs ? MaxAllianceSize : MaxAllies;
-        var result = new (int, Actor)[limit];
+        var result = _withSlotScratch ??= new (int, Actor)[MaxAllies];
         var count = 0;
 
         if (excludeAlliance)
@@ -137,7 +143,9 @@ public sealed class PartyState
                 result[count++] = (i, player);
             }
         }
-        return result[..count];
+        var res = result[..count];
+        Array.Clear(result, 0, count);
+        return res;
     }
 
     // find a slot index containing specified player (by instance ID); returns -1 if not found

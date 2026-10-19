@@ -187,7 +187,7 @@ class WaveOfNausea(BossModule module) : Components.GenericAOEs(module)
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (AOEs.Count != 0 && _exa.Lines.Count != 0)
-            hints.Add("Wait in marked safespot for donut resolve!");
+            hints.Add(Loc.T("Wait in marked safespot for donut resolve!"));
     }
 }
 

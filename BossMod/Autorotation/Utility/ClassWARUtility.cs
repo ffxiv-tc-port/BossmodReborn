@@ -18,18 +18,18 @@ public sealed class ClassWARUtility(RotationModuleManager manager, Actor player)
         DefineSimpleConfig(res, Track.Thrill, "ThrillOfBattle", "Thrill", 450, WAR.AID.ThrillOfBattle, 10);
 
         res.Define(Track.Vengeance).As<VengOption>("Vengeance", "Veng", 550)
-            .AddOption(VengOption.None, "None", "Do not use automatically")
-            .AddOption(VengOption.Vengeance, "Use", "Use Vengeance", 120, 15, ActionTargets.Self, 38, 91)
-            .AddOption(VengOption.Damnation, "UseEx", "Use Damnation", 120, 15, ActionTargets.Self, 92)
+            .AddOption(VengOption.None, "Do not use automatically")
+            .AddOption(VengOption.Vengeance, "Use Vengeance", cooldown: 120, effect: 15, supportedTargets: ActionTargets.Self, minLevel: 38, maxLevel: 91)
+            .AddOption(VengOption.Damnation, "Use Damnation", cooldown: 120, effect: 15, supportedTargets: ActionTargets.Self, minLevel: 92)
             .AddAssociatedActions(WAR.AID.Vengeance, WAR.AID.Damnation);
 
         DefineSimpleConfig(res, Track.Holmgang, "Holmgang", "", 400, WAR.AID.Holmgang, 10);
 
         res.Define(Track.Bloodwhetting).As<BWOption>("BW", uiPriority: 350)
-            .AddOption(BWOption.None, "None", "Do not use automatically")
-            .AddOption(BWOption.Bloodwhetting, "BW", "Use Bloodwhetting", 25, 4, ActionTargets.Self, 82) // note: secondary effect duration 8
-            .AddOption(BWOption.RawIntuition, "RI", "Use Raw Intuition", 25, 6, ActionTargets.Self, 56, 81)
-            .AddOption(BWOption.NascentFlash, "NF", "Use Nascent Flash", 25, 4, ActionTargets.Party, 76) // note: secondary effect duration 8
+            .AddOption(BWOption.None, "Do not use automatically")
+            .AddOption(BWOption.Bloodwhetting, "Use Bloodwhetting", cooldown: 25, effect: 4, supportedTargets: ActionTargets.Self, minLevel: 82) // note: secondary effect duration 8
+            .AddOption(BWOption.RawIntuition, "Use Raw Intuition", cooldown: 25, effect: 6, supportedTargets: ActionTargets.Self, minLevel: 56, maxLevel: 81)
+            .AddOption(BWOption.NascentFlash, "Use Nascent Flash", cooldown: 25, effect: 4, supportedTargets: ActionTargets.Party, minLevel: 76) // note: secondary effect duration 8
             .AddAssociatedActions(WAR.AID.Bloodwhetting, WAR.AID.RawIntuition, WAR.AID.NascentFlash);
 
         DefineSimpleConfig(res, Track.Equilibrium, "Equilibrium", "Equi", 320, WAR.AID.Equilibrium); // note: secondary effect (hot) duration 6

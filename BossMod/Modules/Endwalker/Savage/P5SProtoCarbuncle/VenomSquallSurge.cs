@@ -17,11 +17,11 @@ class VenomSquallSurge(BossModule module) : BossComponent(module)
         {
             case Mechanic.Rain:
                 if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _radius).Any())
-                    hints.Add("Spread!");
+                    hints.Add(Loc.T("Spread!"));
                 break;
             case Mechanic.Pool:
                 if (Raid.WithoutSlot(false, true, true).InRadius(actor.Position, _radius).Count(p => p.Role == Role.Healer) != 1)
-                    hints.Add("Stack with healer!");
+                    hints.Add(Loc.T("Stack with healer!"));
                 break;
         }
     }

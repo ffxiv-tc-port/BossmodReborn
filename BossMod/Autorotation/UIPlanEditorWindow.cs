@@ -1,4 +1,4 @@
-﻿using ImGuiNET;
+﻿using Dalamud.Bindings.ImGui;
 
 namespace BossMod.Autorotation;
 
@@ -25,14 +25,18 @@ public class UIPlanEditorWindow : UIWindow
         _timeline.MaxTime = tree.TotalMaxTime;
     }
 
-    public override void PreOpenCheck() => RespectCloseHotkey = !_planner.Modified;
+    public override void PreOpenCheck()
+    {
+        base.PreOpenCheck();
+        RespectCloseHotkey = !_planner.Modified;
+    }
 
     public override void Draw()
     {
-        if (UIMisc.Button("Save", !_planner.Modified, "No changes"))
+        if (UIMisc.Button(Loc.T("Save"), !_planner.Modified, Loc.T("No changes")))
             Save();
         ImGui.SameLine();
-        if (UIMisc.Button("Delete", !ImGui.GetIO().KeyShift, "Hold shift to delete"))
+        if (UIMisc.Button(Loc.T("Delete"), !ImGui.GetIO().KeyShift, Loc.T("PRESETDB_HoldShift", "Hold shift to delete")))
             Delete();
         ImGui.SameLine();
         _planner.DrawCommonControls();

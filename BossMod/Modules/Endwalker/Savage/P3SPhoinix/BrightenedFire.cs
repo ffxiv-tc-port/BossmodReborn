@@ -22,7 +22,7 @@ class BrightenedFire(BossModule module) : Components.CastCounter(module, (uint)A
         var numHitAdds = Module.Enemies(OID.DarkenedFire).InRadius(actor.Position, _aoeRange).Count();
         if (numHitAdds < 2)
         {
-            hints.Add("Get closer to adds!");
+            hints.Add(Loc.T("Get closer to adds!"));
         }
     }
 

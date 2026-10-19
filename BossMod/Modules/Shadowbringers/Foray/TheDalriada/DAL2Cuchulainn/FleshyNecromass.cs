@@ -78,7 +78,7 @@ sealed class FleshNecromass(BossModule module) : Components.GenericAOEs(module)
     {
         if (active && !gelatinous[slot])
         {
-            hints.Add("Move into a voidzone to turn into pudding!");
+            hints.Add(Loc.T("Move into a voidzone to turn into pudding!"));
         }
         else
         {

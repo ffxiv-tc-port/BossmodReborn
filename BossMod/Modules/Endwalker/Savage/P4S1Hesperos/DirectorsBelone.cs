@@ -43,19 +43,19 @@ class DirectorsBelone(BossModule module) : BossComponent(module)
             {
                 // debuffs not assigned yet => spread and prepare to grab
                 var stacked = Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _debuffPassRange).Any();
-                hints.Add("Debuffs: spread and prepare to handle!", stacked);
+                hints.Add(Loc.T("Debuffs: spread and prepare to handle!"), stacked);
             }
             else if (_debuffImmune[slot])
             {
-                hints.Add("Debuffs: failed to handle");
+                hints.Add(Loc.T("Debuffs: failed to handle"));
             }
             else if (_debuffTargets[slot])
             {
-                hints.Add("Debuffs: OK", false);
+                hints.Add(Loc.T("Debuffs: OK"), false);
             }
             else
             {
-                hints.Add("Debuffs: grab!");
+                hints.Add(Loc.T("Debuffs: grab!"));
             }
         }
         else
@@ -64,15 +64,15 @@ class DirectorsBelone(BossModule module) : BossComponent(module)
             if (_debuffTargets.None())
             {
                 var badStack = Raid.WithSlot(false, true, true).Exclude(slot).IncludedInMask(_debuffForbidden).OutOfRadius(actor.Position, _debuffPassRange).Any();
-                hints.Add("Debuffs: stack and prepare to pass!", badStack);
+                hints.Add(Loc.T("Debuffs: stack and prepare to pass!"), badStack);
             }
             else if (_debuffTargets[slot])
             {
-                hints.Add("Debuffs: pass!");
+                hints.Add(Loc.T("Debuffs: pass!"));
             }
             else
             {
-                hints.Add("Debuffs: avoid", false);
+                hints.Add(Loc.T("Debuffs: avoid"), false);
             }
         }
     }

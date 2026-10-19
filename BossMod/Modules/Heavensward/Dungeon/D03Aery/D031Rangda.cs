@@ -61,7 +61,7 @@ class IonosphericCharge(BossModule module) : Components.BaitAwayTethers(module, 
     {
         if (ActiveBaitsOn(actor).Count == 0)
             return;
-        hints.Add("Pass the tether to a statue!");
+        hints.Add(Loc.T("Pass the tether to a statue!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

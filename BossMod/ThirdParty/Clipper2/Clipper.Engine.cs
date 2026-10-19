@@ -41,7 +41,7 @@ namespace Clipper2Lib
 
   internal sealed class Vertex
   {
-    public readonly Point64 pt;
+    public Point64 pt; // BMR edit: not readonly so ReuseableDataContainer64 can recycle vertices
     public Vertex? next;
     public Vertex? prev;
     public VertexFlags flags;
@@ -232,8 +232,26 @@ namespace Clipper2Lib
         list.Capacity = minCapacity;
     }
 
+    // BMR edit: a recycled vertex has every field reset, so it is indistinguishable from a new one
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vertex NewVertex(Point64 pt, Vertex? prev, List<Vertex>? spare)
+    {
+      if (spare != null && spare.Count != 0)
+      {
+        int last = spare.Count - 1;
+        Vertex v = spare[last];
+        spare.RemoveAt(last);
+        v.pt = pt;
+        v.flags = VertexFlags.None;
+        v.next = null;
+        v.prev = prev;
+        return v;
+      }
+      return new Vertex(pt, VertexFlags.None, prev);
+    }
+
     internal static void AddPathsToVertexList(Paths64 paths, PathType polytype, bool isOpen,
-      List<LocalMinima> minimaList, List<Vertex> vertexList)
+      List<LocalMinima> minimaList, List<Vertex> vertexList, List<Vertex>? spare = null)
     {
       int totalVertCnt = 0;
       foreach (Path64 path in paths) totalVertCnt += path.Count;
@@ -246,13 +264,13 @@ namespace Clipper2Lib
         {
           if (v0 == null)
           {
-            v0 = new Vertex(pt, VertexFlags.None, null);
+            v0 = NewVertex(pt, null, spare);
             vertexList.Add(v0);
             prev_v = v0;
           }
           else if (prev_v!.pt != pt) // ie skips duplicates
           {
-            curr_v = new Vertex(pt, VertexFlags.None, prev_v);
+            curr_v = NewVertex(pt, prev_v, spare);
             vertexList.Add(curr_v);
             prev_v.next = curr_v;
             prev_v = curr_v;
@@ -330,6 +348,8 @@ namespace Clipper2Lib
   {
     internal readonly List<LocalMinima> _minimaList;
     internal readonly List<Vertex> _vertexList;
+    // BMR edit: vertices released by Clear() are recycled by the next AddPaths (callers must not Clear while a clipper still holds this data)
+    private readonly List<Vertex> _spareVertices = new List<Vertex>();
     public ReuseableDataContainer64()
     {
       _minimaList = new List<LocalMinima>();
@@ -338,12 +358,13 @@ namespace Clipper2Lib
     public void Clear()
     {
       _minimaList.Clear();
+      _spareVertices.AddRange(_vertexList);
       _vertexList.Clear();
     }
 
     public void AddPaths(Paths64 paths, PathType pt, bool isOpen)
     {
-      ClipperEngine.AddPathsToVertexList(paths, pt, isOpen, _minimaList, _vertexList);
+      ClipperEngine.AddPathsToVertexList(paths, pt, isOpen, _minimaList, _vertexList, _spareVertices);
     }
   }
 
@@ -749,6 +770,78 @@ namespace Clipper2Lib
       return (inode.edge1.nextInAEL == inode.edge2) || (inode.edge1.prevInAEL == inode.edge2);
     }
 
+    // BMR edit: OutPt objects are recycled per thread. Every live OutPt belongs to the solution being built,
+    // and ClearSolutionOnly (which ends every Execute) releases them all, so no OutPt outlives its Execute.
+    private const int MaxPooledOutPts = 8192;
+    [ThreadStatic] private static List<OutPt>? t_outPtPool;
+    [ThreadStatic] private static int t_outPtUsed;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static OutPt NewOutPt(Point64 pt, OutRec outrec)
+    {
+      int used = t_outPtUsed;
+      if (used >= MaxPooledOutPts) return new OutPt(pt, outrec);
+      List<OutPt> pool = t_outPtPool ??= new List<OutPt>();
+      t_outPtUsed = used + 1;
+      if (used == pool.Count)
+      {
+        OutPt created = new OutPt(pt, outrec);
+        pool.Add(created);
+        return created;
+      }
+      OutPt op = pool[used];
+      op.pt = pt;
+      op.outrec = outrec;
+      op.next = op;
+      op.prev = op;
+      op.horz = null;
+      return op;
+    }
+
+    // BMR edit: Active edges are recycled per thread the same way. Execute always ends in ClearSolutionOnly (exceptions
+    // are caught first), which unlinks every edge from the AEL; nothing outside the Execute keeps an Active.
+    private const int MaxPooledActives = 4096;
+    [ThreadStatic] private static List<Active>? t_activePool;
+    [ThreadStatic] private static int t_activeUsed;
+
+    // BMR edit: same field values as the original object initializer; every other field is reset to its default
+    private static Active NewActive(Point64 bot, int windDx, Vertex? vertexTop, Point64 top, LocalMinima localMin)
+    {
+      Active ae;
+      int used = t_activeUsed;
+      if (used >= MaxPooledActives)
+      {
+        ae = new Active();
+      }
+      else
+      {
+        List<Active> pool = t_activePool ??= new List<Active>();
+        t_activeUsed = used + 1;
+        if (used == pool.Count)
+          pool.Add(ae = new Active());
+        else
+          ae = pool[used];
+      }
+      ae.bot = bot;
+      ae.top = top;
+      ae.curX = bot.X;
+      ae.dx = 0;
+      ae.windDx = windDx;
+      ae.windCount = 0;
+      ae.windCount2 = 0;
+      ae.outrec = null;
+      ae.prevInAEL = null;
+      ae.nextInAEL = null;
+      ae.prevInSEL = null;
+      ae.nextInSEL = null;
+      ae.jump = null;
+      ae.vertexTop = vertexTop;
+      ae.localMin = localMin;
+      ae.isLeftBound = false;
+      ae.joinWith = JoinWith.None;
+      return ae;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected void ClearSolutionOnly()
     {
@@ -758,6 +851,8 @@ namespace Clipper2Lib
       _outrecList.Clear();
       _horzSegList.Clear();
       _horzJoinList.Clear();
+      t_outPtUsed = 0;
+      t_activeUsed = 0; // BMR edit
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1175,16 +1270,7 @@ namespace Clipper2Lib
         }
         else
         {
-          leftBound = new Active
-          {
-            bot = localMinima.vertex.pt,
-            curX = localMinima.vertex.pt.X,
-            windDx = -1,
-            vertexTop = localMinima.vertex.prev,
-            top = localMinima.vertex.prev!.pt,
-            outrec = null,
-            localMin = localMinima
-          };
+          leftBound = NewActive(localMinima.vertex.pt, -1, localMinima.vertex.prev, localMinima.vertex.prev!.pt, localMinima); // BMR edit: pooled
           SetDx(leftBound);
         }
 
@@ -1195,16 +1281,7 @@ namespace Clipper2Lib
         }
         else
         {
-          rightBound = new Active
-          {
-            bot = localMinima.vertex.pt,
-            curX = localMinima.vertex.pt.X,
-            windDx = 1,
-            vertexTop = localMinima.vertex.next, // i.e. ascending
-            top = localMinima.vertex.next!.pt,
-            outrec = null,
-            localMin = localMinima
-          };
+          rightBound = NewActive(localMinima.vertex.pt, 1, localMinima.vertex.next, localMinima.vertex.next!.pt, localMinima); // BMR edit: pooled; vertexTop = next, i.e. ascending
           SetDx(rightBound);
         }
 
@@ -1344,7 +1421,7 @@ namespace Clipper2Lib
         }
       }
 
-      OutPt op = new OutPt(pt, outrec);
+      OutPt op = NewOutPt(pt, outrec);
       outrec.pts = op;
       return op;
     }
@@ -1470,7 +1547,7 @@ namespace Clipper2Lib
           return opBack;
       }
 
-      OutPt newOp = new OutPt(pt, outrec);
+      OutPt newOp = NewOutPt(pt, outrec);
       opBack.prev = newOp;
       newOp.prev = opFront;
       newOp.next = opBack;
@@ -1507,7 +1584,7 @@ namespace Clipper2Lib
       }
 
       ae.outrec = outrec;
-      OutPt op = new OutPt(pt, outrec);
+      OutPt op = NewOutPt(pt, outrec);
       outrec.pts = op;
       return op;
     }
@@ -2510,7 +2587,7 @@ namespace Clipper2Lib
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static OutPt DuplicateOp(OutPt op, bool insert_after)
     {
-      OutPt result = new OutPt(op.pt, op.outrec);
+      OutPt result = NewOutPt(op.pt, op.outrec);
       if (insert_after)
       {
         result.next = op.next;
@@ -2889,7 +2966,9 @@ namespace Clipper2Lib
       }
       else
       {
-        OutPt newOp2 = new OutPt(ip, outrec) { prev = prevOp, next = nextNextOp };
+        OutPt newOp2 = NewOutPt(ip, outrec);
+        newOp2.prev = prevOp;
+        newOp2.next = nextNextOp;
         nextNextOp.prev = newOp2;
         prevOp.next = newOp2;
       }
@@ -2907,7 +2986,9 @@ namespace Clipper2Lib
       splitOp.outrec = newOutRec;
       splitOp.next.outrec = newOutRec;
 
-      OutPt newOp = new OutPt(ip, newOutRec) { prev = splitOp.next, next = splitOp };
+      OutPt newOp = NewOutPt(ip, newOutRec);
+      newOp.prev = splitOp.next;
+      newOp.next = splitOp;
       newOutRec.pts = newOp;
       splitOp.prev = newOp;
       splitOp.next.next = newOp;
@@ -2981,6 +3062,10 @@ namespace Clipper2Lib
         lastPt = op.pt;
         op2 = op.next!;
       }
+      // BMR edit: presize to the ring length (an upper bound of the points added below) so the list never regrows
+      int ringLen = 1;
+      for (OutPt p = op.next!; p != op; p = p.next!) ++ringLen;
+      path.EnsureCapacity(ringLen);
       path.Add(lastPt);
 
       while (op2 != op)

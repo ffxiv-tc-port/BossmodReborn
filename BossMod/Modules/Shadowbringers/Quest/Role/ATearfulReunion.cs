@@ -74,7 +74,7 @@ class LightningGlobe(BossModule module) : Components.GenericLineOfSightAOE(modul
             && actor.Position.InCircle(Origin.Value, MaxRange)
             && !Visibility.Any(v => !actor.Position.InCircle(Origin.Value, v.Distance) && actor.Position.InCone(Origin.Value, v.Dir, v.HalfWidth)))
         {
-            hints.Add("Pull lightning orb into black hole!");
+            hints.Add(Loc.T("Pull lightning orb into black hole!"));
         }
     }
 }

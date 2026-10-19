@@ -3,7 +3,7 @@ using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using FFXIVClientStructs.FFXIV.Client.Game.Event;
 using FFXIVClientStructs.Interop;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Lumina.Excel.Sheets;
 
 namespace BossMod;
@@ -35,6 +35,8 @@ sealed unsafe class DebugQuests
 
     private readonly UITree _tree = new();
     private readonly Dictionary<uint, NpcData> _dailyQuests = [];
+    // QuestManager 位址解不出時 Instance() 會擲；這頁在插件載入時就建構，所以只停用這一頁、不拖垮整個插件。
+    private readonly bool _questManagerAvailable = QuestManager.StaticAddressPointers.pInstance != null;
 
     public DebugQuests()
     {
@@ -44,6 +46,11 @@ sealed unsafe class DebugQuests
             {
                 _dailyQuests.GetOrAdd(q.IssuerStart.RowId).AllQuests.Add(q);
             }
+        }
+        if (!_questManagerAvailable)
+        {
+            Service.Logger.Warning("[DebugQuests] 找不到 QuestManager 的位址：除錯視窗的每日任務分頁停用，其餘功能照常；通常是遊戲改版後特徵碼要更新。");
+            return;
         }
         foreach (var quests in _dailyQuests.Values)
         {
@@ -59,6 +66,11 @@ sealed unsafe class DebugQuests
 
     public void Draw()
     {
+        if (!_questManagerAvailable)
+        {
+            ImGui.TextUnformatted("QuestManager 的位址解不出（通常是遊戲改版後特徵碼要更新），這一頁停用。");
+            return;
+        }
         var qm = QuestManager.Instance();
         foreach (var n in _tree.Node($"Player (seed={qm->DailyQuestSeed})###player"))
         {
@@ -70,23 +82,33 @@ sealed unsafe class DebugQuests
             }
         }
 
+        // 🔴 EventFramework.Instance() 是 [StaticAddress(…, isPointer: true)]，合法可為 null；
+        //    fwk->DailyQuests 在 null 時就是 AccessViolation。這裡只把【每日任務地圖】這一段關掉，
+        //    下面的 Full daily map 與 Compare 按鈕不受影響（它們不需要 EventFramework）。
         var fwk = EventFramework.Instance();
-        foreach (var n in _tree.Node($"Dailies map ({fwk->DailyQuests.Entries.Count})###dailies_map"))
+        if (fwk == null)
         {
-            foreach (var (baseId, entry) in fwk->DailyQuests.Entries)
+            _tree.LeafNode("Dailies map: EventFramework 不可用###dailies_map");
+        }
+        else
+        {
+            foreach (var n in _tree.Node($"Dailies map ({fwk->DailyQuests.Entries.Count})###dailies_map"))
             {
-                foreach (var nnpc in _tree.Node($"NPC {baseId:X}: tribe={entry.TribeId} '{Service.LuminaRow<BeastTribe>(entry.TribeId)?.Name}', ranks={entry.RankRequirementMin}-{entry.RankRequirementMax}, dirty={entry.Dirty}###{baseId}"))
+                foreach (var (baseId, entry) in fwk->DailyQuests.Entries)
                 {
-                    int i = 0;
-                    foreach (var e in entry.HandlersNormal)
+                    foreach (var nnpc in _tree.Node($"NPC {baseId:X}: tribe={entry.TribeId} '{Service.LuminaRow<BeastTribe>(entry.TribeId)?.Name}', ranks={entry.RankRequirementMin}-{entry.RankRequirementMax}, dirty={entry.Dirty}###{baseId}"))
                     {
-                        _tree.LeafNode($"[Gx {i++}] {e.Value->QuestId} '{Service.LuminaRow<Quest>(0x10000u | e.Value->QuestId)?.Name}'");
-                    }
+                        int i = 0;
+                        foreach (var e in entry.HandlersNormal)
+                        {
+                            _tree.LeafNode($"[Gx {i++}] {e.Value->QuestId} '{Service.LuminaRow<Quest>(0x10000u | e.Value->QuestId)?.Name}'");
+                        }
 
-                    i = 0;
-                    foreach (var e in entry.HandlersExclusive)
-                    {
-                        _tree.LeafNode($"[G3 {i++}] {e.Value->QuestId} '{Service.LuminaRow<Quest>(0x10000u | e.Value->QuestId)?.Name}'");
+                        i = 0;
+                        foreach (var e in entry.HandlersExclusive)
+                        {
+                            _tree.LeafNode($"[G3 {i++}] {e.Value->QuestId} '{Service.LuminaRow<Quest>(0x10000u | e.Value->QuestId)?.Name}'");
+                        }
                     }
                 }
             }
@@ -174,7 +196,13 @@ sealed unsafe class DebugQuests
 
     private void CompareLogic(uint npcId)
     {
+        // 🔴 同上：EventFramework.Instance() 合法可為 null，拿不到就什麼都不比。
         var fwk = EventFramework.Instance();
+        if (fwk == null)
+        {
+            Service.Log("EventFramework unavailable, nothing to compare");
+            return;
+        }
         var loc = fwk->DailyQuests.Entries.WithOps.Tree.FindLowerBound(npcId);
         if (loc.KeyEquals(npcId))
         {

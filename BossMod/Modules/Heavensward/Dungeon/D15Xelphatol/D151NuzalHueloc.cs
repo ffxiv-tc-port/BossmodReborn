@@ -33,7 +33,7 @@ class Airstone(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (Module.Enemies(OID.Airstone).Any(x => !x.IsDead))
-            hints.Add("Destroy the airstones to remove invincibility!");
+            hints.Add(Loc.T("Destroy the airstones to remove invincibility!"));
     }
 }
 

@@ -7,7 +7,7 @@ class DualspellFire(BossModule module) : Components.GenericStackSpread(module)
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (_active)
-            hints.Add("Pairs");
+            hints.Add(Loc.T("Pairs"));
     }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
@@ -40,7 +40,7 @@ class DualspellLightning(BossModule module) : Components.GenericBaitAway(module)
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (_active)
-            hints.Add("Spread");
+            hints.Add(Loc.T("Spread"));
     }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)

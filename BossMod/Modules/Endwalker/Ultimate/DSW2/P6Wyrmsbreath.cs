@@ -18,18 +18,18 @@ abstract class P6Wyrmsbreath(BossModule module, bool allowIntersect) : Component
         if (b != null && b.Value.Source == null)
         {
             if (ActiveBaits.Any(b => IsClippedBy(actor, b)))
-                hints.Add("GTFO from baits!");
+                hints.Add(Loc.T("GTFO from baits!"));
         }
         else
         {
             if (_tooClose[slot])
-                hints.Add("Stretch the tether!");
+                hints.Add(Loc.T("Stretch the tether!"));
 
             var partner = IgnoredPartner(slot, actor);
             if (ActiveBaitsOn(actor).Any(b => PlayersClippedBy(ref b).Any(p => p != partner)))
-                hints.Add("Bait away from raid!");
+                hints.Add(Loc.T("Bait away from raid!"));
             if (ActiveBaitsNotOn(actor).Any(b => b.Target != partner && IsClippedBy(actor, b)))
-                hints.Add("GTFO from baited aoe!");
+                hints.Add(Loc.T("GTFO from baited aoe!"));
         }
     }
 

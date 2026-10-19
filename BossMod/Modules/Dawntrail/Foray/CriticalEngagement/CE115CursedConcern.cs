@@ -354,7 +354,7 @@ sealed class WhatreYouBuying(BossModule module) : Components.GenericAOEs(module)
         {
             var delta = data.required - data.current;
             if (delta <= 0)
-                hints.Add("Deliver the coins!", false);
+                hints.Add(Loc.T("Deliver the coins!"), false);
             else
             {
                 hints.Add($"Fetch {delta} more coin{(delta == 1 ? "" : "s")}!");
@@ -382,5 +382,5 @@ sealed class CE115CursedConcernStates : StateMachineBuilder
 [ModuleInfo(BossModuleInfo.Maturity.Verified, Contributors = "The Combat Reborn Team (Malediktus)", GroupType = BossModuleInfo.GroupType.CriticalEngagement, GroupID = 1018, NameID = 45)]
 public sealed class CE115CursedConcern(WorldState ws, Actor primary) : BossModule(ws, primary, new WPos(72f, -545f).Quantized(), new ArenaBoundsCircle(25f))
 {
-    protected override bool CheckPull() => base.CheckPull() && Raid.Player()!.Position.InCircle(Arena.Center, 30f);
+    protected override bool CheckPull() => base.CheckPull() && Raid.Player() is { } p && p.Position.InCircle(Arena.Center, 30f);
 }

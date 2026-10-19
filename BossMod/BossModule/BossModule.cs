@@ -1,5 +1,5 @@
 ﻿using Dalamud.Interface.Utility.Raii;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace BossMod;
 
@@ -26,6 +26,12 @@ public abstract class BossModule : IDisposable
 
     // per-oid enemy lists; filled on first request
     public readonly Dictionary<uint, List<Actor>> RelevantEnemies = []; // key = actor OID
+
+    internal Actor? GetActor(uint enemy)
+    {
+        var b = Enemies(enemy);
+        return b.Count != 0 ? b[0] : null;
+    }
 
     public List<Actor> Enemies(uint oid)
     {
@@ -223,20 +229,34 @@ public abstract class BossModule : IDisposable
         }
     }
 
+    // 繪製用的暫存：Draw 每幀被主視窗與提示視窗各叫一次（同一條繪製執行緒、不重入），畫完就不再讀。
+    private readonly BossComponent.TextHints _drawHints = [];
+    private readonly BossComponent.GlobalHints _drawGlobalHints = [];
+    private readonly List<ActionDamageType.Kind> _drawDamageTypes = [];
+
     public void Draw(Angle cameraAzimuth, int pcSlot, bool includeText, bool includeArena)
     {
         var pc = Raid[pcSlot];
         if (pc == null)
             return;
 
-        var pcHints = CalculateHintsForRaidMember(pcSlot, pc);
+        var pcHints = _drawHints;
+        pcHints.Clear();
+        FillHintsForRaidMember(pcSlot, pc, pcHints);
         if (includeText)
         {
             if (WindowConfig.ShowMechanicTimers)
                 StateMachine.Draw();
 
             if (WindowConfig.ShowGlobalHints)
-                DrawGlobalHints(CalculateGlobalHints());
+            {
+                var damageTypes = WindowConfig.ShowHintDamageType ? _drawDamageTypes : null;
+                damageTypes?.Clear();
+                var globalHints = _drawGlobalHints;
+                globalHints.Clear();
+                FillGlobalHints(globalHints, damageTypes);
+                DrawGlobalHints(globalHints, damageTypes);
+            }
 
             if (WindowConfig.ShowPlayerHints)
                 DrawPlayerHints(ref pcHints);
@@ -274,7 +294,7 @@ public abstract class BossModule : IDisposable
         if (WindowConfig.ShowCardinals)
             Arena.CardinalNames();
         if (WindowConfig.ShowWaymarks)
-            DrawWaymarks();
+            DrawWaymarks(Arena, WorldState);
 
         // draw non-player alive party members
         DrawPartyMembers(pcSlot, ref pc);
@@ -302,10 +322,15 @@ public abstract class BossModule : IDisposable
     public BossComponent.TextHints CalculateHintsForRaidMember(int slot, Actor actor)
     {
         BossComponent.TextHints hints = [];
+        FillHintsForRaidMember(slot, actor, hints);
+        return hints;
+    }
+
+    private void FillHintsForRaidMember(int slot, Actor actor, BossComponent.TextHints hints)
+    {
         var count = Components.Count;
         for (var i = 0; i < count; ++i)
             Components[i].AddHints(slot, actor, hints);
-        return hints;
     }
 
     public BossComponent.MovementHints CalculateMovementHintsForRaidMember(int slot, ref Actor actor)
@@ -317,13 +342,29 @@ public abstract class BossModule : IDisposable
         return hints;
     }
 
-    public BossComponent.GlobalHints CalculateGlobalHints()
+    // if damageTypes is provided, it is filled with one entry per hint, telling whether the damage the hint warns about is physical or magical
+    public BossComponent.GlobalHints CalculateGlobalHints(List<ActionDamageType.Kind>? damageTypes = null)
     {
         BossComponent.GlobalHints hints = [];
+        FillGlobalHints(hints, damageTypes);
+        return hints;
+    }
+
+    private void FillGlobalHints(BossComponent.GlobalHints hints, List<ActionDamageType.Kind>? damageTypes)
+    {
         var count = Components.Count;
         for (var i = 0; i < count; ++i)
-            Components[i].AddGlobalHints(hints);
-        return hints;
+        {
+            var before = hints.Count;
+            var comp = Components[i];
+            comp.AddGlobalHints(hints);
+            if (damageTypes != null && hints.Count != before)
+            {
+                var kind = ActionDamageType.Classify(comp.HintDamageActions);
+                for (var j = before; j < hints.Count; ++j)
+                    damageTypes.Add(kind);
+            }
+        }
     }
 
     public void CalculateAIHints(int slot, ref Actor actor, ref PartyRolesConfig.Assignment assignment, ref AIHints hints)
@@ -383,14 +424,23 @@ public abstract class BossModule : IDisposable
         Arena.Actor(PrimaryActor);
     }
 
-    private void DrawGlobalHints(BossComponent.GlobalHints hints)
+    private void DrawGlobalHints(BossComponent.GlobalHints hints, List<ActionDamageType.Kind>? damageTypes)
     {
-        using var color = ImRaii.PushColor(ImGuiCol.Text, Colors.TextColor11);
         var count = hints.Count;
         for (var i = 0; i < count; ++i)
         {
-            ImGui.TextUnformatted(hints[i]);
+            using (ImRaii.PushColor(ImGuiCol.Text, Colors.TextColor11))
+                ImGui.TextUnformatted(HintText.Translate(hints[i]));
             ImGui.SameLine();
+
+            var kind = damageTypes != null && i < damageTypes.Count ? damageTypes[i] : ActionDamageType.Kind.None;
+            if (kind != ActionDamageType.Kind.None)
+            {
+                // 'we could not tell' is drawn greyed out rather than hidden - an unlabelled hint would look identical to a hint we never checked
+                using (ImRaii.PushColor(ImGuiCol.Text, kind == ActionDamageType.Kind.Unknown ? Colors.TextColor18 : Colors.TextColor11))
+                    ImGui.TextUnformatted(ActionDamageType.Label(kind));
+                ImGui.SameLine();
+            }
         }
         ImGui.NewLine();
     }
@@ -402,42 +452,43 @@ public abstract class BossModule : IDisposable
         {
             var hint = hints[i];
             using var color = ImRaii.PushColor(ImGuiCol.Text, hint.Item2 ? Colors.Danger : Colors.Safe);
-            ImGui.TextUnformatted(hint.Item1);
+            ImGui.TextUnformatted(HintText.Translate(hint.Item1));
             ImGui.SameLine();
         }
         ImGui.NewLine();
     }
 
-    private void DrawWaymarks()
+    // 靜態：沒有模組時的通用雷達（GenericTrialRadar）也用同一套畫法
+    internal static void DrawWaymarks(MiniArena arena, WorldState ws)
     {
-        DrawWaymark(WorldState.Waymarks[Waymark.A], "A", Colors.WaymarkA);
-        DrawWaymark(WorldState.Waymarks[Waymark.B], "B", Colors.WaymarkB);
-        DrawWaymark(WorldState.Waymarks[Waymark.C], "C", Colors.WaymarkC);
-        DrawWaymark(WorldState.Waymarks[Waymark.D], "D", Colors.WaymarkD);
-        DrawWaymark(WorldState.Waymarks[Waymark.N1], "1", Colors.Waymark1);
-        DrawWaymark(WorldState.Waymarks[Waymark.N2], "2", Colors.Waymark2);
-        DrawWaymark(WorldState.Waymarks[Waymark.N3], "3", Colors.Waymark3);
-        DrawWaymark(WorldState.Waymarks[Waymark.N4], "4", Colors.Waymark4);
+        DrawWaymark(arena, ws.Waymarks[Waymark.A], "A", Colors.WaymarkA);
+        DrawWaymark(arena, ws.Waymarks[Waymark.B], "B", Colors.WaymarkB);
+        DrawWaymark(arena, ws.Waymarks[Waymark.C], "C", Colors.WaymarkC);
+        DrawWaymark(arena, ws.Waymarks[Waymark.D], "D", Colors.WaymarkD);
+        DrawWaymark(arena, ws.Waymarks[Waymark.N1], "1", Colors.Waymark1);
+        DrawWaymark(arena, ws.Waymarks[Waymark.N2], "2", Colors.Waymark2);
+        DrawWaymark(arena, ws.Waymarks[Waymark.N3], "3", Colors.Waymark3);
+        DrawWaymark(arena, ws.Waymarks[Waymark.N4], "4", Colors.Waymark4);
     }
 
-    private void DrawWaymark(Vector3? pos, string text, uint color)
+    private static void DrawWaymark(MiniArena arena, Vector3? pos, string text, uint color)
     {
         if (pos != null)
         {
             if (WindowConfig.ShowOutlinesAndShadows)
-                Arena.TextWorld(new(pos.Value.XZ()), text, Colors.Shadows, WindowConfig.WaymarkFontSize + 3f);
-            Arena.TextWorld(new(pos.Value.XZ()), text, color, WindowConfig.WaymarkFontSize);
+                arena.TextWorld(new(pos.Value.XZ()), text, Colors.Shadows, WindowConfig.WaymarkFontSize + 3f);
+            arena.TextWorld(new(pos.Value.XZ()), text, color, WindowConfig.WaymarkFontSize);
         }
     }
 
     private void DrawPartyMembers(int pcSlot, ref Actor pc)
     {
-        var raid = Raid.WithSlot();
-        var len = raid.Length;
-        for (var i = 0; i < len; ++i)
+        // 與 Raid.WithSlot()（活著、所有格）同一個順序與篩選，只是不配置陣列
+        var raid = Raid;
+        for (var slot = 0; slot < PartyState.MaxAllies; ++slot)
         {
-            var (slot, player) = raid[i];
-            if (slot == pcSlot)
+            var player = raid[slot];
+            if (player == null || player.IsDead || slot == pcSlot)
                 continue;
             var (prio, color) = CalculateHighestPriority(pcSlot, ref pc, slot, player);
 

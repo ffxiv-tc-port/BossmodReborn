@@ -23,7 +23,7 @@ public class Cleave(BossModule module, uint aid, AOEShape shape, uint[]? enemyOI
             var e = origins[i];
             if (actor != e.target && Shape.Check(actor.Position.Quantized(), e.origin.Position, e.angle))
             {
-                hints.Add("GTFO from cleave!");
+                hints.Add(Loc.T("GTFO from cleave!"));
                 break;
             }
         }

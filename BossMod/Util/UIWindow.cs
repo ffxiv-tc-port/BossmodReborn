@@ -1,5 +1,5 @@
 ﻿using Dalamud.Interface.Windowing;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace BossMod;
 
@@ -58,6 +58,10 @@ public abstract class UIWindow : Window, IDisposable
         if (DisposeOnClose)
             Dispose();
     }
+
+    // Dalamud 繪製每個視窗的第一步：把接下來的時間記在這個視窗名下（卡頓診斷，見 DrawStepTimer）。
+    // 覆寫的子類別要先呼叫 base.PreOpenCheck()，否則它的時間會算到前一個視窗頭上。
+    public override void PreOpenCheck() => DrawStepTimer.Next("視窗", WindowName);
 
     public void OpenAndBringToFront()
     {

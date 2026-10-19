@@ -59,7 +59,7 @@ class ShardstrikeCrystals(BossModule module) : Components.GenericAOEs(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (_st.Stacks.Count != 0)
-            hints.Add("Avoid clipping crystals!");
+            hints.Add(Loc.T("Avoid clipping crystals!"));
     }
 }
 
@@ -125,7 +125,7 @@ class Hailfire(BossModule module) : Components.GenericAOEs(module)
                     break;
                 }
             }
-            hints.Add("Hide behind crystal!", isRisky);
+            hints.Add(Loc.T("Hide behind crystal!"), isRisky);
         }
         else
             base.AddHints(slot, actor, hints);

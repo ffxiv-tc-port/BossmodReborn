@@ -94,6 +94,6 @@ sealed class CrystallineThornsHint(BossModule module) : Components.GenericAOEs(m
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (_aoe != null && !_aoe.Value.Check(actor.Position))
-            hints.Add("Go into middle to prepare for knockback!");
+            hints.Add(Loc.T("Go into middle to prepare for knockback!"));
     }
 }

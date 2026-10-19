@@ -163,7 +163,7 @@ sealed class GreatestLabyrinth(BossModule module) : Components.GenericAOEs(modul
     {
         if (_aoes.Count == 0)
             return;
-        hints.Add("Walk onto safe square!", !_aoes[1].Check(actor.Position));
+        hints.Add(Loc.T("Walk onto safe square!"), !_aoes[1].Check(actor.Position));
     }
 }
 

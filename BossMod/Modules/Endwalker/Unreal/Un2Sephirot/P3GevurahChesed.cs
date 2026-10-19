@@ -11,7 +11,7 @@ class P3GevurahChesed(BossModule module) : Components.CastCounter(module, (uint)
     {
         var side = ForbiddenSide(slot);
         if (side != 0 && _shape.Check(actor.Position, Origin(side), 0.Degrees()))
-            hints.Add("GTFO from aoe!");
+            hints.Add(Loc.T("GTFO from aoe!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

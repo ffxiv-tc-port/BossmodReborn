@@ -116,16 +116,16 @@ sealed class P2StrengthOfTheWard2Charges(BossModule module) : Components.CastCou
         if (actor.Role == Role.Tank)
         {
             if (tetherSource == null)
-                hints.Add("Grab tether!");
+                hints.Add(Loc.T("Grab tether!"));
             else if (ChargeHitsNonTanks(tetherSource, actor))
-                hints.Add("Move away from raid!");
+                hints.Add(Loc.T("Move away from raid!"));
         }
         else
         {
             if (tetherSource != null)
-                hints.Add("Pass tether!");
+                hints.Add(Loc.T("Pass tether!"));
             else if (IsInChargeAOE(actor))
-                hints.Add("GTFO from tanks!");
+                hints.Add(Loc.T("GTFO from tanks!"));
         }
     }
 

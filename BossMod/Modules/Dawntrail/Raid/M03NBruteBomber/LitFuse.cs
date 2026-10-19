@@ -80,6 +80,6 @@ sealed class LitFuse(BossModule module) : Components.GenericAOEs(module)
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (_aoes.Count != 0 && _tower!.Towers.Count != 0)
-            hints.Add("Don't panic! AOEs start resolving 3.8s after towers.");
+            hints.Add(Loc.T("Don't panic! AOEs start resolving 3.8s after towers."));
     }
 }

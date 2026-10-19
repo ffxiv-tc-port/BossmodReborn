@@ -1,4 +1,4 @@
-﻿using ImGuiNET;
+﻿using Dalamud.Bindings.ImGui;
 
 namespace BossMod;
 
@@ -9,7 +9,17 @@ public sealed class DebugTiming
 
     public unsafe void Draw()
     {
+        // 🔴 Framework.Instance() 是 [StaticAddress(…, isPointer: true)]，回傳全域指標槽的**內容**，合法可為 null。
+        //    本方法接下來每一行都要解參考 fwk，裸解＝AccessViolationException（攔不到）。
+        //    除錯視窗的中性行為＝顯示不可用；_prevQPC 不更新，下次拿得到時算出來的 dt 會涵蓋這段空窗，
+        //    這比寫入一個假的基準值好。
         var fwk = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance();
+        if (fwk == null)
+        {
+            ImGui.TextUnformatted("Framework 不可用 —— 這一刻讀不到任何計時資訊");
+            return;
+        }
+
         var dtReal = (double)(fwk->PerformanceCounterValue - _prevQPC) / fwk->PerformanceCounterFrequency;
         ImGui.TextUnformatted($"Frame counter: {fwk->FrameCounter}");
         ImGui.TextUnformatted($"Frame time effective: {fwk->FrameDeltaTime}");

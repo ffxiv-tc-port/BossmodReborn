@@ -24,7 +24,7 @@ class Pairs(BossModule module) : BossComponent(module)
     {
         var atRisk = _players1[slot] ? AtRisk(actor, _players1, _players2) : _players2[slot] && AtRisk(actor, _players2, _players1);
         if (atRisk)
-            hints.Add("Stack with opposite color!");
+            hints.Add(Loc.T("Stack with opposite color!"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

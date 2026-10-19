@@ -48,6 +48,9 @@ public sealed class ActionQueue
 
     public readonly List<Entry> Entries = [];
 
+    // 只做診斷：手動佇列的項目被 ForbidExecute 擋下時通知（判定本身不變）
+    public Action<Entry, ActionDefinition, Actor, AIHints>? ManualForbidden;
+
     public void Clear() => Entries.Clear();
     public void Push(ActionID action, Actor? target, float priority, float expire = float.MaxValue, float delay = 0, float castTime = 0, Vector3 targetPos = default, Angle? facingAngle = null, bool manual = false) => Entries.Add(new(action, target, priority, expire, delay, castTime, targetPos, facingAngle, manual));
 
@@ -117,6 +120,10 @@ public sealed class ActionQueue
             if (distSq > effRange * effRange)
                 return false;
         }
-        return def.ForbidExecute == null || !def.ForbidExecute.Invoke(ws, player, entry, hints);
+        if (def.ForbidExecute == null || !def.ForbidExecute.Invoke(ws, player, entry, hints))
+            return true;
+        if (entry.Manual)
+            ManualForbidden?.Invoke(entry, def, player, hints);
+        return false;
     }
 }

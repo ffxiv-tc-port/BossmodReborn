@@ -74,13 +74,13 @@ sealed class AddInterruptHint(BossModule module) : BossComponent(module)
     {
         if (castersDonut.Count != 0)
         {
-            hints.Add("Interrupt donut caster!");
+            hints.Add(Loc.T("Interrupt donut caster!"));
             return;
         }
 
         if (castersCross.Count != 0)
         {
-            hints.Add("Interrupt cross caster!");
+            hints.Add(Loc.T("Interrupt cross caster!"));
         }
     }
 }

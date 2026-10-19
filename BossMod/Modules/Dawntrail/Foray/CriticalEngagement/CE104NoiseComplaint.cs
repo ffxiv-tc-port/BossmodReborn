@@ -246,7 +246,7 @@ sealed class RushingRumbleRampage(BossModule module) : Components.GenericAOEs(mo
         {
             return;
         }
-        hints.Add("Follow the charge!");
+        hints.Add(Loc.T("Follow the charge!"));
     }
 }
 
@@ -268,5 +268,5 @@ public sealed class CE104NoiseComplaint(WorldState ws, Actor primary) : BossModu
 {
     public static readonly WPos ArenaCenter = new(461f, -363f);
 
-    protected override bool CheckPull() => base.CheckPull() && Raid.Player()!.Position.InCircle(Arena.Center, 23f);
+    protected override bool CheckPull() => base.CheckPull() && Raid.Player() is { } p && p.Position.InCircle(Arena.Center, 23f);
 }

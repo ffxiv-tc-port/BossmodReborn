@@ -84,6 +84,23 @@ public sealed class WorldState
     public Event<OpFrameStart> FrameStarted = new();
     public sealed record class OpFrameStart(in FrameState Frame, TimeSpan PrevUpdateTime, ClientState.Gauge GaugePayload, Angle CameraAzimuth) : Operation
     {
+        public FrameState Frame { get; private set; } = Frame;
+        public TimeSpan PrevUpdateTime { get; private set; } = PrevUpdateTime;
+        public ClientState.Gauge GaugePayload { get; private set; } = GaugePayload;
+        public Angle CameraAzimuth { get; private set; } = CameraAzimuth;
+
+        // 契約：只給即時同步路徑每幀重填同一個實例用，省掉每幀一個物件。
+        // 前提是收到這個物件的訂閱者（FrameStarted、Modified）都當場用完、不留著；要留著的訂閱者必須自己複製內容。
+        // 重播路徑每一筆仍然各自新建（Replay.Ops 會留著它們），不可以走這裡。
+        internal void Refill(in FrameState frame, TimeSpan prevUpdateTime, ClientState.Gauge gaugePayload, Angle cameraAzimuth)
+        {
+            Timestamp = default; // 與新建的實例一致：Exec 期間還沒有時間戳
+            Frame = frame;
+            PrevUpdateTime = prevUpdateTime;
+            GaugePayload = gaugePayload;
+            CameraAzimuth = cameraAzimuth;
+        }
+
         protected override void Exec(WorldState ws)
         {
             ws.Frame = Frame;

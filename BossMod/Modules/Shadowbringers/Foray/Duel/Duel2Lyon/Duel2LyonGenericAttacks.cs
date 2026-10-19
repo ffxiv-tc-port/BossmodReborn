@@ -83,7 +83,7 @@ sealed class RavenousGale(BossModule module) : Components.GenericAOEs(module)
     {
         base.AddGlobalHints(hints);
         if (casting)
-            hints.Add("Move a little to avoid voidzone spawning under you");
+            hints.Add(Loc.T("Move a little to avoid voidzone spawning under you"));
     }
 }
 
@@ -190,7 +190,7 @@ sealed class DynasticFlame(BossModule module) : Components.BaitAwayTethers(modul
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (CurrentBaits.Count != 0 && CurrentBaits[0].Target == actor)
-            hints.Add("Go to the edge and run until 4 orbs are spawned");
+            hints.Add(Loc.T("Go to the edge and run until 4 orbs are spawned"));
     }
 
     public override void OnActorCreated(Actor actor)

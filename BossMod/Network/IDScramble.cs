@@ -11,9 +11,19 @@ public static unsafe class IDScramble
 {
     public const uint Delta = 0;
 
-    public static NetworkState.IDScrambleFields Get()
+    // 🔴 Framework.Instance() 是 [StaticAddress(…, isPointer: true)]，回傳的是全域指標槽的**內容**，
+    //    登入前／登出過程中合法為 null；NetworkModuleProxy 與 ReceiverCallback 也都是普通的指標欄位，
+    //    網路模組還沒接起來時同樣是 null。三層裸鏈解參考就是 AccessViolationException（攔不到）。
+    // 📌 回傳型別刻意改成可為 null：`null`＝「這一刻讀不到」，與「讀到了，而且五個欄位都是 0」
+    //    （＝合法的 `default`）是兩件不同的事：讀不到時若把上一次讀到的正確 scramble 覆寫成全 0，接下來每個封包都會被解錯。
+    public static NetworkState.IDScrambleFields? Get()
     {
-        var proxy = Framework.Instance()->NetworkModuleProxy->ReceiverCallback;
+        var fwk = Framework.Instance();
+        var networkModuleProxy = fwk != null ? fwk->NetworkModuleProxy : null;
+        var proxy = networkModuleProxy != null ? networkModuleProxy->ReceiverCallback : null;
+        if (proxy == null)
+            return null;
+
         return new NetworkState.IDScrambleFields(proxy->GameSessionRandom, proxy->LastPacketRandom, proxy->Key0, proxy->Key1, proxy->Key2);
     }
 }

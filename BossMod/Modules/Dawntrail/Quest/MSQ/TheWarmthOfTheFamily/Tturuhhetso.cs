@@ -63,7 +63,7 @@ sealed class CandescentRayTB(BossModule module) : Components.CastSharedTankbuste
     {
         if (Target == null)
             return;
-        hints.Add("Stack with Wuk Lamat!");
+        hints.Add(Loc.T("Stack with Wuk Lamat!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
@@ -118,7 +118,7 @@ sealed class OrbCollecting(BossModule module) : BossComponent(module)
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (GetOrbs(Module).Count != 0)
-            hints.Add("Soak the orbs!");
+            hints.Add(Loc.T("Soak the orbs!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

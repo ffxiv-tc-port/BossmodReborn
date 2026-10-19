@@ -1,5 +1,5 @@
 ﻿using Dalamud.Game.ClientState.Objects.Types;
-using PInvoke;
+using FXWindows = TerraFX.Interop.Windows.Windows;
 using System.Globalization;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -9,7 +9,7 @@ namespace BossMod;
 
 public static partial class Utils
 {
-    public static string ObjectString(IGameObject obj) => $"{obj.DataId:X} '{obj.Name}' <{obj.EntityId:X}>";
+    public static string ObjectString(IGameObject obj) => $"{obj.BaseId:X} '{obj.Name}' <{obj.EntityId:X}>";
 
     public static string ObjectString(ulong id)
     {
@@ -303,7 +303,7 @@ public static partial class Utils
 
 #pragma warning disable
     /// <summary>
-    /// Sets whether <see cref="User32.GetKeyState"/> or <see cref="User32.GetAsyncKeyState"/> will be used when calling <see cref="IsKeyPressed(Keys)"/> or <see cref="IsKeyPressed(LimitedKeys)"/>
+    /// Sets whether GetKeyState or GetAsyncKeyState will be used when calling <see cref="IsKeyPressed(int)"/>
     /// </summary>
     private static bool UseAsyncKeyCheck;
 #pragma warning restore
@@ -318,11 +318,11 @@ public static partial class Utils
             return false;
         if (UseAsyncKeyCheck)
         {
-            return Bitmasks.IsBitSet(User32.GetKeyState(key), 15);
+            return Bitmasks.IsBitSet(FXWindows.GetKeyState(key), 15);
         }
         else
         {
-            return Bitmasks.IsBitSet(User32.GetAsyncKeyState(key), 15);
+            return Bitmasks.IsBitSet(FXWindows.GetAsyncKeyState(key), 15);
         }
     }
 

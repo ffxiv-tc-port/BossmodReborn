@@ -85,7 +85,7 @@ class TankbusterTether(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (Danger)
-            hints.Add("Take tether!");
+            hints.Add(Loc.T("Take tether!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

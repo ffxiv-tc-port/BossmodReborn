@@ -69,7 +69,7 @@ sealed class TwisterKB(BossModule module) : Components.GenericKnockback(module)
     {
         if (target != null)
         {
-            hints.Add("Stack and knockback");
+            hints.Add(Loc.T("Stack and knockback"));
         }
     }
 }

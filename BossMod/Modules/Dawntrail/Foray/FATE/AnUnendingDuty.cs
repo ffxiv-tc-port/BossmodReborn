@@ -41,9 +41,10 @@ sealed class ThunderousResoundingMemoryCone(BossModule module) : Components.Simp
 sealed class ThunderousResoundingMemoryCircle(BossModule module) : Components.SimpleAOEGroups(module, [(uint)AID.ThunderousMemoryCircle, (uint)AID.ResoundingMemoryCircle], 10f);
 sealed class ThunderousResoundingMemoryDonut(BossModule module) : Components.SimpleAOEGroups(module, [(uint)AID.ThunderousMemoryDonut, (uint)AID.ResoundingMemoryDonut], new AOEShapeDonut(10f, 30f));
 
-sealed class ThriceComeThunder(BossModule module) : Components.ConcentricAOEs(module, _shapes)
+sealed class ThriceComeThunder(BossModule module) : Components.ConcentricAOEs(module, _shapes, stepIntervals: _intervals)
 {
     private static readonly AOEShape[] _shapes = [new AOEShapeCircle(10f), new AOEShapeDonut(10f, 20f), new AOEShapeDonut(20f, 30f)];
+    private static readonly double[] _intervals = [2d, 2d]; // 三段同時起詠唱，5.0／7.0／9.0 秒
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {

@@ -11,13 +11,13 @@ class DualityOfDeath(BossModule module) : Components.GenericBaitAway(module, (ui
         if (ActiveBaitsOn(actor).Count != 0)
         {
             if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _shape.Radius).Any())
-                hints.Add("GTFO from raid!");
+                hints.Add(Loc.T("GTFO from raid!"));
             if (Module.PrimaryActor.TargetID == _firstFireTarget)
                 hints.Add(actor.InstanceID != _firstFireTarget ? "Taunt!" : "Pass aggro!");
         }
         else if (ActiveBaits.Any(b => IsClippedBy(actor, b)))
         {
-            hints.Add("GTFO from tanks!");
+            hints.Add(Loc.T("GTFO from tanks!"));
         }
     }
 

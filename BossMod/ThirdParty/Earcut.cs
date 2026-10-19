@@ -6,14 +6,22 @@ public sealed class Earcut
 {
     public static List<int> Tessellate(ReadOnlySpan<double> data, List<int> holeIndices)
     {
+        var triangles = new List<int>();
+        Tessellate(data, holeIndices, triangles);
+        return triangles;
+    }
+
+    // 結果附加在 triangles 後面（呼叫端自己清）；節點取自本執行緒的節點池，呼叫結束後沒有節點外流。
+    public static void Tessellate(ReadOnlySpan<double> data, List<int> holeIndices, List<int> triangles)
+    {
+        t_nodesUsed = 0;
         var hasHoles = holeIndices.Count > 0;
         var outerLen = hasHoles ? holeIndices[0] * 2 : data.Length;
         var outerNode = LinkedList(data, 0, outerLen, true);
-        var triangles = new List<int>();
 
         if (outerNode == null)
         {
-            return triangles;
+            return;
         }
 
         var minX = double.MaxValue;
@@ -62,8 +70,6 @@ public sealed class Earcut
         }
 
         EarcutLinked(outerNode, triangles, minX, minY, invSize, 0);
-
-        return triangles;
     }
 
     // Creates a circular doubly linked list from polygon points in the specified winding order.
@@ -722,8 +728,8 @@ public sealed class Earcut
     // if one belongs to the outer ring and another to a hole, it merges it into a single ring
     private static Node SplitPolygon(Node a, Node b)
     {
-        var a2 = new Node(a.i, a.x, a.y);
-        var b2 = new Node(b.i, b.x, b.y);
+        var a2 = NewNode(a.i, a.x, a.y);
+        var b2 = NewNode(b.i, b.x, b.y);
         var an = a.next;
         var bp = b.prev;
 
@@ -745,7 +751,7 @@ public sealed class Earcut
     // create a node and optionally link it with previous one (in a circular doubly linked list)
     private static Node InsertNode(int i, double x, double y, Node last)
     {
-        var p = new Node(i, x, y);
+        var p = NewNode(i, x, y);
 
         if (last == null)
         {
@@ -777,6 +783,39 @@ public sealed class Earcut
         {
             p.nextZ.prevZ = p.prevZ;
         }
+    }
+
+    // 每條執行緒一個節點池，每次 Tessellate 從頭重用；超過上限的大多邊形照舊 new，不留在池裡。
+    private const int MaxPooledNodes = 4096;
+    [ThreadStatic] private static List<Node>? t_nodePool;
+    [ThreadStatic] private static int t_nodesUsed;
+
+    private static Node NewNode(int i, double x, double y)
+    {
+        var pool = t_nodePool ??= [];
+        var used = t_nodesUsed;
+        if (used >= MaxPooledNodes)
+        {
+            return new Node(i, x, y);
+        }
+        t_nodesUsed = used + 1;
+        if (used == pool.Count)
+        {
+            var created = new Node(i, x, y);
+            pool.Add(created);
+            return created;
+        }
+        var p = pool[used];
+        p.i = i;
+        p.x = x;
+        p.y = y;
+        p.z = null;
+        p.prev = null;
+        p.next = null;
+        p.prevZ = null;
+        p.nextZ = null;
+        p.steiner = false;
+        return p;
     }
 
     sealed class Node

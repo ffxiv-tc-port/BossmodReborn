@@ -59,7 +59,7 @@ sealed class Meteors(BossModule module) : Components.GenericBaitAway(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (ActiveBaitsOn(actor).Count != 0)
-            hints.Add("Place meteor!");
+            hints.Add(Loc.T("Place meteor!"));
         base.AddHints(slot, actor, hints);
     }
 

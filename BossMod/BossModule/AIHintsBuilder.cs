@@ -16,6 +16,7 @@ public sealed class AIHintsBuilder : IDisposable
     private readonly Dictionary<ulong, (Actor Caster, Actor? Target, AOEShape Shape)> _activeGazes = [];
     private readonly List<Actor> _invincible = [];
     private ArenaBoundsCircle? _activeFateBounds;
+    private ArenaBoundsRect? _obstacleViewBounds;
     private bool isRSRpaused;
 
     private static readonly uint[] invincibleStatuses =
@@ -29,7 +30,7 @@ public sealed class AIHintsBuilder : IDisposable
     ];
     private static readonly HashSet<uint> ignore = [27503u, 33626u]; // action IDs that the AI should ignore
     private static readonly PartyRolesConfig _config = Service.Config.Get<PartyRolesConfig>();
-    private static readonly Dictionary<uint, (byte, byte, byte, uint, string, string, string, int, bool, uint)> _spellCache = [];
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<uint, (byte, byte, byte, uint, string, string, string, int, bool, uint)> _spellCache = new(); // 模組元件在背景解析重播的執行緒上也會讀寫
 
     public AIHintsBuilder(WorldState ws, BossModuleManager bmm, ZoneModuleManager zmm, RotationSolverRebornModule? rsr)
     {
@@ -54,6 +55,10 @@ public sealed class AIHintsBuilder : IDisposable
         Obstacles.Dispose();
     }
 
+    // 唯讀存取口（雷達顯示用）：CalculateAutoHints 這一幀用的同一份讀條猜測。只在主執行緒讀，不要跨幀保存列舉結果。
+    public Dictionary<ulong, (Actor Caster, Actor? Target, AOEShape Shape, bool IsCharge)>.ValueCollection GuessedAOEs => _activeAOEs.Values;
+    public Dictionary<ulong, (Actor Caster, Actor? Target, AOEShape Shape)>.ValueCollection GuessedGazes => _activeGazes.Values;
+
     public void Update(AIHints hints, int playerSlot, bool moveImminent)
     {
         var player = _ws.Party[playerSlot];
@@ -66,10 +71,12 @@ public sealed class AIHintsBuilder : IDisposable
             var playerAssignment = _config[_ws.Party.Members[playerSlot].ContentId];
             var activeModule = _bmm.ActiveModule?.StateMachine.ActivePhase != null ? _bmm.ActiveModule : null;
             var outOfCombatPriority = activeModule?.ShouldPrioritizeAllEnemies == true ? 0 : AIHints.Enemy.PriorityUndesirable;
-            FillEnemies(hints, playerAssignment == PartyRolesConfig.Assignment.MT || playerAssignment == PartyRolesConfig.Assignment.OT && !_ws.Party.WithoutSlot(false, false, true).Any(p => p != player && p.Role == Role.Tank), outOfCombatPriority);
+            FillEnemies(hints, playerAssignment == PartyRolesConfig.Assignment.MT || playerAssignment == PartyRolesConfig.Assignment.OT && !OtherTankInParty(player), outOfCombatPriority);
             if (activeModule != null)
             {
                 activeModule.CalculateAIHints(playerSlot, ref player, ref playerAssignment, ref hints);
+                // SimpleBossModule 換回 DefaultBounds（跟著玩家走的方形），那不是場地
+                hints.PathfindMapBoundsIsArena = !ReferenceEquals(hints.PathfindMapBounds, AIHints.DefaultBounds);
             }
             else
             {
@@ -98,6 +105,15 @@ public sealed class AIHintsBuilder : IDisposable
                 isRSRpaused = false;
             }
         }
+    }
+
+    // 隊伍與聯盟（不含 NPC、不含死者）裡有沒有玩家以外的坦克。獨立成方法：寫成 lambda 的話，閉包物件會在 Update 一進來就配置（每幀一個）。
+    private bool OtherTankInParty(Actor player)
+    {
+        foreach (var p in _ws.Party.WithoutSlot(false, false, true))
+            if (p != player && p.Role == Role.Tank)
+                return true;
+        return false;
     }
 
     // Fill list of potential targets from world state
@@ -145,6 +161,7 @@ public sealed class AIHintsBuilder : IDisposable
         {
             hints.PathfindMapCenter = new(_ws.Client.ActiveFate.Center.XZ());
             hints.PathfindMapBounds = (_activeFateBounds ??= new ArenaBoundsCircle(_ws.Client.ActiveFate.Radius, resolution, true));
+            hints.PathfindMapBoundsIsArena = true;
             if (e != null && bitmap != null)
             {
                 var originCell = (hints.PathfindMapCenter - e.Origin) / resolution;
@@ -166,7 +183,7 @@ public sealed class AIHintsBuilder : IDisposable
             originZ = Math.Max(originZ, e.ViewHeight);
             // TODO: consider quantizing even more, to reduce jittering when player moves?..
             hints.PathfindMapCenter = e.Origin + resolution * new WDir(originX, originZ);
-            hints.PathfindMapBounds = new ArenaBoundsRect(e.ViewWidth * resolution, e.ViewHeight * resolution, MapResolution: resolution); // note: we don't bother caching these bounds, they are very lightweight
+            hints.PathfindMapBounds = GetObstacleViewBounds(e.ViewWidth * resolution, e.ViewHeight * resolution, resolution);
             hints.PathfindMapObstacles = new(bitmap, new(originX - e.ViewWidth, originZ - e.ViewHeight, originX + e.ViewWidth, originZ + e.ViewHeight));
         }
         else
@@ -218,6 +235,16 @@ public sealed class AIHintsBuilder : IDisposable
         }
     }
 
+    // 尋路底圖快取在邊界實例上，每幀 new 會讓它永不命中、每幀重建整張圖；輸入不變就沿用同一個實例。
+    // 只從 Update 呼叫（單一執行緒）。跨執行緒共用實例與 AIHints.DefaultBounds 相同：底圖惰性建立，併發時頂多多建一次、內容相同。
+    private ArenaBoundsRect GetObstacleViewBounds(float halfWidth, float halfHeight, float resolution)
+    {
+        var bounds = _obstacleViewBounds;
+        if (bounds == null || bounds.HalfWidth != halfWidth || bounds.HalfHeight != halfHeight || bounds.MapResolution != resolution)
+            _obstacleViewBounds = bounds = new ArenaBoundsRect(halfWidth, halfHeight, MapResolution: resolution);
+        return bounds;
+    }
+
     private void OnCastStarted(Actor actor)
     {
         if (_bmm.ActiveModule?.StateMachine.ActivePhase != null) // no need to do all of this if it won't be used anyway
@@ -225,31 +252,44 @@ public sealed class AIHintsBuilder : IDisposable
         if (actor.Type is not ActorType.Enemy and not ActorType.Helper || actor.IsAlly)
             return;
         var castInfo = actor.CastInfo!;
+        if (GuessCastShape(actor, castInfo, out var isCharge, out var isGaze) is not AOEShape shape)
+            return;
+        var target = _ws.Actors.Find(castInfo.TargetID);
+        if (isGaze)
+            _activeGazes[actor.InstanceID] = (actor, target, shape);
+        else
+            _activeAOEs[actor.InstanceID] = (actor, target, shape, isCharge);
+    }
+
+    // 沒有模組時怎麼從讀條猜形狀；模組裡的 Components.UnclaimedCastAOEs 共用這一支。回 null＝這個讀條不猜。
+    // 呼叫端自己先篩施放者（敵方 Enemy／Helper）。isCharge＝矩形從施放者拉到落點；isGaze＝背對類，形狀只用來判在不在範圍內。
+    public static AOEShape? GuessCastShape(Actor actor, ActorCastInfo castInfo, out bool isCharge, out bool isGaze)
+    {
+        isCharge = isGaze = false;
         var actionID = castInfo.Action.ID;
         if (ignore.Contains(actionID))
-            return;
+            return null;
 
         var data = GetSpellData(actionID);
 
         // gaze
         if (data.VFX == 25)
         {
-            if (GuessShape(ref data, ref actor) is AOEShape sh)
-                _activeGazes[actor.InstanceID] = (actor, _ws.Actors.Find(castInfo.TargetID), sh);
-            return;
+            isGaze = true;
+            return GuessShape(ref data, ref actor);
         }
 
         if (!castInfo.IsSpell() || data.CastType == 1)
-            return;
+            return null;
         if (data.CastType is 2 or 5 && data.EffectRange >= RaidwideSize)
-            return;
+            return null;
         if (GuessShape(ref data, ref actor) is not AOEShape shape)
         {
             Service.Log($"[AutoHints] Unknown cast type {data.CastType} for {castInfo.Action}");
-            return;
+            return null;
         }
-        var target = _ws.Actors.Find(castInfo.TargetID);
-        _activeAOEs[actor.InstanceID] = (actor, target, shape, data.CastType == 8);
+        isCharge = data.CastType == 8;
+        return shape;
     }
 
     private void OnCastFinished(Actor actor)
@@ -295,10 +335,25 @@ public sealed class AIHintsBuilder : IDisposable
         var pos = data.Pos;
         if (pos < 0 || pos + 6 > path.Length || !int.TryParse(path.AsSpan(pos + 3, 3), out var angle))
         {
+            if (TryParseTwoDigitFan(path, pos, out angle))
+                return angle.Degrees();
             Service.Log($"[AutoHints] Can't determine angle from omen ({path}/{data.PathAlly}) for {data.RowId} '{data.Name}'...");
             return 180.Degrees();
         }
         return angle.Degrees();
+    }
+
+    // Omen 路徑的 fanNN（兩位數、後面是底線或字串結尾、值 >= 10）與三位數 fanNNN 同義：扇形全角（度）。
+    // 刻意不採用其他形狀（fan01x、fan02de 是編號不是角度；fan28m60、fan90r 語意未證實）：猜窄了 AI 會站進範圍裡。
+    private static bool TryParseTwoDigitFan(string path, int pos, out int angle)
+    {
+        angle = 0;
+        if (pos < 0 || pos + 5 > path.Length || !char.IsAsciiDigit(path[pos + 3]) || !char.IsAsciiDigit(path[pos + 4]))
+            return false;
+        if (pos + 5 < path.Length && path[pos + 5] != '_')
+            return false;
+        angle = (path[pos + 3] - '0') * 10 + (path[pos + 4] - '0');
+        return angle >= 10;
     }
 
     private static AOEShape? GuessShape(ref (byte CastType, byte EffectRange, byte XAxisModifier, uint, string, string, string, int, bool, uint) data, ref Actor actor) => data.CastType switch
@@ -327,4 +382,7 @@ public sealed class AIHintsBuilder : IDisposable
         data = (row.Value.CastType, row.Value.EffectRange, row.Value.XAxisModifier, row.Value.RowId, row.Value.Name.ToString(), row.Value.Omen.Value.PathAlly.ToString(), omenPath, omenPath.IndexOf("fan", StringComparison.Ordinal), row.Value.Omen.ValueNullable != null, row.Value.VFX.RowId);
         return _spellCache[actionID] = data!.Value;
     }
+
+    // 沒有模組時會被降成「打了沒用」的無敵類狀態；Components.UnclaimedCastAOEs 共用同一張表
+    public static bool IsInvincibleStatus(uint statusID) => Array.IndexOf(invincibleStatuses, statusID) >= 0;
 }

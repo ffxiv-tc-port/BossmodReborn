@@ -148,7 +148,7 @@ sealed class SpearpointPushBait(BossModule module) : Components.GenericBaitAway(
         var count = baits.Count;
         if (count != 0)
         {
-            hints.Add("Bait away at marked spot!");
+            hints.Add(Loc.T("Bait away at marked spot!"));
         }
     }
 }

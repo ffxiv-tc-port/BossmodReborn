@@ -95,7 +95,7 @@ class FrogSong(BossModule module) : BossComponent(module)
         {
             if (party[i].FindStatus((uint)SID.Toad) != null)
             {
-                hints.Add("Kill the adds to stop the frog song.");
+                hints.Add(Loc.T("Kill the adds to stop the frog song."));
                 return;
             }
         }

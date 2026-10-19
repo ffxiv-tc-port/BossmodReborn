@@ -179,11 +179,11 @@ sealed class Steelstrike(BossModule module) : Components.GenericAOEs(module)
         {
             if (soulOfIce[slot] && next)
             {
-                hints.Add("Get hit by a fire blade!");
+                hints.Add(Loc.T("Get hit by a fire blade!"));
             }
             else if (soulOfFire[slot] && !next)
             {
-                hints.Add("Get hit by a single ice blade!");
+                hints.Add(Loc.T("Get hit by a single ice blade!"));
             }
         }
     }
@@ -379,7 +379,7 @@ sealed class ThermalDivideSides(BossModule module) : Components.GenericAOEs(modu
                 break;
             }
         }
-        hints.Add("Go to safe side!", isRisky);
+        hints.Add(Loc.T("Go to safe side!"), isRisky);
     }
 }
 

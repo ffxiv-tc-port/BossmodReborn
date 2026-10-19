@@ -43,9 +43,9 @@ public sealed class HealerAI(RotationModuleManager manager, Actor player) : AIBa
         def.AbilityTrack(Track.Heal, "Heal");
 
         def.Define(Track.Esuna).As<HintedStrategy>("Esuna2", "Esuna")
-            .AddOption(HintedStrategy.Disabled, "Disabled", "Don't use")
-            .AddOption(HintedStrategy.HintOnly, "HintOnly", "Cleanse targets suggested by active module")
-            .AddOption(HintedStrategy.Enabled, "Enabled", "Cleanse all eligible party members")
+            .AddOption(HintedStrategy.Disabled, "Don't use")
+            .AddOption(HintedStrategy.HintOnly, "Cleanse targets suggested by active module")
+            .AddOption(HintedStrategy.Enabled, "Cleanse all eligible party members")
             .AddAssociatedActions(ClassShared.AID.Esuna);
 
         def.AbilityTrack(Track.StayNearParty, "Stay near party");
@@ -108,7 +108,18 @@ public sealed class HealerAI(RotationModuleManager manager, Actor player) : AIBa
         if (strategy.Enabled(Track.StayNearParty) && Player.InCombat)
         {
             List<(WPos pos, float radius)> allies = [.. LightParty.Exclude(Player).Select(e => (e.Position, e.HitboxRadius))];
-            Hints.GoalZones.Add(p => allies.Count(a => a.pos.InCircle(p, a.radius + Player.HitboxRadius + 15)));
+            // 尋路會在每個格點呼叫目標函式（每幀上萬次、在執行緒集區上）：裡面不能再建 lambda，那會每次呼叫都配一個閉包＋委派。
+            Hints.GoalZones.Add(p =>
+            {
+                var count = 0;
+                for (var i = 0; i < allies.Count; ++i)
+                {
+                    var a = allies[i];
+                    if (a.pos.InCircle(p, a.radius + Player.HitboxRadius + 15))
+                        ++count;
+                }
+                return count;
+            });
         }
 
         AutoRaise(strategy);

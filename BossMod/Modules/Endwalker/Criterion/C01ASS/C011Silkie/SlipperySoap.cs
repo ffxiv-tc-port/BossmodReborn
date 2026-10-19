@@ -49,15 +49,15 @@ sealed class SlipperySoapCharge(BossModule module) : Components.GenericKnockback
         if (_chargeTarget != null)
         {
             if (_chargeTarget != actor && !_chargeShape.Check(actor.Position, Module.PrimaryActor.Position, _chargeDir))
-                hints.Add("Stack inside charge!");
+                hints.Add(Loc.T("Stack inside charge!"));
 
             switch (_color)
             {
                 case SlipperySoap.Color.Blue:
-                    hints.Add("Move!", false);
+                    hints.Add(Loc.T("Move!"), false);
                     break;
                 case SlipperySoap.Color.Yellow:
-                    hints.Add("Prepare to spread", false);
+                    hints.Add(Loc.T("Prepare to spread"), false);
                     break;
             }
         }

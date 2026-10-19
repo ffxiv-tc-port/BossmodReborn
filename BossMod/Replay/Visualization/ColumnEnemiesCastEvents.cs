@@ -1,4 +1,4 @@
-﻿using ImGuiNET;
+﻿using Dalamud.Bindings.ImGui;
 
 namespace BossMod.ReplayVisualization;
 
@@ -34,7 +34,7 @@ public sealed class ColumnEnemiesCastEvents : Timeline.ColumnGroup
 
     public void DrawConfig(UITree tree)
     {
-        if (ImGui.Button("Add new!"))
+        if (ImGui.Button(Loc.T("Add new!")))
             AddColumn();
 
         var needRebuild = false;

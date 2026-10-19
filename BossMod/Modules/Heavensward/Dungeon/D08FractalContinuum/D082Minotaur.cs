@@ -87,7 +87,7 @@ class OneOneOneOneTonzeSwing(BossModule module) : BossComponent(module)
         {
             if (incubators[i].IsTargetable)
             {
-                hints.Add("Use an incubator to stun the boss!");
+                hints.Add(Loc.T("Use an incubator to stun the boss!"));
                 return;
             }
         }

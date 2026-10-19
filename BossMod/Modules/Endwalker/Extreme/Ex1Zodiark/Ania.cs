@@ -17,16 +17,16 @@ class Ania(BossModule module) : BossComponent(module)
         if (actor == _target)
         {
             if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _aoeRadius).Any())
-                hints.Add("GTFO from raid!");
+                hints.Add(Loc.T("GTFO from raid!"));
             if (Module.PrimaryActor.TargetID == _target.InstanceID)
-                hints.Add("Pass aggro!");
+                hints.Add(Loc.T("Pass aggro!"));
         }
         else
         {
             if (actor.Position.InCircle(_target.Position, _aoeRadius))
-                hints.Add("GTFO from tank!");
+                hints.Add(Loc.T("GTFO from tank!"));
             if (actor.Role == Role.Tank && Module.PrimaryActor.TargetID != actor.InstanceID)
-                hints.Add("Taunt!");
+                hints.Add(Loc.T("Taunt!"));
         }
     }
 

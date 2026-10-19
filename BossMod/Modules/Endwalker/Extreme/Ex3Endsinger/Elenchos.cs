@@ -11,7 +11,7 @@ class Elenchos(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (_aoeCenter.Check(actor.Position, _center) || _sides.Any(s => _aoeSides.Check(actor.Position, s)))
-            hints.Add("GTFO from aoe!");
+            hints.Add(Loc.T("GTFO from aoe!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

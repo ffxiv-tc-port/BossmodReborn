@@ -70,7 +70,7 @@ class DousePuddle(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (Module.PrimaryActor.TargetID == actor.InstanceID && BossInPuddle)
-            hints.Add("Pull boss out of puddle!");
+            hints.Add(Loc.T("Pull boss out of puddle!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

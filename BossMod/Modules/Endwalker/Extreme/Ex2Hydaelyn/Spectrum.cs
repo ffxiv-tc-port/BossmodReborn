@@ -16,10 +16,10 @@ class Spectrum(BossModule module) : Components.CastCounter(module, (uint)AID.Bri
         }
 
         if (nonTanksInRange != 0 || actor.Role != Role.Tank && tanksInRange != 0)
-            hints.Add("Spread!");
+            hints.Add(Loc.T("Spread!"));
 
         if (actor.Role == Role.Tank && tanksInRange == 0)
-            hints.Add("Stack with co-tank");
+            hints.Add(Loc.T("Stack with co-tank"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

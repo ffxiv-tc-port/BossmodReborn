@@ -20,12 +20,12 @@ class VengefulBelone(BossModule module) : BossComponent(module)
         var ruinCount = _playerRuinCount[slot];
         if (ruinCount > 2 || (ruinCount == 2 && _playerActingRole[slot] != Role.None))
         {
-            hints.Add("Failed orbs...");
+            hints.Add(Loc.T("Failed orbs..."));
         }
 
         if (Module.Enemies(OID.Orb).Where(orb => IsOrbLethal(slot, actor, OrbTarget(orb.InstanceID))).InRadius(actor.Position, _burstRadius).Any())
         {
-            hints.Add("GTFO from wrong orb!");
+            hints.Add(Loc.T("GTFO from wrong orb!"));
         }
 
         if (ruinCount < 2)

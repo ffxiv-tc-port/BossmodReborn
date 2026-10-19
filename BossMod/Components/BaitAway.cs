@@ -101,6 +101,48 @@ public class GenericBaitAway(BossModule module, uint aid = default, bool alwaysD
         return activeBaitsNotOnTarget;
     }
 
+    // 以下四支對應 ActiveBaits 的篩選條件、ActiveBaits.Count != 0、ActiveBaitsOn(...).Count != 0、PlayersClippedBy(...).Count != 0，條件逐字相同、不配置清單。
+    protected bool IsActiveBait(ref readonly Bait bait) => !bait.Source.IsDead && (AllowDeadTargets || !bait.Target.IsDead);
+
+    protected bool AnyActiveBait()
+    {
+        var baits = CollectionsMarshal.AsSpan(CurrentBaits);
+        var len = baits.Length;
+        for (var i = 0; i < len; ++i)
+        {
+            if (IsActiveBait(ref baits[i]))
+                return true;
+        }
+        return false;
+    }
+
+    public bool HasActiveBaitOn(Actor target)
+    {
+        var baits = CollectionsMarshal.AsSpan(CurrentBaits);
+        var len = baits.Length;
+        var id = target.InstanceID;
+        for (var i = 0; i < len; ++i)
+        {
+            ref var bait = ref baits[i];
+            if (!bait.Source.IsDead && bait.Target.InstanceID == id)
+                return true;
+        }
+        return false;
+    }
+
+    protected bool AnyPlayerClippedBy(ref readonly Bait bait)
+    {
+        var actors = Raid.WithoutSlot();
+        var len = actors.Length;
+        for (var i = 0; i < len; ++i)
+        {
+            var actor = actors[i];
+            if (actor.InstanceID != bait.Target.InstanceID && bait.Shape.Check(actor.Position, BaitOrigin(bait), bait.Rotation))
+                return true;
+        }
+        return false;
+    }
+
     public WPos BaitOrigin(Bait bait) => (CenterAtTarget ? bait.Target : bait.Source).Position;
     public bool IsClippedBy(Actor actor, Bait bait) => bait.Shape.Check(actor.Position, BaitOrigin(bait), bait.Rotation);
     public List<Actor> PlayersClippedBy(ref readonly Bait bait)
@@ -121,17 +163,15 @@ public class GenericBaitAway(BossModule module, uint aid = default, bool alwaysD
 
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
-        if (!EnableHints)
+        if (!EnableHints || !AnyActiveBait())
             return;
-        var baits = CollectionsMarshal.AsSpan(ActiveBaits);
+        var baits = CollectionsMarshal.AsSpan(CurrentBaits);
         var count = baits.Length;
-        if (count == 0)
-            return;
         if (ForbiddenPlayers[slot])
         {
-            if (ActiveBaitsOn(actor).Count != 0)
+            if (HasActiveBaitOn(actor))
             {
-                hints.Add("Avoid baiting!");
+                hints.Add(Loc.T("Avoid baiting!"));
             }
         }
         else
@@ -140,12 +180,11 @@ public class GenericBaitAway(BossModule module, uint aid = default, bool alwaysD
             for (var i = 0; i < count; ++i)
             {
                 ref var bait = ref baits[i];
-                if (bait.Target.InstanceID != id)
+                if (!IsActiveBait(ref bait) || bait.Target.InstanceID != id)
                     continue;
-                var clippedPlayers = PlayersClippedBy(ref bait);
-                if (clippedPlayers.Count != 0)
+                if (AnyPlayerClippedBy(ref bait))
                 {
-                    hints.Add(BaitAwayHint);
+                    hints.Add(Loc.T(BaitAwayHint));
                     break;
                 }
             }
@@ -157,11 +196,11 @@ public class GenericBaitAway(BossModule module, uint aid = default, bool alwaysD
             for (var i = 0; i < count; ++i)
             {
                 ref var bait = ref baits[i];
-                if (bait.Target.InstanceID == id)
+                if (!IsActiveBait(ref bait) || bait.Target.InstanceID == id)
                     continue;
                 if (IsClippedBy(actor, bait))
                 {
-                    hints.Add("GTFO from baited aoe!");
+                    hints.Add(Loc.T("GTFO from baited aoe!"));
                     break;
                 }
             }
@@ -170,16 +209,14 @@ public class GenericBaitAway(BossModule module, uint aid = default, bool alwaysD
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
-        var baits = CollectionsMarshal.AsSpan(ActiveBaits);
+        var baits = CollectionsMarshal.AsSpan(CurrentBaits);
         var count = baits.Length;
-        if (count == 0)
-        {
-            return;
-        }
         BitMask predictedDamage = default;
         for (var i = 0; i < count; ++i)
         {
             ref var bait = ref baits[i];
+            if (!IsActiveBait(ref bait))
+                continue;
             if (bait.Target != actor)
             {
                 hints.AddForbiddenZone(bait.Shape, BaitOrigin(bait), bait.Rotation, bait.Activation);
@@ -229,7 +266,7 @@ public class GenericBaitAway(BossModule module, uint aid = default, bool alwaysD
         }
     }
 
-    public override PlayerPriority CalcPriority(int pcSlot, Actor pc, int playerSlot, Actor player, ref uint customColor) => ActiveBaitsOn(player).Count != 0 ? BaiterPriority : PlayerPriority.Irrelevant;
+    public override PlayerPriority CalcPriority(int pcSlot, Actor pc, int playerSlot, Actor player, ref uint customColor) => HasActiveBaitOn(player) ? BaiterPriority : PlayerPriority.Irrelevant;
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)
     {
@@ -267,7 +304,7 @@ public class GenericBaitAway(BossModule module, uint aid = default, bool alwaysD
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (tankbuster && CurrentBaits.Count != 0)
-            hints.Add("Tankbuster cleave");
+            hints.Add(Loc.T("Tankbuster cleave"));
     }
 }
 
@@ -306,12 +343,13 @@ public class BaitAwayTethers(BossModule module, AOEShape shape, uint tetherID, u
         base.DrawArenaForeground(pcSlot, pc);
         if (DrawTethers)
         {
-            var baits = ActiveBaits;
-            var count = baits.Count;
+            var baits = CollectionsMarshal.AsSpan(CurrentBaits);
+            var count = baits.Length;
             for (var i = 0; i < count; ++i)
             {
-                var b = baits[i];
-                Arena.AddLine(b.Source.Position, b.Target.Position);
+                ref var b = ref baits[i];
+                if (IsActiveBait(ref b))
+                    Arena.AddLine(b.Source.Position, b.Target.Position);
             }
         }
     }
@@ -576,7 +614,7 @@ public class BaitAwayChargeTether(BossModule module, float halfWidth, float acti
 
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
-        if (ActiveBaits.Count == 0)
+        if (!AnyActiveBait())
             return;
         base.AddHints(slot, actor, hints);
         var count = CurrentBaits.Count;
@@ -588,9 +626,9 @@ public class BaitAwayChargeTether(BossModule module, float halfWidth, float acti
             {
                 continue;
             }
-            if (PlayersClippedBy(ref b).Count != 0)
+            if (AnyPlayerClippedBy(ref b))
             {
-                hints.Add(BaitAwayHint);
+                hints.Add(Loc.T(BaitAwayHint));
                 return;
             }
         }

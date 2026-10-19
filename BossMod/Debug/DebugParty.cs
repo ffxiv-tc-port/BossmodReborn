@@ -1,7 +1,7 @@
 ﻿using FFXIVClientStructs.FFXIV.Client.Game.Group;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace BossMod;
 
@@ -24,7 +24,9 @@ sealed class DebugParty
         ImGui.TableSetupColumn("World");
         ImGui.TableSetupColumn("Position");
         ImGui.TableHeadersRow();
-        for (var i = 0; i < gm->MemberCount; ++i)
+        // MemberCount 由遊戲寫入，PartyMembers 是 FixedSizeArray8：夾到容量內。
+        var memberCount = Math.Min((int)gm->MemberCount, gm->PartyMembers.Length);
+        for (var i = 0; i < memberCount; ++i)
             DrawPartyMember($"P{i}", ref gm->PartyMembers[i]);
         for (var i = 0; i < gm->AllianceMembers.Length; ++i)
             if (gm->AllianceMembers[i].IsValidAllianceMember())

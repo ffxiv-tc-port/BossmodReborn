@@ -65,11 +65,11 @@ class Shackles(BossModule module) : BossComponent(module)
     {
         if (_blueTetherMatrix[slot].Any() && _redTetherMatrix[slot].Any())
         {
-            hints.Add("Target of two tethers!");
+            hints.Add(Loc.T("Target of two tethers!"));
         }
         if (_blueExplosionMatrix[slot].Any() || _redExplosionMatrix[slot].Any())
         {
-            hints.Add("GTFO from explosion!");
+            hints.Add(Loc.T("GTFO from explosion!"));
         }
     }
 

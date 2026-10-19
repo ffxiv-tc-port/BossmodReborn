@@ -15,10 +15,15 @@ sealed class AIManager : IDisposable
     public int MasterSlot = PartyState.PlayerSlot; // non-zero means corresponding player is master
     public AIBehaviour? Beh;
     public Preset? AiPreset;
+    private bool _autoEnableAttempted;
+    private TransientConfigOverrides.StringOverride? _appliedPresetOverride;
 
     public WorldState WorldState => Autorot.Bossmods.WorldState;
     public float ForceMovementIn => Beh?.ForceMovementIn ?? float.MaxValue;
     public string GetAIPreset => AiPreset?.Name ?? string.Empty;
+
+    /// <summary>AI 目前是否在運作。判的條件與 /bmrai toggle、AI 視窗標題完全相同（Beh != null）。</summary>
+    public bool IsEnabled => Beh != null;
 
     public AIManager(RotationModuleManager autorot, ActionManagerEx amex, MovementOverride movement)
     {
@@ -27,7 +32,13 @@ sealed class AIManager : IDisposable
         Autorot = autorot;
         Controller = new(autorot.WorldState, amex, movement);
         Service.CommandManager.AddHandler("/bmrai", new Dalamud.Game.Command.CommandInfo(OnCommand) { HelpMessage = "Toggle AI mode" });
+        // the plugin instance (and this manager) survives character switches and full relogs
+        // within the same game client session - re-arm the one-shot auto-enable attempt on
+        // every new character login, not just once for the plugin's entire lifetime
+        Service.ClientState.Login += OnLogin;
     }
+
+    private void OnLogin() => _autoEnableAttempted = false;
 
     public void SetAIPreset(Preset? p)
     {
@@ -41,11 +52,26 @@ sealed class AIManager : IDisposable
         SwitchToIdle();
         _wndAI.Dispose();
         Service.CommandManager.RemoveHandler("/bmrai");
+        Service.ClientState.Login -= OnLogin;
         Instance = null;
     }
 
     public void Update()
     {
+        ApplyTransientAIPresetIfChanged();
+
+        if (!_autoEnableAttempted && _config.AutoEnableOnLoad && Beh == null && WorldState.Party.Player() != null
+            && WorldState.Party.Members[_config.FollowSlot].IsValid())
+        {
+            // deferred to the first tick where party data actually exists (rather than done in the constructor) so this doesn't race plugin load;
+            // only attempted once per login, so it won't fight a player who deliberately switches AI back off afterward.
+            // Player() (world actor) and Members[].IsValid() (party-list network state) are independent data streams that don't necessarily land on
+            // the same tick: gate on both, otherwise the "!Members[MasterSlot].IsValid() -> SwitchToIdle()" check right below undoes this on the
+            // same frame it just enabled AI (and it never retries, since the attempt flag is already set).
+            _autoEnableAttempted = true;
+            SwitchToFollow(_config.FollowSlot);
+        }
+
         if (!WorldState.Party.Members[MasterSlot].IsValid())
             SwitchToIdle();
 
@@ -72,19 +98,38 @@ sealed class AIManager : IDisposable
     {
         SwitchToIdle();
         MasterSlot = WorldState.Party[masterSlot]?.Name == null ? 0 : masterSlot;
-        var count = Autorot.Database.Presets.VisiblePresets.Count;
-        Preset? preset = null;
-        for (var i = 0; i < count; ++i)
-        {
-            var p = Autorot.Database.Presets.VisiblePresets[i];
-            if (p.Name == _config.AIAutorotPresetName)
-            {
-                preset = p;
-                break;
-            }
-        }
-        Beh = new AIBehaviour(Controller, Autorot, preset);
+        Beh = new AIBehaviour(Controller, Autorot, FindPreset(_config.AIAutorotPresetNameEffective));
         _wndAI.UpdateTitle();
+    }
+
+    private Preset? FindPreset(string? name)
+    {
+        var presets = Autorot.Database.Presets.AllPresets;
+        var count = presets.Count;
+        for (var i = 0; i < count; ++i)
+            if (string.Equals(presets[i].Name, name, PresetDatabase.NameComparison))
+                return presets[i];
+        return null;
+    }
+
+    /// <summary>
+    /// 其他插件的 AI 預設覆寫（TransientConfigOverrides）有新的一次設定或被清掉時，套到執行中的 AI；不寫設定欄位。
+    /// 只在框架執行緒呼叫。SetAIPreset（使用者在視窗選、舊的 AI.SetPreset）照舊立即生效＝最後寫的為準。
+    /// </summary>
+    internal void ApplyTransientAIPresetIfChanged()
+    {
+        var ov = TransientConfigOverrides.AIAutorotPresetName;
+        if (ReferenceEquals(ov, _appliedPresetOverride))
+            return;
+        _appliedPresetOverride = ov;
+        var name = ov != null ? ov.Value : _config.AIAutorotPresetName;
+        var preset = FindPreset(name);
+        if (!ReferenceEquals(preset, AiPreset))
+            Service.Logger.Information(ov == null
+                ? $"[BMR AI] 暫時覆寫已清除，AI 自動循環預設回到你選的「{preset?.Name ?? "（不選）"}」。"
+                : $"[BMR AI] {ov.Owner} 暫時把 AI 自動循環預設改成「{ov.Value ?? "（不選）"}」{(name != null && preset == null ? "（找不到同名預設，AI 不帶自動循環）" : "")}，不寫進設定檔。");
+        AiPreset = preset;
+        Beh?.AIPreset = preset;
     }
 
     private unsafe int FindPartyMemberSlotFromSender(SeString sender)
@@ -94,7 +139,10 @@ sealed class AIManager : IDisposable
             return -1;
         var group = GroupManager.Instance()->GetGroup();
         var slot = -1;
-        for (var i = 0; i < group->MemberCount; ++i)
+        // MemberCount 是遊戲寫入的 byte，PartyMembers 是 FixedSizeArray8 —— 兩者之間沒有結構
+        // 保證，Count 異常時會索引到陣列外。夾到容量內，越界時安靜少讀。
+        var memberCount = Math.Min((int)group->MemberCount, group->PartyMembers.Length);
+        for (var i = 0; i < memberCount; ++i)
         {
             if (group->PartyMembers[i].HomeWorld == source.World.RowId && group->PartyMembers[i].NameString == source.PlayerName)
             {
@@ -228,7 +276,12 @@ sealed class AIManager : IDisposable
             _config.Modified.Fire();
     }
 
-    private void EnableConfig(bool enable)
+    /// <summary>
+    /// /bmrai on|off 的實作。BossMod.AI.SetEnabled 這個 IPC 端點也走這裡（不複製邏輯），
+    /// 所以呼叫端拿到的行為與使用者自己打指令逐字相同 —— 包含 SwitchToIdle() 裡的
+    /// Controller.Clear()（把導航目標清成 null，正在走的路一併停下）。
+    /// </summary>
+    internal void EnableConfig(bool enable)
     {
         if (enable)
             SwitchToFollow(_config.FollowSlot);
@@ -624,18 +677,20 @@ sealed class AIManager : IDisposable
         }
 
         var normalizedInput = userInput.ToUpperInvariant();
-        var preset = Autorot.Database.Presets.VisiblePresets
-            .FirstOrDefault(p => p.Name.Trim().Equals(normalizedInput, StringComparison.OrdinalIgnoreCase))
+        // 🔑 preset 名查找統一走 PresetDatabase.NameComparison（單一真值來源）。.Trim() 是本呼叫點的
+        //    區域輸入正規化（去掉 preset 名頭尾空白），與大小寫敏感度是兩件事——保留在這裡，不提進
+        //    canonical 比較器，以免回頭改動主編輯器／IPC 查重已出貨的語意（讓本來分得開的名字折在一起）。
+        var preset = Autorot.Database.Presets.AllPresets
+            .FirstOrDefault(p => p.Name.Trim().Equals(normalizedInput, PresetDatabase.NameComparison))
             ?? RotationModuleManager.ForceDisable;
 
-        if (preset != null)
-        {
-            Service.Log($"Console: Changed preset from '{Beh?.AIPreset?.Name ?? "<n/a>"}' to '{preset?.Name ?? "<n/a>"}'");
-            SetAIPreset(preset);
-        }
-        else
-        {
-            Service.ChatGui.PrintError($"Failed to find preset '{userInput}'");
-        }
+        // 契約：查表只回資料庫裡的 preset 或 null，ForceDisable 是資料庫外的哨兵 ⇒ 參考相同即「查無此名」。
+        // 行為刻意不改（仍強制停用），只補提示；名字比對是為了使用者真的輸入哨兵名字時不誤報。
+        if (ReferenceEquals(preset, RotationModuleManager.ForceDisable)
+            && !userInput.Equals(RotationModuleManager.ForceDisable.Name, PresetDatabase.NameComparison))
+            Service.ChatGui.PrintError(string.Format(Loc.T("Could not find preset '{0}' - autorotation has been force-disabled instead."), userInput));
+
+        Service.Log($"Console: Changed preset from '{Beh?.AIPreset?.Name ?? "<n/a>"}' to '{preset?.Name ?? "<n/a>"}'");
+        SetAIPreset(preset);
     }
 }

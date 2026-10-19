@@ -55,34 +55,34 @@ class EncounterHints : BossComponent
         switch (NumCast)
         {
             case 0:
-                hints.Add("Thunderbolt -> Charybdis x2 -> Thunderbolt -> Trounce from South Wall.");
+                hints.Add(Loc.T("Thunderbolt -> Charybdis x2 -> Thunderbolt -> Trounce from South Wall."));
                 break;
             case 1:
-                hints.Add("Charybdis x2 -> Thunderbolt -> Trounce from South Wall.");
+                hints.Add(Loc.T("Charybdis x2 -> Thunderbolt -> Trounce from South Wall."));
                 break;
             case 2:
-                hints.Add("Charybdis x1 -> Thunderbolt -> Trounce from South Wall!");
+                hints.Add(Loc.T("Charybdis x1 -> Thunderbolt -> Trounce from South Wall!"));
                 break;
             case 3:
-                hints.Add("Thunderbolt -> Trounce from South Wall!");
+                hints.Add(Loc.T("Thunderbolt -> Trounce from South Wall!"));
                 break;
             case 4:
-                hints.Add("Boss is running to the South wall to cast Trounce!");
+                hints.Add(Loc.T("Boss is running to the South wall to cast Trounce!"));
                 break;
             case 5:
-                hints.Add("Charybdis x2 -> Thunderbolt -> Charybdis -> Trounce from North Wall.");
+                hints.Add(Loc.T("Charybdis x2 -> Thunderbolt -> Charybdis -> Trounce from North Wall."));
                 break;
             case 6:
-                hints.Add("Charybdis x1 -> Thunderbolt -> Charybdis -> Trounce from North Wall.");
+                hints.Add(Loc.T("Charybdis x1 -> Thunderbolt -> Charybdis -> Trounce from North Wall."));
                 break;
             case 7:
-                hints.Add("Thunderbolt -> Charybdis -> Trounce from North Wall!");
+                hints.Add(Loc.T("Thunderbolt -> Charybdis -> Trounce from North Wall!"));
                 break;
             case 8:
-                hints.Add("Charybdis -> Trounce from North Wall!");
+                hints.Add(Loc.T("Charybdis -> Trounce from North Wall!"));
                 break;
             case 9:
-                hints.Add("Boss is running to the North wall to cast Trounce!");
+                hints.Add(Loc.T("Boss is running to the North wall to cast Trounce!"));
                 break;
         }
     }
@@ -110,7 +110,7 @@ class ManualBurst(BossModule module) : BossComponent(module)
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (HPRatio is > 0.15f and < 0.20f)
-            hints.Add("Autorotation will not attack if boss HP is between 15 and 16% - press buttons manually when ready to start burst");
+            hints.Add(Loc.T("Autorotation will not attack if boss HP is between 15 and 16% - press buttons manually when ready to start burst"));
     }
 }
 

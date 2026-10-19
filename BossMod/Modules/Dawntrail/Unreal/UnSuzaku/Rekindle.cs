@@ -43,11 +43,11 @@ sealed class RekindleP1(BossModule module) : Rekindle(module)
         {
             if (feathers.Count == 0)
             {
-                hints.Add("Avoid intersecting bird hitboxes!");
+                hints.Add(Loc.T("Avoid intersecting bird hitboxes!"));
             }
             else
             {
-                hints.Add("Intersect the hitbox of a bird and pull it out of AOEs!");
+                hints.Add(Loc.T("Intersect the hitbox of a bird and pull it out of AOEs!"));
             }
         }
     }

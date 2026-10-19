@@ -134,7 +134,7 @@ class ThermobaricChargeBait(BossModule module) : Components.GenericBaitAway(modu
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (CurrentBaits.Count != 0 && CurrentBaits[0].Target == actor)
-            hints.Add("Bait away!");
+            hints.Add(Loc.T("Bait away!"));
         else
             base.AddHints(slot, actor, hints);
     }

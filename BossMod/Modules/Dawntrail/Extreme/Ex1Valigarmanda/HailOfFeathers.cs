@@ -67,7 +67,7 @@ sealed class BlightedBolt : Components.GenericAOEs
                 if (_targets[i].IsDead)
                     return;
             }
-            hints.Add("Kill a feather!");
+            hints.Add(Loc.T("Kill a feather!"));
         }
     }
 

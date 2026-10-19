@@ -17,11 +17,11 @@ class DespairUnforgotten(BossModule module) : BossComponent(module)
         {
             case State.Donut:
             case State.Stack:
-                hints.Add("Stay in center", false);
+                hints.Add(Loc.T("Stay in center"), false);
                 break;
             case State.Spread:
             case State.Flare:
-                hints.Add("Go to edge", false);
+                hints.Add(Loc.T("Go to edge"), false);
                 break;
         }
     }

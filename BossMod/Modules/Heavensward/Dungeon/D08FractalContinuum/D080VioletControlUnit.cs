@@ -34,7 +34,7 @@ class Interact(BossModule module) : BossComponent(module)
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (Module.PrimaryActor.IsTargetable)
-            hints.Add("Interact with control unit to continue!");
+            hints.Add(Loc.T("Interact with control unit to continue!"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

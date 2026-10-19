@@ -8,7 +8,7 @@ class Silkspit(BossModule module) : Components.UniformStackSpread(module, 0, 7)
     {
         base.AddHints(slot, actor, hints);
         if (IsSpreadTarget(actor) && _pillars.InRadius(actor.Position, SpreadRadius).Any())
-            hints.Add("GTFO from pillars!");
+            hints.Add(Loc.T("GTFO from pillars!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

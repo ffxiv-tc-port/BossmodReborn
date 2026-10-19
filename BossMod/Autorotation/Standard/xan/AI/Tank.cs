@@ -20,13 +20,13 @@ public sealed class TankAI(RotationModuleManager manager, Actor player) : AIBase
         def.Define(Track.Stance).As<StanceStrategy>("Stance")
             .AddOption(StanceStrategy.Enabled, "Enabled")
             .AddOption(StanceStrategy.Disabled, "Disabled")
-            .AddOption(StanceStrategy.LeechMode, "Leech", "Leech mode: enable stance only in FATEs");
+            .AddOption(StanceStrategy.LeechMode, "Leech mode: enable stance only in FATEs");
         def.AbilityTrack(Track.Ranged, "Ranged GCD");
 
         def.Define(Track.Interject).As<HintedStrategy>("Interject2", "Interject")
-            .AddOption(HintedStrategy.Disabled, "Disabled", "Don't use")
-            .AddOption(HintedStrategy.HintOnly, "HintOnly", "Interrupt enemies if the current module suggests doing it")
-            .AddOption(HintedStrategy.Enabled, "Enabled", "Interrupt all interruptable enemies")
+            .AddOption(HintedStrategy.Disabled, "Don't use")
+            .AddOption(HintedStrategy.HintOnly, "Interrupt enemies if the current module suggests doing it")
+            .AddOption(HintedStrategy.Enabled, "Interrupt all interruptable enemies")
             .AddAssociatedActions(ClassShared.AID.Interject);
 
         def.AbilityTrack(Track.Stun, "Low Blow").AddAssociatedActions(ClassShared.AID.LowBlow);
@@ -150,7 +150,12 @@ public sealed class TankAI(RotationModuleManager manager, Actor player) : AIBase
         // low blow
         if (strategy.Enabled(Track.Stun) && NextChargeIn(ClassShared.AID.LowBlow) == 0)
         {
-            var stunnableEnemy = Hints.PotentialTargets.Find(e => ShouldInterrupt(e) && Player.DistanceToHitbox(e.Actor) <= 3);
+            // 🔴 與上游刻意分歧：上游這裡是 ShouldInterrupt(e)，是個 bug（複製上面 interrupt 區塊時漏改）。
+            //    低誅是暈眩技、閘門是 Track.Stun，判準就該是 ShouldBeStunned；對照組 Melee.cs 的
+            //    同一段（腿掃）用的正是 ShouldStun。用錯旗標的後果是「該暈但不該打斷」的目標
+            //    （深宮 AutoClear 的 Stuns 清單正是這一類）永遠等不到低誅。
+            //    ⚠️ 上游同步時不要把這行「修正」回 ShouldInterrupt。
+            var stunnableEnemy = Hints.PotentialTargets.Find(e => ShouldStun(e) && Player.DistanceToHitbox(e.Actor) <= 3);
             if (stunnableEnemy != null)
                 Hints.ActionsToExecute.Push(ActionID.MakeSpell(ClassShared.AID.LowBlow), stunnableEnemy.Actor, ActionQueue.Priority.VeryLow);
         }

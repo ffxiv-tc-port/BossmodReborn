@@ -30,7 +30,7 @@ class InconspicuousImp(BossModule module) : BossComponent(module)
         {
             if (!imps[i].IsDead)
             {
-                hints.Add("Kill the imps!");
+                hints.Add(Loc.T("Kill the imps!"));
                 return;
             }
         }

@@ -18,9 +18,9 @@ class Dartboard(BossModule module) : BossComponent(module)
         {
             var color = PosToColor(actor.Position);
             if (color == ForbiddenColor)
-                hints.Add("GTFO from forbidden color!");
+                hints.Add(Loc.T("GTFO from forbidden color!"));
             else if (Bullseye[slot] && Raid.WithSlot(true, true, true).Exclude(actor).WhereSlot(i => Bullseye[i]).WhereActor(p => PosToColor(p.Position) == color).Any())
-                hints.Add("Stay on different segments!");
+                hints.Add(Loc.T("Stay on different segments!"));
         }
     }
 

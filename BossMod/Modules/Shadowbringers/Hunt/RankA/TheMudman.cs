@@ -25,7 +25,7 @@ class GravityForce(BossModule module) : Components.BaitAwayCast(module, (uint)AI
     {
         base.AddHints(slot, actor, hints);
         if (ActiveBaitsOn(actor).Count != 0)
-            hints.Add("Bait away or interrupt!");
+            hints.Add(Loc.T("Bait away or interrupt!"));
     }
 }
 

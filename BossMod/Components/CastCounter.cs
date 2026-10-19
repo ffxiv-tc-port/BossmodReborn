@@ -6,6 +6,9 @@ public class CastCounter(BossModule module, uint aid) : BossComponent(module)
     public readonly uint WatchedAction = aid;
     public int NumCasts;
 
+    private readonly uint[] _hintDamageActions = aid != default ? [aid] : [];
+    public override uint[] HintDamageActions => _hintDamageActions;
+
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
         if (spell.Action.ID == WatchedAction)
@@ -17,6 +20,8 @@ public class CastCounterMulti(BossModule module, uint[] aids) : BossComponent(mo
 {
     public readonly uint[] WatchedActions = aids;
     public int NumCasts;
+
+    public override uint[] HintDamageActions => WatchedActions;
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {

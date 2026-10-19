@@ -14,7 +14,7 @@ class Aetheroplasm(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (_kiters[slot])
-            hints.Add("Kite the orb!", false);
+            hints.Add(Loc.T("Kite the orb!"), false);
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)

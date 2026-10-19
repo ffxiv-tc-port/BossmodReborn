@@ -28,13 +28,13 @@ sealed class P1PowderMarkTrail(BossModule module) : Components.GenericBaitAway(m
         if (actor.Role == Role.Tank)
         {
             if (actor != _closest && actor != _target)
-                hints.Add("Get closer to co-tank!");
+                hints.Add(Loc.T("Get closer to co-tank!"));
             else if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _shape.Radius).Any(p => !AllowTankStacking || p.Role != Role.Tank))
-                hints.Add("Bait away from raid!");
+                hints.Add(Loc.T("Bait away from raid!"));
         }
         else if (actor == _closest || actor.Position.InCircle(_target.Position, _shape.Radius) || actor.Position.InCircle(_closest.Position, _shape.Radius))
         {
-            hints.Add("GTFO from tanks!");
+            hints.Add(Loc.T("GTFO from tanks!"));
         }
     }
 

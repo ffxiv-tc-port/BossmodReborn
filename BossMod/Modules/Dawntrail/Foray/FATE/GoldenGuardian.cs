@@ -75,9 +75,10 @@ sealed class ErosiveEye(BossModule module) : Components.GenericGaze(module)
     }
 }
 
-sealed class TongueLickOfFlameOutIn(BossModule module) : Components.ConcentricAOEs(module, _shapes)
+sealed class TongueLickOfFlameOutIn(BossModule module) : Components.ConcentricAOEs(module, _shapes, stepIntervals: _intervals)
 {
     private static readonly AOEShape[] _shapes = [new AOEShapeCircle(10f), new AOEShapeDonut(10f, 40f)];
+    private static readonly double[] _intervals = [2d]; // 5.0／7.0 秒
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
@@ -100,9 +101,10 @@ sealed class TongueLickOfFlameOutIn(BossModule module) : Components.ConcentricAO
     }
 }
 
-sealed class TongueLickOfFlameInOut(BossModule module) : Components.ConcentricAOEs(module, _shapes)
+sealed class TongueLickOfFlameInOut(BossModule module) : Components.ConcentricAOEs(module, _shapes, stepIntervals: _intervals)
 {
     private static readonly AOEShape[] _shapes = [new AOEShapeDonut(10f, 40f), new AOEShapeCircle(10f)];
+    private static readonly double[] _intervals = [2d]; // 5.0／7.0 秒
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {

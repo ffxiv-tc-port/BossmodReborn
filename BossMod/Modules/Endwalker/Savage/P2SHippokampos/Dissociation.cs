@@ -13,7 +13,7 @@ class Dissociation(BossModule module) : BossComponent(module)
 
         if (_shape.Check(actor.Position, head))
         {
-            hints.Add("GTFO from dissociation!");
+            hints.Add(Loc.T("GTFO from dissociation!"));
         }
     }
 

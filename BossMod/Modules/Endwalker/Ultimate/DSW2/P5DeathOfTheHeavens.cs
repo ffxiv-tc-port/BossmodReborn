@@ -12,7 +12,7 @@ sealed class P5DeathOfTheHeavensDooms(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (Dooms[slot])
-            hints.Add("Doom", false);
+            hints.Add(Loc.T("Doom"), false);
     }
 
     // note: we could also use status, but it appears slightly later
@@ -69,18 +69,18 @@ sealed class P5DeathOfTheHeavensHeavensflame(BossModule module) : Components.Gen
             return;
 
         if (!KnockbackDone && IsImmune(slot, WorldState.CurrentTime))
-            hints.Add("Cancel knockback immunity!");
+            hints.Add(Loc.T("Cancel knockback immunity!"));
 
         var actorAdjPos = _playerAdjustedPositions[slot];
         if (!Module.InBounds(actorAdjPos))
-            hints.Add("About to be knocked into wall!");
+            hints.Add(Loc.T("About to be knocked into wall!"));
 
         if (Raid.WithSlot(false, true, true).Exclude(actor).WhereSlot(s => _playerAdjustedPositions[s].InCircle(actorAdjPos, _aoeRadius)).Any())
-            hints.Add("Spread!");
+            hints.Add(Loc.T("Spread!"));
 
         var partner = FindTetheredPartner(slot);
         if (partner >= 0 && _playerAdjustedPositions[partner].InCircle(actorAdjPos, _tetherBreakDistance))
-            hints.Add("Aim to break tether!");
+            hints.Add(Loc.T("Aim to break tether!"));
     }
 
     public override PlayerPriority CalcPriority(int pcSlot, Actor pc, int playerSlot, Actor player, ref uint customColor)

@@ -14,6 +14,16 @@ public sealed class ActionTweaksConfig : ConfigNode
     [PropertyDisplay("Remove extra framerate-induced cooldown delay", tooltip: "Dynamically adjusts cooldown and animation locks to ensure queued actions resolve immediately regardless of framerate limitations")]
     public bool RemoveCooldownDelay = false;
 
+    [PropertyDisplay("Shorten long cast times (read tooltip!)", tooltip: "The server resolves a cast about 0.5s before the client's cast bar completes (that is what makes slidecasting possible), so the tail of the bar is pure local idle time. This reclaims part of it by shortening the client's cast timer, letting the next action be requested earlier.\n\nOnly applies when the cast time is longer than the recast time, so it never affects a normal GCD rotation - in practice only BLM Fire IV / Blizzard IV, Teleport/Return, raises and limit breaks. Nothing is sent to the server earlier and no packet is modified.\n\nDefault off; the reduction is hard-capped below the slidecast window.")]
+    public bool ReduceLongCastTime = false;
+
+    [PropertyDisplay("Long cast time reduction (ms)", tooltip: "How much to shorten the client's cast timer by, in milliseconds. Capped at 400ms so that it always stays below the ~500ms slidecast window.")]
+    [PropertySlider(50, CastTimeReductionTweak.MaxReductionMS, Speed = 1)]
+    public int LongCastTimeReductionMS = CastTimeReductionTweak.MaxReductionMS;
+
+    [PropertyDisplay("Show slidecast marker on own cast bar", tooltip: "Highlights the tail of your own cast bar, from the point where moving no longer interrupts the cast up to the end of the bar. It turns green the instant the server's action effect for that cast arrives, which is the real moment you are free to move.\n\nDisplay only - the game's cast bar is never modified, and enemy cast bars are never touched. If 'Shorten long cast times' is enabled the band shrinks accordingly, since that setting reclaims part of the same window.")]
+    public bool ShowSlidecastMarker = false;
+
     [PropertyDisplay("Prevent movement while casting")]
     public bool PreventMovingWhileCasting = false;
 
@@ -33,6 +43,23 @@ public sealed class ActionTweaksConfig : ConfigNode
 
     [PropertyDisplay("Key to hold to allow movement while casting", tooltip: "Requires the above setting checked as well")]
     public ModifierKey MoveEscapeHatch = ModifierKey.None;
+
+    // 預設非停用（Alt）是使用者指名的。ConfigNode.Deserialize 只遍歷存檔 JSON 裡「已存在」的鍵,新欄位保留這裡的初始值
+    // ⇒ Alt 會真的落到既有使用者身上（與 EzConfig 的行為相反）。要關掉就在這一格選 "None"。
+    // 與上面的 MoveEscapeHatch 互相獨立:MoveEscapeHatch 解除的是「BMR 擋住你自己的移動」,這一顆停的是「BMR 自己在走」;
+    // 兩格都設 Alt 時,按住 Alt ＝ 詠唱中可自己移動 ＋ 自動移動同時放手。
+    [PropertyDisplay("Key to hold to pause automatic movement",
+        tooltip: "While this key is held, BossMod stops injecting any movement input of its own - AI mode, the Normal Movement autorotation module, quest battles and boss module repositioning all let go of your character, and you steer manually. Movement resumes on the very frame you release the key.\n\nOnly movement is paused. Actions, dodging hints, positional hints, mitigation and targeting all keep running exactly as before, and nothing about your own input is blocked.\n\nSet to \"None\" to disable this entirely.\n\nThe deep dungeon \"Walk to room\" button is covered too. That route is walked by vnavmesh, so while the key is held BossMod asks vnavmesh to hold still. The route itself is kept, so releasing the key carries straight on from wherever you are standing - nothing is recalculated and you do not backtrack.")]
+    public ModifierKey PauseAutoMoveKey = ModifierKey.Alt;
+
+    // 📌 預設 false 是刻意的:這是新行為(以前引導技完全不在封鎖範圍內),既有使用者不該被它改到。
+    //    BMR 的 ConfigNode.Deserialize 只遍歷存檔 JSON 裡「已存在」的鍵,新欄位在既有存檔裡不存在,
+    //    所以會保留這裡的初始值 —— 也就是既有使用者拿到的就是 false。
+    // 🔴 這條是「Prevent movement while casting」的子旗標:總開關關著時它不論真假都不生效
+    //    (見 ActionManagerEx 算 blockMovement 那一行,兩者是 && 關係)。
+    [PropertyDisplay("Also prevent movement while channeling",
+        tooltip: "Extends the setting above to channeled abilities - the ones whose tooltip says the effect ends immediately if you move: Flamethrower, Improvisation, Passage of Arms, Collective Unconscious, Meditate, Chelonian Gate, Phantom Flurry and Apokalypsis.\n\nThese are instant abilities with no cast bar, so the normal cast protection never applied to them.\n\nMovement is only blocked when you yourself pressed one of those abilities AND the matching status is currently on you with yourself as its source - standing inside somebody else's Passage of Arms or Collective Unconscious will never block you. Your \"key to hold to allow movement\" still works as an escape hatch.")]
+    public bool PreventMovingWhileChanneling = false;
 
     [PropertyDisplay("Automatically cancel a cast when target is dead")]
     public bool CancelCastOnDeadTarget = false;
@@ -57,11 +84,41 @@ public sealed class ActionTweaksConfig : ConfigNode
     [PropertyDisplay("Use custom queueing for manually pressed actions", tooltip: "This setting allows better integration with autorotations and will prevent you from triple-weaving or drifting GCDs if you press a healing ability while autorotation is going on")]
     public bool UseManualQueue = false;
 
+    [PropertyDisplay("Use a custom action queue window", tooltip: "The game accepts an action into its native queue when at most 0.5s of cooldown remains. This lets you change that threshold.\n\nA larger window makes early presses stick instead of being dropped, at the cost of committing to an action further ahead of time; a smaller one does the opposite. This only changes how early the client accepts input - the action is still sent when the cooldown actually expires, so the server sees no difference.")]
+    public bool CustomActionQueueWindow = false;
+
+    [PropertyDisplay("Action queue window (seconds)", tooltip: "The game's built-in value is 0.5s.")]
+    [PropertySlider(ActionQueueWindowTweak.MinWindow, ActionQueueWindowTweak.MaxWindow, Speed = 0.01f)]
+    public float ActionQueueWindow = ActionQueueWindowTweak.GameWindow;
+
+    [PropertyDisplay("Derive the queue window from current framerate instead", tooltip: "Ignores the slider and widens the window as the framerate drops (20ms per 5fps below 90fps), to compensate for input being sampled less often. Note that \"Remove extra framerate-induced cooldown delay\" above addresses the same problem in a more precise way.")]
+    public bool ActionQueueWindowFromFramerate = false;
+
+    [PropertyDisplay("Allow actions used from macros to be queued", tooltip: "By default the game refuses to queue anything executed from a macro, so a macro pressed slightly too early is simply dropped. This makes such actions behave like a normal hotbar press instead: they get queued and fire as soon as they become available.\n\nAn already queued action is still not overwritten, and nothing is sent to the server any earlier.")]
+    public bool QueueMacroActions = false;
+
+    [PropertyDisplay("Ignore the \"target is not in line of sight\" restriction (read tooltip!)", tooltip: "The client refuses to send an action request when a raycast finds geometry between you and the target, which is the \"看不到目標。\" error. This makes that single check report success, so the request is sent anyway.\n\nOnly the line-of-sight verdict is changed - range and arc still reject exactly as before, and dashes that refuse to path through walls are not affected.\n\nThis only removes the client's own refusal. Whether the server repeats the check is not known; if it does, the action simply fails the way any rejected action does. Default off.")]
+    public bool IgnoreLineOfSight = false;
+
     [PropertyDisplay("Try to prevent dashing into AOEs", tooltip: "Prevent automatic use of targeted dashes (like WAR Onslaught) if they would move you into a dangerous area. May not work as expected in instances that do not have modules.\n\nThis option will also apply to manually pressed dashes if you have \"Use custom queueing for manually pressed actions\" enabled.")]
     public bool DashSafety = true;
 
     [PropertyDisplay("Apply the previous option to all dashes, not just gap closers", tooltip: "Includes backdashes (e.g. SAM Yaten), teleports (e.g. NIN Shukuchi), and fixed-length dashes (e.g. DRG Elusive Jump)")]
     public bool DashSafetyExtra = true;
+
+    [PropertyDisplay("Also block dashes requested by other plugins (read tooltip!)", tooltip: "The two options above only affect actions that go through BossMod's own action queue. Plugins that call the game's UseAction directly - WrathCombo's auto-rotation, for example - bypass that queue entirely, so a gap closer they fire can still throw you into an AOE.\n\nThis adds the same landing-spot check at the UseAction hook itself, which every source passes through. A dash judged dangerous is simply dropped for that frame; the rotation carries on and the action fires as soon as the path is clear.\n\nOnly active while BossMod's AI is enabled - the hook cannot tell who asked for the action, so with AI off you are assumed to be playing manually and nothing is blocked. Holding the movement escape hatch key also lets everything through. Dashes whose landing spot cannot be computed (ground-targeted teleports like NIN Shukuchi) are never blocked.")]
+    public bool DashSafetyBlockExternal = true;
+
+    [PropertyDisplay("Dash block: only count danger zones going off within this many seconds", tooltip: "A zone that will not go off for a long time is not a reason to refuse a dash - the AI would simply walk back out of it. Only zones that are already active, or that resolve within this many seconds, can block a dash.")]
+    [PropertySlider(0.1f, 10f, Speed = 0.1f)]
+    public float DashSafetyActivationThreshold = 1.5f;
+
+    [PropertyDisplay("Dodge with a dash when walking out would be too late (read tooltip!)", tooltip: "Only while BossMod's AI is enabled. When the AI's own path out of the danger zone under you would finish too late, BossMod uses a ready gap closer or backstep aimed at your current target (e.g. RDM Corps-a-corps / Displacement, Phantom Kick) - but only if the landing spot is outside every danger zone, inside the arena, not through a wall, and (outside duty arenas) on vnavmesh's navmesh.\n\nNever fires while you steer manually, while vnavmesh is walking a route, while mounted or casting, with a knockback pending, or while the escape hatch key is held. The target must be an enemy you are already fighting.\n\nWorks even with \"Forbid actions\" on, because it is a dodge, not part of the rotation.")]
+    public bool DashDodge = true;
+
+    [PropertyDisplay("Dash dodge: fire when the walking margin drops below this many seconds", tooltip: "Margin = how long before the server judges the hit you would be out of the zone if you walked along the AI's path. Larger values dash earlier and more often; smaller values dash only when walking is clearly too late.")]
+    [PropertySlider(0f, 1f, Speed = 0.01f)]
+    public float DashDodgeTriggerSlack = 0.2f;
 
     [PropertyDisplay("Automatically manage auto attacks", tooltip: "This setting prevents starting autos early during countdown, starts them automatically at pull, when switching targets and when using any actions that don't explicitly cancel autos.")]
     public bool AutoAutos = false;

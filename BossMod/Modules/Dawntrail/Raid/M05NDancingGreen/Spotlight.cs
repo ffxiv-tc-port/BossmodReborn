@@ -109,6 +109,6 @@ sealed class Spotlight(BossModule module) : Components.GenericAOEs(module)
                 break;
             }
         }
-        hints.Add("Go into a spotlight!", !isInside);
+        hints.Add(Loc.T("Go into a spotlight!"), !isInside);
     }
 }

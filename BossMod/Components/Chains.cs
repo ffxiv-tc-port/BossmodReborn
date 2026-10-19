@@ -10,7 +10,7 @@ public class Chains(BossModule module, uint tetherID, uint aid = default, float 
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (_partner[slot] != null)
-            hints.Add(spreadChains ? "Break the chains!" : "Stay with partner!");
+            hints.Add(Loc.T(spreadChains ? "Break the chains!" : "Stay with partner!"));
     }
 
     public override PlayerPriority CalcPriority(int pcSlot, Actor pc, int playerSlot, Actor player, ref uint customColor)

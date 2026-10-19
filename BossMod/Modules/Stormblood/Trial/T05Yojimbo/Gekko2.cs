@@ -51,7 +51,7 @@ class Gekko2(BossModule module) : Components.GenericAOEs(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (_targets.Contains(actor))
-            hints.Add("Spread out!");
+            hints.Add(Loc.T("Spread out!"));
     }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)

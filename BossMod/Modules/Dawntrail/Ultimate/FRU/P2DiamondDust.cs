@@ -115,18 +115,18 @@ sealed class P2DiamondDustHouseOfLight(BossModule module) : Components.GenericBa
         if (ForbiddenPlayers[slot])
         {
             if (baitIndex >= 0)
-                hints.Add("Stay farther away!");
+                hints.Add(Loc.T("Stay farther away!"));
         }
         else
         {
             if (baitIndex < 0)
-                hints.Add("Stay closer to bait!");
+                hints.Add(Loc.T("Stay closer to bait!"));
             else if (PlayersClippedBy(ref CurrentBaits.Ref(baitIndex)).Count != 0)
-                hints.Add("Bait cone away from raid!");
+                hints.Add(Loc.T("Bait cone away from raid!"));
         }
 
         if (ActiveBaitsNotOn(actor).Any(b => IsClippedBy(actor, b)))
-            hints.Add("GTFO from baited cone!");
+            hints.Add(Loc.T("GTFO from baited cone!"));
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints) { }

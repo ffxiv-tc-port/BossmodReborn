@@ -1,26 +1,9 @@
 ﻿using BossMod.Autorotation;
 using Dalamud.Game.ClientState.Keys;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using System.Reflection;
 
 namespace BossMod;
-
-[StructLayout(LayoutKind.Explicit, Size = 0xB)]
-public unsafe struct InputDataKeybind
-{
-    [FieldOffset(0)] public fixed ushort Bindings[5];
-    [FieldOffset(10)] public byte Terminator;
-}
-
-[StructLayout(LayoutKind.Explicit, Size = 0x9C8)]
-public unsafe struct InputData
-{
-    [FieldOffset(0)] public void** Vtbl;
-
-    [FieldOffset(0x9AC)] public int KeybindCount;
-    [FieldOffset(0x9B0)] public InputDataKeybind* Keybinds;
-    [FieldOffset(0x9B8)] public fixed byte GamepadAxisRemap[7];
-}
 
 [StructLayout(LayoutKind.Explicit, Size = 0x140)]
 public unsafe struct PlayerMoveControllerWalk
@@ -51,17 +34,18 @@ public unsafe struct PlayerController
     [FieldOffset(0x559)] public byte ControlMode;
 }
 
-[StructLayout(LayoutKind.Explicit, Size = 0x2B0)]
+// 同 BossMod.Util.CameraEx:TC 7.20 起整批往後移 0x10,對齊 pin 版 CS 的 Camera。
+[StructLayout(LayoutKind.Explicit, Size = 0x2C0)]
 public unsafe struct CameraX
 {
-    [FieldOffset(0x130)] public float DirH;
-    [FieldOffset(0x134)] public float DirV;
-    [FieldOffset(0x138)] public float InputDeltaHAdjusted;
-    [FieldOffset(0x13C)] public float InputDeltaVAdjusted;
-    [FieldOffset(0x140)] public float InputDeltaH;
-    [FieldOffset(0x144)] public float InputDeltaV;
-    [FieldOffset(0x148)] public float DirVMin;
-    [FieldOffset(0x14C)] public float DirVMax;
+    [FieldOffset(0x140)] public float DirH;
+    [FieldOffset(0x144)] public float DirV;
+    [FieldOffset(0x148)] public float InputDeltaHAdjusted;
+    [FieldOffset(0x14C)] public float InputDeltaVAdjusted;
+    [FieldOffset(0x150)] public float InputDeltaH;
+    [FieldOffset(0x154)] public float InputDeltaV;
+    [FieldOffset(0x158)] public float DirVMin;
+    [FieldOffset(0x15C)] public float DirVMax;
 }
 
 internal sealed unsafe class DebugInput : IDisposable
@@ -138,19 +122,31 @@ internal sealed unsafe class DebugInput : IDisposable
 
     public void Draw()
     {
-        var dt = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance()->FrameDeltaTime;
+        // 🔴 Framework.Instance() 是 [StaticAddress(…, isPointer: true)]，回傳全域指標槽的**內容**，合法可為 null；
+        //    直接 ->FrameDeltaTime ＝ AccessViolationException（corrupted-state exception，攔不到）。
+        //    這裡只把「需要 dt」的速度那一段關掉，下面不需要 Framework 的欄位照常顯示。
+        //    ⚠️ 顯示「不可用」而不是把速度畫成 0 —— 0 會被誤讀成「真的沒在動」。
+        var fwk = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance();
+        if (fwk == null)
+        {
+            ImGui.TextUnformatted("Speed: Framework 不可用 —— 這一幀算不出速度／加速度");
+        }
+        else
+        {
+            var dt = fwk->FrameDeltaTime;
 
-        var player = _ws.Party.Player();
-        var curPosRot = player?.PosRot ?? new();
-        var speed = (curPosRot.XYZ() - _prevPosRot.XYZ()) / dt;
-        var speedAbs = speed.Length();
-        var accel = (speedAbs - _prevSpeed) / dt;
-        var rotSpeed = (curPosRot.W - _prevPosRot.W).Radians().Normalized() / dt;
-        //if (curPosRot.W != _prevPosRot.W)
-        //    Service.Log($"ROT: {_prevPosRot.W.Radians()} -> {curPosRot.W.Radians()} over {dt} (s={rotSpeed})");
-        _prevPosRot = curPosRot;
-        _prevSpeed = speedAbs;
-        ImGui.TextUnformatted($"Speed={speedAbs:f3}, SpeedH={speed.XZ().Length():f3}, SpeedV={speed.Y:f3}, RSpeed={rotSpeed}, Accel={accel:f3}, Azimuth={Angle.FromDirection(new(speed.XZ()))}, Altitude={Angle.FromDirection(new(speed.Y, speed.XZ().Length()))}");
+            var player = _ws.Party.Player();
+            var curPosRot = player?.PosRot ?? new();
+            var speed = (curPosRot.XYZ() - _prevPosRot.XYZ()) / dt;
+            var speedAbs = speed.Length();
+            var accel = (speedAbs - _prevSpeed) / dt;
+            var rotSpeed = (curPosRot.W - _prevPosRot.W).Radians().Normalized() / dt;
+            //if (curPosRot.W != _prevPosRot.W)
+            //    Service.Log($"ROT: {_prevPosRot.W.Radians()} -> {curPosRot.W.Radians()} over {dt} (s={rotSpeed})");
+            _prevPosRot = curPosRot;
+            _prevSpeed = speedAbs;
+            ImGui.TextUnformatted($"Speed={speedAbs:f3}, SpeedH={speed.XZ().Length():f3}, SpeedV={speed.Y:f3}, RSpeed={rotSpeed}, Accel={accel:f3}, Azimuth={Angle.FromDirection(new(speed.XZ()))}, Altitude={Angle.FromDirection(new(speed.Y, speed.XZ().Length()))}");
+        }
         ImGui.TextUnformatted($"MO: desired={_move.DesiredDirection}, user={_move.UserMove}, actual={_move.ActualMove}");
         //Service.Log($"Speed: {speedAbs:f3}, accel: {accel:f3}");
 
@@ -180,9 +176,20 @@ internal sealed unsafe class DebugInput : IDisposable
 
         foreach (var n in _tree.Node("Input data"))
         {
-            var idata = GetInputData();
-            foreach (var n2 in _tree.Node($"Keybinds ({idata->KeybindCount} total)"))
+            // UIInputData.Instance() 在 Framework／UIModule 拿不到時回 null：拿不到就顯示不可用。
+            var idata = FFXIVClientStructs.FFXIV.Client.UI.UIInputData.Instance();
+            if (idata == null)
             {
+                _tree.LeafNode("Keybinds: UIInputData 不可用");
+                continue;
+            }
+            foreach (var n2 in _tree.Node($"Keybinds ({idata->NumKeybinds} total)"))
+            {
+                if (idata->Keybinds == null)
+                {
+                    _tree.LeafNode("Keybinds 陣列尚未建立");
+                    continue;
+                }
                 var mapping = new VirtualKey[256];
                 foreach (var vk in Service.KeyState.GetValidVirtualKeys())
                     mapping[_convertVirtualKey((int)vk)] = vk;
@@ -195,9 +202,11 @@ internal sealed unsafe class DebugInput : IDisposable
                     _ => $"gamepad{v - 0xA7}"
                 };
                 string printBinding(ushort v) => $"{((v & 0x100) != 0 ? "shift+" : "")}{((v & 0x200) != 0 ? "ctrl+" : "")}{((v & 0x400) != 0 ? "alt+" : "")}{((v & 0xF800) != 0 ? "?+" : "")}{bindString((byte)v)} ({v:X4})";
-                for (int i = 0; i < idata->KeybindCount; ++i)
+                for (int i = 0; i < idata->NumKeybinds; ++i)
                 {
-                    _tree.LeafNode($"{i} = {string.Join(", ", Enumerable.Range(0, 5).Select(j => printBinding(idata->Keybinds[i].Bindings[j])))}");
+                    // 一筆 Keybind 0xB bytes：前 10 bytes 當 5 個 (鍵, 修飾鍵) 顯示，與 CS 的 KeySettings／GamepadSettings 同一塊。
+                    var bindings = (ushort*)(idata->Keybinds + i);
+                    _tree.LeafNode($"{i} = {string.Join(", ", Enumerable.Range(0, 5).Select(j => printBinding(bindings[j])))}");
                 }
             }
         }
@@ -309,8 +318,6 @@ internal sealed unsafe class DebugInput : IDisposable
         //    input.GamepadOverridesEnabled = false;
         //}
     }
-
-    private InputData* GetInputData() => (InputData*)FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance()->GetUIModule()->GetUIInputData();
 
     //private void RMIWalkDetour(PlayerMoveControllerWalk* self, float* sumLeft, float* sumForward, float* sumTurnLeft, byte* haveBackwardOrStrafe, byte* a6, byte bAdditiveUnk)
     //{

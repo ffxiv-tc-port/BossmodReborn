@@ -58,6 +58,17 @@ public abstract class ConfigNode
     [JsonIgnore]
     public Event Modified = new();
 
+    /// <summary>
+    /// 畫在所有設定項<b>之前</b>的內容；預設什麼都不畫。
+    /// </summary>
+    /// <remarks>
+    /// 存在的理由是 <see cref="DrawCustom"/> 在屬性迴圈<b>之後</b>才被呼叫，
+    /// 只能把東西放在頁面底部。前置條件（「這一整頁的選項需要先滿足 X 才會動作」）
+    /// 放在所有選項下面等於沒說 —— 使用者是先看到選項才捲到底的。
+    /// <para>⚠️ 預設空實作，對沒有覆寫的設定節點零影響。</para>
+    /// </remarks>
+    public virtual void DrawHeader(UITree tree, WorldState ws) { }
+
     // draw custom contents; override this for complex config nodes
     public virtual void DrawCustom(UITree tree, WorldState ws) { }
 

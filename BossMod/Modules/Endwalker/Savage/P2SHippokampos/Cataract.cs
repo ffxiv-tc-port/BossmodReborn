@@ -9,7 +9,7 @@ class Cataract(BossModule module) : BossComponent(module)
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (_aoeBoss.Check(actor.Position, Module.PrimaryActor) || _aoeHead.Check(actor.Position, Module.Enemies(OID.CataractHead).FirstOrDefault()))
-            hints.Add("GTFO from cataract!");
+            hints.Add(Loc.T("GTFO from cataract!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

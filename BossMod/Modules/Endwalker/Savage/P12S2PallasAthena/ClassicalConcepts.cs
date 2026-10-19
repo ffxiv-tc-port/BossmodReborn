@@ -33,7 +33,7 @@ class ClassicalConcepts(BossModule module, bool invert) : BossComponent(module)
             var dir = soff.Normalized();
             var dot = poff.Dot(dir);
             if (dot < 0 || dot * dot > soff.LengthSq() || Math.Abs(dir.OrthoL().Dot(poff)) > 1)
-                hints.Add("Stand between assigned shapes!");
+                hints.Add(Loc.T("Stand between assigned shapes!"));
         }
     }
 

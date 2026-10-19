@@ -41,9 +41,9 @@ sealed class Ozmaspheres(BossModule module) : Components.GenericAOEs(module)
         if (orbs.Count != 0)
         {
             if (actor.Role == Role.Tank)
-                hints.Add("Soak the orbs (with mitigations)!");
+                hints.Add(Loc.T("Soak the orbs (with mitigations)!"));
             else
-                hints.Add("Avoid the orbs!");
+                hints.Add(Loc.T("Avoid the orbs!"));
         }
     }
 

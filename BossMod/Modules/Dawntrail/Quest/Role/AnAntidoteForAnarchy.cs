@@ -135,7 +135,7 @@ sealed class Esuna(BossModule module) : BossComponent(module)
         var loashkanaL = Module.Enemies(OID.LoashkanaTheLeal);
         var loashkana = loashkanaL.Count != 0 ? loashkanaL[0] : null;
         if (_affected.Contains(actor))
-            hints.Add("Use Esuna on yourself.");
+            hints.Add(Loc.T("Use Esuna on yourself."));
         if (loashkana != null && _affected.Contains(loashkana))
             hints.Add($"Use Esuna on {loashkana.Name}!");
     }

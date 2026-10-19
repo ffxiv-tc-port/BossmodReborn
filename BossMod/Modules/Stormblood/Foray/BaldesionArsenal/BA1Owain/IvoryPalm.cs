@@ -30,7 +30,7 @@ sealed class IvoryPalm(BossModule module) : Components.GenericGaze(module)
             ref readonly var eye = ref eyes[i];
             if (HitByEye(ref actor, eye) != eye.Inverted)
             {
-                hints.Add("Face the hand to petrify it!");
+                hints.Add(Loc.T("Face the hand to petrify it!"));
                 break;
             }
         }

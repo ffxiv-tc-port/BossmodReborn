@@ -11,11 +11,11 @@ class TyrantsUnholyDarkness(BossModule module) : Components.CastCounter(module, 
     {
         if (IsTarget(actor))
         {
-            hints.Add("GTFO from raid!", Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _radius).Any());
+            hints.Add(Loc.T("GTFO from raid!"), Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _radius).Any());
         }
         else if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _radius).Any(IsTarget))
         {
-            hints.Add("GTFO from tanks!");
+            hints.Add(Loc.T("GTFO from tanks!"));
         }
     }
 

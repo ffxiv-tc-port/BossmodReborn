@@ -39,7 +39,7 @@ class TwinsongAporrhoia(BossModule module) : BossComponent(module)
         }
 
         if (inAOE)
-            hints.Add("GTFO from aoe!");
+            hints.Add(Loc.T("GTFO from aoe!"));
     }
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)

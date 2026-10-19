@@ -45,7 +45,7 @@ sealed class SweepingMenacingCharge(BossModule module) : Components.SimpleCharge
     {
         if (Module.PrimaryActor.CastInfo is var spell && spell != null && spell.Action.ID == (uint)AID.SweepingCharge)
         {
-            hints.Add("Follow the charge!");
+            hints.Add(Loc.T("Follow the charge!"));
         }
     }
 }

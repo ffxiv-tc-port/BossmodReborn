@@ -8,9 +8,9 @@ class OminousBubbling(BossModule module) : Components.CastCounter(module, (uint)
     {
         var healersInRange = Raid.WithoutSlot(false, true, true).Where(a => a.Role == Role.Healer).InRadius(actor.Position, _radius).Count();
         if (healersInRange > 1)
-            hints.Add("Hit by two aoes!");
+            hints.Add(Loc.T("Hit by two aoes!"));
         else if (healersInRange == 0)
-            hints.Add("Stack with healer!");
+            hints.Add(Loc.T("Stack with healer!"));
     }
 
     public override void DrawArenaForeground(int pcSlot, Actor pc)

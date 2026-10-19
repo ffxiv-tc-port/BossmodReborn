@@ -3,7 +3,7 @@ using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.ImGuiFileDialog;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Lumina.Excel.Sheets;
 using System.Diagnostics;
 using System.IO;
@@ -73,12 +73,13 @@ public sealed class ReplayManagementWindow : UIWindow
 
     public override void PreOpenCheck()
     {
+        base.PreOpenCheck();
         _manager.Update();
     }
 
     public override void Draw()
     {
-        if (ImGui.Button(!IsRecording() ? "Start recording" : "Stop recording"))
+        if (ImGui.Button(!IsRecording() ? Loc.T("Start recording") : Loc.T("Stop recording")))
         {
             if (!IsRecording())
             {
@@ -91,9 +92,9 @@ public sealed class ReplayManagementWindow : UIWindow
             }
         }
         ImGui.SameLine();
-        if (ImGui.Button("Select replay folder"))
+        if (ImGui.Button(Loc.T("Select replay folder")))
         {
-            _folderDialog ??= new FileDialog("select_replay_folder", "Select replay folder", "", _config.ReplayFolder, "", "", 1, false, ImGuiFileDialogFlags.SelectOnly);
+            _folderDialog ??= new FileDialog("select_replay_folder", Loc.T("Select replay folder"), "", _config.ReplayFolder, "", "", 1, false, ImGuiFileDialogFlags.SelectOnly);
             _folderDialog.Show();
         }
 
@@ -111,7 +112,7 @@ public sealed class ReplayManagementWindow : UIWindow
         {
             ImGui.InputText("###msg", ref _message, 1024);
             ImGui.SameLine();
-            if (ImGui.Button("Add log marker") && _message.Length > 0)
+            if (ImGui.Button(Loc.T("Add log marker")) && _message.Length > 0)
             {
                 _ws.Execute(new WorldState.OpUserMarker(_message));
                 _message = "";
@@ -119,7 +120,7 @@ public sealed class ReplayManagementWindow : UIWindow
         }
 
         ImGui.SameLine();
-        if (ImGui.Button("Open replay folder") && _logDir != null)
+        if (ImGui.Button(Loc.T("ABOUT_BtnOpenFolder", "Open replay folder")) && _logDir != null)
             _lastErrorMessage = OpenDirectory(_logDir);
 
         if (_lastErrorMessage.Length > 0)
@@ -140,7 +141,7 @@ public sealed class ReplayManagementWindow : UIWindow
         SetVisible(false);
     }
 
-    private void UpdateTitle() => WindowName = $"Replay recording: {(_recorder != null ? "in progress..." : "idle")}{_windowID}";
+    private void UpdateTitle() => WindowName = string.Format(Loc.T("REPLAY_WindowTitle", "Replay recording: {0}"), _recorder != null ? Loc.T("REPLAY_StateInProgress", "in progress...") : Loc.T("REPLAY_StateIdle", "idle")) + _windowID;
 
     public bool ShouldAutoRecord => _config.AutoRecord && (_config.AutoARR || !Service.Condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.DutyRecorderPlayback]);
 
@@ -148,27 +149,27 @@ public sealed class ReplayManagementWindow : UIWindow
     {
         if (_config.ImportantDutyAlert && IsImportantDuty(cfcId) && !ShouldAutoRecord)
         {
-            _startLinkPayload ??= Service.PluginInterface.AddChatLinkHandler(0, (id, str) =>
+            _startLinkPayload ??= Service.ChatGui.AddChatLinkHandler(0, (id, str) =>
             {
                 if (id == 0)
                 {
                     StartRecording("");
-                    Service.ChatGui.Print("[BMR] Replay recording started");
+                    Service.ChatGui.Print(Loc.T("[BMR] Replay recording started"));
                 }
             });
-            _disableAlertLinkPayload ??= Service.PluginInterface.AddChatLinkHandler(2, (id, str) =>
+            _disableAlertLinkPayload ??= Service.ChatGui.AddChatLinkHandler(2, (id, str) =>
             {
                 if (id == 2)
                 {
                     _config.ImportantDutyAlert = false;
                     _config.Modified.Fire();
-                    Service.ChatGui.Print("[BMR] Important duty alert disabled");
+                    Service.ChatGui.Print(Loc.T("[BMR] Important duty alert disabled"));
                 }
             });
             var alertPayload =
-                new TextPayload("[BMR] This duty does not yet have a complete module. Recording and uploading a replay will help enable module creation. ");
-            var linkTextPayload = new TextPayload("[Start replay recording]");
-            var disableTextPayload = new TextPayload("[Permanently disable these alerts]");
+                new TextPayload(Loc.T("[BMR] This duty does not yet have a complete module. Recording and uploading a replay will help enable module creation. "));
+            var linkTextPayload = new TextPayload(Loc.T("[Start replay recording]"));
+            var disableTextPayload = new TextPayload(Loc.T("[Permanently disable these alerts]"));
 
             var seString = new SeStringBuilder()
                 .Add(alertPayload)
@@ -331,37 +332,67 @@ public sealed class ReplayManagementWindow : UIWindow
 
     public void StopRecording()
     {
-        if (_config.ImportantDutyAlert && IsImportantDuty(_recorder?.CFCID ?? 0))
+        // 🔴 這一段(「這場副本沒有完整模組,考慮上傳回放」的聊天提示)排在下面**所有**狀態重置之前,而 Service.ChatGui.AddChatLinkHandler 對已經註冊過的 id 會擲
+        //    ArgumentException,Service.ChatGui.Print 也會把 SeString 組裝／送出的失敗擲上來。擲了若整段跳過三個旗標的清零與 recorder 的拆除,
+        //    IsRecording() 從此永遠是 true、StartRecording() 每次早退,這個 session 再也錄不了任何東西。
+        // 📌 所以 catch 記一行 Warning(帶例外全文)之後照樣往下拆除;少掉的只有那一則提示。
+        // 這不是 AccessViolationException 的防護,處理的只有受管理例外。
+        try
         {
-            var path = _recorder?.LogPath;
-            _uploadLinkPayload ??= Service.PluginInterface.AddChatLinkHandler(1, (id, str) =>
+            if (_config.ImportantDutyAlert && IsImportantDuty(_recorder?.CFCID ?? 0))
             {
-                if (id == 1)
+                var path = _recorder?.LogPath;
+                _uploadLinkPayload ??= Service.ChatGui.AddChatLinkHandler(1, (id, str) =>
                 {
-                    Task.Run(() =>
+                    if (id == 1)
                     {
-                        Process.Start(new ProcessStartInfo
+                        Task.Run(() =>
                         {
-                            FileName = "https://forms.gle/z6czgekaEnFBtgbB6",
-                            UseShellExecute = true
+                            Process.Start(new ProcessStartInfo
+                            {
+                                FileName = "https://forms.gle/z6czgekaEnFBtgbB6",
+                                UseShellExecute = true
+                            });
                         });
-                    });
-                    Service.ChatGui.Print($"[BMR] The path to your replay is: {path}");
-                }
-            });
-            var alertPayload =
-                new TextPayload(
-                    "[BMR] You recorded a duty without a complete module. Uploading this replay helps with module development. ");
-            var linkTextPayload = new TextPayload("[Upload the replay]");
-            var seString = new SeStringBuilder().Add(alertPayload).Add(_uploadLinkPayload).Add(linkTextPayload).Add(RawPayload.LinkTerminator).Build();
-            Service.ChatGui.Print(seString);
+                        Service.ChatGui.Print(string.Format(Loc.T("REPLAY_ChatReplayPath", "[BMR] The path to your replay is: {0}"), path));
+                    }
+                });
+                var alertPayload =
+                    new TextPayload(
+                        Loc.T("[BMR] You recorded a duty without a complete module. Uploading this replay helps with module development. "));
+                var linkTextPayload = new TextPayload(Loc.T("[Upload the replay]"));
+                var seString = new SeStringBuilder().Add(alertPayload).Add(_uploadLinkPayload).Add(linkTextPayload).Add(RawPayload.LinkTerminator).Build();
+                Service.ChatGui.Print(seString);
+            }
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                Service.Logger.Warning(ex, "[REPLAY] 停止錄製時的「建議上傳回放」聊天提示擲出例外,已略過那則提示;錄製旗標照常清零、回放檔照常收尾。");
+            }
+            catch
+            {
+            }
         }
         _recordingManual = false;
         _recordingDuty = false;
         _recordingActiveModules = 0;
-        _recorder?.Dispose();
-        _recorder = null;
-        UpdateTitle();
+        // 🔴 _recorder.Dispose() 會 flush 並關檔,磁碟滿、路徑被移走之類的情況會擲 IOException。擲了若跳過下面兩行,_recorder 沒被清成 null
+        //    ⇒ IsRecording() 從此永遠是 true ⇒ StartRecording() 每次都早退,這個 session 再也錄不了任何東西,而視窗標題還停在「錄製中」。
+        // 📌 用 finally 不是 catch:例外照樣往上拋,這裡只是把收尾補上 —— 把半套變整套,不吞任何例外。
+        // 📌 丟掉這個 recorder 是安全的:ReplayRecorder.Dispose 先做 _subscription.Dispose() 再做 _logger.Dispose(),
+        //    所以擲例外的那一刻 WorldState 訂閱已經解掉了,孤兒 recorder 不會再收到任何事件。
+        try
+        {
+            _recorder?.Dispose();
+        }
+        finally
+        {
+            // 這一行不會擲例外,先做;UpdateTitle() 只是 Loc 查表 + string.Format。
+            _recorder = null;
+            UpdateTitle();
+        }
     }
 
     public void UpdateLogDirectory()
@@ -416,7 +447,7 @@ public sealed class ReplayManagementWindow : UIWindow
     private string OpenDirectory(DirectoryInfo dir)
     {
         if (!dir.Exists)
-            return $"Directory '{dir}' not found.";
+            return string.Format(Loc.T("ABOUT_ErrDirNotFound", "Directory '{0}' not found."), dir);
 
         try
         {
@@ -426,7 +457,7 @@ public sealed class ReplayManagementWindow : UIWindow
         catch (Exception e)
         {
             Service.Log($"Error opening directory {dir}: {e}");
-            return $"Failed to open folder '{dir}', open it manually.";
+            return string.Format(Loc.T("ABOUT_ErrOpenDir", "Failed to open folder '{0}', open it manually."), dir);
         }
     }
 }

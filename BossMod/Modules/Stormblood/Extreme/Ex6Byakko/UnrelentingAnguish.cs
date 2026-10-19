@@ -38,7 +38,7 @@ class OminousWind(BossModule module) : BossComponent(module)
                     continue;
                 if (Targets[i] && p.Item2.Position.InCircle(actor.Position, 6f))
                 {
-                    hints.Add("GTFO from other bubble!");
+                    hints.Add(Loc.T("GTFO from other bubble!"));
                     return;
                 }
             }

@@ -49,7 +49,7 @@ public abstract class GenericLineOfSightAOE(BossModule module, uint aid, float m
             {
                 if (Origin != null && ((WPos)Origin - actor.Position).LengthSq() < MaxRange * MaxRange)
                 {
-                    hints.Add(WarningText);
+                    hints.Add(Loc.T(WarningText));
                     return;
                 }
             }

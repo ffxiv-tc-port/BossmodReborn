@@ -1,6 +1,6 @@
 ﻿using Dalamud.Interface.Utility.Raii;
 using FFXIVClientStructs.FFXIV.Client.Game.Event;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using System.Globalization;
 
 namespace BossMod;
@@ -8,10 +8,19 @@ namespace BossMod;
 sealed unsafe class DebugEnvControl
 {
     private delegate void ProcessEnvControlDelegate(void* self, uint index, ushort s1, ushort s2);
-    private readonly ProcessEnvControlDelegate ProcessEnvControl = Marshal.GetDelegateForFunctionPointer<ProcessEnvControlDelegate>(Service.SigScanner.ScanText("48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 8B FA 41 0F B7 E8"));
+    // 特徵碼對不上時是 null：只有這個除錯頁的「Execute」不動作，插件照常載入。
+    private readonly ProcessEnvControlDelegate? ProcessEnvControl = ResolveProcessEnvControl();
 
     private readonly List<string> _history = [];
     private string _current = "";
+
+    private static ProcessEnvControlDelegate? ResolveProcessEnvControl()
+    {
+        if (Service.SigScanner.TryScanText("48 89 5C 24 ?? 48 89 6C 24 ?? 48 89 74 24 ?? 57 48 83 EC 20 8B FA 41 0F B7 E8", out var address))
+            return Marshal.GetDelegateForFunctionPointer<ProcessEnvControlDelegate>(address);
+        Service.Logger.Warning("[DebugEnvControl] 特徵碼對不上，找不到 ProcessEnvControl：除錯視窗的 EnvControl 手動觸發不能用。其餘功能照常；通常是遊戲改版後特徵碼要更新。");
+        return null;
+    }
 
     public void Draw()
     {
@@ -30,13 +39,21 @@ sealed unsafe class DebugEnvControl
 
     private void ExecuteEnvControl()
     {
+        if (ProcessEnvControl == null)
+        {
+            Service.Log("ProcessEnvControl signature not found, doing nothing");
+            return;
+        }
         var parts = _current.Split('.');
         if (parts.Length != 2 || !byte.TryParse(parts[0], NumberStyles.HexNumber, null, out var index) || !uint.TryParse(parts[1], NumberStyles.HexNumber, null, out var state))
             return;
 
         _history.Remove(_current);
         _history.Insert(0, _current);
-        var director = EventFramework.Instance()->DirectorModule.ActiveContentDirector;
+        // 🔴 EventFramework.Instance() 是 [StaticAddress(…, isPointer: true)]，合法可為 null；
+        //    直接 ->DirectorModule 會 AccessViolation。當作「沒有作用中的 director」處理。
+        var eventFramework = EventFramework.Instance();
+        var director = eventFramework != null ? eventFramework->DirectorModule.ActiveContentDirector : null;
         if (director == null)
         {
             Service.Log("No active content director, doing nothing");

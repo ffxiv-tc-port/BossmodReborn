@@ -1,7 +1,7 @@
 ﻿using Dalamud.Interface;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility.Raii;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace BossMod;
 
@@ -14,6 +14,8 @@ public static class UIMisc
         var res = ImGui.Button(label, new(width, 0));
         if (isDisabled && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
         {
+            // 還在上面的 ImRaii.Disabled 範圍內，不把 Alpha 推回 1 說明框會跟著變淡。
+            using var tooltipAlpha = ImRaii.PushStyle(ImGuiStyleVar.Alpha, 1f);
             using var tooltip = ImRaii.Tooltip();
             foreach (var d in disabled)
                 if (d.disabled)
@@ -42,7 +44,7 @@ public static class UIMisc
     {
         var wrap = icon?.GetWrapOrDefault();
         if (wrap != null)
-            ImGui.Image(wrap.ImGuiHandle, size);
+            ImGui.Image(wrap.Handle, size);
         else
             ImGui.Dummy(size);
     }
@@ -59,7 +61,7 @@ public static class UIMisc
         if (wrap != null)
         {
             Vector4 tintColor = state ? new(1f, 1f, 1f, 1f) : new(0.5f, 0.5f, 0.5f, 0.85f);
-            return ImGui.ImageButton(wrap.ImGuiHandle, size, Vector2.Zero, Vector2.One, 1, Vector4.Zero, tintColor);
+            return ImGui.ImageButton(wrap.Handle, size, Vector2.Zero, Vector2.One, 1, Vector4.Zero, tintColor);
         }
         else
         {
@@ -99,5 +101,15 @@ public static class UIMisc
             ImGui.TextUnformatted(helpText());
         }
     }
-    public static void HelpMarker(string helpText, FontAwesomeIcon icon = FontAwesomeIcon.InfoCircle) => HelpMarker(() => helpText, icon);
+    // 與 HelpMarker(() => helpText, icon) 畫出相同的東西，但每次呼叫不配閉包與委派（設定頁每個選項每幀都呼叫）
+    public static void HelpMarker(string helpText, FontAwesomeIcon icon = FontAwesomeIcon.InfoCircle)
+    {
+        IconText(icon, "(?)");
+        if (ImGui.IsItemHovered())
+        {
+            using var tooltip = ImRaii.Tooltip();
+            using var wrap = ImRaii.TextWrapPos(ImGui.GetFontSize() * 35f);
+            ImGui.TextUnformatted(helpText);
+        }
+    }
 }

@@ -56,6 +56,8 @@ public sealed class AIHints
     // information needed to build base pathfinding map (onto which forbidden/goal zones are later rasterized), if needed (lazy, since it's somewhat expensive and not always needed)
     public WPos PathfindMapCenter;
     public ArenaBounds PathfindMapBounds = DefaultBounds;
+    // PathfindMapBounds 是不是真的場地邊界（正式模組、F.A.T.E. 半徑）；野外預設方形、障礙圖視窗、SimpleBossModule 都是 false
+    public bool PathfindMapBoundsIsArena;
     public Bitmap.Region PathfindMapObstacles;
     private static readonly AI.AIConfig _config = Service.Config.Get<AI.AIConfig>();
 
@@ -75,12 +77,25 @@ public sealed class AIHints
     // low-level forced movement - if set, character will move in specified direction (ignoring casts, uptime, forbidden zones, etc), or stay in place if set to default
     public Vector3? ForcedMovement;
 
+    // which direction should we point during the Spinning status in Alzadaal's Legacy? (yes, this is a bespoke movement gimmick for one dungeon boss)
+    public Angle? SpinDirection;
+
+    // 只認阿爾扎達爾（CFC 844）的旋轉移動（狀態 2973）；別的副本出現同一狀態時要加進來才會自動轉向。
+    public static bool IsSpinning(WorldState ws, Actor player) => ws.CurrentCFCID == 844u && player.FindStatus(2973u) != null;
+
     // indicates to AI mode that it should try to interact with some object
     public Actor? InteractWithTarget;
 
     // positioning: list of shapes that are either forbidden to stand in now or will be in near future
     // AI will try to move in such a way to avoid standing in any forbidden zone after its activation or outside of some restricted zone after its activation, even at the cost of uptime
     public readonly List<(Func<WPos, float> shapeDistance, DateTime activation, ulong Source)> ForbiddenZones = [];
+
+    /// <summary>模組預告「之後才會落下」的 AOE（例如同心圓的下一段）。</summary>
+    /// <remarks>不是禁區：尋路不會因此不准站，只拿來判斷目前要去的位置接不接得上下一波（<see cref="Pathfinding.DodgeLookahead"/>）。
+    /// 模組只在 <see cref="LookaheadEnabled"/> 時才需要填。</remarks>
+    public readonly List<(Func<WPos, float> shapeDistance, DateTime activation)> FutureForbiddenZones = [];
+
+    public static bool LookaheadEnabled => _config.DodgeLookahead;
 
     // positioning: list of goal functions
     // AI will try to move to reach non-forbidden point with highest goal value (sum of values returned by all functions)
@@ -90,6 +105,25 @@ public sealed class AIHints
 
     // positioning: next positional hint (TODO: reconsider, maybe it should be a list prioritized by in-gcds, and imminent should be in-gcds instead? or maybe it should be property of an enemy? do we need correct?)
     public (Actor? Target, Positional Pos, bool Imminent, bool Correct) RecommendedPositional;
+
+    /// <summary>
+    /// 純顯示用的方位提示。形狀與 <see cref="RecommendedPositional"/> 相同,語意**完全不同**。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 這個欄位存在的唯一理由是**不能重用 <see cref="RecommendedPositional"/>**:
+    /// <c>AI.AIBehaviour.SelectPrimaryTarget</c> 會把那個欄位讀去設 <c>Targeting.PreferredPosition</c>,
+    /// 也就是「AI 請開始繞到目標的側背」。把顯示用的推測寫進去等於**改變移動行為** ——
+    /// 使用者只是想看提示,結果角色自己跑起來。
+    /// <para>
+    /// 🔴 因此本欄位的消費端只有 <c>UIRotationWindow.DrawPositional</c>(畫世界疊加層)。
+    /// <b>AI 與循環的任何路徑都不得讀它</b>;新增讀取點之前請先想清楚那是不是又把顯示接回了行為。
+    /// </para>
+    /// <para>
+    /// 寫入端是 <c>Framework.Plugin.DrawUI</c>,而且只在設定
+    /// <c>AutorotationConfig.ShowPositionalsWithoutPreset</c> 開著時才算 —— 旗標關閉時零開銷。
+    /// </para>
+    /// </remarks>
+    public (Actor? Target, Positional Pos, bool Imminent, bool Correct) PositionalHintDisplayOnly;
 
     // orientation restrictions (e.g. for gaze attacks): a list of forbidden orientation ranges, now or in near future
     // AI will rotate to face allowed orientation at last possible moment, potentially losing uptime
@@ -123,20 +157,39 @@ public sealed class AIHints
     public bool WantJump;
     public bool WantDismount;
 
+    /// <summary>
+    /// 本幀有模組真的放下了「拉開距離」的目標區（風箏）。
+    /// </summary>
+    /// <remarks>
+    /// 🔑 存在的理由是<b>權重場會互相碾壓，而且是靜默的</b>：風箏的目標區權重只有 0.05，
+    /// 但只要場上有任何 AOE 預警，AI 就會加一個 <see cref="GoalDodgeDirection"/>，
+    /// 其中的「不要往後退」懲罰項約 −1.0 —— 風箏當場失效，沒有任何錯誤訊息。
+    /// <para>
+    /// 由設定風箏的模組設定、由 AI 讀取，讓 AI 知道「這一幀往後退是刻意的」。
+    /// ⚠️ 這是<b>純提示</b>：AI 只用它決定要不要加那個後退懲罰，不會因此改變閃避判定，
+    /// 也不會讓任何原本禁止進入的區域變成可進入。
+    /// </para>
+    /// </remarks>
+    public bool WantKiting;
+
     // clear all stored data
     public void Clear()
     {
         PathfindMapCenter = default;
         PathfindMapBounds = DefaultBounds;
+        PathfindMapBoundsIsArena = false;
         PathfindMapObstacles = default;
         Array.Fill(Enemies, null);
         PotentialTargets.Clear();
         ForcedTarget = null;
         ForcedMovement = null;
+        SpinDirection = null;
         InteractWithTarget = null;
         ForbiddenZones.Clear();
+        FutureForbiddenZones.Clear();
         GoalZones.Clear();
         RecommendedPositional = default;
+        PositionalHintDisplayOnly = default;
         ForbiddenDirections.Clear();
         ImminentSpecialMode = default;
         MisdirectionThreshold = 15f.Degrees();
@@ -148,6 +201,7 @@ public sealed class AIHints
         StatusesToCancel.Clear();
         WantJump = false;
         WantDismount = false;
+        WantKiting = false;
     }
 
     public void PrioritizeTargetsByOID(uint oid, int priority = default)
@@ -213,6 +267,12 @@ public sealed class AIHints
     public void AddForbiddenZone(Func<WPos, float> shapeDistance, DateTime activation = default, ulong source = default) => ForbiddenZones.Add((shapeDistance, activation, source));
     public void AddForbiddenZone(AOEShape shape, WPos origin, Angle rot = default, DateTime activation = default, ulong source = default) => ForbiddenZones.Add((shape.Distance(origin, rot), activation, source));
 
+    public void AddFutureForbiddenZone(Func<WPos, float> shapeDistance, DateTime activation) => FutureForbiddenZones.Add((shapeDistance, activation));
+    public void AddFutureForbiddenZone(AOEShape shape, WPos origin, Angle rot, DateTime activation) => FutureForbiddenZones.Add((shape.Distance(origin, rot), activation));
+
+    // 背景執行緒（AIBehaviour 的背景尋路）只能拿這份快照，主執行緒下一幀會 Clear() 原清單
+    public (Func<WPos, float> shapeDistance, DateTime activation)[] SnapshotFutureZones() => FutureForbiddenZones.Count == 0 ? [] : [.. FutureForbiddenZones];
+
     public void AddPredictedDamage(BitMask players, DateTime activation, PredictedDamageType type = PredictedDamageType.Raidwide) => PredictedDamage.Add(new(players, activation, type));
 
     public void AddSpecialMode(SpecialMode mode, DateTime activation)
@@ -232,14 +292,22 @@ public sealed class AIHints
         PredictedDamage.Sort((a, b) => a.Activation.CompareTo(b.Activation));
     }
 
-    public void InitPathfindMap(Pathfinding.Map map)
+    /// <summary><see cref="InitPathfindMap(Pathfinding.Map)"/> 讀的全部輸入；在主執行緒取好，背景執行緒拿它建地圖就不碰還活著的 hints。</summary>
+    public readonly record struct PathfindMapInputs(ArenaBounds Bounds, WPos Center, Bitmap.Region Obstacles, bool UseObstacles);
+
+    public PathfindMapInputs CapturePathfindMap() => new(PathfindMapBounds, PathfindMapCenter, PathfindMapObstacles, PathfindMapObstacles.Bitmap != null && !_config.DisableObstacleMaps);
+
+    public void InitPathfindMap(Pathfinding.Map map) => InitPathfindMap(map, CapturePathfindMap());
+
+    public static void InitPathfindMap(Pathfinding.Map map, in PathfindMapInputs inputs)
     {
-        PathfindMapBounds.PathfindMap(map, PathfindMapCenter);
-        if (PathfindMapObstacles.Bitmap != null && !_config.DisableObstacleMaps)
+        inputs.Bounds.PathfindMap(map, inputs.Center);
+        var obstacles = inputs.Obstacles;
+        if (inputs.UseObstacles)
         {
-            var offX = -PathfindMapObstacles.Rect.Left;
-            var offY = -PathfindMapObstacles.Rect.Top;
-            var r = PathfindMapObstacles.Rect.Clamped(PathfindMapObstacles.Bitmap.FullRect);
+            var offX = -obstacles.Rect.Left;
+            var offY = -obstacles.Rect.Top;
+            var r = obstacles.Rect.Clamped(obstacles.Bitmap.FullRect);
             var height = map.Height;
             var width = map.Width;
             var rTop = r.Top;
@@ -256,7 +324,7 @@ public sealed class AIHints
                 }
                 for (var x = rLeft; x < rRight; ++x)
                 {
-                    if (!PathfindMapObstacles.Bitmap[x, y])
+                    if (!obstacles.Bitmap[x, y])
                     {
                         continue;
                     }
@@ -332,12 +400,18 @@ public sealed class AIHints
     public Func<WPos, float> GoalSingleTarget(Actor target, float range, float weight = 1f) => GoalSingleTarget(target.Position, range + target.HitboxRadius, weight);
 
     // simple goal zone that returns 1 if target is in range (usually melee), 2 if it's also in correct positional
-    public Func<WPos, float> GoalSingleTarget(WPos target, Angle rotation, Positional positional, float radius)
+    // 📌 cushion：把方位區的判定從「剛好跨過對角線」往區域中心收緊，讓呼叫端可以要求距離方位邊界 cushion 碼以上才算數
+    //    （避免緊貼邊界站位、目標微轉一下就掉出方位）。sqrt2 是把「到方位分界線的垂直距離」換算成 front/side 這兩個投影量的差值所需的係數（分界線是 45度斜線）。
+    // ⚠️ 預設 cushion = 0f ≡ 不收緊（三個比較式退回原式）。唯一的呼叫端是 GoToPositional 的 EdgeBuffer 設定軌，
+    //    它的預設選項 None 也是 0f ⇒ 沒動過設定的使用者拿到的仍然是不收緊。
+    public Func<WPos, float> GoalSingleTarget(WPos target, Angle rotation, Positional positional, float radius, float cushion = 0f)
     {
         if (positional == Positional.Any)
             return GoalSingleTarget(target, radius); // more efficient implementation
         var effRsq = radius * radius;
         var targetDir = rotation.ToDirection();
+        const float sqrt2 = 1.41421356f;
+        var cushionThreshold = cushion * sqrt2;
         return p =>
         {
             var offset = p - target;
@@ -349,15 +423,15 @@ public sealed class AIHints
             var side = Math.Abs(targetDir.Dot(offset.OrthoL()));
             var inPositional = positional switch
             {
-                Positional.Flank => side > Math.Abs(front),
-                Positional.Rear => -front > side,
-                Positional.Front => front > side, // TODO: reconsider this, it's not a real positional?..
+                Positional.Flank => side - Math.Abs(front) > cushionThreshold,
+                Positional.Rear => -front - side > cushionThreshold,
+                Positional.Front => front - side > cushionThreshold, // TODO: reconsider this, it's not a real positional?..
                 _ => false
             };
             return inPositional ? 2f : 1f;
         };
     }
-    public Func<WPos, float> GoalSingleTarget(Actor target, Positional positional, float range = 2.6f) => GoalSingleTarget(target.Position, target.Rotation, positional, range + target.HitboxRadius);
+    public Func<WPos, float> GoalSingleTarget(Actor target, Positional positional, float range = 2.6f, float cushion = 0f) => GoalSingleTarget(target.Position, target.Rotation, positional, range + target.HitboxRadius, cushion);
 
     // simple goal zone that returns number of targets in aoes; note that performance is a concern for these functions, and perfection isn't required, so eg they ignore forbidden targets, etc
     public Func<WPos, float> GoalAOECircle(float radius)
@@ -462,15 +536,47 @@ public sealed class AIHints
     // goal zone that returns a value between 0 and weight depending on distance to point; useful for downtime movement targets
     public Func<WPos, float> GoalProximity(WPos destination, float maxDistance, float maxWeight)
     {
-        var invDist = 1f / maxDistance;
+        var maxDistSq = maxDistance * maxDistance;
+        var invDistSq = 1f / maxDistSq;
+
         return p =>
         {
-            var dist = (p - destination).Length();
-            var weight = 1f - Math.Clamp(invDist * dist, default, 1f);
+            var delta = p - destination;
+            var distSq = delta.LengthSq();
+
+            var weight = 1f - Math.Clamp(invDistSq * distSq, 0f, 1f);
             return maxWeight * weight;
         };
     }
     public Func<WPos, float> GoalProximity(Actor target, float range, float weight = 1f) => GoalProximity(target.Position, range + target.HitboxRadius, weight);
+
+    // goal zone used as a tie-breaker while dodging: prefers positions behind the target's facing direction over its front/flanks,
+    // and penalizes positions that retreat further away from the target than the player's current distance (discourages simply backing away)
+    /// <param name="penalizeRetreat">
+    /// 是否懲罰「比現在更遠離目標」的位置。預設 true。
+    /// ⚠️ 這個懲罰項的量級（每遠離 1y 約 −0.5×weight）遠大於風箏之類的小權重提示（0.05），
+    /// 所以刻意要拉開距離時必須關掉它，否則風箏會被靜默碾平 ——
+    /// 見 <see cref="WantKiting"/>。關掉的只是這個「別後退」的偏好，
+    /// 「躲到目標背後」的偏好與所有實際的閃避判定都不受影響。
+    /// </param>
+    public Func<WPos, float> GoalDodgeDirection(Actor target, WPos playerPos, float weight = 0.5f, bool penalizeRetreat = true)
+    {
+        var origin = target.Position;
+        var facing = target.Rotation.ToDirection();
+        var curDist = (playerPos - origin).Length();
+        return p =>
+        {
+            var offset = p - origin;
+            var dist = offset.Length();
+            if (dist < 0.01f)
+                return default;
+            var behind = -facing.Dot(offset / dist); // 1 = directly behind target, -1 = directly in front
+            if (!penalizeRetreat)
+                return weight * behind;
+            var retreat = Math.Max(0f, dist - curDist); // positive if this cell is further from target than our current position
+            return weight * (behind - retreat * 0.5f);
+        };
+    }
 
     public Func<WPos, float> GoalDonut(WPos center, float innerRadius, float outerRadius, float weight = 1f)
     {

@@ -49,7 +49,7 @@ class NearFarSight : BossComponent
         hints.Add(shouldBeNear ? "Stay near boss" : "Stay on max melee", isFailing);
         if (_inAOE[slot])
         {
-            hints.Add("GTFO from tanks!");
+            hints.Add(Loc.T("GTFO from tanks!"));
         }
     }
 

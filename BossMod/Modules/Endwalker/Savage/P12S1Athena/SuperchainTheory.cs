@@ -89,11 +89,11 @@ abstract class SuperchainTheory(BossModule module) : BossComponent(module)
             {
                 case Shape.Circle:
                     if (_shapeCircle.Check(actor.Position, c.Origin))
-                        hints.Add("GTFO from aoe!");
+                        hints.Add(Loc.T("GTFO from aoe!"));
                     break;
                 case Shape.Donut:
                     if (_shapeDonut.Check(actor.Position, c.Origin))
-                        hints.Add("GTFO from aoe!");
+                        hints.Add(Loc.T("GTFO from aoe!"));
                     break;
                 case Shape.Spread:
                     var posOrigin = c.Origin.Position;
@@ -115,7 +115,7 @@ abstract class SuperchainTheory(BossModule module) : BossComponent(module)
                             break;
                         }
                     }
-                    hints.Add("Spread!", anyInside);
+                    hints.Add(Loc.T("Spread!"), anyInside);
                     break;
                 case Shape.Pairs:
                     var actorIsSupport = actor.Class.IsSupport();
@@ -144,7 +144,7 @@ abstract class SuperchainTheory(BossModule module) : BossComponent(module)
                             }
                         }
                     }
-                    hints.Add("Stack in pairs!", sameRole != 0 || diffRole != 1);
+                    hints.Add(Loc.T("Stack in pairs!"), sameRole != 0 || diffRole != 1);
                     break;
             }
         }

@@ -1,5 +1,5 @@
 ﻿using Dalamud.Interface;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace BossMod;
 
@@ -7,23 +7,37 @@ public sealed class BossModuleMainWindow : UIWindow
 {
     private readonly BossModuleManager _mgr;
     private readonly ZoneModuleManager _zmm;
+    private readonly Action _openConfig;
+    private readonly GenericTrialRadar _genericRadar;
+    private readonly string _genericRadarWindowName;
+    private bool _showGenericRadar; // PreOpenCheck 決定、同一幀的 Draw 沿用
 
     private const string _windowID = "###Boss module";
+    private const string _moduleListWindowName = "Loaded boss modules" + _windowID;
+    private string? _moduleWindowName; // 上一次組好的模組標題；下面兩個欄位是它對應的模組型別與種類
+    private Type? _moduleWindowNameType;
+    private bool _moduleWindowNameZone;
 
-    public BossModuleMainWindow(BossModuleManager mgr, ZoneModuleManager zmm) : base(_windowID, false, new(400, 400))
+    public BossModuleMainWindow(BossModuleManager mgr, ZoneModuleManager zmm, AIHints hints, AIHintsBuilder hintsBuilder, Action openConfig) : base(_windowID, false, new(400, 400))
     {
         _mgr = mgr;
         _zmm = zmm;
+        _openConfig = openConfig;
+        _genericRadar = new(mgr.WorldState, hints, hintsBuilder);
+        _genericRadarWindowName = Loc.T("Trial radar (no boss module)") + _windowID;
         RespectCloseHotkey = false;
         TitleBarButtons.Add(new() { Icon = FontAwesomeIcon.Cog, IconOffset = new(1), Click = _ => OpenModuleConfig() });
     }
 
     public override void PreOpenCheck()
     {
+        base.PreOpenCheck();
         var showZoneModule = ShowZoneModule();
-        IsOpen = BossModuleManager.Config.Enable && (_mgr.LoadedModules.Count > 0 || showZoneModule);
+        // 通用雷達只在沒有任何模組載入、也沒有區域模組要畫時才問；設定關著或有模組時在這一行短路
+        _showGenericRadar = BossModuleManager.Config.Enable && BossModuleManager.Config.ShowRadarInTrialsWithoutModule && !showZoneModule && _mgr.LoadedModules.Count == 0 && _genericRadar.ShouldShow();
+        IsOpen = BossModuleManager.Config.Enable && (_mgr.LoadedModules.Count > 0 || showZoneModule || _showGenericRadar);
         ShowCloseButton = _mgr.ActiveModule != null && !showZoneModule;
-        WindowName = (showZoneModule ? $"Zone module ({_zmm.ActiveModule?.GetType().Name})" : _mgr.ActiveModule != null ? $"Boss module ({_mgr.ActiveModule.GetType().Name})" : "Loaded boss modules") + _windowID;
+        WindowName = _showGenericRadar ? _genericRadarWindowName : showZoneModule ? ModuleWindowName(_zmm.ActiveModule?.GetType(), true) : _mgr.ActiveModule != null ? ModuleWindowName(_mgr.ActiveModule.GetType(), false) : _moduleListWindowName;
         Flags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
         if (BossModuleManager.Config.TrishaMode)
             Flags |= ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoBackground;
@@ -55,6 +69,9 @@ public sealed class BossModuleMainWindow : UIWindow
             _mgr.ActiveModule = null;
             IsOpen = true;
         }
+        // base.PostDraw() 平衡 Dalamud Window 基底在 PreDraw() 推的樣式堆疊：
+        // 覆寫 PostDraw 而不呼叫 base，那一推就永遠沒有對應的 pop。
+        base.PostDraw();
     }
 
     public override void Draw()
@@ -75,6 +92,10 @@ public sealed class BossModuleMainWindow : UIWindow
                 _mgr.ActiveModule = null;
             }
         }
+        else if (_showGenericRadar)
+        {
+            _genericRadar.Draw(BossModuleManager.Config.RotateArena ? _mgr.WorldState.Client.CameraAzimuth : BossModuleManager.Config.FlipArena ? 180f.Degrees() : default);
+        }
         else
         {
             var count = _mgr.LoadedModules.Count;
@@ -87,6 +108,8 @@ public sealed class BossModuleMainWindow : UIWindow
                     _mgr.ActiveModule = m;
             }
         }
+
+        RadarContextMenu.Draw(_mgr, _openConfig);
     }
 
     private void DrawMovementHints(BossComponent.MovementHints? arrows, float y)
@@ -111,6 +134,19 @@ public sealed class BossModuleMainWindow : UIWindow
     {
         if (_mgr.ActiveModule?.Info != null)
             _ = new BossModuleConfigWindow(_mgr.ActiveModule.Info, _mgr.WorldState);
+    }
+
+    // 每幀呼叫：模組型別與種類沒換就回上一次組好的字串，不重組。
+    // 標題的字不可改：使用者看得到，也是 ImGui 的視窗名稱。
+    private string ModuleWindowName(Type? moduleType, bool zone)
+    {
+        if (_moduleWindowName == null || _moduleWindowNameType != moduleType || _moduleWindowNameZone != zone)
+        {
+            _moduleWindowNameType = moduleType;
+            _moduleWindowNameZone = zone;
+            _moduleWindowName = (zone ? $"Zone module ({moduleType?.Name})" : $"Boss module ({moduleType?.Name})") + _windowID;
+        }
+        return _moduleWindowName;
     }
 
     private bool ShowZoneModule() => BossModuleManager.Config.ShowGlobalHints && !BossModuleManager.Config.HintsInSeparateWindow && _mgr.ActiveModule?.StateMachine.ActivePhase == null && (_zmm.ActiveModule?.WantDrawHints() ?? false);

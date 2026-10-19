@@ -163,6 +163,13 @@ sealed class HoppingMad(BossModule module) : Components.GenericAOEs(module)
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         base.AddAIHints(slot, actor, assignment, hints);
+        if (AIHints.LookaheadEnabled)
+        {
+            // 閃避預判開著：整串交給 AI 預判，不再加下面的手寫「貼圈邊」禁區
+            // （那一圈被別的 AOE 蓋住或隔開時是硬禁區，AI 反而原地站著等）
+            AddFutureChain(hints);
+            return;
+        }
         if (_aoes.Count < 2)
             return;
         var aoe = _aoes[0];
@@ -170,6 +177,22 @@ sealed class HoppingMad(BossModule module) : Components.GenericAOEs(module)
             hints.AddForbiddenZone(ShapeDistance.InvertedCircle(aoe.Origin, circle.Radius + 2f), aoe.Activation); // stay close to border of circle to move into donut fast
         else if (aoe.Shape is AOEShapeDonut donut)
             hints.AddForbiddenZone(ShapeDistance.Circle(aoe.Origin, donut.InnerRadius - 2f), aoe.Activation); // stay close to border of donut to move to next circle fast
+    }
+
+    // 第一個已由基底登記成禁區；其餘照順序預告。每個圓之後 2.1 秒必接同圓心的甜甜圈，
+    // 但中、小圓的甜甜圈要等前一個甜甜圈放出才插進清單 ⇒ 還沒插進來的先自己補。
+    private void AddFutureChain(AIHints hints)
+    {
+        var count = _aoes.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var aoe = _aoes[i];
+            if (i != 0)
+                hints.AddFutureForbiddenZone(aoe.Shape, aoe.Origin, default, aoe.Activation);
+            var donut = aoe.Shape == circleSmall ? donutSmall : aoe.Shape == circleMedium ? donutMedium : aoe.Shape == circleBig ? donutBig : null;
+            if (donut != null && (i + 1 >= count || _aoes[i + 1].Shape != donut || !_aoes[i + 1].Origin.AlmostEqual(aoe.Origin, 1f)))
+                hints.AddFutureForbiddenZone(donut, aoe.Origin, default, aoe.Activation.AddSeconds(2.1d));
+        }
     }
 }
 
@@ -193,5 +216,5 @@ public sealed class CE107Unbridled(WorldState ws, Actor primary) : BossModule(ws
     private static readonly ArenaBoundsComplex startingArena = new([new Polygon(new(620f, 800f), 29.5f, 32)]);
     public static readonly ArenaBoundsCircle DefaultArena = new(25f); // default arena got no extra collision, just a donut aoe
 
-    protected override bool CheckPull() => base.CheckPull() && Raid.Player()!.Position.InCircle(Arena.Center, 30f);
+    protected override bool CheckPull() => base.CheckPull() && Raid.Player() is { } p && p.Position.InCircle(Arena.Center, 30f);
 }

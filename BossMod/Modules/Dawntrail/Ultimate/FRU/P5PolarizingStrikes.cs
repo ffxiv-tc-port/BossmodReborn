@@ -41,14 +41,14 @@ sealed class P5PolarizingStrikes(BossModule module) : Components.GenericAOEs(mod
         if (_source != null && _aoes.Count == 0 && _baitsActive)
         {
             if (_baiters.Contains(actor) && (_forbidden[0] | _forbidden[1])[slot])
-                hints.Add("Hide behind party!");
+                hints.Add(Loc.T("Hide behind party!"));
 
             var inLight = InAOE(_source, _baiters[0], actor);
             var inDark = InAOE(_source, _baiters[1], actor);
             if (inLight == inDark)
-                hints.Add("Stay in group!");
+                hints.Add(Loc.T("Stay in group!"));
             else if (_forbidden[inLight ? 0 : 1][slot])
-                hints.Add("Go to correct group!");
+                hints.Add(Loc.T("Go to correct group!"));
         }
         else
         {

@@ -1,4 +1,4 @@
-﻿using ImGuiNET;
+﻿using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility.Raii;
 using System.Globalization;
 
@@ -45,55 +45,121 @@ sealed class AIManagementWindow : UIWindow
 
         ImGui.TextUnformatted($"Navi={_manager.Controller.NaviTargetPos}");
 
-        configModified |= ImGui.Checkbox("Forbid actions", ref _config.ForbidActions);
+        configModified |= ImGui.Checkbox(Loc.T("AI_ForbidActions", "Forbid actions"), ref _config.ForbidActions);
         ImGui.SameLine();
-        configModified |= ImGui.Checkbox("Forbid movement", ref _config.ForbidMovement);
+        configModified |= ImGui.Checkbox(Loc.T("AI_ForbidMovement", "Forbid movement"), ref _config.ForbidMovement);
         ImGui.SameLine();
-        configModified |= ImGui.Checkbox("Idle while mounted", ref _config.ForbidAIMovementMounted);
+        configModified |= ImGui.Checkbox(Loc.T("AI_IdleMounted", "Idle while mounted"), ref _config.ForbidAIMovementMounted);
         ImGui.SameLine();
-        configModified |= ImGui.Checkbox("Follow during combat", ref _config.FollowDuringCombat);
+        configModified |= ImGui.Checkbox(Loc.T("AI_FollowCombat", "Follow during combat"), ref _config.FollowDuringCombat);
         if (ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
-            ImGui.Text("Must be enabled for follow target.");
+            ImGui.Text(Loc.T("AI_FollowCombat_Tip", "Must be enabled for follow target."));
             ImGui.EndTooltip();
         }
         ImGui.Spacing();
-        configModified |= ImGui.Checkbox("Follow during active boss module", ref _config.FollowDuringActiveBossModule);
+        configModified |= ImGui.Checkbox(Loc.T("AI_FollowBossModule", "Follow during active boss module"), ref _config.FollowDuringActiveBossModule);
         if (ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
-            ImGui.Text("Must be enabled for following targets during active boss modules.");
+            ImGui.Text(Loc.T("AI_FollowBossModule_Tip", "Must be enabled for following targets during active boss modules."));
             ImGui.EndTooltip();
         }
         ImGui.SameLine();
-        configModified |= ImGui.Checkbox("Follow out of combat", ref _config.FollowOutOfCombat);
+        configModified |= ImGui.Checkbox(Loc.T("AI_FollowOutOfCombat", "Follow out of combat"), ref _config.FollowOutOfCombat);
         ImGui.SameLine();
-        configModified |= ImGui.Checkbox("Follow target", ref _config.FollowTarget);
+        configModified |= ImGui.Checkbox(Loc.T("AI_FollowTarget", "Follow target"), ref _config.FollowTarget);
         if (ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
-            ImGui.Text("Follow the target with your distance settings.\nFollow during combat and follow during active boss module need to be activated.");
+            ImGui.Text(Loc.T("AI_FollowTarget_Tip", "Follow the target with your distance settings.\nFollow during combat and follow during active boss module need to be activated."));
             ImGui.EndTooltip();
         }
         ImGui.Spacing();
-        configModified |= ImGui.Checkbox("Manual targeting", ref _config.ManualTarget);
+        configModified |= ImGui.Checkbox(Loc.T("AI_ManualTarget", "Manual targeting"), ref _config.ManualTarget);
         if (ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
-            ImGui.Text("Allows manual targeting with an active AI autorotation.");
+            ImGui.Text(Loc.T("AI_ManualTarget_Tip", "Allows manual targeting with an active AI autorotation."));
             ImGui.EndTooltip();
         }
         ImGui.SameLine();
-        configModified |= ImGui.Checkbox("Disable loading obstacle maps", ref _config.DisableObstacleMaps);
+        configModified |= ImGui.Checkbox(Loc.T("AI_DisableObstacleMaps", "Disable loading obstacle maps"), ref _config.DisableObstacleMaps);
+        ImGui.Text(Loc.T("AI_ActivationTimeCushion", "Dodge timing safety cushion"));
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(100f);
+        var activationTimeCushionStr = _config.ActivationTimeCushion.ToString(CultureInfo.InvariantCulture);
+        if (ImGui.InputText("##ActivationTimeCushion", ref activationTimeCushionStr, 64))
+        {
+            activationTimeCushionStr = activationTimeCushionStr.Replace(',', '.');
+            if (float.TryParse(activationTimeCushionStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var cushion))
+            {
+                _config.ActivationTimeCushion = cushion;
+                configModified = true;
+            }
+        }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.Text(Loc.T("AI_ActivationTimeCushion_Tip", "How many seconds before a mechanic actually resolves the AI still treats it as \"safe to be in\".\nLower = dodges later/closer to the last safe moment (more uptime, less margin for lag/hitching). Default is 1s; try 0.1-0.2 for aggressive uptime."));
+            ImGui.EndTooltip();
+        }
+        ImGui.SameLine();
+        configModified |= ImGui.Checkbox(Loc.T("AI_ReturnToPreDodgePosition", "Return to pre-dodge position"), ref _config.ReturnToPreDodgePosition);
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.Text(Loc.T("AI_ReturnToPreDodgePosition_Tip", "After a forced dodge is over, try to walk back to the spot you were standing at right before it started, for better uptime/positioning.\nAbandoned immediately if that spot is currently inside a forbidden zone or outside the arena bounds."));
+            ImGui.EndTooltip();
+        }
+        ImGui.SameLine();
+        ImGui.Text(Loc.T("AI_ReturnToPreDodgePositionTimeout", "Timeout"));
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(80f);
+        var preDodgeTimeoutStr = _config.ReturnToPreDodgePositionTimeout.ToString(CultureInfo.InvariantCulture);
+        if (ImGui.InputText("##ReturnToPreDodgePositionTimeout", ref preDodgeTimeoutStr, 64))
+        {
+            preDodgeTimeoutStr = preDodgeTimeoutStr.Replace(',', '.');
+            if (float.TryParse(preDodgeTimeoutStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var timeout))
+            {
+                _config.ReturnToPreDodgePositionTimeout = timeout;
+                configModified = true;
+            }
+        }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.Text(Loc.T("AI_ReturnToPreDodgePositionTimeout_Tip", "How long to keep trying to walk back to the pre-dodge position before giving up and letting normal positioning take over."));
+            ImGui.EndTooltip();
+        }
+        ImGui.Text(Loc.T("AI_MovementUrgencyThreshold", "Movement urgency threshold"));
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(80f);
+        var movementUrgencyStr = _config.MovementUrgencyThreshold.ToString(CultureInfo.InvariantCulture);
+        if (ImGui.InputText("##MovementUrgencyThreshold", ref movementUrgencyStr, 64))
+        {
+            movementUrgencyStr = movementUrgencyStr.Replace(',', '.');
+            if (float.TryParse(movementUrgencyStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var urgency))
+            {
+                _config.MovementUrgencyThreshold = urgency;
+                configModified = true;
+            }
+        }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.Text(Loc.T("AI_MovementUrgencyThreshold_Tip", "The pathfinder often finds a marginally \"safer\" spot the instant a new AOE telegraph appears, even though there's no need to move yet.\nSetting this above 0 keeps the AI standing still (for uptime) until fewer than this many seconds of safety margin remain, instead of relocating right away.\nDoes not delay movement that's actually needed to stay in range of your target/master. Default 0 = old behavior (move immediately)."));
+            ImGui.EndTooltip();
+        }
 
-        ImGui.Text("Follow party slot");
+        ImGui.Text(Loc.T("AI_FollowSlot", "Follow party slot"));
         ImGui.SameLine();
         ImGui.SetNextItemWidth(250);
         ImGui.SetNextWindowSizeConstraints(default, new Vector2(float.MaxValue, ImGui.GetTextLineHeightWithSpacing() * 50f));
-        if (ImRaii.Combo("##Leader", _manager.Beh == null ? "<idle>" : _manager.WorldState.Party[_manager.MasterSlot]?.Name ?? "<unknown>"))
+        if (ImRaii.Combo("##Leader", _manager.Beh == null ? Loc.T("AI_Idle", "<idle>") : _manager.WorldState.Party[_manager.MasterSlot]?.Name ?? Loc.T("AI_Unknown", "<unknown>")))
         {
-            if (ImGui.Selectable("<idle>", _manager.Beh == null))
+            if (ImGui.Selectable(Loc.T("AI_Idle", "<idle>"), _manager.Beh == null))
                 _manager.SwitchToIdle();
             foreach (var (i, p) in _manager.WorldState.Party.WithSlot(true))
             {
@@ -109,11 +175,11 @@ sealed class AIManagementWindow : UIWindow
         if (ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
-            ImGui.Text("Select player to follow to enable AI. Usually you select yourself for this.");
+            ImGui.Text(Loc.T("AI_FollowSlot_Tip", "Select player to follow to enable AI. Usually you select yourself for this."));
             ImGui.EndTooltip();
         }
         ImGui.Separator();
-        ImGui.Text("Desired positional");
+        ImGui.Text(Loc.T("AI_DesiredPositional", "Desired positional"));
         ImGui.SameLine();
         ImGui.SetNextItemWidth(100f);
         var positionalIndex = (int)_config.DesiredPositional;
@@ -123,11 +189,11 @@ sealed class AIManagementWindow : UIWindow
             configModified = true;
         }
         ImGui.SameLine();
-        ImGui.Text("Max distance - to targets");
+        ImGui.Text(Loc.T("AI_MaxDistTarget", "Max distance - to targets"));
         ImGui.SameLine();
         ImGui.SetNextItemWidth(100);
         var maxDistanceTargetStr = _config.MaxDistanceToTarget.ToString(CultureInfo.InvariantCulture);
-        if (ImGui.InputText("##MaxDistanceToTarget", ref maxDistanceTargetStr, 64u))
+        if (ImGui.InputText("##MaxDistanceToTarget", ref maxDistanceTargetStr, 64))
         {
             maxDistanceTargetStr = maxDistanceTargetStr.Replace(',', '.');
             if (float.TryParse(maxDistanceTargetStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var maxDistance))
@@ -139,15 +205,15 @@ sealed class AIManagementWindow : UIWindow
         if (ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
-            ImGui.Text("Maximum distance in yalms to keep away from targets.");
+            ImGui.Text(Loc.T("AI_MaxDistTarget_Tip", "Maximum distance in yalms to keep away from targets."));
             ImGui.EndTooltip();
         }
         ImGui.SameLine();
-        ImGui.Text("- to slots");
+        ImGui.Text(Loc.T("AI_ToSlots", "- to slots"));
         ImGui.SameLine();
         ImGui.SetNextItemWidth(100f);
         var maxDistanceSlotStr = _config.MaxDistanceToSlot.ToString(CultureInfo.InvariantCulture);
-        if (ImGui.InputText("##MaxDistanceToSlot", ref maxDistanceSlotStr, 64u))
+        if (ImGui.InputText("##MaxDistanceToSlot", ref maxDistanceSlotStr, 64))
         {
             maxDistanceSlotStr = maxDistanceSlotStr.Replace(',', '.');
             if (float.TryParse(maxDistanceSlotStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var maxDistance))
@@ -159,14 +225,14 @@ sealed class AIManagementWindow : UIWindow
         if (ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
-            ImGui.Text("Maximum distance in yalms to keep away from followed allies.");
+            ImGui.Text(Loc.T("AI_MaxDistSlot_Tip", "Maximum distance in yalms to keep away from followed allies."));
             ImGui.EndTooltip();
         }
-        ImGui.Text("Minimum distance");
+        ImGui.Text(Loc.T("AI_MinDistance", "Minimum distance"));
         ImGui.SameLine();
         ImGui.SetNextItemWidth(100f);
         var minDistanceStr = _config.MinDistance.ToString(CultureInfo.InvariantCulture);
-        if (ImGui.InputText("##MinDistance", ref minDistanceStr, 64u))
+        if (ImGui.InputText("##MinDistance", ref minDistanceStr, 64))
         {
             minDistanceStr = minDistanceStr.Replace(',', '.');
             if (float.TryParse(minDistanceStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var minDistance))
@@ -178,15 +244,15 @@ sealed class AIManagementWindow : UIWindow
         if (ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
-            ImGui.Text("Distance in yalms to keep away from target hitbox.");
+            ImGui.Text(Loc.T("AI_MinDistance_Tip", "Distance in yalms to keep away from target hitbox."));
             ImGui.EndTooltip();
         }
         ImGui.SameLine();
-        ImGui.Text("Pref distance to forbidden zones");
+        ImGui.Text(Loc.T("AI_PrefDistForbidden", "Pref distance to forbidden zones"));
         ImGui.SameLine();
         ImGui.SetNextItemWidth(100f);
         var prefDistanceStr = _config.PreferredDistance.ToString(CultureInfo.InvariantCulture);
-        if (ImGui.InputText("##PrefDistance", ref prefDistanceStr, 64u))
+        if (ImGui.InputText("##PrefDistance", ref prefDistanceStr, 64))
         {
             prefDistanceStr = prefDistanceStr.Replace(',', '.');
             if (float.TryParse(prefDistanceStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var prefDistance))
@@ -198,14 +264,14 @@ sealed class AIManagementWindow : UIWindow
         if (ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
-            ImGui.Text("Distance in yalms to keep away from forbidden zones.");
+            ImGui.Text(Loc.T("AI_PrefDistForbidden_Tip", "Distance in yalms to keep away from forbidden zones."));
             ImGui.EndTooltip();
         }
-        ImGui.Text("Movement decision delay");
+        ImGui.Text(Loc.T("AI_MoveDelay", "Movement decision delay"));
         ImGui.SameLine();
         ImGui.SetNextItemWidth(100f);
         var movementDelayStr = _config.MoveDelay.ToString(CultureInfo.InvariantCulture);
-        if (ImGui.InputText("##MovementDelay", ref movementDelayStr, 64u))
+        if (ImGui.InputText("##MovementDelay", ref movementDelayStr, 64))
         {
             movementDelayStr = movementDelayStr.Replace(',', '.');
             if (float.TryParse(movementDelayStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var delay))
@@ -217,16 +283,16 @@ sealed class AIManagementWindow : UIWindow
         if (ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
-            ImGui.Text("Minimum time to start moving after movement decision has been made.\nAvoid setting this too high depending on the content.");
+            ImGui.Text(Loc.T("AI_MoveDelay_Tip", "Minimum time to start moving after movement decision has been made.\nAvoid setting this too high depending on the content."));
             ImGui.EndTooltip();
         }
         ImGui.SameLine();
-        ImGui.Text("Autorotation AI preset");
+        ImGui.Text(Loc.T("AI_AIPreset", "Autorotation AI preset"));
         ImGui.SameLine();
         ImGui.SetNextItemWidth(250f);
         ImGui.SetNextWindowSizeConstraints(default, new Vector2(float.MaxValue, ImGui.GetTextLineHeightWithSpacing() * 50f));
         var aipreset = _config.AIAutorotPresetName;
-        var presets = _manager.Autorot.Database.Presets.VisiblePresets;
+        var presets = _manager.Autorot.Database.Presets.AllPresets;
 
         var count = presets.Count;
         List<string> presetNames = new(count + 1);
@@ -236,7 +302,7 @@ sealed class AIManagementWindow : UIWindow
         }
 
         if (aipreset != null)
-            presetNames.Add("Deactivate");
+            presetNames.Add(Loc.T("AI_Deactivate", "Deactivate"));
         var countnames = presetNames.Count;
         var selectedIndex = presetNames.IndexOf(aipreset ?? "");
 
@@ -255,18 +321,38 @@ sealed class AIManagementWindow : UIWindow
                 configModified = true;
             }
         }
+        // 下拉選單顯示的是使用者自己的值；其他插件暫時改用別的預設時要在列上看得到實際用的是哪個。
+        if (TransientConfigOverrides.AIAutorotPresetName is { } presetOverride)
+        {
+            ImGui.SameLine();
+            ImGui.TextUnformatted(string.Format(Loc.T("AI_AIPresetTransient", "(temporarily '{0}' by {1})"), presetOverride.Value ?? Loc.T("AI_AIPresetTransientNone", "no preset"), presetOverride.Owner));
+        }
         if (configModified)
             _config.Modified.Fire();
     }
 
     public override void OnClose() => SetVisible(false);
 
+    // 標題只由這三個值決定，沒變就不重組：沒有角色時（標題／選角畫面）AIManager 每幀都會走到這裡。
+    // 契約：WindowName 只在建構子與這裡寫入；別處要寫就一起把 _titleBuilt 清掉。
+    private bool _titleBuilt;
+    private bool _titleOn;
+    private int _titleMasterSlot;
+    private string? _titleMasterName;
+
     public void UpdateTitle()
     {
         var masterSlot = _manager?.MasterSlot ?? -1;
         var masterName = _manager?.Autorot?.WorldState?.Party[masterSlot]?.Name ?? "unknown";
+        var on = _manager?.Beh != null;
+        if (_titleBuilt && on == _titleOn && masterSlot == _titleMasterSlot && string.Equals(masterName, _titleMasterName, StringComparison.Ordinal))
+            return;
         var masterSlotNumber = masterSlot != -1 ? (masterSlot + 1).ToString() : "N/A";
 
-        WindowName = $"AI: {(_manager?.Beh != null ? "on" : "off")}, master={masterName}[{masterSlotNumber}]{_windowID}";
+        WindowName = $"AI: {(on ? "on" : "off")}, master={masterName}[{masterSlotNumber}]{_windowID}";
+        _titleBuilt = true;
+        _titleOn = on;
+        _titleMasterSlot = masterSlot;
+        _titleMasterName = masterName;
     }
 }

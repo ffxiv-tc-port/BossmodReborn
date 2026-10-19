@@ -270,7 +270,7 @@ sealed class ArcaneRecoil(BossModule module) : BossComponent(module)
             {
                 if (targets[i] == actor)
                 {
-                    hints.Add("GTFO from conduit!");
+                    hints.Add(Loc.T("GTFO from conduit!"));
                 }
             }
         }

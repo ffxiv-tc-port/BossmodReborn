@@ -41,14 +41,14 @@ class PredatoryAvarice(BossModule module) : BossComponent(module)
         {
             if (Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _tidesRadius).Any())
             {
-                hints.Add("GTFO from raid!");
+                hints.Add(Loc.T("GTFO from raid!"));
             }
         }
         else
         {
             if (_playersInTides[slot])
             {
-                hints.Add("GTFO from avarice!");
+                hints.Add(Loc.T("GTFO from avarice!"));
             }
 
             var warnToStack = _playersWithDepths[slot]
@@ -56,7 +56,7 @@ class PredatoryAvarice(BossModule module) : BossComponent(module)
                 : !_playersInDepths[slot];
             if (warnToStack)
             {
-                hints.Add("Stack with raid!");
+                hints.Add(Loc.T("Stack with raid!"));
             }
         }
     }

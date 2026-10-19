@@ -80,7 +80,7 @@ sealed class InfraredBlast(BossModule module) : Components.InterceptTether(modul
             }
             else if (fire[slot])
             {
-                hints.Add("Avoid taking tether!");
+                hints.Add(Loc.T("Avoid taking tether!"));
             }
         }
     }

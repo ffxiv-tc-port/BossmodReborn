@@ -81,13 +81,13 @@ sealed class P4MirageDive(BossModule module) : Components.CastCounter(module, (u
         {
             // note: not showing this hint, since typically pc will wait until someone swaps the color
             //if (_forbidden[slot])
-            //    hints.Add("Pass the tether!");
+            //    hints.Add(Loc.T("Pass the tether!"));
             if (!_forbidden[slot] && Raid.WithoutSlot(false, true, true).InRadiusExcluding(actor, _radius).Any())
-                hints.Add("GTFO from raid!");
+                hints.Add(Loc.T("GTFO from raid!"));
         }
         else if (Raid.WithSlot(true, true, true).IncludedInMask(_baiters).ExcludedFromMask(_forbidden).InRadius(actor.Position, _radius).Any())
         {
-            hints.Add("GTFO from baiters!");
+            hints.Add(Loc.T("GTFO from baiters!"));
         }
     }
 

@@ -70,6 +70,20 @@ sealed class Clawmarks(BossModule module) : Components.GenericAOEs(module)
         return aoes[..index];
     }
 
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        if (!AIHints.LookaheadEnabled)
+            return;
+        // 第一波（1 秒窗內）已由基底登記成禁區；之後各波交給 AI 的閃避預判
+        var count = AOEs.Count;
+        for (var i = ActiveAOEs(slot, actor).Length; i < count; ++i)
+        {
+            var aoe = AOEs[i];
+            hints.AddFutureForbiddenZone(aoe.Shape, aoe.Origin, aoe.Rotation, aoe.Activation);
+        }
+    }
+
     public override void OnActorCreated(Actor actor)
     {
         var id = actor.OID;
@@ -164,7 +178,8 @@ sealed class Crosshatch(BossModule module) : Components.GenericAOEs(module)
             return [];
 
         var aoes = CollectionsMarshal.AsSpan(_aoes);
-        for (var i = 0; i < 2; ++i)
+        var risky = count < 2 ? count : 2; // 一對裡先打到的那一發移除後只剩一個
+        for (var i = 0; i < risky; ++i)
         {
             aoes[i].Risky = true;
         }
@@ -209,6 +224,15 @@ sealed class Crosshatch(BossModule module) : Components.GenericAOEs(module)
             var aoe = _aoes[0];
             // stay close to the middle if there is more than one aoe left
             hints.AddForbiddenZone(ShapeDistance.InvertedCircle(aoe.Origin, 5f), aoe.Activation);
+            // 第二對交給閃避預判；死亡甲還在場上時第一對都不登記，這裡也跟著不預告
+            if (AIHints.LookaheadEnabled && _aoe.AOEs.Count == 0)
+            {
+                for (var i = 2; i < count; ++i)
+                {
+                    var next = _aoes[i];
+                    hints.AddFutureForbiddenZone(next.Shape, next.Origin, next.Rotation, next.Activation);
+                }
+            }
         }
     }
 }
@@ -229,5 +253,5 @@ sealed class CE105CrawlingDeathStates : StateMachineBuilder
 [ModuleInfo(BossModuleInfo.Maturity.Verified, Contributors = "The Combat Reborn Team (Malediktus)", GroupType = BossModuleInfo.GroupType.CriticalEngagement, GroupID = 1018, NameID = 36)]
 public sealed class CE105CrawlingDeath(WorldState ws, Actor primary) : BossModule(ws, primary, new(681, 534f), new ArenaBoundsSquare(21f))
 {
-    protected override bool CheckPull() => base.CheckPull() && Raid.Player()!.Position.InSquare(Arena.Center, 21f);
+    protected override bool CheckPull() => base.CheckPull() && Raid.Player() is { } p && p.Position.InSquare(Arena.Center, 21f);
 }

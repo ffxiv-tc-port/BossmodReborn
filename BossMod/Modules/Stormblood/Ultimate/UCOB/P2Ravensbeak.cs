@@ -12,9 +12,9 @@ class P2Ravensbeak(BossModule module) : BossComponent(module)
             return;
 
         if (actor.InstanceID == _targetId)
-            hints.Add("Pass aggro!");
+            hints.Add(Loc.T("Pass aggro!"));
         else if (actor.Role == Role.Tank)
-            hints.Add("Taunt!");
+            hints.Add(Loc.T("Taunt!"));
     }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)

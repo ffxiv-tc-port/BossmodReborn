@@ -110,11 +110,11 @@ sealed class Frostbite(BossModule module) : Components.GenericAOEs(module)
             {
                 if (aoe.Risky)
                 {
-                    hints.Add("GTFO from wind area!");
+                    hints.Add(Loc.T("GTFO from wind area!"));
                 }
                 else
                 {
-                    hints.Add("Leave unsafe area!" + $" {(aoe.Activation - WorldState.CurrentTime).TotalSeconds:F1}s until activation.");
+                    hints.Add(Loc.T("Leave unsafe area!") + $" {(aoe.Activation - WorldState.CurrentTime).TotalSeconds:F1}s until activation.");
                 }
                 return;
             }
