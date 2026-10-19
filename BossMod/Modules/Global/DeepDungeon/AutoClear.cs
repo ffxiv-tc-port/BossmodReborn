@@ -2118,6 +2118,36 @@ public abstract partial class AutoClear : ZoneModule
         return player.HPMP.CurHP * 100f < player.HPMP.MaxHP * pct;
     }
 
+    private enum BronzeBlock : byte { None, LowHP, InCombat }
+
+    /// <summary>銅寶箱爆炸約扣最大 HP 七成，低於這個百分比就不走去也不開（閘門在選寶箱那一步，走去與開箱一起擋）。</summary>
+    private const float BronzeMinHPPercent = 80f;
+
+    private static BronzeBlock BronzeCofferBlock(Actor player)
+        => player.InCombat ? BronzeBlock.InCombat
+        : player.HPMP.MaxHP == 0 || player.HPMP.CurHP * 100f < player.HPMP.MaxHP * BronzeMinHPPercent ? BronzeBlock.LowHP
+        : BronzeBlock.None;
+
+    private BronzeBlock _bronzeLoggedBlock;
+    private ulong _bronzeLoggedId;
+    private DateTime _bronzeLoggedAt;
+
+    private void LogBronzeBlocked(Actor player, BronzeBlock block, Actor? coffer)
+    {
+        if (coffer == null)
+            return;
+        var now = World.CurrentTime;
+        var same = block == _bronzeLoggedBlock && coffer.InstanceID == _bronzeLoggedId;
+        if ((now - _bronzeLoggedAt).TotalSeconds < (same ? 30d : 5d))
+            return;
+        (_bronzeLoggedBlock, _bronzeLoggedId, _bronzeLoggedAt) = (block, coffer.InstanceID, now);
+        var dist = player.DistanceToHitbox(coffer);
+        var hp = player.HPMP.MaxHP == 0 ? "HP 讀不到" : $"HP {player.HPMP.CurHP * 100f / player.HPMP.MaxHP:f0}% 低於 {BronzeMinHPPercent:f0}%";
+        Service.Logger.Information(block == BronzeBlock.InCombat
+            ? $"[DD] 戰鬥中，先不開銅寶箱（最近的一個在 {dist:f1}y 外）。"
+            : $"[DD] {hp}，先不開銅寶箱（最近的一個在 {dist:f1}y 外；寶箱爆炸約扣最大 HP 七成）。");
+    }
+
     /// <summary>
     /// 使用者現在有沒有按著「強制趕路」那顆鍵。
     /// </summary>
@@ -2434,6 +2464,8 @@ public abstract partial class AutoClear : ZoneModule
         ulong pomanderChest = 0;
         int? magiciteSlotToSpend = null;
         ulong magiciteChest = 0;
+        var bronzeBlock = BronzeCofferBlock(player);
+        Actor? blockedBronze = null;
 
         foreach (var a in World.Actors)
         {
@@ -2476,10 +2508,13 @@ public abstract partial class AutoClear : ZoneModule
                 continue;
 
             var oid = a.OID;
+            var isBronze = BronzeChestIDs.Contains(oid);
+            if (isBronze && OpenBronze && bronzeBlock != BronzeBlock.None && a.IsTargetable && (blockedBronze?.DistanceToHitbox(player) ?? float.MaxValue) > a.DistanceToHitbox(player))
+                blockedBronze = a;
             if (a.IsTargetable && (
                 oid == (uint)OID.GoldCoffer && OpenGold ||
                 oid == (uint)OID.SilverCoffer && OpenSilver && player.HPMP.CurHP > player.HPMP.MaxHP * 0.7f ||
-                BronzeChestIDs.Contains(a.OID) && OpenBronze ||
+                isBronze && OpenBronze && bronzeBlock == BronzeBlock.None ||
                 // ⚠️ 埋藏的寶藏要有自己的開關：否則銅銀金三個框全關也照樣處理
                 oid == (uint)OID.BandedCoffer && Config.BandedCoffer
             ))
@@ -2500,6 +2535,7 @@ public abstract partial class AutoClear : ZoneModule
             if (RevealedTrapOIDs.Contains(a.OID))
                 revealedTraps.Add((a.Position, 2f));
         }
+        LogBronzeBlocked(player, bronzeBlock, blockedBronze);
 
         var fullClear = false;
         if (Config.FullClear && !HoardWalkSteering)
