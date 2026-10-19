@@ -23,15 +23,52 @@ public enum AID : uint
 sealed class GreyBomb(BossModule module) : Components.Adds(module, (uint)OID.GreyBomb, 5);
 sealed class Burst(BossModule module) : Components.RaidwideCast(module, (uint)AID.Burst, "Kill the Grey Bomb! or take 80% of your Max HP");
 // future thing to do: maybe add a tether between bomb/boss to show it needs to show the aoe needs to explode on them. . . 
+// 眩暈炸彈讀寒霜彈期間、或它的爆炸範圍（6+R）碰得到 Boss 的 hitbox 時，被打到讀條就斷 ⇒ 禁打，目標停在它身上就鎖回 Boss。
+// 禁打只管得到 BMR 自己的循環（範圍技數到禁打目標就不放）與經 BMR 佇列送出、目標是它的技能；外部循環的範圍技與浮游砲塔管不到。
 sealed class HypothermalCombustion(BossModule module) : Components.SimpleAOEs(module, (uint)AID.HypothermalCombustion, 7.2f)
 {
+    private const float BlastRadius = 7.2f;
+    private bool _protecting, _retargetLogged;
+
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         base.AddAIHints(slot, actor, assignment, hints);
-        var bomb = Module.Enemies((uint)OID.GiddyBomb);
-        if (bomb.Count != 0 && bomb[0] is Actor g && Module.PrimaryActor.Position.InCircle(g.Position, 7.2f))
+        var boss = Module.PrimaryActor;
+        var bombs = Module.Enemies((uint)OID.GiddyBomb);
+        Actor? protectedBomb = null;
+        var protectedCasting = false;
+        var retarget = false;
+        for (var i = 0; i < bombs.Count; ++i)
         {
+            var g = bombs[i];
+            if (g.IsDead)
+                continue;
+            var casting = g.CastInfo?.Action.ID == (uint)AID.HypothermalCombustion;
+            if (!casting && !boss.Position.InCircle(g.Position, BlastRadius + boss.HitboxRadius))
+                continue;
             hints.SetPriority(g, AIHints.Enemy.PriorityForbidden);
+            if (protectedBomb == null)
+                (protectedBomb, protectedCasting) = (g, casting);
+            retarget |= actor.TargetID == g.InstanceID;
+        }
+        if (retarget && boss.IsTargetable && !boss.IsDead)
+            hints.ForcedTarget = boss;
+
+        if (protectedBomb is not Actor b)
+        {
+            _protecting = _retargetLogged = false;
+            return;
+        }
+        if (!_protecting)
+        {
+            _protecting = true;
+            var why = protectedCasting ? "正在讀寒霜彈" : "的爆炸範圍碰得到 Boss";
+            Service.Logger.Information($"[DD90] 眩暈炸彈{why}（離 Boss {(b.Position - boss.Position).Length():f1}y），先不打它，讓它在 Boss 身上爆。");
+        }
+        if (retarget && !_retargetLogged)
+        {
+            _retargetLogged = true;
+            Service.Logger.Information("[DD90] 目前的目標是眩暈炸彈，改鎖回 Boss。");
         }
     }
 }
