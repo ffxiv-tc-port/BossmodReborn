@@ -66,6 +66,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
     private readonly CooldownDelayTweak _cooldownTweak = new();
     private readonly CancelCastTweak _cancelCastTweak;
     private readonly AutoDismountTweak _dismountTweak;
+    private readonly DismountEpisodeLog _dismountLog = new(Service.Log, msg => Service.Logger.Information(msg));
     private readonly RestoreRotationTweak _restoreRotTweak = new();
     private readonly SmartRotationTweak _smartRotationTweak;
     private readonly OutOfCombatActionsTweak _oocActionsTweak;
@@ -106,6 +107,14 @@ public sealed unsafe class ActionManagerEx : IDisposable
     {
         var gom = GameObjectManager.Instance();
         return gom != null ? gom->Objects.IndexSorted[0].Value : null;
+    }
+
+    // 當下讀原生值、不保存：世界狀態是這一幀稍早的快照，下坐騎在遊戲這一幀內完成時它還說「在坐騎上」，
+    // 而沒騎乘時送 Action 4（坐騎，1 秒詠唱）＝開始召喚坐騎
+    private static bool LocalPlayerMountedNow()
+    {
+        var chr = (Character*)PlayerObject();
+        return chr != null && chr->Mount.MountId != 0;
     }
 
     public ActionManagerEx(WorldState ws, AIHints hints, MovementOverride movement)
@@ -638,6 +647,12 @@ public sealed unsafe class ActionManagerEx : IDisposable
         FFXIVClientStructs.FFXIV.Common.Configuration.ConfigEntry* autoRotateConfig = null;
         var autoRotateOriginal = 0u;
         var blockMovement = false;
+        // 這一幀被坐騎擋住的技能（default＝沒有）；下面送不送下坐騎、診斷那一行都讀這幾個
+        ActionID dismountFor = default;
+        var dismountManual = false;
+        var dismountInFlight = false;
+        var dismountStatus = 0u;
+        var dismountSkip = DismountSkip.None;
         try
         {
             // check whether movement is safe; block movement if not and if desired
@@ -692,8 +707,12 @@ public sealed unsafe class ActionManagerEx : IDisposable
                 }
                 else if (_dismountTweak.IsMountPreventingAction(actionAdj))
                 {
-                    Service.Log("[AMEx] Trying to dismount...");
-                    _hints.WantDismount |= _dismountTweak.AutoDismountEnabled;
+                    dismountFor = actionAdj;
+                    dismountManual = AutoQueue.Manual;
+                    dismountStatus = status;
+                    dismountInFlight = Service.Condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InFlight];
+                    dismountSkip = AutoDismountTweak.AutoDismountGate(_dismountTweak.AutoDismountEnabled, dismountManual, dismountInFlight, AI.AIManager.Instance?.Beh != null, _movement.IsMoveRequested());
+                    _hints.WantDismount |= dismountSkip == DismountSkip.None;
                 }
                 else
                 {
@@ -738,8 +757,22 @@ public sealed unsafe class ActionManagerEx : IDisposable
                     _inst->UseAction(CSActionType.GeneralAction, 1);
             }
 
-            if (_hints.WantDismount && !_movement.FollowPathActive() && _dismountTweak.AllowDismount())
-                _inst->UseAction(CSActionType.Action, 4);
+            if (_hints.WantDismount)
+            {
+                var skip = _movement.FollowPathActive() ? DismountSkip.FollowPath
+                    : !_dismountTweak.AllowDismount() ? DismountSkip.MountNotDismountable
+                    : !LocalPlayerMountedNow() ? DismountSkip.AlreadyDismounted
+                    : DismountSkip.None;
+                if (skip == DismountSkip.None)
+                    _inst->UseAction(CSActionType.Action, 4);
+                if (dismountFor)
+                    dismountSkip = skip;
+            }
+            var player = _ws.Party.Player();
+            if (dismountFor)
+                _dismountLog.Blocked(_ws.CurrentTime, dismountFor, dismountManual, dismountStatus, player?.MountId ?? 0, dismountInFlight, player?.InCombat ?? false, dismountSkip);
+            else
+                _dismountLog.NotBlocked(_ws.CurrentTime, (player?.MountId ?? 0) != 0);
         }
         catch (Exception ex)
         {
