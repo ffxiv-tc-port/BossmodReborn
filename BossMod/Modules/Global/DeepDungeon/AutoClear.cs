@@ -1926,7 +1926,13 @@ public abstract partial class AutoClear : ZoneModule
         new(ActionType.Item, 23167),
     ];
 
-    private bool _loggedNoPotion;
+    /// <summary>下一次可以印「低血但喝不到」的時間；推出一瓶就歸零。</summary>
+    private DateTime _noPotionLogAfter;
+
+    /// <summary>魔陶器變身（蠍尾獅化／夢魔化）的狀態；變身中遊戲拒絕使用道具。</summary>
+    private const uint TransfigurationSID = 565;
+
+    private const double NoPotionLogIntervalSeconds = 15d;
 
     /// <summary>
     /// 血量過低時推一瓶藥水。
@@ -1940,17 +1946,19 @@ public abstract partial class AutoClear : ZoneModule
     {
         if (player.HPMP.MaxHP == 0 || player.HPRatio > 0.3f)
             return;
+        if (player.IsDead || player.FindStatus(TransfigurationSID) != null)
+            return; // 死亡中與魔陶器變身中推了也只會被遊戲拒絕
         if (player.FindStatus((uint)SID.ItemPenalty) != null)
             return; // 藥品封印層
 
         var defs = ActionDefinitions.Instance;
+        var inStock = false;
+        var minCooldown = float.MaxValue;
         foreach (var aid in EmergencyPotions)
         {
             var def = defs[aid];
             if (def == null)
                 continue;
-            if (def.ReadyIn(World.Client.Cooldowns, World.Client.DutyActions) > 0f)
-                continue; // 共用冷卻還沒好
 
             // ⚠️ 這是唯讀的原生查詢，不保存任何指標；換區途中會回 0，
             //    那時就當作沒有這瓶（安全退化，不會誤用）。
@@ -1958,17 +1966,27 @@ public abstract partial class AutoClear : ZoneModule
             var hq = aid.ID >= 1000000u;
             if (FFXIVClientStructs.FFXIV.Client.Game.InventoryManager.Instance()->GetInventoryItemCount(baseId, hq, false, false) <= 0)
                 continue;
+            inStock = true;
+
+            var readyIn = def.ReadyIn(World.Client.Cooldowns, World.Client.DutyActions);
+            if (readyIn > 0f)
+            {
+                minCooldown = Math.Min(minCooldown, readyIn); // 共用冷卻還沒好
+                continue;
+            }
 
             hints.ActionsToExecute.Push(aid, player, ActionQueue.Priority.VeryHigh);
-            _loggedNoPotion = false;
+            _noPotionLogAfter = default;
             return;
         }
 
-        if (!_loggedNoPotion)
-        {
-            _loggedNoPotion = true;
-            Service.Logger.Information("[DD] 血量低於 30% 但背包裡沒有任何可用的治療劑（或全部還在冷卻），無法自動補血。");
-        }
+        var now = World.CurrentTime;
+        if (now < _noPotionLogAfter)
+            return;
+        _noPotionLogAfter = now.AddSeconds(NoPotionLogIntervalSeconds);
+        Service.Logger.Information(inStock
+            ? $"[DD] 血量 {player.HPRatio * 100f:f0}% 低於 30%，治療劑還在冷卻中，剩 {minCooldown:f0} 秒。"
+            : $"[DD] 血量 {player.HPRatio * 100f:f0}% 低於 30%，背包裡沒有任何治療劑，無法自動補血。");
     }
 
     #endregion
