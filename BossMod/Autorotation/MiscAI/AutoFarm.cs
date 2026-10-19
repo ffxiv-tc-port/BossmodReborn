@@ -47,7 +47,7 @@ public sealed class AutoFarm(RotationModuleManager manager, Actor player) : Rota
             .AddOption(RetargetStrategy.Always, "Switch whenever a higher-priority or closer eligible mob exists (current behavior)")
             .AddOption(RetargetStrategy.NoTarget, "Only switch target if player has no target (or the target is a dead or untargetable enemy)")
             .AddOption(RetargetStrategy.Hostiles, "Only switch target if player is not targeting an ally")
-            .AddOption(RetargetStrategy.Never, "Never switch target; only apply priority changes to enemies");
+            .AddOption(RetargetStrategy.Never, "Never switch target; only apply priority changes to enemies. Exception: if you have no usable enemy target (nothing targeted, a coffer or other non-enemy, or a dead enemy) while a mob is attacking you, switch to that mob");
 
         res.Define(Track.SwitchTolerance).As<SwitchToleranceStrategy>("SwitchTolerance", "Target switching tolerance")
             .AddOption(SwitchToleranceStrategy.Nearest, "When picking a mob to pull, always choose the closest eligible one (current behavior)")
@@ -148,6 +148,13 @@ public sealed class AutoFarm(RotationModuleManager manager, Actor player) : Rota
             var retarget = strategy.Option(Track.Retarget).As<RetargetStrategy>();
             var allowed = AutoFarmTargeting.AllowRetarget(retarget, current != null, current?.IsAlly ?? false, current != null && !current.IsDead && current.IsTargetable);
             var isSwitch = switchTarget.InstanceID != currentTargetId;
+            if (!allowed && isSwitch && retarget == RetargetStrategy.Never
+                && AutoFarmTargeting.NeverAllowsFightBack(current != null, current?.IsAlly ?? false, current?.Type == ActorType.Enemy, current != null && !current.IsDead && current.IsTargetable,
+                    switchTarget.AggroPlayer || switchTarget.TargetID == Player.InstanceID))
+            {
+                allowed = true;
+                SwitchLog.NeverFightBack(World.CurrentTime, current, switchTarget);
+            }
             if (allowed)
             {
                 if (isSwitch)
@@ -247,6 +254,20 @@ public sealed class AutoFarm(RotationModuleManager manager, Actor player) : Rota
             Service.Logger.Debug($"[AutoFarm][換目標] 想換成 {Name(to)}，但「何時切換目標」設定是 {retarget}，維持 {Name(from)}");
         }
 
+        private static ulong _fightBackLastTo;
+        private static DateTime _fightBackLastAt;
+
+        // Never 的例外放行：同一隻 10 秒最多一行。
+        public static void NeverFightBack(DateTime now, Actor? from, Actor to)
+        {
+            if (to.InstanceID == _fightBackLastTo && (now - _fightBackLastAt).TotalSeconds < 10d)
+                return;
+            _fightBackLastTo = to.InstanceID;
+            _fightBackLastAt = now;
+            var why = from == null ? "沒有目標" : from.Type == ActorType.Enemy ? $"目標 {Name(from)} 已死亡或無法選取" : $"目標 {Name(from)} 不是敵人";
+            Service.Logger.Information($"[AutoFarm][換目標] 「何時切換目標」是 Never，但{why}，而 {Name(to)} 正在打我：放行換過去");
+        }
+
         private static string Describe(Actor? from, Actor to, AIHints hints, Actor player, SwitchReason reason)
         {
             var why = reason switch
@@ -299,4 +320,9 @@ public static class AutoFarmTargeting
         AutoFarm.RetargetStrategy.Never => false,
         _ => true
     };
+
+    // Never 的唯一例外：手上沒有可打的敵人（沒有目標、選著寶箱之類的非敵人、或敵人已死／不可選取）而候選正在打我。
+    // 友方目標照舊不搶；換去的對象必須是正在打我的那隻，不會因此去拉新的怪。
+    public static bool NeverAllowsFightBack(bool hasTarget, bool targetIsAlly, bool targetIsEnemy, bool targetUsable, bool candidateAttacksPlayer)
+        => candidateAttacksPlayer && (!hasTarget || !targetIsAlly && (!targetIsEnemy || !targetUsable));
 }

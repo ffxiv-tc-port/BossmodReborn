@@ -6764,8 +6764,8 @@
   "Only switch target if player is not targeting an ally": {
     "message": "只在目前目標不是友方時切換（不會搶走正選著的隊友）"
   },
-  "Never switch target; only apply priority changes to enemies": {
-    "message": "不切換目標，只調整敵人的優先度"
+  "Never switch target; only apply priority changes to enemies. Exception: if you have no usable enemy target (nothing targeted, a coffer or other non-enemy, or a dead enemy) while a mob is attacking you, switch to that mob": {
+    "message": "不切換目標，只調整敵人的優先度。例外：手上沒有可打的敵人（沒有目標、選著寶箱之類的非敵人、或敵人已死亡）而有怪正在打你時，換到那隻怪"
   },
   "Target switching tolerance": {
     "message": "切換目標的容差"
