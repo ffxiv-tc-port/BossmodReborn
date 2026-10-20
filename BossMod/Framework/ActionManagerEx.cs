@@ -410,6 +410,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
                 // 1. transformation can affect action targeting (eg MNK meditation/chakra); queue will check the properties of the queued action
                 // 2. for classes that start at high level and then are synced down, the 'base' action can be some upgrade; the queue will ignore non-adjusted actions, assuming they aren't unlocked yet
                 // note that when action is executed several frames later, the adjustment will be done again, in case something changes in the state
+                // 手動佇列放出時是從原始按鈕重新換（ManualActionQueueTweak.ResolveForExecution），不是對這裡換過的結果再換
                 return new(ActionType.Spell, GetAdjustedActionID(action.ID));
             case ActionType.General:
                 // for general actions, we want to convert things we care about to spells; UseActionLocation will expect that to be done
@@ -613,7 +614,8 @@ public sealed unsafe class ActionManagerEx : IDisposable
         {
             var dt = fwk->GameSpeedMultiplier * fwk->FrameDeltaTime;
             imminentAction = _inst->ActionQueued ? QueuedAction : AutoQueue.Action;
-            imminentActionAdj = imminentAction.Type == ActionType.Spell ? new(ActionType.Spell, GetAdjustedActionID(imminentAction.ID)) : imminentAction;
+            var adjustFrom = _inst->ActionQueued ? QueuedAction : _manualQueue.ExecutionSource(AutoQueue); // 與下面放出時同一個來源
+            imminentActionAdj = adjustFrom.Type == ActionType.Spell ? new(ActionType.Spell, GetAdjustedActionID(adjustFrom.ID)) : imminentAction;
             var imminentRecast = imminentActionAdj ? _inst->GetRecastGroupDetail(GetRecastGroup(imminentActionAdj)) : null;
 
             _cooldownTweak.StartAdjustment(_inst->AnimationLock, imminentRecast != null && imminentRecast->IsActive ? imminentRecast->Total - imminentRecast->Elapsed : 0, dt);
@@ -627,7 +629,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
         }
         _updateHook.Original(self);
 
-        // 手動佇列照「現在換過之後的技能」刷新詠唱時間，放出前再重判一次（換法與下面放出時的 NormalizeActionForQueue 相同）。
+        // 手動佇列照「現在從原始按鈕換過之後的技能」刷新詠唱時間，放出前再重判一次（換法與下面放出時的 ResolveForExecution 相同）。
         // 失敗＝沿用排隊時的詠唱時間、照常放出（舊行為）。只在這裡（框架執行緒）呼叫原生函式，結果只存值。
         var holdManual = false;
         try
@@ -691,7 +693,8 @@ public sealed unsafe class ActionManagerEx : IDisposable
 
             if (actionImminent)
             {
-                var actionAdj = NormalizeActionForQueue(AutoQueue.Action);
+                // 手動項從原始按鈕換一次（拿當下最新的替換）；BMR 自己的循環與 AI 照舊換排的技能
+                var actionAdj = _manualQueue.ResolveForExecution(AutoQueue, _queueAdjust);
                 var targetID = AutoQueue.Target?.InstanceID ?? InvalidEntityId;
                 var status = GetActionStatus(actionAdj, targetID);
                 if (status == 0)
@@ -799,9 +802,9 @@ public sealed unsafe class ActionManagerEx : IDisposable
             haveTargetSystem = targetSystem != null;
             if (targetSystem != null)
             {
-                var action = new ActionID((ActionType)actionType, actionId);
-                //Service.Log($"[AMEx] UA: {action} @ {targetId:X}: {extraParam} {mode} {comboRouteId}");
-                action = NormalizeActionForQueue(action);
+                var pressed = new ActionID((ActionType)actionType, actionId);
+                //Service.Log($"[AMEx] UA: {pressed} @ {targetId:X}: {extraParam} {mode} {comboRouteId}");
+                var action = NormalizeActionForQueue(pressed);
                 var spellId = GetSpellIdForAction(action);
 
                 // if mouseover mode is enabled AND target is a usual primary target AND current mouseover is valid target for action, then we override target to mouseover
@@ -844,7 +847,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
 
                 // note: only standard mode can be filtered
                 // note: current implementation introduces slight input lag (on button press, next autorotation update will pick state updates, which will be executed on next action manager update)
-                queued = !dashBlocked && mode == ActionManager.UseActionMode.None && action.Type is ActionType.Spell or ActionType.Item && _manualQueue.Push(action, targetId, GetAdjustedCastTime(action) * 0.001f, !targetOverridden, getAreaTarget, findNearestTarget);
+                queued = !dashBlocked && mode == ActionManager.UseActionMode.None && action.Type is ActionType.Spell or ActionType.Item && _manualQueue.Push(action, pressed, targetId, GetAdjustedCastTime(action) * 0.001f, !targetOverridden, getAreaTarget, findNearestTarget);
             }
         }
         catch (Exception ex)

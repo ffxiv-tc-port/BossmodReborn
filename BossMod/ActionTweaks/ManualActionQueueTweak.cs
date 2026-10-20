@@ -37,7 +37,10 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
 {
     private readonly record struct Entry(ActionID Action, Actor? Target, Vector3 TargetPos, Angle? FacingAngle, ActionDefinition Definition, DateTime ExpireAt, float CastTime, DateTime QueuedAt)
     {
-        // 放出時遊戲會把它換成的技能（RefreshCastTimes 每幀寫）；default＝還沒刷新過
+        // 最近一次送來的、還沒換過的按鈕（一般動作與道具＝Action）；放出時從它重新換，不對已換過的 Action 再換
+        public ActionID Original { get; init; }
+
+        // 放出時遊戲會把它換成的技能（RefreshCastTimes 每幀寫、ResolveForExecution 放出時寫）；default＝還沒刷新過
         public ActionID Adjusted { get; init; }
 
         public readonly bool Expired(DateTime now) => ExpireAt < now || (Target?.IsDestroyed ?? false);
@@ -46,6 +49,9 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
     private readonly ActionTweaksConfig _config = Service.Config.Get<ActionTweaksConfig>();
     private readonly List<Entry> _queue = [];
     private bool _emergencyMode;
+
+    // 上一次 FillQueue 交出去的每一項的原始按鈕：Draw 挑完到放出之間那一項被重送換掉時，放出照樣從它換
+    private readonly List<(ActionID Action, ActionID Original)> _offered = [];
 
     /// <summary>
     /// true＝連按位移技不升級成緊急模式（BMR AI 開著、逃生鍵沒按著）。由 Draw 回呼每幀寫入，UseAction detour 讀。
@@ -155,11 +161,15 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
 
     public void FillQueue(ActionQueue queue)
     {
+        _offered.Clear();
         if (_emergencyMode && _queue.Count > 0)
         {
             ref var entry = ref _queue.Ref(0);
             if (!LockHeld(entry.Action))
+            {
                 queue.Push(entry.Action, entry.Target, ActionQueue.Priority.ManualEmergency, 0, 0, 0, entry.TargetPos, entry.FacingAngle, true);
+                _offered.Add((entry.Action, entry.Original));
+            }
         }
         else
         {
@@ -170,6 +180,7 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
                 if (LockHeld(e.Action))
                     continue;
                 queue.Push(e.Action, e.Target, e.Definition.IsGCD ? ActionQueue.Priority.ManualGCD : ActionQueue.Priority.ManualOGCD, expireOrder++, 0, e.CastTime, e.TargetPos, e.FacingAngle, true);
+                _offered.Add((e.Action, e.Original));
             }
         }
     }
@@ -187,7 +198,14 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
         return true;
     }
 
+    // 呼叫端送的就是要排的技能、沒有另外的按鈕時：原始按鈕＝排的技能
     public bool Push(ActionID action, ulong targetId, float castTime, bool allowTargetOverride, Func<(ulong, Vector3?)> getAreaTarget, Func<ulong> targetNearest)
+        => Push(action, action, targetId, castTime, allowTargetOverride, getAreaTarget, targetNearest);
+
+    /// <summary>
+    /// <paramref name="pressed"/>＝UseAction 收到、還沒換過的 ID；<paramref name="action"/>＝換過之後要排的技能（目標、冷卻、解鎖都照它判）。
+    /// </summary>
+    public bool Push(ActionID action, ActionID pressed, ulong targetId, float castTime, bool allowTargetOverride, Func<(ulong, Vector3?)> getAreaTarget, Func<ulong> targetNearest)
     {
         if (!_config.UseManualQueue)
             return false; // we don't use queue at all
@@ -209,13 +227,15 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
             return false; // failed to resolve target
 
         var angleOverride = def.TransformAngle?.Invoke(ws, player, target, hints);
+        // 只有技能從按鈕重新換；一般動作（極限技、衝刺）換成技能的那一步照舊用排隊時的結果
+        var original = pressed.Type == ActionType.Spell && action.Type == ActionType.Spell ? pressed : action;
 
         var expireAt = ws.CurrentTime.AddSeconds(expire);
         var index = _queue.FindIndex(e => e.Definition.MainCooldownGroup == def.MainCooldownGroup); // TODO: what about alt groups and duty actions?..
         if (index < 0)
         {
-            Service.Log($"[MAO] Queueing {action} @ {target}");
-            _queue.Add(new(action, target, targetPos, angleOverride, def, expireAt, castTime, ws.CurrentTime));
+            Service.Log(original == action ? $"[MAO] Queueing {action} @ {target}" : $"[MAO] Queueing {action} @ {target}（原始按鈕 {original}）");
+            _queue.Add(new(action, target, targetPos, angleOverride, def, expireAt, castTime, ws.CurrentTime) { Original = original });
             return true;
         }
 
@@ -228,13 +248,13 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
             FlushCastHoldLog(e.Action, "被換成別的技能");
             FlushPyreticHoldLog(e.Action, "被換成別的技能，這一發沒有放出");
             _queue.RemoveAt(index);
-            _queue.Add(new(action, target, targetPos, angleOverride, def, expireAt, castTime, ws.CurrentTime));
+            _queue.Add(new(action, target, targetPos, angleOverride, def, expireAt, castTime, ws.CurrentTime) { Original = original });
         }
         else if (HoldDashEmergency && IsDashCheckedBeforeRelease(def))
         {
             // 只刷新過期時間：留在一般優先度，放出前每一幀照 ForbidExecute 檢查落點（危險區、場地邊界、擊退）。
             // 先前按著逃生鍵進的緊急模式（_queue[0] 就是這一發）在放開後的下一次重送就退出。
-            e = e with { ExpireAt = expireAt };
+            e = e with { ExpireAt = expireAt, Original = original };
             if (_emergencyMode && index == 0)
             {
                 FlushEmergencyLog(action, "returned to normal queue");
@@ -245,7 +265,7 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
         {
             // 硬詠唱讓位給閃避：留在一般佇列（MaxCastTime 照舊把關；鎖操作技能由 FillQueue 擋）；詠唱時間跟著刷新，免得沿用第一次送出時的瞬發值。
             // 已在緊急模式的同一發退回一般佇列；危險過了下一次重送照常升緊急
-            e = e with { ExpireAt = expireAt, CastTime = effectiveCast };
+            e = e with { ExpireAt = expireAt, CastTime = effectiveCast, Original = original };
             if (LockAfterUse(action) is var lockTime && lockTime > 0)
                 LogLockHold(action, lockTime);
             else
@@ -266,7 +286,7 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
                 FlushPyreticHoldLog(_pyreticHoldAction, "被換成別的技能，這一發沒有放出");
             // spamming oGCD - enter emergency mode
             _queue.Clear();
-            _queue.Add(new(action, target, targetPos, angleOverride, def, expireAt, castTime, queuedAt));
+            _queue.Add(new(action, target, targetPos, angleOverride, def, expireAt, castTime, queuedAt) { Original = original });
             _emergencyMode = true;
         }
         return true;
@@ -274,12 +294,18 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
 
     public void Pop(ActionID action)
     {
-        // 放出的是換過之後的技能（遊戲回報的 id），排隊的是換之前的：兩個都比，否則那一項會留到過期、還印成「沒有放出」
-        var index = _queue.FindIndex(e => e.Action == action || e.Adjusted == action);
+        // 遊戲回報的是換過之後的技能，所以也比 Adjusted（否則那一項會留到過期）；但先找排的就是這一招的那一項，
+        // 否則別項（例如還在等 GCD 的）恰好會換成這一招時，會被當成已放出而移掉
+        var index = _queue.FindIndex(e => e.Action == action);
+        if (index < 0)
+            index = _queue.FindIndex(e => e.Adjusted == action);
         if (index >= 0)
         {
             var queued = _queue[index].Action;
-            Service.Log(queued == action ? $"[MAO] Executed {action}" : $"[MAO] Executed {action}（排隊時是 {queued}）");
+            var original = _queue[index].Original;
+            Service.Log(queued == action && original == action ? $"[MAO] Executed {action}"
+                : queued == action ? $"[MAO] Executed {action}（原始按鈕 {original}）"
+                : $"[MAO] Executed {action}（排隊時是 {queued}、原始按鈕 {original}）");
             _queue.RemoveAt(index);
             FlushEmergencyLog(queued, "executed");
             FlushDashBlockLog(queued, "放出");
@@ -292,21 +318,59 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
     }
 
     /// <summary>
-    /// 每幀在 <c>ActionManagerEx.UpdateDetour</c>（框架執行緒、放出佇列之前）呼叫：照「現在換過之後的技能」刷新每一項的詠唱時間。
+    /// 每幀在 <c>ActionManagerEx.UpdateDetour</c>（框架執行緒、放出佇列之前）呼叫：照「現在從原始按鈕換過之後的技能」刷新每一項的詠唱時間。
     /// </summary>
     /// <remarks>
     /// 排隊時的詠唱時間是對當時的技能算的；別的插件 hook 了 GetAdjustedActionId（例如 WrathCombo 的連段按鈕，有節流快取）時，
-    /// 放出那一刻可能換成硬詠唱。<paramref name="adjust"/> 必須與放出時用的換法相同；只存值，不存任何原生指標。
+    /// 放出那一刻可能換成硬詠唱。<paramref name="adjust"/> 必須與放出時用的換法相同（<see cref="ResolveForExecution"/>）；只存值，不存任何原生指標。
     /// </remarks>
     public void RefreshCastTimes(Func<ActionID, ActionID> adjust, Func<ActionID, float> castSeconds)
     {
         foreach (ref var e in _queue.AsSpan())
         {
-            var adjusted = adjust(e.Action);
+            var adjusted = adjust(e.Original);
             var cast = castSeconds(adjusted);
             if (adjusted != e.Adjusted || cast != e.CastTime)
                 e = e with { Adjusted = adjusted, CastTime = cast };
         }
+    }
+
+    /// <summary>
+    /// 放出（含 UpdateDetour 預判「馬上要放」）時要從哪個 ID 換：手動佇列挑出的項＝它的原始按鈕，
+    /// 其餘（BMR 自己的循環、AI，送的本來就是最終 ID）＝排的技能本身，與改動前相同。框架執行緒、只讀。
+    /// </summary>
+    public ActionID ExecutionSource(ActionQueue.Entry chosen)
+    {
+        if (!chosen.Manual)
+            return chosen.Action;
+        foreach (ref var e in _queue.AsSpan())
+            if (e.Action == chosen.Action)
+                return e.Original;
+        foreach (var o in _offered)
+            if (o.Action == chosen.Action)
+                return o.Original;
+        return chosen.Action; // 兩邊都找不到（不應發生）：照舊換排的技能
+    }
+
+    /// <summary>
+    /// 放出那一刻（UpdateDetour、框架執行緒）決定送給遊戲的技能：從 <see cref="ExecutionSource"/> 換一次，拿到當下最新的替換
+    /// （連段推進、別的插件的 GetAdjustedActionId hook）。不對已換過的技能再換——那會被同一個 hook 再換成別招。
+    /// 手動項把結果記進 Adjusted，讓 <see cref="Pop"/> 認得放出的是哪一項。
+    /// </summary>
+    public ActionID ResolveForExecution(ActionQueue.Entry chosen, Func<ActionID, ActionID> adjust)
+    {
+        var adjusted = adjust(ExecutionSource(chosen));
+        if (!chosen.Manual)
+            return adjusted;
+        foreach (ref var e in _queue.AsSpan())
+        {
+            if (e.Action != chosen.Action)
+                continue;
+            if (e.Adjusted != adjusted)
+                e = e with { Adjusted = adjusted };
+            break;
+        }
+        return adjusted;
     }
 
     /// <summary>
