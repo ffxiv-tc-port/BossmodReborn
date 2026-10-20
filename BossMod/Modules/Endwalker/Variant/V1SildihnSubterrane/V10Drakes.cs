@@ -57,7 +57,20 @@ public sealed class V10Drakes(WorldState ws, Actor primary) : BossModule(ws, pri
     new(262.49f, 44.27f), new(263.19f, 44.26f), new(263.87f, 44.35f), new(264.5f, 44.24f), new(265f, 43.82f),
     new(265.23f, 43.26f), new(265.17f, 42.62f), new(265.41f, 42.01f), new(266.74f, 40.46f), new(268.39f, 39.27f),
     new(271.07f, 38.83f), new(271.7f, 38.64f), new(272.19f, 38.69f), new(273.58f, 38.99f), new(274.15f, 38.82f),
-    new(274.64f, 38.35f), new(275.26f, 38.14f)])]);
+    new(274.64f, 38.35f), new(275.26f, 38.14f)]),
+    // 東側與東南側：碰撞資料可走、實際有人站的地板，往內縮 0.75 碼（不貼齊邊緣）
+    new PolygonCustom([
+    new(280.38f, 73.00f), new(278.38f, 71.75f), new(276.88f, 72.00f), new(276.12f, 71.25f), new(275.62f, 71.75f),
+    new(274.88f, 71.75f), new(274.38f, 71.25f), new(272.38f, 71.75f), new(272.00f, 71.38f), new(272.25f, 70.62f),
+    new(271.38f, 69.75f), new(270.00f, 71.12f), new(270.12f, 47.00f), new(286.75f, 47.12f), new(286.25f, 47.88f),
+    new(286.50f, 48.38f), new(286.00f, 48.88f), new(286.00f, 50.88f), new(287.50f, 52.12f), new(287.50f, 52.88f),
+    new(289.00f, 54.88f), new(288.75f, 56.62f), new(289.62f, 57.50f), new(290.50f, 56.88f), new(289.50f, 58.12f),
+    new(289.12f, 59.50f), new(288.38f, 59.50f), new(287.62f, 58.75f), new(286.75f, 59.62f), new(288.38f, 61.75f),
+    new(289.00f, 61.38f), new(288.75f, 62.62f), new(288.12f, 62.50f), new(287.25f, 63.38f), new(288.50f, 64.62f),
+    new(289.00f, 66.12f), new(285.88f, 70.00f), new(284.62f, 69.50f), new(283.88f, 70.00f), new(283.50f, 69.62f),
+    new(283.50f, 68.62f), new(282.25f, 67.12f), new(282.75f, 66.38f), new(282.50f, 65.88f), new(281.38f, 64.75f),
+    new(280.38f, 65.00f), new(279.50f, 65.88f), new(280.75f, 66.88f), new(280.00f, 67.88f), new(281.75f, 69.38f),
+    new(281.25f, 70.38f), new(281.75f, 71.12f)])]);
     public Actor? DrakeMother;
     public Actor? DrakeBrother;
     public Actor? DrakeSister;
