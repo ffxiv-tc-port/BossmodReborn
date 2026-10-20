@@ -8947,5 +8947,8 @@
   },
   "After one of Yojimbo's attack telegraphs appears, the AI waits this many seconds before treating it as a danger zone and dodging. The radar still shows the telegraph immediately.\nIf a telegraph is too short to wait the full time and still get out, the wait is shortened automatically so the AI always leaves in time.\nOnly affects the G.A.T.E. \"The Slice Is Right\".": {
     "message": "保鑣的攻擊預告出現後，AI 要等這麼多秒才把它當成危險區開始閃避；雷達上照樣立刻畫出預告。\n預告太短、等滿就來不及跑出去時，會自動縮短等待，確保 AI 一定來得及離開。\n只在 G.A.T.E.「必中一閃快刀斬魔」生效。"
+  },
+  "Cups: BMR can't tell which cup hides Daigoro, so pick one yourself; the AI won't choose for you. Daigoro's cone is shown only when the cups open.": {
+    "message": "三個盅：BMR 判斷不了大五郎在哪個盅，請自己選；AI 不會幫你選。開盅時才會畫出大五郎的扇形。"
   }
 }

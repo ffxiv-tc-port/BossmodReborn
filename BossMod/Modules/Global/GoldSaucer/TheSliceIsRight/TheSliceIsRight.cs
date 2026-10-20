@@ -190,6 +190,177 @@ sealed class DaigoroGilJump(BossModule module) : Components.SimpleChargeAOEGroup
     }
 }
 
+// 開盅時大五郎對盅前方放的扇形（15＋大五郎半徑 2.5）。讀條一開始就交給 AI，不吃「開始閃避前等待」：那個設定只管斬擊類。
+sealed class DaigoroBadCup(BossModule module) : Components.SimpleAOEs(module, (uint)AID.BadCup, new AOEShapeCone(BadCupRange, BadCupHalfAngle))
+{
+    public const float BadCupRange = 17.5f;
+    public static readonly Angle BadCupHalfAngle = 60f.Degrees();
+}
+
+/// <summary>三個盅階段：讓「不知道大五郎在哪個盅」在畫面上看得見，並寫 Information 診斷；危險區只有 <see cref="DaigoroBadCup"/>。</summary>
+sealed class CupGame(BossModule module) : BossComponent(module)
+{
+    // 刻意不預測大五郎在哪個盅、也不替 AI 選盅：沒有重播能證明大五郎的位置或盅的動畫對得上開盅結果，
+    // 猜錯＝AI 主動站進出局位置。判斷不了時只畫開盅讀條那一刻已確定的扇形；下面的診斷是為了日後用實機 log 定案。
+    private const ushort YellFirst = 9291, YellLast = 9297; // 「來試一試運氣」～倒數「三！」
+    private const double TimeoutSeconds = 60d, MoveLogSeconds = 0.5d;
+    private const float MoveLogDistance = 1f;
+    private static readonly uint[] _tracked = [(uint)OID.Daigoro, (uint)OID.HelperCupPhase1, (uint)OID.HelperCupPhase2, (uint)OID.HelperCupPhase3, (uint)OID.Pileofgold];
+    private static readonly uint[] _cups = [(uint)OID.HelperCupPhase1, (uint)OID.HelperCupPhase2, (uint)OID.HelperCupPhase3];
+    private readonly Dictionary<ulong, WPos> _lastLogged = [];
+    private DateTime _start, _nextMoveLog;
+    private bool _revealing;
+
+    public bool Active => _start != default;
+
+    private static bool IsTracked(uint oid) => Array.IndexOf(_tracked, oid) >= 0;
+
+    private static void Log(string msg) => Service.Logger.Information($"[SliceIsRight] 盅：{msg}");
+
+    private static string Describe(Actor a) => $"{a.OID:X}#{a.InstanceID & 0xFFFF:X}@({a.Position.X:f2},{a.Position.Z:f2}) 朝{a.Rotation.Deg:f0} 顯示={a.Renderflags == 0}";
+
+    private string Snapshot()
+    {
+        var sb = new StringBuilder();
+        foreach (var oid in _tracked)
+            foreach (var a in Module.Enemies(oid))
+                sb.Append(Describe(a)).Append("; ");
+        if (Module.Raid.Player() is { } p)
+            sb.Append($"玩家@({p.Position.X:f2},{p.Position.Z:f2})");
+        return sb.ToString();
+    }
+
+    private void Begin(string why)
+    {
+        if (Active)
+            return;
+        _start = WorldState.CurrentTime;
+        _nextMoveLog = default;
+        _lastLogged.Clear();
+        Log($"階段開始（{why}）；{Snapshot()}");
+    }
+
+    private void End(string why)
+    {
+        if (!Active)
+            return;
+        Log($"階段結束（{why}，經過 {(WorldState.CurrentTime - _start).TotalSeconds:f1} 秒）；{Snapshot()}");
+        _start = default;
+        _revealing = false;
+    }
+
+    public override void Update()
+    {
+        if (!Active)
+            return;
+        var now = WorldState.CurrentTime;
+        if ((now - _start).TotalSeconds > TimeoutSeconds)
+        {
+            End("逾時");
+            return;
+        }
+        if (now < _nextMoveLog)
+            return;
+        _nextMoveLog = now.AddSeconds(MoveLogSeconds);
+        foreach (var oid in _tracked)
+        {
+            foreach (var a in Module.Enemies(oid))
+            {
+                var pos = a.Position;
+                if (_lastLogged.TryGetValue(a.InstanceID, out var last) && (pos - last).LengthSq() < MoveLogDistance * MoveLogDistance)
+                    continue;
+                _lastLogged[a.InstanceID] = pos;
+                Log($"位置 +{(now - _start).TotalSeconds:f1}s {Describe(a)}");
+            }
+        }
+    }
+
+    public override void AddGlobalHints(GlobalHints hints)
+    {
+        if (Active && !_revealing)
+            hints.Add(Loc.T("Cups: BMR can't tell which cup hides Daigoro, so pick one yourself; the AI won't choose for you. Daigoro's cone is shown only when the cups open."));
+    }
+
+    public override void OnActorNpcYell(Actor actor, ushort id)
+    {
+        if (id is >= YellFirst and <= YellLast)
+        {
+            Begin($"台詞 {id}");
+            Log($"台詞 {id} +{(WorldState.CurrentTime - _start).TotalSeconds:f1}s；{Snapshot()}");
+        }
+    }
+
+    public override void OnActorCreated(Actor actor)
+    {
+        if (!IsTracked(actor.OID))
+            return;
+        if (Array.IndexOf(_cups, actor.OID) >= 0)
+            Begin($"盅物件 {actor.OID:X} 出現");
+        Log($"出現 {Describe(actor)}");
+    }
+
+    public override void OnActorDestroyed(Actor actor)
+    {
+        if (IsTracked(actor.OID))
+            Log($"消失 {Describe(actor)}");
+    }
+
+    public override void OnActorEAnim(Actor actor, uint state)
+    {
+        if (IsTracked(actor.OID))
+            Log($"動畫 0x{state:X8} {Describe(actor)}");
+    }
+
+    public override void OnActorRenderflags(Actor actor, int renderflags)
+    {
+        if (Active && IsTracked(actor.OID))
+            Log($"顯示旗標 {renderflags} {Describe(actor)}");
+    }
+
+    public override void OnActorPlayActionTimelineEvent(Actor actor, ushort id)
+    {
+        if (Active && IsTracked(actor.OID))
+            Log($"動作時間軸 {id} {Describe(actor)}");
+    }
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.Action.ID != (uint)AID.BadCup)
+            return;
+        Begin("開盅讀條");
+        _revealing = true;
+        Actor? nearest = null;
+        var best = float.MaxValue;
+        foreach (var oid in _cups)
+        {
+            foreach (var c in Module.Enemies(oid))
+            {
+                var d = (c.Position - caster.Position).LengthSq();
+                if (d < best)
+                {
+                    best = d;
+                    nearest = c;
+                }
+            }
+        }
+        var inCone = Module.Raid.Player() is { } p && p.Position.InCircle(caster.Position, DaigoroBadCup.BadCupRange) && p.Position.InCone(caster.Position, spell.Rotation, DaigoroBadCup.BadCupHalfAngle);
+        var near = nearest != null ? $"{Describe(nearest)} 距 {MathF.Sqrt(best):f2}" : "無";
+        Log($"開盅讀條 {Describe(caster)} 扇形朝{spell.Rotation.Deg:f0}；最近的盅物件 {near}；玩家在扇形內={inCone}；{Snapshot()}");
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if (spell.Action.ID != (uint)AID.BadCup)
+            return;
+        var playerId = Module.Raid.Player()?.InstanceID ?? 0;
+        var hit = false;
+        foreach (var t in spell.Targets)
+            hit |= t.ID == playerId;
+        Log($"開盅命中 {spell.Targets.Count} 人，玩家被命中={hit}");
+        End("開盅結束");
+    }
+}
+
 sealed class TheSliceIsRightStates : StateMachineBuilder
 {
     public TheSliceIsRightStates(BossModule module) : base(module)
@@ -197,6 +368,8 @@ sealed class TheSliceIsRightStates : StateMachineBuilder
         TrivialPhase()
             .ActivateOnEnter<BambooSplits>()
             .ActivateOnEnter<DaigoroGilJump>()
+            .ActivateOnEnter<DaigoroBadCup>()
+            .ActivateOnEnter<CupGame>()
             .Raw.Update = () => module.PrimaryActor.IsDeadOrDestroyed || module.Raid.Player() is { } p && !TheSliceIsRight.StillParticipating(p.Position);
     }
 }
