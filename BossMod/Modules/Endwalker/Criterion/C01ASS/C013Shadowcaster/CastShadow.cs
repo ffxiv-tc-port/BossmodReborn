@@ -7,10 +7,10 @@ sealed class CastShadow(BossModule module) : Components.GenericAOEs(module)
 
     public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor)
     {
-        var count = AOEs.Count;
-        if (count == 0)
+        var remaining = AOEs.Count - NumCasts;
+        if (remaining <= 0)
             return [];
-        var max = count > 6 ? 6 : count;
+        var max = remaining > 6 ? 6 : remaining;
         return CollectionsMarshal.AsSpan(AOEs).Slice(NumCasts, max);
     }
 
