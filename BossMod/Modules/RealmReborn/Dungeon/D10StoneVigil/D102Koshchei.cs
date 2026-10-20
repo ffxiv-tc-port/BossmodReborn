@@ -20,9 +20,14 @@ public enum AID : uint
 class SpikedTail(BossModule module) : Components.SingleTargetCast(module, (uint)AID.SpikedTail);
 class SonicStorm(BossModule module) : Components.SimpleAOEs(module, (uint)AID.SonicStorm, 6f);
 
+// 每道龍捲從 X=57 動身後共炸 17 次：每次往西 1.745 碼炸到 30.8，最後兩次停在西牆 X=30.4。
+// 旋風本體在最後一發之前就倒下，所以線不跟著本體收，炸滿 17 次才收。
 class Typhoon(BossModule module) : Components.Exaflare(module, 3f)
 {
+    private const float WestWallX = 30.4f;
+    private const int MovingExplosions = 17;
     private readonly List<Actor> _maelstroms = module.Enemies((uint)OID.MaelstromVisual);
+    private readonly Dictionary<ulong, Line> _lineOf = [];
 
     public override void Update()
     {
@@ -32,11 +37,18 @@ class Typhoon(BossModule module) : Components.Exaflare(module, 3f)
         for (var i = 0; i < count; ++i)
         {
             var m = _maelstroms[i];
-            var line = FindLine(m.Position.Z);
-            if (m.IsDead && line != null)
+            if (!_lineOf.TryGetValue(m.InstanceID, out var line))
+            {
+                if (!m.IsDead)
+                {
+                    line = new(m.Position, new(-1.745f, default), default, 0.6d, 4, 4);
+                    Lines.Add(line);
+                    _lineOf[m.InstanceID] = line;
+                }
+            }
+            // 還沒動身就倒下（首領先倒），或倒下後超過一秒沒再炸：收掉，不留殘影
+            else if (m.IsDead && (line.MaxShownExplosions <= 4 || WorldState.CurrentTime > line.NextExplosion.AddSeconds(1d)))
                 Lines.Remove(line);
-            else if (!m.IsDead && line == null)
-                Lines.Add(new(m.Position, new(-1.745f, default), default, 0.6d, 4, 4));
         }
     }
 
@@ -55,9 +67,13 @@ class Typhoon(BossModule module) : Components.Exaflare(module, 3f)
             {
                 // first move
                 line.MaxShownExplosions = 10;
-                line.ExplosionsLeft = 15;
+                line.ExplosionsLeft = MovingExplosions;
             }
             AdvanceLine(line, caster.Position);
+            if (line.Next.X < WestWallX)
+                line.Next = new(WestWallX, line.Next.Z);
+            if (line.ExplosionsLeft <= 0)
+                Lines.Remove(line);
         }
     }
 
