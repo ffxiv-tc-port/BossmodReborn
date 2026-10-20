@@ -3523,6 +3523,12 @@ public abstract partial class AutoClear : ZoneModule
     /// </remarks>
     private const double CoordGateHoldSeconds = 2d;
 
+    /// <summary>上一次重設閘門（換層／載入版面）的時間；<see cref="RoomCoordGateNoise.IsSettling"/> 從這裡起算。</summary>
+    private DateTime _coordGateSince;
+
+    /// <summary>上一行狀態記錄是不是邊界翻轉那類（記在 Debug）；為真時回到通過那行也記 Debug。</summary>
+    private bool _coordGateLoggedQuiet;
+
     private void ResetCoordGate()
     {
         _faceA = _faceB = null;
@@ -3531,8 +3537,10 @@ public abstract partial class AutoClear : ZoneModule
         _faceSwitchRoom = -1;
         _coordGateLoggedState = null;
         _coordGateLoggedReason = RoomCoordUnknownReason.None;
+        _coordGateLoggedQuiet = false;
         _coordGateEverOk = false;
         _coordGateOkAt = default;
+        _coordGateSince = World.CurrentTime;
         RoomTolerance = RoomCenterToleranceFloor;
         Array.Clear(_centerFitted);
         // 記憶化的結果是針對上一份版面算的，換層／換面時一律作廢
@@ -3723,6 +3731,13 @@ public abstract partial class AutoClear : ZoneModule
                 state = RoomCoordState.Ok;
         }
 
+        // 剛進樓層、人還在傳送落點：不評估也不記錄。讀取端都只認 Ok，回 Unknown 只少了小地圖那行「對不上」說明。
+        if (state == RoomCoordState.Mismatch && RoomCoordGateNoise.IsSettling(_coordGateEverOk, (World.CurrentTime - _coordGateSince).TotalSeconds))
+        {
+            distance = -1f;
+            return RoomCoordState.Unknown;
+        }
+
         // 🔴 診斷是「狀態變化才記一行」而不是「一層記一次」。
         //    一層記一次記到的必然是樓層載入後的**第一幀**，而那一幀角色還在傳送中——
         //    量到的是一個與回報房號無關的固定位置，
@@ -3735,6 +3750,8 @@ public abstract partial class AutoClear : ZoneModule
 
             var face = FaceName();
             // 要使用者回報的診斷：台服座標對不對要靠它才查得出來。
+            var wasQuiet = _coordGateLoggedQuiet;
+            _coordGateLoggedQuiet = false;
             if (state == RoomCoordState.Unknown)
             {
                 // Unknown 時 ScoreFace 沒有交出任何數字，所以另外補算「本人其實離哪一間最近」。
@@ -3754,11 +3771,20 @@ public abstract partial class AutoClear : ZoneModule
             {
                 var heldNote = state == RoomCoordState.Mismatch && _coordGateEverOk
                     ? $"、已遲滯 {heldFor:f1}s 仍未回到通過" : "";
-                Service.Logger.Information(
+                // 過房間邊界的翻轉（與它之後回到通過那行）記 Debug；其餘照舊 Information。
+                var quiet = state == RoomCoordState.Mismatch
+                    ? RoomCoordGateNoise.IsBoundaryFlip(_coordGateEverOk, rawDistance, RoomTolerance)
+                    : wasQuiet;
+                _coordGateLoggedQuiet = quiet && state == RoomCoordState.Mismatch;
+                var msg =
                     $"[DD] 房間座標校驗{(state == RoomCoordState.Ok ? "通過" : "不通過")}：樓層 {Palace.Floor}、" +
                     $"Progress.Tileset {Palace.Progress.Tileset}、實際採用版面 {face}、" +
                     $"遊戲回報房號 {rawRoom}、本人 ({pos.X:f1}, {pos.Z:f1})、與該房中心距離 {rawDistance:f1}y、" +
-                    $"最近的房間是 {nearest}、容許誤差 {RoomTolerance:f1}y{heldNote}");
+                    $"最近的房間是 {nearest}、容許誤差 {RoomTolerance:f1}y{heldNote}";
+                if (quiet)
+                    Service.Logger.Debug(msg);
+                else
+                    Service.Logger.Information(msg);
             }
         }
 
