@@ -17,6 +17,10 @@ sealed class AIController(WorldState ws, ActionManagerEx amex, MovementOverride 
     private readonly ActionManagerEx _amex = amex;
     private readonly MovementOverride _movement = movement;
 
+    /// <summary>診斷用、只在主執行緒呼叫：下游會擋住自動移動的各道閘門此刻的狀態。</summary>
+    public (bool Paused, bool UserMove, bool Moving, bool Blocked, bool VnavPath, bool CastGuard) MoveGates()
+        => (_movement.AutoMovementPaused, _movement.IsMoveRequested(), _movement.IsMoving(), _movement.MovementBlocked, _movement.YieldingToFollowPath, _amex.MoveMightInterruptCast);
+
     public bool IsVerticalAllowed => Service.Condition[ConditionFlag.InFlight];
     public Angle CameraFacing => (Camera.Instance?.CameraAzimuth ?? 0).Radians() + 180.Degrees();
     public Angle CameraAltitude => (Camera.Instance?.CameraAltitude ?? 0).Radians();

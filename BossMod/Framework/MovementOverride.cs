@@ -82,9 +82,9 @@ public sealed unsafe class MovementOverride : IDisposable
     /// </summary>
     /// <remarks>
     /// 由 <c>Plugin.DrawUI</c> 每幀呼叫一次，是 <see cref="AutoMovementPaused"/> 唯一的寫入點。
-    /// 📌 log 走 <c>Verbose</c>：用途是讓「我按著 Alt 它怎麼還在自己走」這種回報分辨「鍵根本沒被認到」
+    /// 📌 log 走 <c>Debug</c>：用途是讓「我按著 Alt 它怎麼還在自己走」與「該閃卻站著不動」這種回報分辨「鍵根本沒被認到」
     /// 與「認到了但走的人不是 BMR」（例如 vnavmesh 在走）；這顆鍵常兼任別的熱鍵，平時不該佔一般 log。
-    /// 只在翻轉時印——這支每幀都會被呼叫到。
+    /// 只在翻轉時印——這支每幀都會被呼叫到。放開那一行附按住的秒數。
     /// </remarks>
     public void UpdateAutoMovementPause()
     {
@@ -95,13 +95,16 @@ public sealed unsafe class MovementOverride : IDisposable
         _loggedAutoMovementPaused = AutoMovementPaused;
         if (AutoMovementPaused)
         {
+            _autoMovementPausedSinceMs = Environment.TickCount64;
             // 長說明只印第一次；翻轉本身仍然每次都印，那才是要保留的訊號。
-            Service.Logger.Verbose(_explainedAutoMovementPause ? $"[MovementOverride] 暫停自動移動:啟動（{key}）" : $"[MovementOverride] 暫停自動移動:啟動（{key}）——這段期間 BMR 完全不注入移動輸入(走路與飛行都是),操作權整個交回使用者;出招、閃避提示、方位提示與減傷照常。");
+            Service.Logger.Debug(_explainedAutoMovementPause ? $"[MovementOverride] 暫停自動移動:啟動（{key}）" : $"[MovementOverride] 暫停自動移動:啟動（{key}）——這段期間 BMR 完全不注入移動輸入(走路與飛行都是),操作權整個交回使用者;出招、閃避提示、方位提示與減傷照常。");
             _explainedAutoMovementPause = true;
         }
         else
-            Service.Logger.Verbose("[MovementOverride] 暫停自動移動:放開——自動移動當幀恢復。");
+            Service.Logger.Debug($"[MovementOverride] 暫停自動移動:放開（按住 {(Environment.TickCount64 - _autoMovementPausedSinceMs) / 1000d:f1} 秒）——自動移動當幀恢復。");
     }
+
+    private long _autoMovementPausedSinceMs;
 
     public bool MovementBlocked
     {
@@ -303,6 +306,9 @@ public sealed unsafe class MovementOverride : IDisposable
 
     /// <summary>目前是不是已經回報過「因為 vnavmesh 而讓路」。</summary>
     private bool _yieldingToFollowPath;
+
+    /// <summary>診斷用：BMR 想自動走、但因為 vnavmesh 回報路徑執行中而讓路（與上面那支 log 同一個狀態）。</summary>
+    public bool YieldingToFollowPath => _yieldingToFollowPath;
 
     /// <summary>
     /// 把「BMR 想自動走位，但因為 vnavmesh 回報路徑執行中而整段讓路」這件事講出來。

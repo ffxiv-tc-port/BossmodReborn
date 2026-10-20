@@ -46,6 +46,8 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         public DeepDungeonState.DungeonType DungeonId;
         public ArenaBounds Bounds;
         public WPos Center;
+        // 下游移動閘門與外部指定的移動方向，只給 LogStillInDanger 診斷用
+        public bool AutoMovePaused, UserMoveRequested, Moving, MovementBlocked, VnavPath, MoveMightInterruptCast, ExternalForcedMovement;
     }
 
     /// <summary>尋路用的 Context（背景執行緒寫；外部只准讀它的 <c>TryGetLookaheadDeadline</c>／<c>TryGetPathDeadline</c>）。</summary>
@@ -219,6 +221,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         _exHadNavi = hadNavi;
         _exLaunched = false;
         var followActor = target.Target?.Actor ?? master;
+        var gates = ctrl.MoveGates();
         _ex = new()
         {
             Now = WorldState.CurrentTime,
@@ -233,6 +236,13 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             DungeonId = autorot.WorldState.DeepDungeon.DungeonId,
             Bounds = autorot.Hints.PathfindMapBounds,
             Center = autorot.Hints.PathfindMapCenter,
+            AutoMovePaused = gates.Paused,
+            UserMoveRequested = gates.UserMove,
+            Moving = gates.Moving,
+            MovementBlocked = gates.Blocked,
+            VnavPath = gates.VnavPath,
+            MoveMightInterruptCast = gates.CastGuard,
+            ExternalForcedMovement = autorot.Hints.ForcedMovement != null,
         };
 
         // note: if there are pending knockbacks, don't update navigation decision to avoid fucking up positioning
@@ -844,6 +854,70 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         || (navi.DiagGoalsRasterized && navi.DiagMaxPriority <= 0f)
         || navi.DiagMaxPriority > navi.DiagPlayerPriority + 1e-4f;
 
+    private DateTime _stillInDangerSince, _stillInDangerLogged;
+
+    /// <summary>
+    /// 腳下危險區 1.5 秒內生效、尋路有目的地，角色卻沒在動：每秒最多一行，列出這一幀擋住移動的全部原因。
+    /// </summary>
+    /// <remarks>
+    /// 只讀，不改任何移動決策。玩家格危險度＝生效秒數扣掉 ActivationTimeCushion（0＝已在緩衝內）。
+    /// 要連續 0.5 秒才記：危險區剛出現那一刻，角色下一幀才起步，不算。
+    /// 契約：只從 UpdateMovement 呼叫（Execute 後半段，號誌區段內），讀的遊戲狀態都來自 _ex 快照。
+    /// </remarks>
+    private void LogStillInDanger(bool yieldMovement, string? branchReason, bool mustMoveNow)
+    {
+        ref readonly var navi = ref _naviDecision;
+        var g = navi.DiagPlayerMaxG;
+        var cushion = _naviActivationCushion;
+        var imminent = navi.Destination != null && navi.DiagPlayerInWindow && !_ex.Moving && g >= 0f && (g == 0f || g + cushion <= 1.5f);
+        if (!imminent)
+        {
+            _stillInDangerSince = default;
+            return;
+        }
+        if (_stillInDangerSince == default)
+            _stillInDangerSince = _ex.Now;
+        var still = (_ex.Now - _stillInDangerSince).TotalSeconds;
+        if (still < 0.5d || (_ex.Now - _stillInDangerLogged).TotalSeconds < 1d)
+            return;
+        _stillInDangerLogged = _ex.Now;
+
+        var reasons = new List<string>(4);
+        if (branchReason != null)
+            reasons.Add(branchReason);
+        if (yieldMovement)
+            reasons.Add("讓位給預設集的「自動移動」模組（本 AI 不設導航目標）");
+        var target = ctrl.NaviTargetPos;
+        if (target == null && !yieldMovement && branchReason == null)
+        {
+            if (_ex.Now < _navStartTime)
+                reasons.Add($"MoveDelay：目的地出現後先等 {_config.MoveDelay:f1} 秒（還剩 {(_navStartTime - _ex.Now).TotalSeconds:f1} 秒）");
+            if (!mustMoveNow)
+                reasons.Add($"MovementUrgencyThreshold＝{_config.MovementUrgencyThreshold:f1} 秒：尋路餘裕 {ForceMovementIn:f1} 秒仍大於門檻，判定還不急");
+        }
+        if (target != null)
+        {
+            if (_ex.AutoMovePaused)
+                reasons.Add("「暫停自動移動」鍵按著");
+            if (_ex.VnavPath)
+                reasons.Add("vnavmesh 回報路徑執行中，BMR 讓路");
+            if (_ex.MovementBlocked)
+                reasons.Add("移動被出招鎖住（MovementBlocked）");
+            if (_ex.UserMoveRequested)
+                reasons.Add("使用者有移動輸入，AI 讓位");
+            if (!ctrl.AllowInterruptingCastByMovement && _ex.MoveMightInterruptCast)
+                reasons.Add($"保護詠唱：移動可能打斷詠唱（詠唱剩 {_ex.PlayerCastRemaining ?? 0f:f1} 秒、尋路餘裕 {navi.LeewaySeconds:f1} 秒）");
+            if (!yieldMovement && _ex.ExternalForcedMovement)
+                reasons.Add("其他來源已指定移動方向（Hints.ForcedMovement），AI 的導航目標不被採用");
+            if ((target.Value - _ex.PlayerPosition).LengthSq() <= 0.001f)
+                reasons.Add("導航目標就在腳下");
+        }
+        if (reasons.Count == 0)
+            reasons.Add("找不到擋住的閘門（導航目標已交給控制器；可能是遊戲本身此刻不收移動輸入，例如被束縛或動作鎖定）");
+        var dist = (navi.Destination!.Value - _ex.PlayerPosition).Length();
+        Service.Logger.Information($"[AI] 腳下危險區即將生效（玩家格危險度 {g:f2} 秒＋緩衝 {cushion:f1} 秒）、尋路目的地在 {dist:f1} 碼外，角色卻已 {still:f1} 秒沒動：{string.Join("；", reasons)}");
+    }
+
     #endregion
 
     private void UpdateMovement(Actor player, Actor master, Targeting target, bool gazeOrPyreticImminent, Angle misdirectionAngle, ActionQueue? queueForSprint)
@@ -864,6 +938,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             ctrl.NaviTargetPos = null;
             ctrl.NaviTargetVertical = null;
             ctrl.ForceCancelCast = true;
+            LogStillInDanger(yieldMovement, "凝視／Pyretic 迫近：AI 刻意停步", true);
         }
         else if (misdirectionAngle != default && _naviDecision.Destination is WPos destination)
         {
@@ -882,6 +957,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             if (allowMovement)
                 allowMovement = CalculateUnobstructedPathLength(forceddir) >= Math.Min(3f, distSq);
             ctrl.NaviTargetPos = !yieldMovement && allowMovement && distSq >= 0.01f ? destination : null;
+            LogStillInDanger(yieldMovement, !yieldMovement && ctrl.NaviTargetPos == null ? "迷惑中：強制移動方向與目的地方向差超過 45 度、前方被擋、或目的地就在腳下" : null, true);
 
             float CalculateUnobstructedPathLength(Angle dir)
             {
@@ -939,6 +1015,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             ctrl.NaviTargetVertical = master != player ? _ex.MasterY : null;
             ctrl.AllowInterruptingCastByMovement = _ex.PlayerCastRemaining is float castRemaining && _naviDecision.LeewaySeconds <= castRemaining - 0.5d;
             ctrl.ForceCancelCast = false;
+            LogStillInDanger(yieldMovement, null, mustMoveNow);
 
             //var cameraFacing = _ctrl.CameraFacing;
             //var dot = cameraFacing.Dot(_ctrl.TargetRot.Value);
