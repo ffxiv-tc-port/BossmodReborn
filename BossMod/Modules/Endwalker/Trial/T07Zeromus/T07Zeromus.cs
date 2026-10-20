@@ -14,6 +14,37 @@ class DarkDivides(BossModule module) : Components.SpreadFromIcon(module, (uint)I
 class MeteorImpactProximity(BossModule module) : Components.SimpleAOEs(module, (uint)AID.MeteorImpactProximity, 10f);
 class MeteorImpactExplosion(BossModule module) : Components.SimpleAOEs(module, (uint)AID.MeteorImpactExplosion, 10f);
 
+// 彗星在場中央，連線後約 11.9 秒全員被束縛、隨即衝向各自的連線對象；離彗星不夠遠＝一下致死。
+// 剪到其他彗星的兩種線（252／254）只當成近／遠處理，不躲其他彗星（後果沒有實測）。
+sealed class MeteorImpactCharge(BossModule module) : Components.StretchTetherDuo(module, 19f, 12d, (uint)TetherID.VoidMeteorCloseGood,
+    (uint)TetherID.VoidMeteorStretchedGood, aid: (uint)AID.MeteorImpactCharge, enemyOID: (uint)OID.Comet)
+{
+    private static ActorTetherInfo Normalize(ActorTetherInfo tether) => tether.ID switch
+    {
+        (uint)TetherID.VoidMeteorCloseClipping => tether with { ID = (uint)TetherID.VoidMeteorCloseGood },
+        (uint)TetherID.VoidMeteorStretchedClipping => tether with { ID = (uint)TetherID.VoidMeteorStretchedGood },
+        _ => tether
+    };
+
+    public override void OnTethered(Actor source, ActorTetherInfo tether) => base.OnTethered(source, Normalize(tether));
+    public override void OnUntethered(Actor source, ActorTetherInfo tether) => base.OnUntethered(source, Normalize(tether));
+
+    // 衝撞後不保證有解除連線，打到誰就收掉誰的線，否則中央的禁區會一直留著。
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        base.OnEventCast(caster, spell);
+        if (spell.Action.ID != WatchedAction)
+            return;
+        var targets = spell.Targets;
+        for (var i = 0; i < targets.Count; ++i)
+        {
+            var id = targets[i].ID;
+            CurrentBaits.RemoveAll(b => b.Target.InstanceID == id);
+            TetherOnActor.RemoveAll(t => t.Item1.InstanceID == id);
+        }
+    }
+}
+
 class FlareTower(BossModule module) : Components.CastTowers(module, (uint)AID.FlareAOE, 5f, 1, 8);
 class FlareKill(BossModule module) : Components.SimpleAOEs(module, (uint)AID.FlareKill, 5f);
 class ProminenceSpine(BossModule module) : Components.SimpleAOEs(module, (uint)AID.ProminenceSpine, new AOEShapeRect(60f, 5f));
@@ -47,6 +78,7 @@ class T07ZeromusStates : StateMachineBuilder
             .ActivateOnEnter<DarkDivides>()
             .ActivateOnEnter<MeteorImpactProximity>()
             .ActivateOnEnter<MeteorImpactExplosion>()
+            .ActivateOnEnter<MeteorImpactCharge>()
             .ActivateOnEnter<FlareTower>()
             .ActivateOnEnter<FlareScald>()
             .ActivateOnEnter<FlareKill>()

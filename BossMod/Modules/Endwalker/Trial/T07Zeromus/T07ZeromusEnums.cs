@@ -52,7 +52,7 @@ public enum AID : uint
     VoidMeteor = 35596, // Boss->self, 4.8s cast, single-target；不處理：首領本體的演出
     MeteorImpactProximity = 35601, // Comet->self, 6.0s cast, range 40 circle with falloff
     MeteorImpact = 35595, // Boss->self, 11.0s cast, single-target；不處理：首領本體的演出
-    MeteorImpactCharge = 35597, // Comet->location, no cast, width 4 rect charge；不處理：連線隕石要記每個人的線，沒有讀條可跟
+    MeteorImpactCharge = 35597, // Comet->location, no cast, width 4 rect charge
     MeteorImpactAppear = 36024, // Helper->location, no cast, range 2 circle；不處理：隕石落地的演出
     MeteorImpactExplosion = 36147, // Comet->self, 5.0s cast, range 10 circle
 
@@ -107,6 +107,14 @@ public enum AID : uint
 public enum SID : uint
 {
     AccelerationBomb = 2657, // none->player, extra=0x0
+}
+
+public enum TetherID : uint
+{
+    VoidMeteorCloseClipping = 252, // Comet->player
+    VoidMeteorCloseGood = 253, // Comet->player
+    VoidMeteorStretchedClipping = 254, // Comet->player
+    VoidMeteorStretchedGood = 255, // Comet->player
 }
 
 public enum IconID : uint
