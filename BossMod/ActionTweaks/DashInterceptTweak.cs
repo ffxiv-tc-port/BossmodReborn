@@ -46,12 +46,13 @@
 /// </remarks>
 public sealed class DashInterceptTweak
 {
-    /// <summary>某一幀的唯讀快照。整份物件建好之後不再改，發佈只靠一次欄位指派。</summary>
+    /// <summary>某一幀的唯讀快照。發佈只靠一次欄位指派；建好之後唯一會改的是 <see cref="Now"/>（見該欄說明）。</summary>
     private sealed class FrameSnapshot(
         (Func<WPos, float> Shape, DateTime Activation)[] zones, DateTime now, bool aiActive, bool escapeHatchHeld, float threshold, ArenaBounds? bounds, WPos center)
     {
         public readonly (Func<WPos, float> Shape, DateTime Activation)[] Zones = zones;
-        public readonly DateTime Now = now;
+        // 只在 Zones 為空時由 Update 就地刷新（沿用上一幀快照省掉每幀配置）；此時 Now 只用於 log 節流
+        public DateTime Now = now;
         public readonly bool AIActive = aiActive;
         public readonly bool EscapeHatchHeld = escapeHatchHeld;
         public readonly float Threshold = threshold;
@@ -143,16 +144,30 @@ public sealed class DashInterceptTweak
             return;
         }
 
-        var zones = new (Func<WPos, float> Shape, DateTime Activation)[kept];
+        var aiActive = AI.AIManager.Instance?.Beh != null;
+        var center = hints.PathfindMapCenter;
+        if (kept == 0)
+        {
+            // 只有場地邊界、其餘條件與上一幀相同：沿用舊快照只刷新時間。邊界比參考不比值（record 的值比較可能很貴）
+            var prev = _snapshot;
+            if (prev != null && prev.Zones.Length == 0 && ReferenceEquals(prev.Bounds, bounds) && prev.Center == center
+                && prev.AIActive == aiActive && prev.EscapeHatchHeld == escapeHatchHeld && prev.Threshold == threshold)
+            {
+                prev.Now = now;
+                return;
+            }
+        }
+
+        var zones = kept == 0 ? Array.Empty<(Func<WPos, float> Shape, DateTime Activation)>() : new (Func<WPos, float> Shape, DateTime Activation)[kept];
         var j = 0;
-        for (var i = 0; i < count; ++i)
+        for (var i = 0; i < count && j < kept; ++i)
         {
             var z = src[i];
             if (z.activation <= horizon)
                 zones[j++] = (z.shapeDistance, z.activation);
         }
 
-        _snapshot = new(zones, now, AI.AIManager.Instance?.Beh != null, escapeHatchHeld, threshold, bounds, hints.PathfindMapCenter);
+        _snapshot = new(zones, now, aiActive, escapeHatchHeld, threshold, bounds, center);
     }
 
     /// <summary>
