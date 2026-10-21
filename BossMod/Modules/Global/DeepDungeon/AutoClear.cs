@@ -2213,6 +2213,29 @@ public abstract partial class AutoClear : ZoneModule
             $"最近的一個在 {dist:f1}y 外；可能開出擬態怪）。");
     }
 
+    /// <summary>「魔陶器已滿」訊息當下，玩家中心這個距離內最近、可選取的金寶箱就是剛開的那個（不看是否已記錄或被閘門擋下）。</summary>
+    private const float OpenedCofferMaxDistance = 5f;
+
+    private Actor? JustOpenedGoldCoffer(Actor player)
+    {
+        Actor? best = null;
+        var bestSq = OpenedCofferMaxDistance * OpenedCofferMaxDistance;
+        foreach (var a in World.Actors)
+        {
+            if (a.OID != (uint)OID.GoldCoffer || !a.IsTargetable)
+                continue;
+            var d = (a.Position - player.Position).LengthSq();
+            if (d <= bestSq)
+                (best, bestSq) = (a, d);
+        }
+        return best;
+    }
+
+    private static void LogGoldContentsAttribution(Actor player, PomanderID p, Actor chest, Actor? nearestOpenable)
+        => Service.Logger.Information(
+            $"[DD] 魔陶器「{p}」已滿、放回寶箱：記在身邊剛開的金寶箱上（{(chest.Position - player.Position).Length():f1}y），" +
+            (nearestOpenable == null ? "當下沒有其他可開寶箱。" : $"不是 {player.DistanceToHitbox(nearestOpenable):f1}y 外那個最近的可開寶箱。"));
+
     /// <summary>
     /// 使用者現在有沒有按著「強制趕路」那顆鍵。
     /// </summary>
@@ -2648,24 +2671,24 @@ public abstract partial class AutoClear : ZoneModule
         var attributeTo = coffer;
         if (blockedGold != null && (attributeTo?.DistanceToHitbox(player) ?? float.MaxValue) > blockedGold.DistanceToHitbox(player))
             attributeTo = blockedGold;
-        if (attributeTo != null)
+        // 魔陶器滿額改記在身邊剛開的金寶箱上：重開已記錄的滿額箱時它不在可開清單裡，照上面的規則會記到別的箱子上。
+        if (_lastChestContentsGold is PomanderID p && (JustOpenedGoldCoffer(player) ?? attributeTo) is Actor goldChest)
         {
-            if (_lastChestContentsGold is PomanderID p)
-            {
-                _chestContentsGold[attributeTo.InstanceID] = p;
-                _lastChestContentsGold = null;
-                AddAggroAvoidance(player, hints, null, null, null);
-                return;
-            }
+            if (goldChest != attributeTo)
+                LogGoldContentsAttribution(player, p, goldChest, attributeTo);
+            _chestContentsGold[goldChest.InstanceID] = p;
+            _lastChestContentsGold = null;
+            AddAggroAvoidance(player, hints, null, null, null);
+            return;
+        }
 
-            if (_lastChestMagicite)
-            {
-                // TODO figure out why the system log args arent working
-                _chestContentsSilver[attributeTo.InstanceID] = 1;
-                _lastChestMagicite = false;
-                AddAggroAvoidance(player, hints, null, null, null);
-                return;
-            }
+        if (attributeTo != null && _lastChestMagicite)
+        {
+            // TODO figure out why the system log args arent working
+            _chestContentsSilver[attributeTo.InstanceID] = 1;
+            _lastChestMagicite = false;
+            AddAggroAvoidance(player, hints, null, null, null);
+            return;
         }
 
         // 🔴 這兩條推送**不能每幀重推**（條件成立就每幀 Push 有三個症狀）：
