@@ -2167,6 +2167,52 @@ public abstract partial class AutoClear : ZoneModule
             : $"[DD] {hp}，先不開銅寶箱（最近的一個在 {dist:f1}y 外；寶箱爆炸約扣最大 HP 七成）。");
     }
 
+    private enum GoldBlock : byte { None, Engaged, LowHP }
+
+    /// <summary>金寶箱可能開出擬態怪：戰鬥中 <see cref="GoldEngagedRadius"/>y 內交戰達這個數、或 HP 低於這個百分比就先不走去也不開，寶箱留著等打完。</summary>
+    private const int GoldMaxEngaged = 2;
+    private const float GoldEngagedRadius = 15f;
+    private const float GoldMinHPPercent = 70f;
+
+    private static GoldBlock GoldCofferBlock(bool inCombat, int engaged, uint curHP, uint maxHP)
+        => maxHP == 0 || curHP * 100f < maxHP * GoldMinHPPercent ? GoldBlock.LowHP
+        : inCombat && engaged >= GoldMaxEngaged ? GoldBlock.Engaged
+        : GoldBlock.None;
+
+    /// <summary>玩家周圍 <see cref="GoldEngagedRadius"/>y 內（中心距離）已經打起來的敵人數；判準與目標修正同為 <c>AggroPlayer || InCombat</c>。</summary>
+    private static int CountEngagedNear(Actor player, AIHints hints)
+    {
+        var n = 0;
+        var count = hints.PotentialTargets.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var e = hints.PotentialTargets[i].Actor;
+            if ((e.AggroPlayer || e.InCombat) && !e.IsDeadOrDestroyed && (e.Position - player.Position).LengthSq() <= GoldEngagedRadius * GoldEngagedRadius)
+                ++n;
+        }
+        return n;
+    }
+
+    private GoldBlock _goldLoggedBlock;
+    private ulong _goldLoggedId;
+    private DateTime _goldLoggedAt;
+
+    private void LogGoldBlocked(Actor player, GoldBlock block, int engaged, Actor? coffer)
+    {
+        if (coffer == null)
+            return;
+        var now = World.CurrentTime;
+        var same = block == _goldLoggedBlock && coffer.InstanceID == _goldLoggedId;
+        if ((now - _goldLoggedAt).TotalSeconds < (same ? 30d : 5d))
+            return;
+        (_goldLoggedBlock, _goldLoggedId, _goldLoggedAt) = (block, coffer.InstanceID, now);
+        var dist = player.DistanceToHitbox(coffer);
+        var hp = player.HPMP.MaxHP == 0 ? "HP 讀不到" : $"HP {player.HPMP.CurHP * 100f / player.HPMP.MaxHP:f0}%";
+        Service.Logger.Information(
+            $"[DD] 金寶箱：{(player.InCombat ? "戰鬥中" : "戰鬥外")} {GoldEngagedRadius:f0}y 內交戰 {engaged} 隻、{hp}，先不開（交戰 {GoldMaxEngaged} 隻以上或 HP 低於 {GoldMinHPPercent:f0}% 就等；" +
+            $"最近的一個在 {dist:f1}y 外；可能開出擬態怪）。");
+    }
+
     /// <summary>
     /// 使用者現在有沒有按著「強制趕路」那顆鍵。
     /// </summary>
@@ -2488,6 +2534,9 @@ public abstract partial class AutoClear : ZoneModule
         ulong magiciteChest = 0;
         var bronzeBlock = BronzeCofferBlock(player);
         Actor? blockedBronze = null;
+        var goldEngaged = OpenGold && player.InCombat ? CountEngagedNear(player, hints) : 0;
+        var goldBlock = GoldCofferBlock(player.InCombat, goldEngaged, player.HPMP.CurHP, player.HPMP.MaxHP);
+        Actor? blockedGold = null;
         var silverLowHP = (Config.AutoMoveTreasure || Config.AutoOpenTreasure) && SilverCofferState() == SilverState.LowHP;
 
         foreach (var a in World.Actors)
@@ -2534,10 +2583,12 @@ public abstract partial class AutoClear : ZoneModule
             var isBronze = BronzeChestIDs.Contains(oid);
             if (isBronze && OpenBronze && bronzeBlock != BronzeBlock.None && a.IsTargetable && (blockedBronze?.DistanceToHitbox(player) ?? float.MaxValue) > a.DistanceToHitbox(player))
                 blockedBronze = a;
+            if (oid == (uint)OID.GoldCoffer && OpenGold && goldBlock != GoldBlock.None && a.IsTargetable && (blockedGold?.DistanceToHitbox(player) ?? float.MaxValue) > a.DistanceToHitbox(player))
+                blockedGold = a;
             if (silverLowHP && oid == (uint)OID.SilverCoffer && a.IsTargetable)
                 MarkHPGate(HPGate.Silver, 70);
             if (a.IsTargetable && (
-                oid == (uint)OID.GoldCoffer && OpenGold ||
+                oid == (uint)OID.GoldCoffer && OpenGold && goldBlock == GoldBlock.None ||
                 oid == (uint)OID.SilverCoffer && OpenSilver && player.HPMP.CurHP > player.HPMP.MaxHP * 0.7f ||
                 isBronze && OpenBronze && bronzeBlock == BronzeBlock.None ||
                 // ⚠️ 埋藏的寶藏要有自己的開關：否則銅銀金三個框全關也照樣處理
@@ -2561,6 +2612,7 @@ public abstract partial class AutoClear : ZoneModule
                 revealedTraps.Add((a.Position, 2f));
         }
         LogBronzeBlocked(player, bronzeBlock, blockedBronze);
+        LogGoldBlocked(player, goldBlock, goldEngaged, blockedGold);
         if (bronzeBlock == BronzeBlock.LowHP && blockedBronze != null && (Config.AutoMoveTreasure || Config.AutoOpenTreasure))
             MarkHPGate(HPGate.Bronze, (int)BronzeMinHPPercent);
 
@@ -2592,11 +2644,15 @@ public abstract partial class AutoClear : ZoneModule
                 hints.AddForbiddenZone(_trapUnion.Get(traps));
         }
 
-        if (coffer != null)
+        // 滿額訊息歸給「最近的寶箱」：被閘門擋下的金寶箱也要算進來，否則剛開的那個金寶箱會被記到旁邊別的箱子上。
+        var attributeTo = coffer;
+        if (blockedGold != null && (attributeTo?.DistanceToHitbox(player) ?? float.MaxValue) > blockedGold.DistanceToHitbox(player))
+            attributeTo = blockedGold;
+        if (attributeTo != null)
         {
             if (_lastChestContentsGold is PomanderID p)
             {
-                _chestContentsGold[coffer.InstanceID] = p;
+                _chestContentsGold[attributeTo.InstanceID] = p;
                 _lastChestContentsGold = null;
                 AddAggroAvoidance(player, hints, null, null, null);
                 return;
@@ -2605,7 +2661,7 @@ public abstract partial class AutoClear : ZoneModule
             if (_lastChestMagicite)
             {
                 // TODO figure out why the system log args arent working
-                _chestContentsSilver[coffer.InstanceID] = 1;
+                _chestContentsSilver[attributeTo.InstanceID] = 1;
                 _lastChestMagicite = false;
                 AddAggroAvoidance(player, hints, null, null, null);
                 return;
