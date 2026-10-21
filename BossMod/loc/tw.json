@@ -8974,5 +8974,11 @@
   },
   "DD_PomanderTimedSoloOnly": {
     "message": "只在沒有組隊時生效"
+  },
+  "Melee range indicator: draw it around your current target instead": {
+    "message": "近戰範圍指示：改畫在目前目標身上"
+  },
+  "Off: a band just inside melee range around the first enemy in combat, for every job.\nOn: a ring around the enemy you are targeting, at the farthest distance your melee attacks reach (its hitbox + yours + 3y); shown only on tanks, melee DPS and Red Mage, and nothing is drawn while you have no enemy targeted.\nUses the same colour setting. Needs \"Show melee range indicator\".": {
+    "message": "關：在第一個進入戰鬥的敵人周圍、近戰距離略內側畫一圈帶狀，所有職業都畫。\n開：在你目前選中的敵人周圍畫一圈線，位置是近戰攻擊打得到的最遠處（對方判定圈＋自己判定圈＋3 碼）；只在防護職業、近戰職業與赤魔法師時顯示，沒有選中敵人時不畫。\n顏色沿用同一個設定。需要先勾「顯示近戰範圍指示」。"
   }
 }

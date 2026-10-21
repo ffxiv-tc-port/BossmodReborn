@@ -303,7 +303,9 @@ public abstract class BossModule : IDisposable
         DrawArenaForeground(pcSlot, pc);
         for (var i = 0; i < count; ++i)
             Components[i].DrawArenaForeground(pcSlot, pc);
-        if (WindowConfig.ShowMeleeRangeIndicator)
+        if (WindowConfig.ShowMeleeRangeIndicator && WindowConfig.MeleeRangeIndicatorOnTarget)
+            DrawMeleeRangeOnTarget(Arena, WorldState, pc);
+        else if (WindowConfig.ShowMeleeRangeIndicator)
         {
             foreach (var a in WorldState.Actors)
             {
@@ -456,6 +458,15 @@ public abstract class BossModule : IDisposable
             ImGui.SameLine();
         }
         ImGui.NewLine();
+    }
+
+    // 跟著目前目標畫：半徑＝目標判定圈＋自己判定圈＋3（近戰技能打得到的最遠處），只給坦克、近戰、赤魔。
+    internal static void DrawMeleeRangeOnTarget(MiniArena arena, WorldState ws, Actor pc)
+    {
+        if (pc is not { Role: Role.Melee or Role.Tank } and not { Class: Class.RDM })
+            return;
+        if (ws.Actors.Find(pc.TargetID) is { IsAlly: false } target)
+            arena.AddCircle(target.Position, target.HitboxRadius + pc.HitboxRadius + 3f, Colors.MeleeRangeIndicator);
     }
 
     // 靜態：沒有模組時的通用雷達（GenericTrialRadar）也用同一套畫法

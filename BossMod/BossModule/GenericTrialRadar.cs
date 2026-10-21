@@ -289,7 +289,9 @@ public sealed class GenericTrialRadar
 
         var targets = _hints.PotentialTargets;
         var count = targets.Count;
-        if (_config.ShowMeleeRangeIndicator)
+        if (_config.ShowMeleeRangeIndicator && _config.MeleeRangeIndicatorOnTarget)
+            BossModule.DrawMeleeRangeOnTarget(_arena, _ws, pc);
+        else if (_config.ShowMeleeRangeIndicator)
         {
             for (var i = 0; i < count; ++i)
             {

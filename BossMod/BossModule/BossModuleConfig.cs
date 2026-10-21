@@ -119,6 +119,10 @@ public sealed class BossModuleConfig : ConfigNode
     [PropertyDisplay("Show melee range indicator")]
     public bool ShowMeleeRangeIndicator = false;
 
+    [PropertyDisplay("Melee range indicator: draw it around your current target instead",
+        tooltip: "Off: a band just inside melee range around the first enemy in combat, for every job.\nOn: a ring around the enemy you are targeting, at the farthest distance your melee attacks reach (its hitbox + yours + 3y); shown only on tanks, melee DPS and Red Mage, and nothing is drawn while you have no enemy targeted.\nUses the same colour setting. Needs \"Show melee range indicator\".")]
+    public bool MeleeRangeIndicatorOnTarget = false;
+
     public override void Deserialize(JsonElement j, JsonSerializerOptions ser)
     {
         base.Deserialize(j, ser);
