@@ -215,7 +215,9 @@ sealed class CupGame(BossModule module) : BossComponent(module)
 
     private static bool IsTracked(uint oid) => Array.IndexOf(_tracked, oid) >= 0;
 
+    // Information 只留階段開始／開盅讀條／開盅命中／結束四個快照；逐物件的位置與事件走 Debug（一場最多數百行）。
     private static void Log(string msg) => Service.Logger.Information($"[SliceIsRight] 盅：{msg}");
+    private static void LogDetail(string msg) => Service.Logger.Debug($"[SliceIsRight] 盅：{msg}");
 
     private static string Describe(Actor a) => $"{a.OID:X}#{a.InstanceID & 0xFFFF:X}@({a.Position.X:f2},{a.Position.Z:f2}) 朝{a.Rotation.Deg:f0} 顯示={a.Renderflags == 0}";
 
@@ -270,7 +272,7 @@ sealed class CupGame(BossModule module) : BossComponent(module)
                 if (_lastLogged.TryGetValue(a.InstanceID, out var last) && (pos - last).LengthSq() < MoveLogDistance * MoveLogDistance)
                     continue;
                 _lastLogged[a.InstanceID] = pos;
-                Log($"位置 +{(now - _start).TotalSeconds:f1}s {Describe(a)}");
+                LogDetail($"位置 +{(now - _start).TotalSeconds:f1}s {Describe(a)}");
             }
         }
     }
@@ -286,7 +288,7 @@ sealed class CupGame(BossModule module) : BossComponent(module)
         if (id is >= YellFirst and <= YellLast)
         {
             Begin($"台詞 {id}");
-            Log($"台詞 {id} +{(WorldState.CurrentTime - _start).TotalSeconds:f1}s；{Snapshot()}");
+            LogDetail($"台詞 {id} +{(WorldState.CurrentTime - _start).TotalSeconds:f1}s；{Snapshot()}");
         }
     }
 
@@ -296,31 +298,31 @@ sealed class CupGame(BossModule module) : BossComponent(module)
             return;
         if (Array.IndexOf(_cups, actor.OID) >= 0)
             Begin($"盅物件 {actor.OID:X} 出現");
-        Log($"出現 {Describe(actor)}");
+        LogDetail($"出現 {Describe(actor)}");
     }
 
     public override void OnActorDestroyed(Actor actor)
     {
         if (IsTracked(actor.OID))
-            Log($"消失 {Describe(actor)}");
+            LogDetail($"消失 {Describe(actor)}");
     }
 
     public override void OnActorEAnim(Actor actor, uint state)
     {
         if (IsTracked(actor.OID))
-            Log($"動畫 0x{state:X8} {Describe(actor)}");
+            LogDetail($"動畫 0x{state:X8} {Describe(actor)}");
     }
 
     public override void OnActorRenderflags(Actor actor, int renderflags)
     {
         if (Active && IsTracked(actor.OID))
-            Log($"顯示旗標 {renderflags} {Describe(actor)}");
+            LogDetail($"顯示旗標 {renderflags} {Describe(actor)}");
     }
 
     public override void OnActorPlayActionTimelineEvent(Actor actor, ushort id)
     {
         if (Active && IsTracked(actor.OID))
-            Log($"動作時間軸 {id} {Describe(actor)}");
+            LogDetail($"動作時間軸 {id} {Describe(actor)}");
     }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)

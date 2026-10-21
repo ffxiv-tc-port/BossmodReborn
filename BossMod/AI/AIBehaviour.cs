@@ -174,7 +174,10 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         naviDecision = default;
         ForceMovementIn = float.MaxValue;
         if (player.IsDead)
+        {
+            _stillInDangerSince = default; // 死亡時不走 UpdateMovement：不歸零的話復活後第一幀就跳過 0.5 秒門檻
             return HeadStep.Done;
+        }
 
         // keep master in focus
         if (_config.FocusTargetMaster)
