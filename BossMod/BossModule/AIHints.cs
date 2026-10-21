@@ -359,6 +359,15 @@ public sealed class AIHints
         }
     }
 
+    // PriorityTargets 的長度：它是 PotentialTargets 開頭連續的一段，直接掃不另建清單
+    private int PriorityTargetCount()
+    {
+        var n = 0;
+        while (n < PotentialTargets.Count && PotentialTargets[n].Priority == HighestPotentialTargetPriority)
+            ++n;
+        return n;
+    }
+
     public List<Enemy> ForbiddenTargets
     {
         get
@@ -436,11 +445,11 @@ public sealed class AIHints
     // simple goal zone that returns number of targets in aoes; note that performance is a concern for these functions, and perfection isn't required, so eg they ignore forbidden targets, etc
     public Func<WPos, float> GoalAOECircle(float radius)
     {
-        var count = PriorityTargets.Count;
+        var count = PriorityTargetCount();
         var targets = new (WPos pos, float radius)[count];
         for (var i = 0; i < count; ++i)
         {
-            var e = PriorityTargets[i];
+            var e = PotentialTargets[i];
             targets[i] = (e.Actor.Position, e.Actor.HitboxRadius);
         }
         return p =>
@@ -459,11 +468,11 @@ public sealed class AIHints
 
     public Func<WPos, float> GoalAOECone(Actor primaryTarget, float radius, Angle halfAngle)
     {
-        var count = PriorityTargets.Count;
+        var count = PriorityTargetCount();
         var targets = new (WPos pos, float radius)[count];
         for (var i = 0; i < count; ++i)
         {
-            var e = PriorityTargets[i];
+            var e = PotentialTargets[i];
             targets[i] = (e.Actor.Position, e.Actor.HitboxRadius);
         }
         var aimPoint = primaryTarget.Position;
@@ -490,11 +499,11 @@ public sealed class AIHints
 
     public Func<WPos, float> GoalAOERect(Actor primaryTarget, float lenFront, float halfWidth, float lenBack = default)
     {
-        var count = PriorityTargets.Count;
+        var count = PriorityTargetCount();
         var targets = new (WPos pos, float radius)[count];
         for (var i = 0; i < count; ++i)
         {
-            var e = PriorityTargets[i];
+            var e = PotentialTargets[i];
             targets[i] = (e.Actor.Position, e.Actor.HitboxRadius);
         }
         var aimPoint = primaryTarget.Position;
