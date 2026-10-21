@@ -611,16 +611,16 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
 
         var now = ws.CurrentTime;
         int reason;
-        string detail;
+        Exception? reasonError = null;
         try
         {
-            reason = ActionDefinitions.DescribeDashDanger(geo, player, entry, hints, now, out detail);
+            reason = ActionDefinitions.DashDangerReason(geo, player, entry, hints);
         }
         catch (Exception ex)
         {
             // 跑在 ActionQueue.FindBest 裡：診斷擲例外會讓這一幀整個佇列選不出動作，所以就地吞掉
             reason = -2;
-            detail = $"原因算不出來（{ex.GetType().Name}）";
+            reasonError = ex;
         }
         if (entry.Action != _dashBlockAction || _dashBlockSince == default)
         {
@@ -635,6 +635,22 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
             return;
         }
 
+        string detail;
+        if (reasonError != null)
+        {
+            detail = $"原因算不出來（{reasonError.GetType().Name}）";
+        }
+        else
+        {
+            try
+            {
+                detail = ActionDefinitions.DescribeDashDanger(reason, geo, player, entry, hints, now);
+            }
+            catch (Exception ex)
+            {
+                detail = $"原因算不出來（{ex.GetType().Name}）";
+            }
+        }
         var repeats = _dashBlockSuppressed > 0 ? $"（上一行之後另有 {_dashBlockSuppressed} 幀被擋未印）" : "";
         _dashBlockReason = reason;
         _dashBlockLogTime = now;

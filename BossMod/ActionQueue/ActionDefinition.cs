@@ -477,54 +477,62 @@ public sealed class ActionDefinitions : IDisposable
     /// <summary>
     /// 只給診斷用：重算一次 <see cref="IsDashDangerous"/> 的各條件，說明位移技為什麼被擋。判定仍以 ForbidExecute 為準。
     /// </summary>
-    /// <returns>原因代碼（節流鍵）：1 擊退、2 落點出界、3 穿過不規則邊界、4 落點在危險區、5 落點算不出、0 其他。</returns>
-    public static int DescribeDashDanger(DashGeometryInfo geo, Actor player, ActionQueue.Entry entry, AIHints hints, DateTime now, out string detail)
+    /// <returns>原因代碼（節流鍵）：1 擊退、2 落點出界、3 穿過不規則邊界、4 落點在危險區、5 落點算不出、0 其他。不組任何字串。</returns>
+    public static int DashDangerReason(DashGeometryInfo geo, Actor player, ActionQueue.Entry entry, AIHints hints)
     {
         if (player.PendingKnockbacks.Count > 0)
-        {
-            detail = $"身上有 {player.PendingKnockbacks.Count} 個待生效的擊退，衝出去後會被擊退到哪裡算不準";
             return 1;
-        }
         if (!TryGetDashLanding(geo, player, entry, out var to))
-        {
-            detail = "落點算不出來（沒有目標或座標）";
             return 5;
-        }
 
         var from = player.Position;
         var center = hints.PathfindMapCenter;
         var bounds = hints.PathfindMapBounds;
-        var route = $"起點 ({from.X:f1}, {from.Z:f1}) → 落點 ({to.X:f1}, {to.Z:f1})，長 {(to - from).Length():f1} 碼";
         if (!bounds.Contains(to - center))
-        {
-            detail = $"落點在{DescribeBounds(hints)}外，{route}";
             return 2;
-        }
         if (from != to && PathCrossesCustomBounds(bounds, from - center, to - from))
-        {
-            detail = $"路徑穿過{DescribeBounds(hints)}，{route}";
             return 3;
-        }
 
-        var count = 0;
-        var soonest = DateTime.MaxValue;
-        foreach (var z in hints.ForbiddenZones)
-        {
-            if (z.shapeDistance(to) < 0f)
-            {
-                ++count;
-                if (z.activation < soonest)
-                    soonest = z.activation;
-            }
-        }
-        if (count > 0)
-        {
-            var when = soonest <= now ? "已經生效" : $"最快 {(soonest - now).TotalSeconds:f1} 秒後生效";
-            detail = $"落點在 {count} 個危險區內（{when}），{route}";
-            return 4;
-        }
-        detail = $"落點檢查以外的條件，{route}";
+        var zones = CollectionsMarshal.AsSpan(hints.ForbiddenZones);
+        for (var i = 0; i < zones.Length; ++i)
+            if (zones[i].shapeDistance(to) < 0f)
+                return 4;
         return 0;
+    }
+
+    /// <summary>把 <see cref="DashDangerReason"/> 的原因代碼組成一句說明。只在真的要寫 log 時呼叫（同一幀、同一份 hints）。</summary>
+    public static string DescribeDashDanger(int reason, DashGeometryInfo geo, Actor player, ActionQueue.Entry entry, AIHints hints, DateTime now)
+    {
+        if (reason == 1)
+            return $"身上有 {player.PendingKnockbacks.Count} 個待生效的擊退，衝出去後會被擊退到哪裡算不準";
+        if (reason == 5 || !TryGetDashLanding(geo, player, entry, out var to))
+            return "落點算不出來（沒有目標或座標）";
+
+        var from = player.Position;
+        var route = $"起點 ({from.X:f1}, {from.Z:f1}) → 落點 ({to.X:f1}, {to.Z:f1})，長 {(to - from).Length():f1} 碼";
+        switch (reason)
+        {
+            case 2:
+                return $"落點在{DescribeBounds(hints)}外，{route}";
+            case 3:
+                return $"路徑穿過{DescribeBounds(hints)}，{route}";
+            case 4:
+                var count = 0;
+                var soonest = DateTime.MaxValue;
+                foreach (var z in hints.ForbiddenZones)
+                {
+                    if (z.shapeDistance(to) < 0f)
+                    {
+                        ++count;
+                        if (z.activation < soonest)
+                            soonest = z.activation;
+                    }
+                }
+                var when = soonest <= now ? "已經生效" : $"最快 {(soonest - now).TotalSeconds:f1} 秒後生效";
+                return $"落點在 {count} 個危險區內（{when}），{route}";
+            default:
+                return $"落點檢查以外的條件，{route}";
+        }
     }
 
     private static string DescribeBounds(AIHints hints)
