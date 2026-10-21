@@ -8950,5 +8950,29 @@
   },
   "Cups: BMR can't tell which cup hides Daigoro, so pick one yourself; the AI won't choose for you. Daigoro's cone is shown only when the cups open.": {
     "message": "三個盅：BMR 判斷不了大五郎在哪個盅，請自己選；AI 不會幫你選。開盅時才會畫出大五郎的扇形。"
+  },
+  "DD_PomanderTimingBoss": {
+    "message": "進入 BOSS 層時"
+  },
+  "DD_PomanderTimingFloor": {
+    "message": "剛進層時（魔法效果解除只在本層有不利的魔法效果時才用）"
+  },
+  "DD_PomanderTimingPassage": {
+    "message": "「自動移動至下一層傳送點」開始走過去時（效果作用在下一層）"
+  },
+  "DD_PomanderTimingPull": {
+    "message": "戰鬥外、本層第一次接戰之前"
+  },
+  "DD_PomanderTimedHeader": {
+    "message": "拿滿 3 個時，在適合的時機自動用掉一個"
+  },
+  "DD_PomanderTimedNote": {
+    "message": "勾選的魔陶器已經持有 3 個時，依它的效果挑適合的時機用掉一個，下次撿到同一種就不會浪費。需要先勾「允許自動使用魔陶器／魔科學器」。你自己手動用了魔陶器之後會暫停 10 秒。變身類、改變敵人等幾種不在清單裡，一律不會自動用。"
+  },
+  "DD_PomanderTimedEnable": {
+    "message": "啟用"
+  },
+  "DD_PomanderTimedSoloOnly": {
+    "message": "只在沒有組隊時生效"
   }
 }

@@ -102,6 +102,9 @@ public sealed unsafe class ActionManagerEx : IDisposable
     private bool _pomanderSendInFlight;
     private bool _stoneSendInFlight;
 
+    /// <summary>上一次使用者手動用魔陶器的 <see cref="Environment.TickCount64"/>；0＝本次載入還沒有。只在遊戲主執行緒讀寫。</summary>
+    public static long LastManualPomanderUseTick { get; private set; }
+
     // GameObjectManager (like most game singletons) is null during early login / zoning / title screen; dereferencing it from a per-frame detour throws NRE and kills the game
     private static GameObject* PlayerObject()
     {
@@ -1014,6 +1017,7 @@ public sealed unsafe class ActionManagerEx : IDisposable
         {
             try
             {
+                LastManualPomanderUseTick = Environment.TickCount64;
                 Service.Logger.Information($"[AMEx][DD] 使用者手動使用魔陶器：槽位 {slot}");
             }
             catch (Exception ex)

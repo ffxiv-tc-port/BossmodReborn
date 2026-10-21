@@ -341,6 +341,7 @@ public sealed class AutoDDConfig : ConfigNode
 
         ImGui.Separator();
         DrawPomanderAutoUseList();
+        DrawPomanderTimedUse();
     }
 
     [PropertyDisplay("Reveal all rooms before proceeding to next floor")]
@@ -374,6 +375,15 @@ public sealed class AutoDDConfig : ConfigNode
     /// </para>
     /// </remarks>
     public bool[] PomanderAutoUse = BuildDefaultPomanderAutoUse();
+
+    /// <summary>拿滿 3 個時依效果挑時機用掉一個（總開關）。與 <see cref="PomanderAutoUse"/> 是兩件事，互不遷移。</summary>
+    public bool PomanderTimedUse = false;
+
+    /// <summary>只在沒有隊友時生效。</summary>
+    public bool PomanderTimedUseSoloOnly = true;
+
+    /// <summary>逐種勾選，索引＝<see cref="PomanderID"/>；長度在 <see cref="Deserialize"/> 補齊。</summary>
+    public bool[] PomanderTimedUseKinds = new bool[(int)PomanderID.Count];
 
     /// <summary>
     /// 預設允許自動使用的魔陶器。效果描述逐條讀 <c>DeepDungeonItem</c> 表判定
@@ -459,6 +469,12 @@ public sealed class AutoDDConfig : ConfigNode
             Array.Copy(PomanderAutoUse, fixedUp, n);
             PomanderAutoUse = fixedUp;
         }
+        if (PomanderTimedUseKinds.Length != want)
+        {
+            var fixedUp = new bool[want];
+            Array.Copy(PomanderTimedUseKinds, fixedUp, Math.Min(PomanderTimedUseKinds.Length, want));
+            PomanderTimedUseKinds = fixedUp;
+        }
 
         // revision 1：魔法效果解除加入自動使用
         if (PomanderAutoUseRevision < 1)
@@ -534,6 +550,52 @@ public sealed class AutoDDConfig : ConfigNode
                     ImGui.SetTooltip(tip);
             }
         }
+    }
+
+    private static string TimingLabel(PomanderTiming t) => t switch
+    {
+        PomanderTiming.BossFloorStart => Loc.T("DD_PomanderTimingBoss", "When you enter a boss floor"),
+        PomanderTiming.FloorStart => Loc.T("DD_PomanderTimingFloor", "Right after entering a floor (Serenity: only when the floor has a harmful enchantment)"),
+        PomanderTiming.ApproachPassage => Loc.T("DD_PomanderTimingPassage", "When \"walk to the Cairn of Passage\" starts walking there (the effect is on the next floor)"),
+        PomanderTiming.BeforeFirstPull => Loc.T("DD_PomanderTimingPull", "Out of combat, before your first fight on the floor"),
+        _ => "",
+    };
+
+    private void DrawPomanderTimedUse()
+    {
+        if (!ImGui.CollapsingHeader(Loc.T("DD_PomanderTimedHeader", "Use one at the right moment when you hold three")))
+            return;
+
+        ImGui.TextColored(PrereqNoteColor, Loc.T("DD_PomanderTimedNote",
+            "When you already hold three of a ticked pomander, one is used at the moment that suits its effect, so the next one you find is not wasted. Needs \"Allow automatic pomander use\". Pauses for 10 seconds after you use a pomander yourself. Transformations, Alteration and a few others are not in the list and are never used."));
+
+        var changed = ImGui.Checkbox(Loc.T("DD_PomanderTimedEnable", "Enable") + "###pomanderTimedEnable", ref PomanderTimedUse);
+        changed |= ImGui.Checkbox(Loc.T("DD_PomanderTimedSoloOnly", "Only when you are not in a party") + "###pomanderTimedSolo", ref PomanderTimedUseSoloOnly);
+
+        for (var t = PomanderTiming.FloorStart; t <= PomanderTiming.BeforeFirstPull; ++t)
+        {
+            ImGui.Separator();
+            ImGui.TextColored(PrereqNoteColor, TimingLabel(t));
+            var col = 0;
+            for (var p = PomanderID.Safety; p < PomanderID.Count; ++p)
+            {
+                var i = (int)p;
+                if (PomanderTimingRules.TimingOf(p) != t || (uint)i >= (uint)PomanderTimedUseKinds.Length)
+                    continue;
+                if (col++ % 2 == 1)
+                    ImGui.SameLine(ImGui.GetWindowWidth() * 0.5f);
+                changed |= ImGui.Checkbox($"{PomanderName(p)}###pomanderTimed{i}", ref PomanderTimedUseKinds[i]);
+                if (ImGui.IsItemHovered())
+                {
+                    var tip = PomanderTooltip(p);
+                    if (tip.Length > 0)
+                        ImGui.SetTooltip(tip);
+                }
+            }
+        }
+
+        if (changed)
+            Modified.Fire();
     }
 
     #endregion

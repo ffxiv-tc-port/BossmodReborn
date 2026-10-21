@@ -2430,6 +2430,161 @@ public abstract partial class AutoClear : ZoneModule
 
     #endregion
 
+    #region 拿滿 3 個時依時機用一個（Config.PomanderTimedUse）
+
+    // 進層或數量剛變過時，遊戲的數量欄位可能還沒更新完；等它穩定這麼久才判斷。
+    private static readonly TimeSpan TimedSettle = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan TimedEntryWindow = TimeSpan.FromSeconds(30);
+    private const long TimedManualPauseMs = 10000;
+
+    private (DeepDungeonState.DungeonType, byte) _timedFloor = (default, 255);
+    private DateTime _timedFloorSince;
+    private DateTime _timedCountsChangedAt;
+    private readonly byte[] _timedLastCounts = new byte[DeepDungeonState.NumPomanderSlots];
+    private bool _timedEngaged;
+    /// <summary>上一幀「自動前往傳送裝置」有沒有在走（在本方法後段寫）。</summary>
+    private bool _autoPassageWalking;
+    /// <summary>上一幀金寶箱騰位置那條是否有東西要送；有就讓它先，兩條不搶同一個 3 秒窗。</summary>
+    private bool _chestPomanderPending;
+    private bool _timedPushedThisFrame;
+    private long _timedManualSeen;
+    private PomanderID _timedAttemptKind;
+    private int _timedAttempts;
+    private DateTime _timedNextAttempt;
+
+    private bool InParty()
+    {
+        for (var i = 1; i < PartyState.MaxPartySize; ++i)
+            if (World.Party.Members[i].IsValid())
+                return true;
+        return false;
+    }
+
+    private static string PomanderLogName(PomanderID p)
+    {
+        var name = Service.LuminaRow<Lumina.Excel.Sheets.DeepDungeonItem>((uint)p)?.Name.ToString();
+        return string.IsNullOrEmpty(name) ? p.ToString() : $"{name}({p})";
+    }
+
+    // 間隔是跨種類的（3 秒內只送一個），放棄名單與金寶箱那條共用：本層送不出去的，兩條都不再試。
+    private bool ShouldAttemptTimedPomander(PomanderID p)
+    {
+        if (World.CurrentTime < _timedNextAttempt)
+            return false;
+        if (_timedAttemptKind != p)
+        {
+            _timedAttemptKind = p;
+            _timedAttempts = 0;
+        }
+        if (_timedAttempts >= SpecialItemMaxAttempts)
+        {
+            _pomanderGiveUp.Add(p);
+            Service.Logger.Information(
+                $"[DD] 魔陶器時機：「{PomanderLogName(p)}」連續 {SpecialItemMaxAttempts} 次送出數量都沒變，本層放棄這一種。");
+            return false;
+        }
+        ++_timedAttempts;
+        _timedNextAttempt = World.CurrentTime + SpecialItemRetryInterval;
+        return true;
+    }
+
+    private void UpdatePomanderTimedUse(Actor player, AIHints hints)
+    {
+        _timedPushedThisFrame = false;
+        var now = World.CurrentTime;
+        var floor = (Palace.DungeonId, Palace.Floor);
+        if (floor != _timedFloor)
+        {
+            _timedFloor = floor;
+            _timedFloorSince = now;
+            _timedEngaged = false;
+            _autoPassageWalking = false;
+            _chestPomanderPending = false;
+            _timedAttemptKind = PomanderID.None;
+            _timedAttempts = 0;
+        }
+        for (var i = 0; i < DeepDungeonState.NumPomanderSlots; ++i)
+        {
+            var c = Palace.Pomanders[i].Count;
+            if (_timedLastCounts[i] != c)
+            {
+                _timedLastCounts[i] = c;
+                _timedCountsChangedAt = now;
+            }
+        }
+        if (player.InCombat)
+            _timedEngaged = true;
+
+        if (!Config.PomanderTimedUse || !Config.AllowPomander || Palace.Floor == 0 || BetweenFloors || _chestPomanderPending)
+            return;
+        if (Config.PomanderTimedUseSoloOnly && InParty())
+            return;
+
+        var manual = ActionManagerEx.LastManualPomanderUseTick;
+        if (manual != 0 && Environment.TickCount64 - manual < TimedManualPauseMs)
+        {
+            if (_timedManualSeen != manual)
+            {
+                _timedManualSeen = manual;
+                Service.Logger.Information("[DD] 魔陶器時機：偵測到手動使用魔陶器，自動使用暫停 10 秒。");
+            }
+            return;
+        }
+
+        var settled = _timedFloorSince > _timedCountsChangedAt ? _timedFloorSince : _timedCountsChangedAt;
+        if (now < settled + TimedSettle)
+            return;
+        if (IsPlayerTransformed(player) || player.FindStatus((uint)SID.Silence) != null || player.FindStatus((uint)SID.Pacification) != null)
+            return;
+
+        bool harmful = false, beneficial = false, itemPenalty = false;
+        foreach (ref readonly var st in player.Statuses.AsSpan())
+        {
+            harmful |= PomanderTimingRules.IsHarmfulEnchantment(st.ID);
+            beneficial |= PomanderTimingRules.IsBeneficialEnchantment(st.ID);
+            itemPenalty |= st.ID == (uint)SID.ItemPenalty;
+        }
+        var situation = new PomanderTimingSituation(
+            BossFloor: Palace.IsBossFloor,
+            InEntryWindow: now - _timedFloorSince <= TimedEntryWindow,
+            WalkingToPassage: _autoPassageWalking,
+            InCombat: player.InCombat,
+            EngagedThisFloor: _timedEngaged,
+            HarmfulEnchantment: harmful,
+            BeneficialEnchantment: beneficial,
+            ItemPenalty: itemPenalty);
+
+        Span<PomanderSlotView> slots = stackalloc PomanderSlotView[DeepDungeonState.NumPomanderSlots];
+        for (var i = 0; i < DeepDungeonState.NumPomanderSlots; ++i)
+        {
+            var st = Palace.Pomanders[i];
+            if (st.Count >= PomanderTimingRules.FullStack)
+                slots[i] = new(Palace.GetPomanderID(i), st.Count, st.Usable, st.Active);
+        }
+        var kinds = Config.PomanderTimedUseKinds;
+        Span<bool> enabled = stackalloc bool[kinds.Length];
+        for (var i = 0; i < kinds.Length; ++i)
+            enabled[i] = kinds[i] && !_pomanderGiveUp.Contains((PomanderID)i);
+
+        var pick = PomanderTimingRules.Pick(situation, slots, enabled);
+        if (pick == PomanderID.None)
+        {
+            _timedAttemptKind = PomanderID.None;
+            _timedAttempts = 0;
+            return;
+        }
+        if (!ShouldAttemptTimedPomander(pick))
+            return;
+
+        Service.Logger.Information(
+            $"[DD] 魔陶器時機：送出「{PomanderLogName(pick)}」（{PomanderTimingRules.TimingOf(pick)}）第 {_timedAttempts}/{SpecialItemMaxAttempts} 次；" +
+            $"樓層 {Palace.Floor}、進層 {(now - _timedFloorSince).TotalSeconds:f1} 秒、戰鬥中={player.InCombat}、本層接戰過={_timedEngaged}、走向傳送裝置={_autoPassageWalking}；{PenaltyStatusText(player)}");
+        hints.ActionsToExecute.Push(new ActionID(ActionType.Pomander, (uint)pick), null, ActionQueue.Priority.VeryHigh);
+        _timedPushedThisFrame = true;
+    }
+
+    #endregion
+
     /// <summary>診斷用：送出那一刻兩個封印狀態在不在身上。</summary>
     private static string PenaltyStatusText(Actor player)
         => $"禁止使用道具(1094)={(player.FindStatus((uint)SID.ItemPenalty) != null ? "有" : "無")}、"
@@ -2485,6 +2640,8 @@ public abstract partial class AutoClear : ZoneModule
         //    踩到陷阱多半正是趕路、沒有目標的時候，也就是說它在最需要的那一刻保證不會觸發。
         //    Boss 層與換層途中一樣會被打，所以也不受下面兩個條件限制。
         UpdatePotions(player, hints);
+        // 魅魔化要在 BOSS 層用，所以排在 BOSS 層的提早返回之前。
+        UpdatePomanderTimedUse(player, hints);
 
         if (Palace.IsBossFloor || BetweenFloors)
             return;
@@ -2636,6 +2793,8 @@ public abstract partial class AutoClear : ZoneModule
         }
         LogBronzeBlocked(player, bronzeBlock, blockedBronze);
         LogGoldBlocked(player, goldBlock, goldEngaged, blockedGold);
+        _chestPomanderPending = Config.AllowPomander && !isStunned && pomanderToUseHere is PomanderID pending
+            && !_pomanderGiveUp.Contains(pending) && player.FindStatus((uint)SID.ItemPenalty) == null;
         if (bronzeBlock == BronzeBlock.LowHP && blockedBronze != null && (Config.AutoMoveTreasure || Config.AutoOpenTreasure))
             MarkHPGate(HPGate.Bronze, (int)BronzeMinHPPercent);
 
@@ -2697,7 +2856,7 @@ public abstract partial class AutoClear : ZoneModule
         //    ⇒ 3 秒一次、連續 3 次數量都沒掉就本層放棄並記 log。
         if (Config.AllowPomander && !isStunned && pomanderToUseHere is PomanderID p2 && player.FindStatus((uint)SID.ItemPenalty) == null)
         {
-            if (ShouldAttemptPomander(p2))
+            if (!_timedPushedThisFrame && ShouldAttemptPomander(p2))
             {
                 Service.Logger.Information(
                     $"[DD] 魔陶器自動使用：送出「{p2}」第 {_pomanderAttempts}/{SpecialItemMaxAttempts} 次嘗試；" +
@@ -2791,6 +2950,7 @@ public abstract partial class AutoClear : ZoneModule
                     usePassage = c;
             }
         }
+        _autoPassageWalking = passageGoal != null;
 
         // 🔴🔴 這裡不能用 `GoalSingleTarget(moveTarget.Position, 25f)`：那是 25y 內全部同分的平台，把玩家包進去之後
         //    尋路就回報「已經在最佳位置」、完全不移動（寶箱在 25y 外會走過去，一踏進 25y 就停住，不報錯也不畫標線）。
