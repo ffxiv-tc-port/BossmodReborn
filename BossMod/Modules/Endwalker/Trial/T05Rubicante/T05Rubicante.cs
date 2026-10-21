@@ -16,10 +16,7 @@ class T05RubicanteStates : StateMachineBuilder
 }
 
 [ModuleInfo(BossModuleInfo.Maturity.Contributed, Contributors = "ffxiv-tc-port", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 886, NameID = 12054)]
-public class T05Rubicante(WorldState ws, Actor primary) : BossModule(ws, primary, arena.Center, arena)
+public class T05Rubicante(WorldState ws, Actor primary) : UnverifiedOidTrialModule(ws, primary, arena.Center, arena)
 {
     private static readonly ArenaBoundsComplex arena = new([new Polygon(new(100f, 100f), 20f, 64)]);
-
-    // 首領 OID 是從極版同模型推的、沒有錄影佐證：只在這個副本裡啟用，推錯時不會在別處誤啟用
-    protected override bool CheckPull() => base.CheckPull() && WorldState.CurrentCFCID == 886;
 }

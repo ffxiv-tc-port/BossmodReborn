@@ -83,7 +83,8 @@ public sealed class GenericTrialRadar
             if (Service.LuminaRow<Lumina.Excel.Sheets.ContentFinderCondition>(cfc)?.ContentType.RowId != ContentTypeTrial)
                 return false;
             foreach (var info in BossModuleRegistry.RegisteredModules.Values)
-                if (info.GroupID == cfc && info.Maturity >= minMaturity && info.GroupType is BossModuleInfo.GroupType.CFC or BossModuleInfo.GroupType.RemovedUnreal)
+                if (info.GroupID == cfc && info.Maturity >= minMaturity && info.GroupType is BossModuleInfo.GroupType.CFC or BossModuleInfo.GroupType.RemovedUnreal
+                    && !info.ModuleType.IsSubclassOf(typeof(UnverifiedOidTrialModule))) // 推錯的 OID 永遠不載入，不能因此讓位；推對時模組載入就會蓋過通用雷達
                     return false;
             return true;
         }
