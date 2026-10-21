@@ -329,6 +329,8 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
         foreach (ref var e in _queue.AsSpan())
         {
             var adjusted = adjust(e.Original);
+            if (CooldownGroupChanged(e.Action, adjusted))
+                adjusted = e.Action; // 與 ResolveForExecution 同一條退回規則：詠唱時間照真的會送出的那一招
             var cast = castSeconds(adjusted);
             if (adjusted != e.Adjusted || cast != e.CastTime)
                 e = e with { Adjusted = adjusted, CastTime = cast };
@@ -362,6 +364,11 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
         var adjusted = adjust(ExecutionSource(chosen));
         if (!chosen.Manual)
             return adjusted;
+        if (CooldownGroupChanged(chosen.Action, adjusted))
+        {
+            LogCooldownGroupFallback(chosen.Action, adjusted);
+            adjusted = chosen.Action;
+        }
         foreach (ref var e in _queue.AsSpan())
         {
             if (e.Action != chosen.Action)
@@ -371,6 +378,25 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
             break;
         }
         return adjusted;
+    }
+
+    // 排隊時驗的是排的那一招的冷卻；按鈕換出別的主冷卻組（例：單鍵替換在 GCD 與能力技之間改主意）時退回排的那一招，
+    // 否則不是被拒絕到過期，就是 Pop 把 GCD 項當成已放出。任一邊沒有技能定義時判不了，照舊用換出來的。
+    private static bool CooldownGroupChanged(ActionID queued, ActionID adjusted)
+        => adjusted != queued && ActionDefinitions.Instance[queued] is { } q && ActionDefinitions.Instance[adjusted] is { } a && q.MainCooldownGroup != a.MainCooldownGroup;
+
+    private ActionID _groupFallbackAction, _groupFallbackAdjusted;
+    private DateTime _groupFallbackLogTime;
+
+    private void LogCooldownGroupFallback(ActionID queued, ActionID adjusted)
+    {
+        var now = ws.CurrentTime;
+        if (queued == _groupFallbackAction && adjusted == _groupFallbackAdjusted && (now - _groupFallbackLogTime).TotalSeconds < CastHoldLogInterval)
+            return;
+        _groupFallbackAction = queued;
+        _groupFallbackAdjusted = adjusted;
+        _groupFallbackLogTime = now;
+        Service.Log($"[MAO] 放出時按鈕換成 {adjusted}，與排的 {queued} 主冷卻組不同 ⇒ 改送排的那一招");
     }
 
     /// <summary>

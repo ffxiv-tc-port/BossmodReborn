@@ -29,18 +29,20 @@ sealed class MeteorImpactCharge(BossModule module) : Components.StretchTetherDuo
     public override void OnTethered(Actor source, ActorTetherInfo tether) => base.OnTethered(source, Normalize(tether));
     public override void OnUntethered(Actor source, ActorTetherInfo tether) => base.OnUntethered(source, Normalize(tether));
 
-    // 衝撞後不保證有解除連線，打到誰就收掉誰的線，否則中央的禁區會一直留著。
+    // 衝撞後不保證有解除連線，衝到連線對象就收掉那一條，否則中央的禁區會一直留著。
+    // 只收「這顆彗星→被它打到的連線對象」：順路被撞到的別人，自己那條線的彗星還沒衝。
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
         base.OnEventCast(caster, spell);
         if (spell.Action.ID != WatchedAction)
             return;
+        var casterId = caster.InstanceID;
         var targets = spell.Targets;
         for (var i = 0; i < targets.Count; ++i)
         {
             var id = targets[i].ID;
-            CurrentBaits.RemoveAll(b => b.Target.InstanceID == id);
-            TetherOnActor.RemoveAll(t => t.Item1.InstanceID == id);
+            if (CurrentBaits.RemoveAll(b => b.Source.InstanceID == casterId && b.Target.InstanceID == id) > 0)
+                TetherOnActor.RemoveAll(t => t.Item1.InstanceID == id);
         }
     }
 }

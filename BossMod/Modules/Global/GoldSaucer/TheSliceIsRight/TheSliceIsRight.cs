@@ -382,7 +382,9 @@ public sealed class TheSliceIsRight(WorldState ws, Actor primary) : BossModule(w
     // AI 能站的範圍比舞台邊緣往內留約 0.7 碼：走下舞台就出局，移動慢一拍或伺服器位置落後都會越線。
     public const float SafeRadius = 14.5f;
     // 判「還在參加」看舞台本身，不看縮小的 AI 範圍：站在外圈不能讓模組提早結束、AI 從此失去場地邊界。
-    public const float ParticipationRadius = 15.5f;
+    // 取量到的舞台邊緣上限 15.3、不再往外加：多出來的那圈只會收進剛出局的人與舞台旁的旁觀者。
+    // 刻意不加高度判準：舞台下地面的高度沒有離線量過，猜錯會讓台上的人被判離場。
+    public const float ParticipationRadius = 15.3f;
     private static readonly ArenaBoundsComplex arena = new([new Polygon(StageCenter, SafeRadius * CosPI.Pi28th, 28, 1.3f.Degrees())]);
 
     public static bool IsParticipating(WPos pos) => (pos - StageCenter).LengthSq() <= ParticipationRadius * ParticipationRadius;
