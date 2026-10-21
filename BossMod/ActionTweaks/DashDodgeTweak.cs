@@ -1,4 +1,7 @@
-﻿namespace BossMod;
+﻿using Dalamud.Plugin.Ipc;
+using Dalamud.Plugin.Ipc.Exceptions;
+
+namespace BossMod;
 
 /// <summary>
 /// 位移閃避：AI 開著、照尋路選的路走出腳下的危險區會來不及時，推一發落點安全的位移技（短兵相接、移轉、新月島踢擊這類以目標為基準的）。
@@ -55,6 +58,7 @@ public sealed class DashDodgeTweak
     private int _pushedFrames, _stuckFrames;
     private string _pushedDetail = "";
     private DateTime _lockoutUntil;
+    private DateTime _meshIpcFailedAt;
 
     /// <param name="actionStatus">遊戲的 <c>GetActionStatus</c>（0＝可以用）。</param>
     /// <param name="pathBlocked">兩點之間有沒有地形擋著（true＝擋著）。</param>
@@ -262,14 +266,21 @@ public sealed class DashDodgeTweak
         var to3 = new Vector3(to.X, from3.Y, to.Z);
         if (!hints.PathfindMapBoundsIsArena)
         {
-            Vector3? onMesh;
-            try
+            Vector3? onMesh = null;
+            if (_meshIpcFailedAt != now)
             {
-                onMesh = _meshNearest?.Invoke(to3);
-            }
-            catch (Exception)
-            {
-                onMesh = null;
+                try
+                {
+                    onMesh = _meshNearest?.Invoke(to3);
+                }
+                catch (IpcError)
+                {
+                    _meshIpcFailedAt = now; // 介面對不上與落點無關：這一幀其餘候選不再問
+                }
+                catch (Exception)
+                {
+                    // 提供端內部的例外可能只跟這個落點有關：只當這一招不在網格上，其他候選照問
+                }
             }
             if (onMesh is not Vector3 m)
                 return (Reason.NoMesh, -1, to);
@@ -350,6 +361,24 @@ public sealed class DashDodgeTweak
         return true;
     }
 
-    /// <summary>vnavmesh <c>Query.Mesh.NearestPoint</c>（水平半徑 1、垂直半徑 3）；沒載入或擲例外由呼叫端當作不在網格上。</summary>
-    public static Vector3? VnavNearestPoint(Vector3 p) => Service.PluginInterface?.GetIpcSubscriber<Vector3, float, float, Vector3?>("vnavmesh.Query.Mesh.NearestPoint").InvokeFunc(p, 1f, 3f);
+    private static ICallGateSubscriber<Vector3, float, float, Vector3?>? _vnavNearest;
+    private static long _vnavNearestRefetchAt;
+
+    /// <summary>vnavmesh <c>Query.Mesh.NearestPoint</c>（水平半徑 1、垂直半徑 3）；沒載入回 null，擲例外由呼叫端當作不在網格上。只在主執行緒呼叫。</summary>
+    public static Vector3? VnavNearestPoint(Vector3 p)
+    {
+        var sub = _vnavNearest;
+        if (sub == null || !sub.HasFunction)
+        {
+            // 沒有提供端時隔幾秒重取一次訂閱：頻道可能被 Dalamud 資料分享頁的「清除空頻道」換掉，舊訂閱會永遠看不到新註冊
+            var t = Environment.TickCount64;
+            if (sub != null && t < _vnavNearestRefetchAt)
+                return null;
+            _vnavNearestRefetchAt = t + 5000;
+            sub = _vnavNearest = Service.PluginInterface?.GetIpcSubscriber<Vector3, float, float, Vector3?>("vnavmesh.Query.Mesh.NearestPoint");
+            if (sub == null || !sub.HasFunction)
+                return null;
+        }
+        return sub.InvokeFunc(p, 1f, 3f);
+    }
 }
