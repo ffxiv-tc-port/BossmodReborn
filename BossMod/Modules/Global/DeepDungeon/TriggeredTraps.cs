@@ -69,7 +69,25 @@ public abstract partial class AutoClear
         _diagTrapZones = TrapZoneDiag.NotReached;
     }
 
+    private bool _trapDiagFailureLogged;
+
+    // 純診斷：會重跑上一幀的禁區委派，擲例外不可穿出 WorldState 事件；陷阱本身已在呼叫前記下，失敗只少一行 log
     private void LogTrapTriggerContext(WPos trap)
+    {
+        try
+        {
+            LogTrapTriggerContextUnguarded(trap);
+        }
+        catch (Exception ex)
+        {
+            if (_trapDiagFailureLogged)
+                return;
+            _trapDiagFailureLogged = true;
+            Service.Logger.Debug(ex, "[DD] 踩到陷阱的前一幀診斷失敗，略過這一行（陷阱判斷不受影響；之後再失敗不再記）");
+        }
+    }
+
+    private void LogTrapTriggerContextUnguarded(WPos trap)
     {
         var start = _diagPlayerPos;
         var sb = new StringBuilder($"[DD] 踩到陷阱的前一幀：玩家在 ({start.X:f1}, {start.Z:f1})、離觸發點 {(start - trap).Length():f1}y；");
