@@ -62,11 +62,113 @@ public abstract partial class AutoClear
     private WPos _diagPlayerPos;
     private AIHints? _diagHints;
 
+    // 最近 1 秒的取樣環（預先配置、每幀只覆寫一格）：上面那份快照落後觸發 0.2～0.3 秒，看不出觸發前實際靠近多少。
+    private struct TrapDiagSample
+    {
+        public long Ticks;
+        public WPos Pos, Dest;
+        public bool HasDest;
+        public byte Mover; // 0＝沒有自動移動、1＝BMR 自動移動模組、2＝BMR AI
+        public TrapZoneDiag Zones;
+        public ushort Circles;
+    }
+
+    private const int TrapDiagRingSize = 128;
+    private const double TrapDiagWindowSeconds = 1d;
+    private readonly TrapDiagSample[] _diagRing = new TrapDiagSample[TrapDiagRingSize];
+    private int _diagRingNext, _diagRingCount;
+    private TrapDiagSample _diagCurrent;
+    private bool _diagCurrentValid;
+
     private void RecordTrapDiagFrame(Actor player, AIHints hints)
     {
+        // 上一幀的禁區狀態要等到這一幀開頭才定案，所以此刻才把上一幀的取樣推進環裡
+        if (_diagCurrentValid)
+        {
+            _diagRing[_diagRingNext] = FinishTrapDiagSample(_diagCurrent);
+            _diagRingNext = (_diagRingNext + 1) % TrapDiagRingSize;
+            _diagRingCount = Math.Min(_diagRingCount + 1, TrapDiagRingSize);
+        }
         _diagHints = hints;
         _diagPlayerPos = player.Position;
         _diagTrapZones = TrapZoneDiag.NotReached;
+
+        var ownsModule = BossMod.Autorotation.MiscAI.NormalMovement.OwnsMovement;
+        var ai = BossMod.AI.AIManager.Instance;
+        var dest = (ownsModule ? BossMod.Autorotation.MiscAI.NormalMovement.NavigationContext : ai?.Beh?.NavigationContext)?.LastDestination;
+        _diagCurrent = new()
+        {
+            Ticks = World.CurrentTime.Ticks,
+            Pos = _diagPlayerPos,
+            Dest = dest ?? default,
+            HasDest = dest.HasValue,
+            Mover = (byte)(ownsModule ? 1 : ai?.IsEnabled == true ? 2 : 0),
+        };
+        _diagCurrentValid = true;
+    }
+
+    private TrapDiagSample FinishTrapDiagSample(TrapDiagSample s)
+    {
+        s.Zones = _diagTrapZones;
+        s.Circles = (ushort)(_diagTrapZones == TrapZoneDiag.Added ? Math.Min(_trapCircles.Count, ushort.MaxValue) : 0);
+        return s;
+    }
+
+    private static string TrapModeName(TrapZoneDiag z) => z switch
+    {
+        TrapZoneDiag.Added => "避讓",
+        TrapZoneDiag.HoardWalkIgnore => "試踩（無視陷阱中）",
+        TrapZoneDiag.Off => "陷阱提示關閉",
+        TrapZoneDiag.Revealed => "陷阱已現形",
+        _ => "未跑到陷阱禁區那一段",
+    };
+
+    private static string TrapMoverName(byte m) => m switch { 1 => "BMR 自動移動模組", 2 => "BMR AI", _ => "沒有自動移動" };
+
+    // 擲例外不可穿出 WorldState 事件；觸發時記一行「觸發前約 1 秒內離該陷阱最近多少」
+    private void LogTrapApproachUnguarded(WPos trap)
+    {
+        var now = World.CurrentTime.Ticks;
+        var windowTicks = (long)(TrapDiagWindowSeconds * TimeSpan.TicksPerSecond);
+        var total = _diagRingCount + (_diagCurrentValid ? 1 : 0);
+        var n = 0;
+        TrapDiagSample oldest = default, best = default;
+        var bestDist = float.MaxValue;
+        for (var i = 0; i < total; ++i)
+        {
+            var s = i < _diagRingCount ? _diagRing[i] : FinishTrapDiagSample(_diagCurrent);
+            if (now - s.Ticks > windowTicks)
+                continue;
+            if (n++ == 0 || s.Ticks < oldest.Ticks)
+                oldest = s;
+            var d = (s.Pos - trap).Length();
+            if (d < bestDist)
+                (bestDist, best) = (d, s);
+        }
+        if (n == 0)
+        {
+            Service.Logger.Information($"[DD] 踩到陷阱前 {TrapDiagWindowSeconds:f0} 秒軌跡：沒有取樣（模式={TrapModeName(_diagTrapZones)}）");
+            return;
+        }
+        var covered = 0;
+        if (_diagTrapZones == TrapZoneDiag.Added)
+            foreach (var (c, r) in _trapCircles)
+                if ((c - trap).Length() <= r)
+                    ++covered;
+        var sb = new StringBuilder($"[DD] 踩到陷阱前 {TrapDiagWindowSeconds:f0} 秒軌跡：模式={TrapModeName(_diagTrapZones)}；取樣 {n} 筆、最早一筆在 {(now - oldest.Ticks) / (double)TimeSpan.TicksPerSecond:f2} 秒前、離觸發點 {(oldest.Pos - trap).Length():f1}y；");
+        sb.Append($"最近一筆離觸發點 {bestDist:f2}y（{(now - best.Ticks) / (double)TimeSpan.TicksPerSecond:f2} 秒前，當時模式={TrapModeName(best.Zones)}、陷阱禁區 {best.Circles} 圈、移動權={TrapMoverName(best.Mover)}、");
+        sb.Append(best.HasDest ? $"尋路路點 ({best.Dest.X:f1}, {best.Dest.Z:f1}) 離觸發點 {(best.Dest - trap).Length():f1}y）；" : "尋路沒有路點）；");
+        sb.Append(_diagTrapZones == TrapZoneDiag.Added ? $"觸發點{(covered > 0 ? $"在目前陷阱禁區名單的 {covered} 圈內" : "不在目前陷阱禁區名單的任何一圈內")}。" : "目前沒有加陷阱禁區。");
+        Service.Logger.Information(sb.ToString());
+    }
+
+    public override string? DescribeDangerAt(WPos pos)
+    {
+        var covered = 0;
+        foreach (var (c, r) in _trapCircles)
+            if ((c - pos).Length() <= r)
+                ++covered;
+        return $"陷阱禁區 {(_diagTrapZones == TrapZoneDiag.Added ? _trapCircles.Count : 0)} 圈、覆蓋腳下 {(_diagTrapZones == TrapZoneDiag.Added ? covered : 0)} 圈（本幀狀態={TrapModeName(_diagTrapZones)}）";
     }
 
     private bool _trapDiagFailureLogged;
@@ -76,15 +178,28 @@ public abstract partial class AutoClear
     {
         try
         {
+            LogTrapApproachUnguarded(trap);
+        }
+        catch (Exception ex)
+        {
+            ReportTrapDiagFailure(ex);
+        }
+        try
+        {
             LogTrapTriggerContextUnguarded(trap);
         }
         catch (Exception ex)
         {
-            if (_trapDiagFailureLogged)
-                return;
-            _trapDiagFailureLogged = true;
-            Service.Logger.Debug(ex, "[DD] 踩到陷阱的前一幀診斷失敗，略過這一行（陷阱判斷不受影響；之後再失敗不再記）");
+            ReportTrapDiagFailure(ex);
         }
+    }
+
+    private void ReportTrapDiagFailure(Exception ex)
+    {
+        if (_trapDiagFailureLogged)
+            return;
+        _trapDiagFailureLogged = true;
+        Service.Logger.Debug(ex, "[DD] 踩到陷阱的前一幀診斷失敗，略過這一行（陷阱判斷不受影響；之後再失敗不再記）");
     }
 
     private void LogTrapTriggerContextUnguarded(WPos trap)

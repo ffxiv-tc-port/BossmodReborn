@@ -19,6 +19,9 @@ public sealed class AIHintsBuilder : IDisposable
     private ArenaBoundsRect? _obstacleViewBounds;
     private bool isRSRpaused;
 
+    /// <summary>只給診斷查「危險來源」用的入口；Dispose 後為 null。</summary>
+    public static AIHintsBuilder? Current { get; private set; }
+
     private static readonly uint[] invincibleStatuses =
     [
         151u, 198u, 325u, 328u, 385u, 394u,
@@ -38,6 +41,7 @@ public sealed class AIHintsBuilder : IDisposable
         _bmm = bmm;
         _zmm = zmm;
         _rsr = rsr;
+        Current = this;
         Obstacles = new(ws);
         _subscriptions = new
         (
@@ -51,8 +55,43 @@ public sealed class AIHintsBuilder : IDisposable
 
     public void Dispose()
     {
+        if (ReferenceEquals(Current, this))
+            Current = null;
         _subscriptions.Dispose();
         Obstacles.Dispose();
+    }
+
+    /// <summary>
+    /// 診斷用：描述 <paramref name="pos"/> 腳下的危險是誰造成的（指名來源、猜測的讀條 AOE、啟用中的模組）。只讀，只在主執行緒呼叫。
+    /// 禁區委派本身不帶來源資訊，所以模組提示只能列出模組名，不能指到哪一條。
+    /// </summary>
+    public void DescribeDangerAt(WPos pos, ulong[] sourceIds, System.Text.StringBuilder sb)
+    {
+        foreach (var id in sourceIds)
+        {
+            var a = _ws.Actors.Find(id);
+            sb.Append(a == null ? $"指名來源 {id:X} 已消失；" : $"指名來源 OID {a.OID:X}（{(a.CastInfo != null ? a.CastInfo.Action.ToString() : "沒在讀條")}）；");
+        }
+        var covering = 0;
+        foreach (var aoe in _activeAOEs.Values)
+        {
+            var cast = aoe.Caster.CastInfo;
+            if (cast == null)
+                continue;
+            var inside = aoe.IsCharge
+                ? ShapeDistance.Rect(aoe.Caster.Position.Quantized(), cast.LocXZ, ((AOEShapeRect)aoe.Shape).HalfWidth)(pos) <= 0f
+                : aoe.Shape.Check(pos, cast.LocXZ, cast.Rotation);
+            if (!inside)
+                continue;
+            if (++covering <= 3)
+                sb.Append($"猜測讀條 AOE：施放者 OID {aoe.Caster.OID:X}、{cast.Action}、{aoe.Shape.GetType().Name}、還剩 {cast.NPCRemainingTime:f1} 秒；");
+        }
+        sb.Append($"猜測讀條 AOE 共 {_activeAOEs.Count} 個、覆蓋腳下 {covering} 個；");
+        var boss = _bmm.ActiveModule?.StateMachine.ActivePhase != null ? _bmm.ActiveModule : null;
+        var zone = _zmm.ActiveModule;
+        sb.Append($"啟用中的首領模組={(boss != null ? boss.GetType().Name : "無")}、區域模組={(zone != null ? zone.GetType().Name : "無")}");
+        if (zone?.DescribeDangerAt(pos) is { } zoneInfo)
+            sb.Append('；').Append(zoneInfo);
     }
 
     // 唯讀存取口（雷達顯示用）：CalculateAutoHints 這一幀用的同一份讀條猜測。只在主執行緒讀，不要跨幀保存列舉結果。

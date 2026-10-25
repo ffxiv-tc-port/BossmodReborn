@@ -919,6 +919,62 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             reasons.Add("找不到擋住的閘門（導航目標已交給控制器；可能是遊戲本身此刻不收移動輸入，例如被束縛或動作鎖定）");
         var dist = (navi.Destination!.Value - _ex.PlayerPosition).Length();
         Service.Logger.Information($"[AI] 腳下危險區即將生效（玩家格危險度 {g:f2} 秒＋緩衝 {cushion:f1} 秒）、尋路目的地在 {dist:f1} 碼外，角色卻已 {still:f1} 秒沒動：{string.Join("；", reasons)}");
+        LogDangerSources(_ex.PlayerPosition);
+    }
+
+    // 緊跟在上面那行之後（同樣每秒最多一次）。後半段可能在執行緒池上：禁區讀丟進尋路的那份快照，查 actor 與模組的部分排到框架執行緒再寫 log
+    private void LogDangerSources(WPos pos)
+    {
+        var now = _ex.Now;
+        var inside = 0;
+        var soonest = double.MaxValue;
+        List<ulong>? sources = null;
+        if (_exLaunched)
+        {
+            foreach (var z in _naviForbidden)
+                TallyZoneAt(z.Item1, z.Item2, z.Item3, pos, now, ref inside, ref soonest, ref sources);
+        }
+        else
+        {
+            foreach (var z in autorot.Hints.ForbiddenZones)
+                TallyZoneAt(z.shapeDistance, z.activation, z.Source, pos, now, ref inside, ref soonest, ref sources);
+        }
+        var head = $"[AI] 腳下危險區來源：覆蓋腳下的禁區 {inside} 個（{(inside == 0 ? "沒有一個蓋到玩家格，可能是仇恨範圍或場地邊界" : $"最早 {soonest:f1} 秒後生效")}）；";
+        var ids = sources == null ? [] : sources.ToArray();
+        try
+        {
+            _ = Service.Framework.Run(() => EmitDangerSources(head, pos, ids));
+        }
+        catch (Exception)
+        {
+            Service.Logger.Information(head + "（排不進框架執行緒，略過模組與讀條查詢）");
+        }
+    }
+
+    private static void TallyZoneAt(Func<WPos, float> shape, DateTime activation, ulong source, WPos pos, DateTime now, ref int inside, ref double soonest, ref List<ulong>? sources)
+    {
+        if (shape(pos) > 0f)
+            return;
+        ++inside;
+        soonest = Math.Min(soonest, Math.Max(0d, (activation - now).TotalSeconds));
+        if (source != 0 && (sources == null || (sources.Count < 3 && !sources.Contains(source))))
+            (sources ??= []).Add(source);
+    }
+
+    // 框架執行緒；卸載後 AIHintsBuilder.Current 為 null，只寫前半
+    private static void EmitDangerSources(string head, WPos pos, ulong[] ids)
+    {
+        try
+        {
+            var sb = new System.Text.StringBuilder(head);
+            if (AIHintsBuilder.Current is { } builder)
+                builder.DescribeDangerAt(pos, ids, sb);
+            Service.Logger.Information(sb.ToString());
+        }
+        catch (Exception ex)
+        {
+            Service.Logger.Information($"{head}（查來源失敗：{ex.GetType().Name}）");
+        }
     }
 
     #endregion
