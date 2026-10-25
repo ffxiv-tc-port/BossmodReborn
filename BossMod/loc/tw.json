@@ -3749,6 +3749,21 @@
   "DD_KiteOffObserved": {
     "message": "風箏：對此目標停用（實測它在近戰距離外仍能打到你）。"
   },
+  "Kite: stop kiting enemies that hit you from out of melee range": {
+    "message": "風箏：對遠距攻擊的怪自動停用"
+  },
+  "If an enemy's auto-attacks keep landing on you while you are well out of melee range, backing away from it gains nothing, so kiting is switched off for that kind of enemy until you move to another area. Auto-attacks whose listed range is melee are never counted, however far away the hit looked.\n\nUntick to kite every enemy regardless. To undo the current judgements only, use the \"Turn kiting back on\" button at the bottom of this page.": {
+    "message": "如果某種怪在你遠離近戰距離時，自動攻擊仍持續打中你，對它拉開距離換不到任何好處，因此在你移動到其他區域之前會對這種怪停用風箏。表定射程屬於近戰的自動攻擊一律不計，不論命中當下看起來離得多遠。\n\n取消勾選則對所有怪都照樣風箏。只想撤銷目前的判定，請按本頁底部的「重新開啟風箏」按鈕。"
+  },
+  "DD_KiteResetCount": {
+    "message": "目前對 {0} 種怪停用了風箏（實測它們在近戰距離外仍能打到你）。"
+  },
+  "DD_KiteResetNone": {
+    "message": "目前沒有因遠距攻擊判定而停用風箏的怪。"
+  },
+  "DD_KiteResetButton": {
+    "message": "重新開啟風箏"
+  },
   "Also drink the deep dungeon's own potions automatically": {
     "message": "同時自動使用深層迷宮專屬藥水"
   },

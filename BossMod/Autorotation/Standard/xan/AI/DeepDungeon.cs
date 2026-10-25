@@ -242,7 +242,7 @@ public sealed class DeepDungeonAI : AIBase
 
         // 只採計自動攻擊。技能有射程是正常的，不代表這隻怪「不必追」——
         // 持續傷害來自平砍，那才是風箏能減少的東西。
-        if (!IsAutoAttack(eff.Action))
+        if (AutoAttackTableRange(eff.Action) is not { } tableRange)
             return;
 
         if (!DealtDamage(eff.Effects))
@@ -250,17 +250,22 @@ public sealed class DeepDungeonAI : AIBase
 
         var oid = source.OID;
         var dist = Player.DistanceToHitbox(source);
+        // 表定射程是伺服器打得到的上限：射程在近戰門檻內的平砍，觀測距離再遠也只是延遲造成的假象；
+        // 反過來，遠程平砍在貼身時照樣會打，貼身命中不算近戰證據。≤0＝表上沒寫，只能看距離。
+        var meleeByTable = tableRange > 0 && tableRange <= RangedAttackDistance;
+        var rangedByTable = tableRange > RangedAttackDistance;
 
         if (dist <= MeleeAttackDistance)
         {
-            ObserveMeleeAttack(oid);
+            if (!rangedByTable)
+                ObserveMeleeAttack(oid);
             return;
         }
 
         if (dist <= RangedAttackDistance)
             return; // 中間地帶：兩邊都不算，避免把延遲造成的位移當成證據
 
-        if (RangedAttackerOIDs.Contains(oid))
+        if (meleeByTable || !Config.KiteDetectRangedAttackers || RangedAttackerOIDs.Contains(oid))
             return;
 
         var n = RangedAttackObservations.GetValueOrDefault(oid) + 1;
@@ -270,7 +275,20 @@ public sealed class DeepDungeonAI : AIBase
 
         RangedAttackerOIDs.Add(oid);
         // 要使用者回報的診斷；一個 OID 只印一次
-        Service.Logger.Information($"[DD kite] OID {oid:X} 在近戰距離外仍以自動攻擊命中玩家 {n} 次，本次探索對它停用風箏。");
+        Service.Logger.Information($"[DD kite] OID {oid:X} 在近戰距離外仍以自動攻擊命中玩家 {n} 次（平砍 {eff.Action.ID}、表定射程 {tableRange}、最後一次距離 {dist:f1}y），本次探索對它停用風箏。"
+            + "要重新開啟：BMR 設定「深層迷宮自動化（實驗性）」頁底部的「重新開啟風箏」按鈕，或取消勾選「風箏：對遠距攻擊的怪自動停用」。");
+    }
+
+    /// <summary>本次探索被判定為遠距攻擊者而停用風箏的怪物種類數。只在框架執行緒（更新／繪製）讀。</summary>
+    public static int ObservedRangedAttackerCount => RangedAttackerOIDs.Count;
+
+    /// <summary>清掉本次探索的遠距攻擊者判定，風箏立即恢復；之後照常重新累計。只在框架執行緒（更新／繪製）呼叫。</summary>
+    public static void ClearObservedRangedAttackers()
+    {
+        var n = RangedAttackerOIDs.Count;
+        RangedAttackerOIDs.Clear();
+        RangedAttackObservations.Clear();
+        Service.Logger.Information($"[DD kite] 使用者清除了遠距攻擊者判定（{n} 種怪），風箏重新開啟。");
     }
 
     /// <summary>
@@ -312,8 +330,13 @@ public sealed class DeepDungeonAI : AIBase
     /// 用資料表而不是寫死 id，
     /// 因為有些怪有自己專屬的平砍 action。
     /// </remarks>
-    private static bool IsAutoAttack(ActionID action)
-        => action.Type == ActionType.Spell && Service.LuminaRow<Lumina.Excel.Sheets.Action>(action.ID)?.ActionCategory.RowId == 1u;
+    /// <returns>不是自動攻擊回 null；否則回表定射程（Action.Range，≤0＝表上沒寫）。</returns>
+    private static int? AutoAttackTableRange(ActionID action)
+    {
+        if (action.Type != ActionType.Spell || Service.LuminaRow<Lumina.Excel.Sheets.Action>(action.ID) is not { } row)
+            return null;
+        return row.ActionCategory.RowId == 1u ? row.Range : null;
+    }
 
     private static bool DealtDamage(ActionEffects effects)
     {
@@ -405,7 +428,7 @@ public sealed class DeepDungeonAI : AIBase
 
         // 執行期觀測到這隻怪不必追上你就能打你 ⇒ 拉開距離換不到任何好處，別白跑。
         // 📌 排在寫死清單之前：兩者都是「遠程」判定，但這一份是實測證據，優先權較高。
-        if (RangedAttackerOIDs.Contains(primaryTarget.OID))
+        if (Config.KiteDetectRangedAttackers && RangedAttackerOIDs.Contains(primaryTarget.OID))
         {
             SetSuppression(KiteSuppression.ObservedRanged);
             if (ShouldKiteDiag(KiteDiagState.ObservedRanged, out var repeat, primaryTarget.OID))

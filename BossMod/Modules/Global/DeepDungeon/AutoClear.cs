@@ -1859,8 +1859,15 @@ public abstract partial class AutoClear : ZoneModule
                 => Loc.T("DD_KiteOffObserved", "Kiting: off for this enemy (observed hitting you from out of melee range)."),
             _ => null,
         };
-        if (text != null)
-            ImGui.TextColored(ColorUnknownText, text);
+        if (text == null)
+            return;
+        ImGui.TextColored(ColorUnknownText, text);
+        if (Autorotation.xan.DeepDungeonAI.Suppression == Autorotation.xan.DeepDungeonAI.KiteSuppression.ObservedRanged)
+        {
+            ImGui.SameLine();
+            if (ImGui.SmallButton(Loc.T("DD_KiteResetButton", "Turn kiting back on")))
+                Autorotation.xan.DeepDungeonAI.ClearObservedRangedAttackers();
+        }
     }
 
     #region 傳送裝置的名稱

@@ -271,6 +271,11 @@ public sealed class AutoDDConfig : ConfigNode
         tooltip: "While backing away from your target, mobs that have not noticed you yet get their detection range (the same cone or circle as \"Route around mobs that have not noticed you yet\", using the radius above) marked as a no-go area, so kiting does not drag you into a fresh pull. Your current target and anything already fighting you are never avoided, so the route may cut right past your target when that is the only clean way out.\n\nIt never traps you: ranges you are already standing in are skipped, it steps aside while you are dodging an AOE, only the nearest mobs are kept when every way out is covered, and if you stop making progress for a couple of seconds it switches off for 6 seconds.")]
     public bool KiteAvoidAggro = true;
 
+    // 預設開＝沿用加這個開關之前的行為。
+    [PropertyDisplay("Kite: stop kiting enemies that hit you from out of melee range",
+        tooltip: "If an enemy's auto-attacks keep landing on you while you are well out of melee range, backing away from it gains nothing, so kiting is switched off for that kind of enemy until you move to another area. Auto-attacks whose listed range is melee are never counted, however far away the hit looked.\n\nUntick to kite every enemy regardless. To undo the current judgements only, use the \"Turn kiting back on\" button at the bottom of this page.")]
+    public bool KiteDetectRangedAttackers = true;
+
     // 🔴 預設 false（opt-in）。BMR 的新設定欄位預設值會直接生效在既有使用者身上，
     //    而不是每個人都裝了 WrathCombo、也不是每個人都希望我們去動它。
     [PropertyDisplay("Pause WrathCombo's auto-rotation while in a deep dungeon",
@@ -340,8 +345,22 @@ public sealed class AutoDDConfig : ConfigNode
         ImGui.TextColored(PrereqNoteColor, Loc.T("DD_PresetHint", "Switching happens in memory only - your saved AI preset setting is never rewritten, so a crash cannot leave you stuck on the deep dungeon preset."));
 
         ImGui.Separator();
+        DrawKiteReset();
+
+        ImGui.Separator();
         DrawPomanderAutoUseList();
         DrawPomanderTimedUse();
+    }
+
+    // 放在設定頁而不是區域模組視窗：那個視窗在頭目樓層不出現，而被判定的多半正是頭目。
+    private static void DrawKiteReset()
+    {
+        var n = Autorotation.xan.DeepDungeonAI.ObservedRangedAttackerCount;
+        ImGui.TextColored(PrereqNoteColor, n > 0
+            ? string.Format(Loc.T("DD_KiteResetCount", "Kiting is currently off for {0} kind(s) of enemy (seen hitting you from out of melee range)."), n)
+            : Loc.T("DD_KiteResetNone", "Kiting is not currently switched off for any enemy."));
+        if (n > 0 && ImGui.Button(Loc.T("DD_KiteResetButton", "Turn kiting back on")))
+            Autorotation.xan.DeepDungeonAI.ClearObservedRangedAttackers();
     }
 
     [PropertyDisplay("Reveal all rooms before proceeding to next floor")]
