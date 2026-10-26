@@ -345,7 +345,7 @@ public sealed class AutoDDConfig : ConfigNode
         ImGui.TextColored(PrereqNoteColor, Loc.T("DD_PresetHint", "Switching happens in memory only - your saved AI preset setting is never rewritten, so a crash cannot leave you stuck on the deep dungeon preset."));
 
         ImGui.Separator();
-        DrawKiteReset();
+        DrawKiteReset(ws);
 
         ImGui.Separator();
         DrawPomanderAutoUseList();
@@ -353,9 +353,16 @@ public sealed class AutoDDConfig : ConfigNode
     }
 
     // 放在設定頁而不是區域模組視窗：那個視窗在頭目樓層不出現，而被判定的多半正是頭目。
-    private static void DrawKiteReset()
+    private void DrawKiteReset(WorldState ws)
     {
-        var n = Autorotation.xan.DeepDungeonAI.ObservedRangedAttackerCount;
+        if (!KiteDetectRangedAttackers)
+        {
+            ImGui.TextColored(PrereqNoteColor, Loc.T("DD_KiteResetDetectOff", "Automatic switch-off is turned off, so every enemy is kited."));
+            return;
+        }
+
+        // 判定只在下一次深宮內換區時才清；出了深宮殘留的數字沒有意義，當成 0 顯示。
+        var n = ws.DeepDungeon.DungeonId != 0 ? Autorotation.xan.DeepDungeonAI.ObservedRangedAttackerCount : 0;
         ImGui.TextColored(PrereqNoteColor, n > 0
             ? string.Format(Loc.T("DD_KiteResetCount", "Kiting is currently off for {0} kind(s) of enemy (seen hitting you from out of melee range)."), n)
             : Loc.T("DD_KiteResetNone", "Kiting is not currently switched off for any enemy."));

@@ -3761,6 +3761,9 @@
   "DD_KiteResetNone": {
     "message": "目前沒有因遠距攻擊判定而停用風箏的怪。"
   },
+  "DD_KiteResetDetectOff": {
+    "message": "已關閉自動停用：所有怪都會照樣風箏。"
+  },
   "DD_KiteResetButton": {
     "message": "重新開啟風箏"
   },
