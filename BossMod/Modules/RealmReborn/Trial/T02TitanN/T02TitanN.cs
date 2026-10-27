@@ -80,6 +80,7 @@ public class T02TitanN : BossModule
                 OID.Boss => 1,
                 _ => 0
             };
+            e.UrgentKill = (OID)e.Actor.OID is OID.GraniteGaol or OID.TitansHeart;
         }
     }
 }

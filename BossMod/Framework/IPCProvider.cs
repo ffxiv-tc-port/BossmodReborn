@@ -204,6 +204,8 @@ sealed class IPCProvider : IDisposable
 
         Register("Hints.ShouldInterruptTargets", () => IpcFrameworkGate.Get<ulong[]>("Hints.ShouldInterruptTargets", () => flaggedEnemies(hints.PotentialTargets, static e => e.ShouldBeInterrupted), []));
         Register("Hints.ShouldStunTargets", () => IpcFrameworkGate.Get<ulong[]>("Hints.ShouldStunTargets", () => flaggedEnemies(hints.PotentialTargets, static e => e.ShouldBeStunned), []));
+        // 限時必殺目標（AIHints.Enemy.UrgentKill）：沒掛預設集也照樣算，給外部自動化切目標用；順序＝優先度由高到低。
+        Register("Hints.UrgentKillTargets", () => IpcFrameworkGate.Get<ulong[]>("Hints.UrgentKillTargets", () => flaggedEnemies(hints.PotentialTargets, static e => e.UrgentKill), []));
 
         Register("Hints.SpecialModeIn", () => hints.ImminentSpecialMode == default
             ? float.MaxValue

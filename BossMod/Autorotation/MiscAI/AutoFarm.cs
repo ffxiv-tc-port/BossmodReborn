@@ -45,9 +45,9 @@ public sealed class AutoFarm(RotationModuleManager manager, Actor player) : Rota
         // 內部名與上游 AutoTarget 的 Retarget 軌相同，從上游匯入的預設集照名字對得上。
         res.Define(Track.Retarget).As<RetargetStrategy>("Retarget", "When to switch target")
             .AddOption(RetargetStrategy.Always, "Switch whenever a higher-priority or closer eligible mob exists (current behavior)")
-            .AddOption(RetargetStrategy.NoTarget, "Only switch target if player has no target (or the target is a dead or untargetable enemy)")
+            .AddOption(RetargetStrategy.NoTarget, "Only switch target if player has no target (or the target is a dead or untargetable enemy); adds the boss module marks as must-kill-in-time are switched to regardless")
             .AddOption(RetargetStrategy.Hostiles, "Only switch target if player is not targeting an ally")
-            .AddOption(RetargetStrategy.Never, "Never switch target; only apply priority changes to enemies. Exception: if you have no usable enemy target (nothing targeted, a coffer or other non-enemy, or a dead enemy) while a mob is attacking you, switch to that mob");
+            .AddOption(RetargetStrategy.Never, "Never switch target; only apply priority changes to enemies. Exception: if you have no usable enemy target (nothing targeted, a coffer or other non-enemy, or a dead enemy) while a mob is attacking you, switch to that mob. Also switches to adds the boss module marks as must-kill-in-time (a lethal mechanic fires if they live)");
 
         res.Define(Track.SwitchTolerance).As<SwitchToleranceStrategy>("SwitchTolerance", "Target switching tolerance")
             .AddOption(SwitchToleranceStrategy.Nearest, "When picking a mob to pull, always choose the closest eligible one (current behavior)")
@@ -155,6 +155,12 @@ public sealed class AutoFarm(RotationModuleManager manager, Actor player) : Rota
                 allowed = true;
                 SwitchLog.NeverFightBack(World.CurrentTime, current, switchTarget);
             }
+            if (!allowed && isSwitch && retarget is RetargetStrategy.Never or RetargetStrategy.NoTarget
+                && AutoFarmTargeting.AllowsUrgentKill(current?.IsAlly ?? false, current != null && !current.IsDead && current.IsTargetable && IsUrgentKill(current), IsUrgentKill(switchTarget)))
+            {
+                allowed = true;
+                SwitchLog.UrgentKill(World.CurrentTime, current, switchTarget, retarget);
+            }
             if (allowed)
             {
                 if (isSwitch)
@@ -167,6 +173,8 @@ public sealed class AutoFarm(RotationModuleManager manager, Actor player) : Rota
             }
         }
     }
+
+    private bool IsUrgentKill(Actor? a) => Hints.FindEnemy(a) is { UrgentKill: true } e && e.Actor == a;
 
     // 拉怪挑選的狀態；用 ref 傳而不是讓區域函式捕獲，Execute 才不會每幀一進來就配閉包物件
     private struct PullPick
@@ -268,6 +276,19 @@ public sealed class AutoFarm(RotationModuleManager manager, Actor player) : Rota
             Service.Logger.Information($"[AutoFarm][換目標] 「何時切換目標」是 Never，但{why}，而 {Name(to)} 正在打我：放行換過去");
         }
 
+        private static ulong _urgentLastTo;
+        private static DateTime _urgentLastAt;
+
+        // 限時必殺的破例放行：同一隻 10 秒最多一行。
+        public static void UrgentKill(DateTime now, Actor? from, Actor to, RetargetStrategy retarget)
+        {
+            if (to.InstanceID == _urgentLastTo && (now - _urgentLastAt).TotalSeconds < 10d)
+                return;
+            _urgentLastTo = to.InstanceID;
+            _urgentLastAt = now;
+            Service.Logger.Information($"[AutoFarm][換目標] 「何時切換目標」是 {retarget}，但 {Name(to)} 是首領模組標記的限時必殺目標（時限內沒打掉會致死）：從 {Name(from)} 換過去");
+        }
+
         private static string Describe(Actor? from, Actor to, AIHints hints, Actor player, SwitchReason reason)
         {
             var why = reason switch
@@ -325,4 +346,9 @@ public static class AutoFarmTargeting
     // 友方目標照舊不搶；換去的對象必須是正在打我的那隻，不會因此去拉新的怪。
     public static bool NeverAllowsFightBack(bool hasTarget, bool targetIsAlly, bool targetIsEnemy, bool targetUsable, bool candidateAttacksPlayer)
         => candidateAttacksPlayer && (!hasTarget || !targetIsAlly && (!targetIsEnemy || !targetUsable));
+
+    // NoTarget／Never 的另一個例外：候選是模組標記的限時必殺目標（AIHints.Enemy.UrgentKill）。
+    // 友方目標照舊不搶；手上已經是一隻還能打的限時必殺目標時不換，多隻之間不來回。
+    public static bool AllowsUrgentKill(bool targetIsAlly, bool targetIsUsableUrgent, bool candidateIsUrgent)
+        => candidateIsUrgent && !targetIsAlly && !targetIsUsableUrgent;
 }

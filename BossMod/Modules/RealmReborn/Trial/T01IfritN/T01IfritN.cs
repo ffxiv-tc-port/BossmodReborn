@@ -41,7 +41,7 @@ class Hints(BossModule module) : BossComponent(module)
 class Incinerate(BossModule module) : Components.Cleave(module, (uint)AID.Incinerate, new AOEShapeCone(16, 60.Degrees())); // TODO: verify angle
 class Eruption(BossModule module) : Components.SimpleAOEs(module, (uint)AID.EruptionAOE, 8);
 class RadiantPlume(BossModule module) : Components.SimpleAOEs(module, (uint)AID.RadiantPlumeAOE, 8);
-class Nails(BossModule module) : Components.Adds(module, (uint)OID.InfernalNail, 2);
+class Nails(BossModule module) : Components.UrgentAdds(module, (uint)OID.InfernalNail, 2);
 
 class T01IfritNStates : StateMachineBuilder
 {

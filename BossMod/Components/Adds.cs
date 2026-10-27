@@ -34,6 +34,23 @@ public class Adds(BossModule module, uint oid, int priority = 0) : BossComponent
     }
 }
 
+// 限時必殺的小怪（時限內沒打掉會觸發致死機制）：除了優先度，另標 AIHints.Enemy.UrgentKill。
+// 刻意不併進 Adds：一般小怪不該讓「不換目標」的設定破例。
+public class UrgentAdds(BossModule module, uint oid, int priority) : Adds(module, oid, priority)
+{
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        var count = Actors.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var a = Actors[i];
+            if (hints.FindEnemy(a) is { } e && e.Actor == a)
+                e.UrgentKill = true;
+        }
+    }
+}
+
 // component for adds that shouldn't be targeted at all, but should still be drawn
 public class AddsPointless(BossModule module, uint oid) : Adds(module, oid)
 {

@@ -6818,14 +6818,14 @@
   "Switch whenever a higher-priority or closer eligible mob exists (current behavior)": {
     "message": "只要有優先度更高或更近的合適目標就切換（原本的行為）"
   },
-  "Only switch target if player has no target (or the target is a dead or untargetable enemy)": {
-    "message": "只在沒有目標時切換（目標是已死亡或無法選取的敵人也算沒有目標）"
+  "Only switch target if player has no target (or the target is a dead or untargetable enemy); adds the boss module marks as must-kill-in-time are switched to regardless": {
+    "message": "只在沒有目標時切換（目標是已死亡或無法選取的敵人也算沒有目標）；首領模組標記為限時必殺的小怪不受此限，出現就切過去"
   },
   "Only switch target if player is not targeting an ally": {
     "message": "只在目前目標不是友方時切換（不會搶走正選著的隊友）"
   },
-  "Never switch target; only apply priority changes to enemies. Exception: if you have no usable enemy target (nothing targeted, a coffer or other non-enemy, or a dead enemy) while a mob is attacking you, switch to that mob": {
-    "message": "不切換目標，只調整敵人的優先度。例外：手上沒有可打的敵人（沒有目標、選著寶箱之類的非敵人、或敵人已死亡）而有怪正在打你時，換到那隻怪"
+  "Never switch target; only apply priority changes to enemies. Exception: if you have no usable enemy target (nothing targeted, a coffer or other non-enemy, or a dead enemy) while a mob is attacking you, switch to that mob. Also switches to adds the boss module marks as must-kill-in-time (a lethal mechanic fires if they live)": {
+    "message": "不切換目標，只調整敵人的優先度。例外：手上沒有可打的敵人（沒有目標、選著寶箱之類的非敵人、或敵人已死亡）而有怪正在打你時，換到那隻怪；另外，首領模組標記為限時必殺（時限內沒打掉會致死）的小怪出現時也會切過去"
   },
   "Target switching tolerance": {
     "message": "切換目標的容差"

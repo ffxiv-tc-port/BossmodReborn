@@ -25,6 +25,9 @@ public sealed class AIHints
         public bool ShouldBeDispelled; // if set, AI will try to cast a dispel action; only relevant for foray content
         public bool StayAtLongRange; // if set, players with ranged attacks don't bother coming closer than max range (TODO: reconsider)
         public bool Spikes; // if set, autoattacks will be prevented
+        // 模組宣告：時限內沒打掉會觸發致死／團滅機制。只有明確宣告的模組會設；
+        // AutoFarm 的「不換目標」設定與外部自動化（IPC Hints.UrgentKillTargets）會為它破例切過去。
+        public bool UrgentKill;
     }
 
     public enum SpecialMode
