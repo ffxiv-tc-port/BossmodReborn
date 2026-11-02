@@ -116,7 +116,7 @@ jobs:
             }
             return $h
           }
-          $globs = @('./build/BossModReborn.zip', './build/BossModReborn.json')
+          $globs = @('build/BossModReborn.zip', 'build/BossModReborn.json')
           $root = (Get-Location).Path
           $rxs = @(foreach ($g in $globs) { '^' + [Regex]::Escape($g.Replace('\', '/')).Replace('\*\*/', '(?:.*/)?').Replace('\*\*', '.*').Replace('\*', '[^/]*').Replace('\?', '[^/]') + '$' })
           $files = @(Get-ChildItem -LiteralPath $root -Recurse -File -Force | ForEach-Object {
