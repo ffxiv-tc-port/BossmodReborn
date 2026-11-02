@@ -523,6 +523,7 @@ public abstract partial class AutoClear : ZoneModule
         _aggroAvoidLoggedFloor = 255;
         _aggroCrossLoggedFloor = 255;
         _aggroSuppressUntil = default;
+        _aggroMarginRelaxedUntil = default;
         _aggroProgressSample = null;
         _aggroInside.Clear();
         _aggroInteractSince = default;
@@ -5025,6 +5026,9 @@ public abstract partial class AutoClear : ZoneModule
     /// <summary>「原地不動」判定的位移門檻（碼）。</summary>
     private const float AggroStuckDistance = 1.5f;
 
+    /// <summary>卡住的第一階（拿掉安全邊距）用的較短判定時間：放寬只是退回貼邊繞，早一點觸發比多站著好。</summary>
+    private const double AggroMarginStuckSeconds = 1.25d;
+
     /// <summary>
     /// 「互動中暫停卡住計時」最多能連續暫停多久（秒）——保險絲，見 <see cref="IsInteracting"/>。
     /// </summary>
@@ -5075,6 +5079,34 @@ public abstract partial class AutoClear : ZoneModule
 
     /// <summary>抑制到這個時間點之前都不加迴避形狀；<c>default</c>＝沒在抑制。</summary>
     private DateTime _aggroSuppressUntil;
+
+    /// <summary>到這個時間點之前安全邊距歸零（卡住的第一階）；<c>default</c>＝沒在放寬。</summary>
+    private DateTime _aggroMarginRelaxedUntil;
+
+    /// <summary>
+    /// 安全邊距最多只長到「玩家（或要走去的目標）現在離真形狀的距離」減這麼多（碼）。
+    /// </summary>
+    /// <remarks>
+    /// 契約：加了邊距的禁區永遠不蓋住玩家格與目標格，否則尋路整批丟掉目標區、退成純逃離（同安全裝置 #1 的理由）。
+    /// 0.75＝尋路格 0.5y 的半對角線（角點判定）0.35＋格心緩衝 0.25，再留一點餘裕。
+    /// </remarks>
+    private const float AggroMarginStandoff = 0.75f;
+
+    /// <summary>把形狀（<c>ShapeDistance</c> 慣例）往外撐 <paramref name="margin"/> 碼；趕路迴避與風箏避讓共用。</summary>
+    public static Func<WPos, float> InflateAggroShape(Func<WPos, float> shape, float margin) => p => shape(p) - margin;
+
+    /// <summary>這一幀要加的邊距：不超過設定值，也不超過玩家／各目標離真形狀的距離減 <see cref="AggroMarginStandoff"/>。</summary>
+    public static float AggroMarginFor(Func<WPos, float> shape, float margin, WPos player, WPos? t1 = null, WPos? t2 = null, WPos? t3 = null)
+    {
+        var m = Math.Min(margin, shape(player) - AggroMarginStandoff);
+        if (t1 is WPos a)
+            m = Math.Min(m, shape(a) - AggroMarginStandoff);
+        if (t2 is WPos b)
+            m = Math.Min(m, shape(b) - AggroMarginStandoff);
+        if (t3 is WPos c)
+            m = Math.Min(m, shape(c) - AggroMarginStandoff);
+        return Math.Max(0f, m);
+    }
 
     /// <summary>上次取樣的位置與時間，用來判「有沒有真的在前進」。</summary>
     private (WPos Pos, DateTime At)? _aggroProgressSample;
@@ -5175,6 +5207,8 @@ public abstract partial class AutoClear : ZoneModule
 
         var pullTargetId = player.TargetID;
         var radius = Config.AggroAvoidRadius;
+        var marginRelaxed = _aggroMarginRelaxedUntil != default && now < _aggroMarginRelaxedUntil;
+        var margin = marginRelaxed ? 0f : Math.Max(0f, Config.AggroAvoidMargin);
 
         Span<int> picked = stackalloc int[MaxAggroCircles];
         Span<float> pickedDist = stackalloc float[MaxAggroCircles];
@@ -5215,7 +5249,7 @@ public abstract partial class AutoClear : ZoneModule
             }
         }
 
-        int cones = 0, circles = 0, unknown = 0, skippedInside = 0, mimics = 0, skippedTarget = 0;
+        int cones = 0, circles = 0, unknown = 0, skippedInside = 0, mimics = 0, skippedTarget = 0, margined = 0;
         var pp = player.Position;
         _aggroInsideFrame.Clear();
         // 死者宮殿的擬態怪偵測距離比別的怪遠，見 MimicExtraRadius。每幀算一次就好。
@@ -5229,7 +5263,7 @@ public abstract partial class AutoClear : ZoneModule
                 ++mimics;
 
             // 🔴 安全裝置 #1：玩家已經在裡面就不要加這一個形狀（理由見 remarks）。
-            //    ShapeDistance 的慣例是「負值＝在裡面」。
+            //    ShapeDistance 的慣例是「負值＝在裡面」。進圈判定一律用不含邊距的真形狀。
             if (shape(pp) <= 0f)
             {
                 ++skippedInside;
@@ -5268,8 +5302,11 @@ public abstract partial class AutoClear : ZoneModule
             else
                 ++circles;
 
+            var m = AggroMarginFor(shape, margin, pp, coffer?.Position, passage?.Position, hoardLight?.Position);
+            if (m > 0f)
+                ++margined;
             // activation 用預設值：RasterizeForbiddenZones 會把它夾到 current ⇒ g = 0 ⇒ 真的擋。
-            hints.AddForbiddenZone(shape, default, a.InstanceID);
+            hints.AddForbiddenZone(m > 0f ? InflateAggroShape(shape, m) : shape, default, a.InstanceID);
         }
 
         // 「離開了就重置」：本幀沒再算到人在裡面的，從名單移除，下次再進去會重新印一行。
@@ -5337,6 +5374,17 @@ public abstract partial class AutoClear : ZoneModule
             {
                 _aggroProgressSample = (pp, now); // 有前進，重新起算
             }
+            else if ((now - sample.At).TotalSeconds >= AggroMarginStuckSeconds && margined > 0)
+            {
+                // 卡住的第一階：先拿掉安全邊距（回到貼邊繞），還是卡住才整個讓路。
+                _aggroMarginRelaxedUntil = now.AddSeconds(AggroSuppressSeconds);
+                _aggroProgressSample = null;
+                Service.Logger.Information(
+                    $"[DD] 仇恨迴避放寬邊距：樓層 {Palace.Floor}，{AggroMarginStuckSeconds:f2} 秒內只移動了不到 " +
+                    $"{AggroStuckDistance:f1}y（本幀 {added} 個迴避形狀、其中 {margined} 個帶安全邊距）⇒ " +
+                    $"接下來 {AggroSuppressSeconds:f0} 秒拿掉 {Config.AggroAvoidMargin:f1}y 的安全邊距、照舊貼著偵測範圍繞；還是卡住才整個讓路。");
+                return;
+            }
             else if ((now - sample.At).TotalSeconds >= AggroStuckSeconds)
             {
                 _aggroSuppressUntil = now.AddSeconds(AggroSuppressSeconds);
@@ -5369,7 +5417,7 @@ public abstract partial class AutoClear : ZoneModule
         {
             _aggroAvoidLoggedFloor = Palace.Floor;
             Service.Logger.Information(
-                $"[DD] 仇恨迴避啟用：樓層 {Palace.Floor}，半徑 hitbox+{radius:f1}y（禁區，非軟成本）、" +
+                $"[DD] 仇恨迴避啟用：樓層 {Palace.Floor}，半徑 hitbox+{radius:f1}y＋安全邊距 {margin:f1}y（靠近時縮到現有距離；禁區，非軟成本）、" +
                 $"本幀 {added} 個形狀＝扇形 {cones} 隻／圓 {circles} 隻／表外退回圓 {unknown} 隻" +
                 $"，另有 {skippedInside} 隻因為玩家已在其範圍內而跳過（上限 {MaxAggroCircles}）" +
                 $"；候選裡有 {mimics} 隻死者宮殿擬態怪（半徑另加 {MimicExtraRadius:f0}y）。");

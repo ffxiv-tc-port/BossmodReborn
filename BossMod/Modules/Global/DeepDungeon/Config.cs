@@ -261,6 +261,12 @@ public sealed class AutoDDConfig : ConfigNode
     [PropertySlider(0f, 20f, Speed = 0.5f)]
     public float AggroAvoidRadius = 10f;
 
+    // 新欄位：缺鍵的既有設定檔拿到這個初始值。2y＝錄影裡怪物最遠在假設範圍外約 1.2y 發現人，再留路徑跟隨誤差。
+    [PropertyDisplay("Safety margin around aggro ranges (yalms)",
+        tooltip: "Extra distance kept from the cone or circle above, both when routing around mobs and while kiting, so the route does not brush along the edge - in recordings, mobs often noticed you up to about 1 yalm outside the assumed range.\n\nIt never pushes you away from where you already stand: close to a mob the margin shrinks to what you already have. If you stop making progress for a couple of seconds, the margin is dropped first (the edge is allowed again) before the avoidance switches off.\n\n0 = hug the edge as before.")]
+    [PropertySlider(0f, 5f, Speed = 0.1f)]
+    public float AggroAvoidMargin = 2f;
+
     // 🔴 預設 true。這個開關修的是一個靜默失效，完整說明見 AIHints.WantKiting。
     [PropertyDisplay("Kite: allow backing away while dodging",
         tooltip: "Whenever anything dangerous is telegraphed, the AI normally penalises any spot further from your target than where you stand now, so it does not drift away. That penalty is far stronger than the kiting preference, so without this, kiting silently does nothing while an AOE is up - which in a deep dungeon is most of the time.\n\nTicked, that one penalty is skipped while kiting is actually active. Dodging itself is completely unaffected - no dangerous spot ever becomes acceptable.\n\nUntick for the old behaviour.")]

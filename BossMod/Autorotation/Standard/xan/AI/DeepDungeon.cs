@@ -515,17 +515,19 @@ public sealed class DeepDungeonAI : AIBase
     private const int MaxKiteAggroShapes = 6;
     private const int KiteRingSamples = 16;
     private const double KiteAggroStuckSeconds = 2.5d;
+    private const double KiteMarginStuckSeconds = 1.25d; // 第一階只拿掉安全邊距，早一點觸發
     private const float KiteAggroStuckDistance = 1.5f;
     private const double KiteAggroSuppressSeconds = 6d;
 
     private static readonly Func<WPos, float>[] _kiteShapes = new Func<WPos, float>[MaxKiteAggroShapes];
     private static readonly ulong[] _kiteShapeIds = new ulong[MaxKiteAggroShapes];
     private static DateTime _kiteAggroSuppressUntil;
+    private static DateTime _kiteMarginRelaxedUntil;
     private static (WPos Pos, DateTime At)? _kiteAggroProgress;
 
     // 每分鐘彙總一行的計數（幀數）；0＝那一分鐘沒發生
     private static DateTime _kiteAggroDigestStart;
-    private static int _dgAvoidFrames, _dgShapes, _dgTrimmedFrames, _dgNoClearFrames, _dgInsideSkips, _dgDodgeFrames, _dgSuppressedFrames, _dgStuckTrips;
+    private static int _dgAvoidFrames, _dgShapes, _dgTrimmedFrames, _dgNoClearFrames, _dgInsideSkips, _dgDodgeFrames, _dgSuppressedFrames, _dgStuckTrips, _dgMarginRelaxTrips;
 
     /// <summary>
     /// 往外退的那幾幀，把附近「還沒發現我」的怪的偵測形狀畫成禁區，讓退路不把新的怪拉進來。
@@ -586,6 +588,8 @@ public sealed class DeepDungeonAI : AIBase
         }
 
         var inPotd = World.DeepDungeon.DungeonId == DeepDungeonState.DungeonType.POTD;
+        var margin = now < _kiteMarginRelaxedUntil ? 0f : Math.Max(0f, Config.AggroAvoidMargin);
+        var margined = 0;
         var count = 0;
         for (var i = 0; i < pickedCount; ++i)
         {
@@ -597,7 +601,10 @@ public sealed class DeepDungeonAI : AIBase
                 ++_dgInsideSkips;
                 continue;
             }
-            _kiteShapes[count] = shape;
+            var m = Global.DeepDungeon.AutoClear.AggroMarginFor(shape, margin, pp);
+            if (m > 0f)
+                ++margined;
+            _kiteShapes[count] = m > 0f ? Global.DeepDungeon.AutoClear.InflateAggroShape(shape, m) : shape;
             _kiteShapeIds[count] = a.InstanceID;
             ++count;
         }
@@ -625,7 +632,7 @@ public sealed class DeepDungeonAI : AIBase
             return;
         }
 
-        if (KiteStuck(pp, now, keep))
+        if (KiteStuck(pp, now, keep, margined > 0))
             return;
 
         for (var i = 0; i < keep; ++i)
@@ -650,17 +657,24 @@ public sealed class DeepDungeonAI : AIBase
         return false;
     }
 
-    /// <summary>有加形狀卻退不動就讓路：回 true＝這一幀起暫停避讓。讀條期間不累積（站著不動是正常的）。</summary>
-    private bool KiteStuck(WPos pp, DateTime now, int shapes)
+    /// <summary>有加形狀卻退不動就讓路：有安全邊距時先拿掉邊距（回 false），還是退不動才回 true＝這一幀起暫停避讓。讀條期間不累積。</summary>
+    private bool KiteStuck(WPos pp, DateTime now, int shapes, bool hasMargin)
     {
         if (Player.CastInfo != null || _kiteAggroProgress is not { } s || (pp - s.Pos).LengthSq() >= KiteAggroStuckDistance * KiteAggroStuckDistance)
         {
             _kiteAggroProgress = (pp, now);
             return false;
         }
-        if ((now - s.At).TotalSeconds < KiteAggroStuckSeconds)
+        if ((now - s.At).TotalSeconds < (hasMargin ? KiteMarginStuckSeconds : KiteAggroStuckSeconds))
             return false;
         _kiteAggroProgress = null;
+        if (hasMargin)
+        {
+            _kiteMarginRelaxedUntil = now.AddSeconds(KiteAggroSuppressSeconds);
+            ++_dgMarginRelaxTrips;
+            Service.Logger.Information($"[DD kite] 仇恨避讓放寬邊距：{KiteMarginStuckSeconds:f2} 秒內只移動了不到 {KiteAggroStuckDistance:f1}y（本幀 {shapes} 個形狀）⇒ 接下來 {KiteAggroSuppressSeconds:f0} 秒拿掉安全邊距、照舊貼著偵測範圍退；還是退不動才整個讓路。");
+            return false;
+        }
         _kiteAggroSuppressUntil = now.AddSeconds(KiteAggroSuppressSeconds);
         ++_dgStuckTrips;
         Service.Logger.Information($"[DD kite] 仇恨避讓讓路：{KiteAggroStuckSeconds:f1} 秒內只移動了不到 {KiteAggroStuckDistance:f1}y（本幀 {shapes} 個形狀）⇒ 接下來 {KiteAggroSuppressSeconds:f0} 秒不避讓、照舊行為。");
@@ -674,14 +688,14 @@ public sealed class DeepDungeonAI : AIBase
             _kiteAggroDigestStart = now;
         if ((now - _kiteAggroDigestStart).TotalSeconds < 60d)
             return;
-        if (_dgAvoidFrames + _dgTrimmedFrames + _dgNoClearFrames + _dgInsideSkips + _dgDodgeFrames + _dgSuppressedFrames + _dgStuckTrips > 0)
+        if (_dgAvoidFrames + _dgTrimmedFrames + _dgNoClearFrames + _dgInsideSkips + _dgDodgeFrames + _dgSuppressedFrames + _dgStuckTrips + _dgMarginRelaxTrips > 0)
         {
             Service.Logger.Information($"[DD kite] 仇恨避讓彙總（{(now - _kiteAggroDigestStart).TotalSeconds:f0} 秒）：避開其他怪仇恨範圍 {_dgAvoidFrames} 幀（平均 {(_dgAvoidFrames > 0 ? (float)_dgShapes / _dgAvoidFrames : 0f):f1} 隻）"
                 + $"、退路被包住只避最近幾隻 {_dgTrimmedFrames} 幀、找不到乾淨退路（不避讓）{_dgNoClearFrames} 幀"
-                + $"、已站在其範圍內而跳過 {_dgInsideSkips} 次、閃避優先暫停 {_dgDodgeFrames} 幀、卡住讓路 {_dgStuckTrips} 次（讓路中 {_dgSuppressedFrames} 幀）。");
+                + $"、已站在其範圍內而跳過 {_dgInsideSkips} 次、閃避優先暫停 {_dgDodgeFrames} 幀、卡住先放寬邊距 {_dgMarginRelaxTrips} 次、卡住讓路 {_dgStuckTrips} 次（讓路中 {_dgSuppressedFrames} 幀）。");
         }
         _kiteAggroDigestStart = now;
-        _dgAvoidFrames = _dgShapes = _dgTrimmedFrames = _dgNoClearFrames = _dgInsideSkips = _dgDodgeFrames = _dgSuppressedFrames = _dgStuckTrips = 0;
+        _dgAvoidFrames = _dgShapes = _dgTrimmedFrames = _dgNoClearFrames = _dgInsideSkips = _dgDodgeFrames = _dgSuppressedFrames = _dgStuckTrips = _dgMarginRelaxTrips = 0;
     }
 
     #endregion

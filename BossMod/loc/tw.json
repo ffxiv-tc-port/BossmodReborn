@@ -9013,5 +9013,11 @@
   },
   "Potion advisor: on boss floors, use a healing potion below this HP (%)": {
     "message": "喝藥判斷模組：BOSS 層血量低於此百分比時使用治療劑"
+  },
+  "Safety margin around aggro ranges (yalms)": {
+    "message": "仇恨範圍外的安全距離（碼）"
+  },
+  "Extra distance kept from the cone or circle above, both when routing around mobs and while kiting, so the route does not brush along the edge - in recordings, mobs often noticed you up to about 1 yalm outside the assumed range.\n\nIt never pushes you away from where you already stand: close to a mob the margin shrinks to what you already have. If you stop making progress for a couple of seconds, the margin is dropped first (the edge is allowed again) before the avoidance switches off.\n\n0 = hug the edge as before.": {
+    "message": "繞開怪物與風箏後退時，都與上方的扇形／圓形再保持這段距離，路線就不會擦著邊走——錄影裡怪物常在假設範圍外約 1 碼內就發現你。\n\n不會把你從現在站的位置推開：已經靠近某隻怪時，安全距離會縮到你目前與牠的距離。若幾秒內沒有前進，會先拿掉這段安全距離（允許貼邊），還是卡住才整個停止迴避。\n\n0＝跟以前一樣貼著邊緣走。"
   }
 }
