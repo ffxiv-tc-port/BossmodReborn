@@ -114,6 +114,8 @@ public sealed class AIHintsBuilder : IDisposable
             if (activeModule != null)
             {
                 activeModule.CalculateAIHints(playerSlot, ref player, ref playerAssignment, ref hints);
+                if (player != null)
+                    _zmm.ActiveModule?.CalculateAIHintsDuringBossModule(playerSlot, player, hints);
                 // SimpleBossModule 換回 DefaultBounds（跟著玩家走的方形），那不是場地
                 hints.PathfindMapBoundsIsArena = !ReferenceEquals(hints.PathfindMapBounds, AIHints.DefaultBounds);
             }

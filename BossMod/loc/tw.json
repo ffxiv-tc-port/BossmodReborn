@@ -8998,5 +8998,20 @@
   },
   "Off: a band just inside melee range around the first enemy in combat, for every job.\nOn: a ring around the enemy you are targeting, at the farthest distance your melee attacks reach (its hitbox + yours + 3y); shown only on tanks, melee DPS and Red Mage, and nothing is drawn while you have no enemy targeted.\nUses the same colour setting. Needs \"Show melee range indicator\".": {
     "message": "關：在第一個進入戰鬥的敵人周圍、近戰距離略內側畫一圈帶狀，所有職業都畫。\n開：在你目前選中的敵人周圍畫一圈線，位置是近戰攻擊打得到的最遠處（對方判定圈＋自己判定圈＋3 碼）；只在防護職業、近戰職業與赤魔法師時顯示，沒有選中敵人時不畫。\n顏色沿用同一個設定。需要先勾「顯示近戰範圍指示」。"
+  },
+  "Potion advisor: on boss floors, drink the deep dungeon potion below this HP (%)": {
+    "message": "喝藥判斷模組：BOSS 層戰鬥中血量低於此百分比時喝深層迷宮專屬藥水"
+  },
+  "Boss floors use the higher of this and the normal threshold above, so the deep dungeon potion goes in earlier during a boss fight instead of being saved.\n\nNeeds \"also drink the deep dungeon's own potions\".": {
+    "message": "BOSS 層取此值與上方一般門檻中較高者，讓 BOSS 戰時深層迷宮專屬藥水更早喝，而不是一直省著。\n\n需勾選「同時自動使用深層迷宮專屬藥水」。"
+  },
+  "Potion advisor: on boss floors, also drink it when HP is expected to fall below this within 10 seconds (%)": {
+    "message": "喝藥判斷模組：BOSS 層預估 10 秒內血量會低於此百分比時也喝"
+  },
+  "Boss floors use the higher of this and the normal threshold above.": {
+    "message": "BOSS 層取此值與上方一般門檻中較高者。"
+  },
+  "Potion advisor: on boss floors, use a healing potion below this HP (%)": {
+    "message": "喝藥判斷模組：BOSS 層血量低於此百分比時使用治療劑"
   }
 }

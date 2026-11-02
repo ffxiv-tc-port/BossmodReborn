@@ -2635,6 +2635,21 @@ public abstract partial class AutoClear : ZoneModule
 
     protected virtual void CalculateExtraHints(int playerSlot, Actor player, AIHints hints) { }
 
+    /// <summary>首領戰中（首領模組接手提示）只跑喝藥；其餘自動化在首領層本來就停手。</summary>
+    public override void CalculateAIHintsDuringBossModule(int playerSlot, Actor player, AIHints hints)
+    {
+        if (!Config.Enable)
+            return;
+        if (_potionBossLoggedFloor != Palace.Floor)
+        {
+            _potionBossLoggedFloor = Palace.Floor;
+            Service.Logger.Information($"[DD] BOSS 戰：樓層 {Palace.Floor} 由 BOSS 模組接手，喝藥照常判斷（{(Config.PotionAdvisor ? "喝藥判斷模組，用 BOSS 層門檻" : "舊的保命藥水")}）。");
+        }
+        UpdatePotions(player, hints);
+    }
+
+    private byte _potionBossLoggedFloor = 255;
+
     public override void CalculateAIHints(int playerSlot, Actor player, AIHints hints)
     {
         if (!Config.Enable)

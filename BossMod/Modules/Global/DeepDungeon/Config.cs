@@ -668,4 +668,20 @@ public sealed class AutoDDConfig : ConfigNode
         tooltip: "The advisor does not drink the deep dungeon potion when you have this many or fewer left. 0 = it may use all of them.")]
     [PropertySlider(0, 20)]
     public int RegenPotionReserve = 0;
+
+    // 首領層三個門檻是新欄位：缺鍵的既有設定檔拿到這裡的初始值；取與上面對應欄位的較大者，只會更早喝。
+    [PropertyDisplay("Potion advisor: on boss floors, drink the deep dungeon potion below this HP (%)",
+        tooltip: "Boss floors use the higher of this and the normal threshold above, so the deep dungeon potion goes in earlier during a boss fight instead of being saved.\n\nNeeds \"also drink the deep dungeon's own potions\".")]
+    [PropertySlider(0, 100)]
+    public int BossRegenPotionCombatHP = 90;
+
+    [PropertyDisplay("Potion advisor: on boss floors, also drink it when HP is expected to fall below this within 10 seconds (%)",
+        tooltip: "Boss floors use the higher of this and the normal threshold above.")]
+    [PropertySlider(0, 100)]
+    public int BossRegenPotionProjectedHP = 70;
+
+    [PropertyDisplay("Potion advisor: on boss floors, use a healing potion below this HP (%)",
+        tooltip: "Boss floors use the higher of this and the normal threshold above.")]
+    [PropertySlider(0, 100)]
+    public int BossEmergencyPotionHP = 50;
 }

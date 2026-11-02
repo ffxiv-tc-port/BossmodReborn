@@ -192,6 +192,11 @@ public abstract partial class AutoClear
             : null;
         var regenAid = RegenPotionFor(Palace.DungeonId);
         var hot = player.FindStatus(RegenStatusID);
+        // 首領層門檻取兩者較寬者：首領層設定只會讓藥喝得更早，不會比平常更省。
+        var boss = Palace.IsBossFloor;
+        var regenCombatHP = boss ? Math.Max(Config.RegenPotionCombatHP, Config.BossRegenPotionCombatHP) : Config.RegenPotionCombatHP;
+        var regenProjectedHP = boss ? Math.Max(Config.RegenPotionProjectedHP, Config.BossRegenPotionProjectedHP) : Config.RegenPotionProjectedHP;
+        var emergencyHP = boss ? Math.Max(Config.EmergencyPotionHP, Config.BossEmergencyPotionHP) : Config.EmergencyPotionHP;
         var s = new DeepDungeonPotionAdvisor.Snapshot
         {
             HP = player.PendingHPRatio,
@@ -208,9 +213,9 @@ public abstract partial class AutoClear
             HealReady = true,
             HealInStock = true,
             HPGateBlocking = gate != HPGate.None,
-            RegenCombatHP = Config.RegenPotionCombatHP / 100.0,
-            RegenProjectedHP = Config.RegenPotionProjectedHP / 100.0,
-            EmergencyHP = Config.EmergencyPotionHP / 100.0,
+            RegenCombatHP = regenCombatHP / 100.0,
+            RegenProjectedHP = regenProjectedHP / 100.0,
+            EmergencyHP = emergencyHP / 100.0,
             EmergencyOutOfCombat = Config.EmergencyPotionOutOfCombat,
             RegenWhenGateBlocks = Config.RegenPotionWhenHPGateBlocks,
         };
@@ -341,7 +346,7 @@ public abstract partial class AutoClear
         if (s.InCombat)
         {
             var thr = d.Projected10 < s.RegenProjectedHP ? s.RegenProjectedHP : s.RegenCombatHP;
-            Service.Logger.Information($"[DD] 喝藥：{aid.Name()}｜交戰中 HP {s.HP * 100:f0}%，預估 10 秒後 {d.Projected10 * 100:f0}%（門檻 {thr * 100:f0}%）｜咬住 {engaged} 隻，近 10 秒每秒受傷 {s.ObservedDtps * 100:f1}%（樓層下限 {engaged * s.PerMobDtps * 100:f1}%）");
+            Service.Logger.Information($"[DD] 喝藥：{aid.Name()}｜交戰中 HP {s.HP * 100:f0}%，預估 10 秒後 {d.Projected10 * 100:f0}%（{(Palace.IsBossFloor ? "BOSS 層" : "")}門檻 {thr * 100:f0}%）｜咬住 {engaged} 隻，近 10 秒每秒受傷 {s.ObservedDtps * 100:f1}%（樓層下限 {engaged * s.PerMobDtps * 100:f1}%）");
             return;
         }
         var what = gate switch

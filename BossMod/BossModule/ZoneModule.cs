@@ -21,6 +21,8 @@ public abstract class ZoneModule(WorldState ws) : IDisposable
     public virtual bool WantDrawHints() => false; // return true if it wants to draw hints (higher priority than inactive boss modules, but lower priority than active)
     public virtual List<string> CalculateGlobalHints() => [];
     public virtual void CalculateAIHints(int playerSlot, Actor player, AIHints hints) { } // note: this is called after framework automatically fills auto-detected hints
+    // 首領模組啟用時 CalculateAIHints 不會被呼叫，改呼叫這支（在首領模組之後）；只放與首領戰相容的事，例如喝藥。
+    public virtual void CalculateAIHintsDuringBossModule(int playerSlot, Actor player, AIHints hints) { }
     public virtual string? DescribeDangerAt(WPos pos) => null; // 診斷用：說明此處的禁區是本模組哪一類提示造成的；只在主執行緒呼叫
     public virtual bool WantDrawExtra() => false; // return true if it wants to draw something in a separate window
     public virtual void DrawExtra() { }
