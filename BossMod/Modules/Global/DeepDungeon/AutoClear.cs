@@ -531,6 +531,8 @@ public abstract partial class AutoClear : ZoneModule
         _aggroInteractLoggedFloor = 255;
         _openedChests.Clear();
         _fakeExits.Clear();
+        _unreachableCoffers.Clear();
+        _cofferProgressId = 0;
         // 🔴 寶箱累積值是「本層看過什麼」，換層一定要歸零，否則上一層的標記會跟著下來。
         Array.Clear(_chestSeen);
         // 換層／重新進場都讓寶箱摘要再印一次。簽章本身含樓層，同一輪往下走本來就會變；
@@ -1435,14 +1437,20 @@ public abstract partial class AutoClear : ZoneModule
     #region 路徑的線段級陷阱檢查
 
     /// <summary>
-    /// 陷阱圓的半徑（碼）。<b>AI 迴避與手動導航的線段檢查共用這一個值。</b>
+    /// 陷阱圓的半徑（碼）：「人在不在陷阱旁」那類判定（站在上面、已觸發的點、試踩寶藏、社群點靠近目標）用。
+    /// </summary>
+    private const float TrapCircleRadius = 2f;
+
+    /// <summary>
+    /// 走路要離陷阱點多遠（碼）。<b>AI 迴避的硬禁區圓與手動導航的線段檢查共用這一個值。</b>
     /// </summary>
     /// <remarks>
-    /// 🔴 兩邊用不同半徑的話，「AI 會閃但手動導航說沒問題」（或反過來）
-    /// 都會變成使用者眼中的自相矛盾，而且沒有任何地方看得出來為什麼。
-    /// 兩處共用這個常數，才不可能走散。
+    /// 🔴 兩邊用不同半徑的話，「AI 會閃但手動導航說沒問題」（或反過來）會變成使用者眼中的自相矛盾。
+    /// 契約：比觸發半徑大（錄影 112 次觸發的最近距離最大 1.67y、PalacePal 畫 1.7y）。
+    /// 比 <see cref="TrapCircleRadius"/> 小的理由：尋路格 0.5y 只要有一個角點落在圓內整格就封，
+    /// 2y 圓實際讓出的縫比畫出來的窄 0.5～1y；1.8y 時可通行格離圓心仍 ≥ 約 1.78y（起點不在格心時第一段可再近約 0.35y，2y 也一樣）。
     /// </remarks>
-    private const float TrapCircleRadius = 2f;
+    private const float TrapPathRadius = 1.8f;
 
     /// <summary>
     /// 這一次驗證要比對哪些陷阱點。
@@ -1564,10 +1572,10 @@ public abstract partial class AutoClear : ZoneModule
             Extend(pp0);
         for (var i = 0; i < count; ++i)
             Extend(new WPos(path[i].X, path[i].Z));
-        minX -= TrapCircleRadius;
-        maxX += TrapCircleRadius;
-        minZ -= TrapCircleRadius;
-        maxZ += TrapCircleRadius;
+        minX -= TrapPathRadius;
+        maxX += TrapPathRadius;
+        minZ -= TrapPathRadius;
+        maxZ += TrapPathRadius;
 
         var prev = playerPos ?? new WPos(path[0].X, path[0].Z);
         var trapCount = traps.Count;
@@ -1580,14 +1588,14 @@ public abstract partial class AutoClear : ZoneModule
                 if (t.X < minX || t.X > maxX || t.Z < minZ || t.Z > maxZ)
                     continue;
                 var dist = DistanceToSegment(t, prev, cur);
-                if (dist <= TrapCircleRadius)
+                if (dist <= TrapPathRadius)
                 {
                     Service.Logger.Information(
                         $"[DD] 手動導航拒絕：第 {i + 1}/{count} 段（{prev.X:f1},{prev.Z:f1} → {cur.X:f1},{cur.Z:f1}）" +
-                        $"距已知陷阱 ({t.X:f1},{t.Z:f1}) 只有 {dist:f1}y（門檻 {TrapCircleRadius}y）。");
+                        $"距已知陷阱 ({t.X:f1},{t.Z:f1}) 只有 {dist:f1}y（門檻 {TrapPathRadius}y）。");
                     return string.Format(
                         Loc.T("DD_WalkPathNearTrap", "Refusing to move: leg {0} of {1} of vnavmesh's route passes {2:f1}y from a known trap (the threshold is {3:f1}y). Nothing is moved. Walk that stretch yourself, or use \"set closest trap location as ignored\" if you know that marker is wrong."),
-                        i + 1, count, dist, TrapCircleRadius);
+                        i + 1, count, dist, TrapPathRadius);
                 }
             }
             prev = cur;
@@ -2069,7 +2077,7 @@ public abstract partial class AutoClear : ZoneModule
             }
 
             if (!shouldIgnore)
-                traps.Add((trap, nearGoal ? LightTrapCircleRadius : TrapCircleRadius));
+                traps.Add((trap, nearGoal ? LightTrapCircleRadius : TrapPathRadius));
         }
     }
 
@@ -2779,7 +2787,7 @@ public abstract partial class AutoClear : ZoneModule
                 continue;
             }
 
-            if (_openedChests.Contains(a.InstanceID) || _fakeExits.Contains(a.InstanceID))
+            if (_openedChests.Contains(a.InstanceID) || _fakeExits.Contains(a.InstanceID) || _unreachableCoffers.Contains(a.InstanceID))
                 continue;
 
             var oid = a.OID;
@@ -2836,11 +2844,12 @@ public abstract partial class AutoClear : ZoneModule
             }
         }
         _diagTrapZones = !Config.TrapHints ? TrapZoneDiag.Off : !_trapsHidden ? TrapZoneDiag.Revealed : HoardWalkIgnoringTraps ? TrapZoneDiag.HoardWalkIgnore : TrapZoneDiag.Added;
-        if (Config.TrapHints && _trapsHidden && !HoardWalkIgnoringTraps)
+        _trapCirclesFresh = Config.TrapHints && _trapsHidden && !HoardWalkIgnoringTraps;
+        if (_trapCirclesFresh)
         {
             var traps = _trapCircles;
             traps.Clear();
-            AddNearbyTrapCircles(_hardTraps, player, traps, TrapCircleRadius, false);
+            AddNearbyTrapCircles(_hardTraps, player, traps, TrapPathRadius, false);
             AddNearbyTrapCircles(_lightTraps, player, traps, LightTrapCircleRadius, true);
             if (_communityHardTraps.Length != 0)
                 AddCommunityTrapCircles(player, traps, passage, coffer, hoardLight);
@@ -3004,6 +3013,7 @@ public abstract partial class AutoClear : ZoneModule
         }
 
         AddAggroAvoidance(player, hints, moveToCoffer, passageGoal, hoardLightGoal);
+        UpdateCofferProgress(player, moveToCoffer);
 
         var shouldTargetMobs = Config.AutoClear switch
         {
@@ -4448,7 +4458,7 @@ public abstract partial class AutoClear : ZoneModule
         _palTiersLogged = mode;
         Service.Logger.Information(mode switch
         {
-            TrapTierMode.AllHard => $"[DD pal] 社群回報的陷阱也硬閃（區域 {territory}）：內建表＋PalacePal {_communityHardTraps.Length} 點與我方確認 {_palConfirmedTraps.Length} 點都用 {TrapCircleRadius}y 的完整圓；社群點離通道石／寶箱／埋藏寶藏光點 {CommunityNearGoalRange}y 內時改輕微繞開（{LightTrapCircleRadius}y），免得蓋住整個目標區。",
+            TrapTierMode.AllHard => $"[DD pal] 社群回報的陷阱也硬閃（區域 {territory}）：內建表＋PalacePal {_communityHardTraps.Length} 點與我方確認 {_palConfirmedTraps.Length} 點都用 {TrapPathRadius}y 的完整圓；社群點離通道石／寶箱／埋藏寶藏光點 {CommunityNearGoalRange}y 內時改輕微繞開（{LightTrapCircleRadius}y），免得蓋住整個目標區。",
             TrapTierMode.TwoTier => $"[DD pal] 陷阱分兩態（區域 {territory}）：PalacePal 我方確認 {_hardTraps.Length} 點照舊硬閃，其餘 {_lightTraps.Length} 點（內建表＋PalacePal）只輕微繞開（半徑 {LightTrapCircleRadius}y，人在 {TrapCircleRadius}y 內就不管）。",
             _ => $"[DD pal] PalacePal 沒有我方確認端點（舊版或取不到），陷阱照舊全部硬閃：{_hardTraps.Length} 點。",
         });
@@ -4925,6 +4935,69 @@ public abstract partial class AutoClear : ZoneModule
         var lateral = Math.Abs((laneAxisIsX ? p.X : p.Z) - laneCoord);
         return lateral <= LaneHalfWidth ? travelWeight * WaypointWeightFactor : 0f;
     };
+
+    #region 寶箱走不到就放棄
+
+    /// <summary>本層判定走不到、不再當目標的寶箱（InstanceID）；換層清空。</summary>
+    private readonly HashSet<ulong> _unreachableCoffers = [];
+    private ulong _cofferProgressId;
+    private WPos _cofferProgressPos;
+    private DateTime _cofferProgressSince;
+
+    /// <summary>走去寶箱卻這麼久（秒）沒前進就本層放棄它；比仇恨迴避兩階讓路（1.25＋2.5 秒）晚，先讓那邊鬆開。</summary>
+    private const double CofferGiveUpSeconds = 8d;
+
+    /// <summary>只有寶箱這麼近（碼）內有陷阱禁區圈時才計時：退路針對的是「被陷阱圍住」，不是任何原因的停頓。</summary>
+    private const float CofferTrapNearRange = 6f;
+
+    /// <summary>BMR 的 AI 有沒有在替玩家走路；離線量測台換成固定值。</summary>
+    internal static Func<bool> AiDriving = () => AI.AIManager.Instance?.Beh != null
+        && (MovementOverride.Instance is not { } mo || !mo.AutoMovementPaused && !mo.IsMoveRequested());
+
+    /// <summary><see cref="_trapCircles"/> 是這一幀重算的（陷阱迴避關著或已現形時它留著舊內容）。</summary>
+    private bool _trapCirclesFresh;
+
+    /// <summary>
+    /// 寶箱被陷阱圈／牆圍住、尋路找不到路時的退路：放棄這個寶箱，而不是站著不動或踩陷阱過去。
+    /// </summary>
+    /// <remarks>互動中（開箱、用魔陶器）暫停計時，理由同 <see cref="IsInteracting"/>。</remarks>
+    private void UpdateCofferProgress(Actor player, Actor? coffer)
+    {
+        if (coffer == null || player.InCombat || IsInteracting(player) || player.DistanceToHitbox(coffer) <= ApproachArrivedDistance || !AiDriving()
+            || CountTrapCirclesNear(coffer.Position) == 0)
+        {
+            _cofferProgressId = 0;
+            return;
+        }
+        var now = World.CurrentTime;
+        if (coffer.InstanceID != _cofferProgressId || (player.Position - _cofferProgressPos).LengthSq() >= StuckMoveThreshold * StuckMoveThreshold)
+        {
+            (_cofferProgressId, _cofferProgressPos, _cofferProgressSince) = (coffer.InstanceID, player.Position, now);
+            return;
+        }
+        if ((now - _cofferProgressSince).TotalSeconds < CofferGiveUpSeconds)
+            return;
+        _unreachableCoffers.Add(coffer.InstanceID);
+        _cofferProgressId = 0;
+        var nearTraps = CountTrapCirclesNear(coffer.Position);
+        Service.Logger.Information(
+            $"[DD] 寶箱走不到：樓層 {Palace.Floor}，走去 {coffer.Name}（{player.DistanceToHitbox(coffer):f1}y 外）{CofferGiveUpSeconds:f0} 秒內位移不足 {StuckMoveThreshold}y" +
+            $" ⇒ 本層放棄這個寶箱、改走別的目標（寶箱 {CofferTrapNearRange:f0}y 內陷阱禁區 {nearTraps} 圈）。");
+    }
+
+    /// <summary>本幀交給尋路的陷阱禁區圈裡，圓心在 <paramref name="pos"/> 附近 <see cref="CofferTrapNearRange"/> 內的有幾圈。</summary>
+    private int CountTrapCirclesNear(WPos pos)
+    {
+        if (!_trapCirclesFresh)
+            return 0;
+        var n = 0;
+        foreach (var c in _trapCircles)
+            if (c.Center.InCircle(pos, CofferTrapNearRange))
+                ++n;
+        return n;
+    }
+
+    #endregion
 
     #region 仇恨迴避
 
