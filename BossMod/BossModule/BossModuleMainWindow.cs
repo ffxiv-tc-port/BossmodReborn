@@ -24,7 +24,7 @@ public sealed class BossModuleMainWindow : UIWindow
         _zmm = zmm;
         _openConfig = openConfig;
         _genericRadar = new(mgr.WorldState, hints, hintsBuilder);
-        _genericRadarWindowName = Loc.T("Trial radar (no boss module)") + _windowID;
+        _genericRadarWindowName = Loc.T("Radar (no boss module)") + _windowID;
         RespectCloseHotkey = false;
         TitleBarButtons.Add(new() { Icon = FontAwesomeIcon.Cog, IconOffset = new(1), Click = _ => OpenModuleConfig() });
     }

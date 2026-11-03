@@ -2,12 +2,13 @@ using Dalamud.Bindings.ImGui;
 
 namespace BossMod;
 
-// 沒有專屬模組的討伐戰用的雷達：畫 AI 這一幀用的尋路範圍、敵我位置、AIHintsBuilder 從讀條猜出來的危險區。
+// 沒有專屬模組的討伐戰與大型任務用的雷達：畫 AI 這一幀用的尋路範圍、敵我位置、AIHintsBuilder 從讀條猜出來的危險區。
 // 契約：只讀 AIHints／AIHintsBuilder，不寫回，也不改它們持有的邊界實例（顯示用的邊界自己建）。
 // 只在主執行緒、AIHintsBuilder.Update 之後呼叫；Draw 只在 ShouldShow 為 true 的那一幀呼叫。
 public sealed class GenericTrialRadar
 {
     private const uint ContentTypeTrial = 4; // ContentFinderCondition.ContentType：討伐殲滅戰
+    private const uint ContentTypeRaid = 5; // 大型任務：8 人與 24 人團隊任務都是這一類
     private static readonly BossModuleConfig _config = Service.Config.Get<BossModuleConfig>();
     private static readonly AI.AIConfig _aiConfig = Service.Config.Get<AI.AIConfig>();
     private static readonly List<RelTriangle> _noTriangles = [];
@@ -56,7 +57,7 @@ public sealed class GenericTrialRadar
         _arena = new(default, new ArenaBoundsSquare(1f));
     }
 
-    // 在討伐戰裡、這個副本沒有會載入的模組、而且還有東西可看（戰鬥中或場上有敵人）
+    // 在討伐戰或大型任務裡、這個副本沒有會載入的模組、而且還有東西可看（戰鬥中或場上有敵人）
     public bool ShouldShow()
     {
         var cfc = _ws.CurrentCFCID;
@@ -68,7 +69,7 @@ public sealed class GenericTrialRadar
             _faulted = false;
             _eligible = cfc != 0 && IsTrialWithoutModule(cfc, minMaturity);
             if (_eligible)
-                Service.Logger.Information($"[GenericTrialRadar] 副本 {cfc} 是討伐戰而且沒有會載入的模組：場上有敵人或戰鬥中時顯示通用雷達。");
+                Service.Logger.Information($"[GenericTrialRadar] 副本 {cfc} 是討伐戰或大型任務而且沒有會載入的模組：場上有敵人或戰鬥中時顯示通用雷達。");
         }
         if (!_eligible || _faulted)
             return false;
@@ -80,8 +81,10 @@ public sealed class GenericTrialRadar
     {
         try
         {
-            if (Service.LuminaRow<Lumina.Excel.Sheets.ContentFinderCondition>(cfc)?.ContentType.RowId != ContentTypeTrial)
+            var type = Service.LuminaRow<Lumina.Excel.Sheets.ContentFinderCondition>(cfc)?.ContentType.RowId;
+            if (type is not (ContentTypeTrial or ContentTypeRaid))
                 return false;
+            // 以副本為單位：多首領的團隊任務只要有一個首領有會載入的模組，整個副本都不開通用雷達（刻意保守：不在既有模組的副本裡多開視窗）
             foreach (var info in BossModuleRegistry.RegisteredModules.Values)
                 if (info.GroupID == cfc && info.Maturity >= minMaturity && info.GroupType is BossModuleInfo.GroupType.CFC or BossModuleInfo.GroupType.RemovedUnreal
                     && !info.ModuleType.IsSubclassOf(typeof(UnverifiedOidTrialModule))) // 推錯的 OID 永遠不載入，不能因此讓位；推對時模組載入就會蓋過通用雷達
