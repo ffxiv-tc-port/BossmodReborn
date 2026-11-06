@@ -324,6 +324,8 @@ public sealed class AIHintsBuilder : IDisposable
             return null;
         if (data.CastType is 2 or 5 && data.EffectRange >= RaidwideSize)
             return null;
+        if (OmenDonutOverride(actionID, data.EffectRange, actor.HitboxRadius) is AOEShapeDonut donut)
+            return donut;
         if (GuessShape(ref data, ref actor) is not AOEShape shape)
         {
             Service.Log($"[AutoHints] Unknown cast type {data.CastType} for {castInfo.Action}");
@@ -332,6 +334,15 @@ public sealed class AIHintsBuilder : IDisposable
         isCharge = data.CastType == 8;
         return shape;
     }
+
+    // CastType 只說圓形、Omen 卻是甜甜圈的招式：外徑照 CastType 5（EffectRange＋施放者 hitbox），內徑照 Omen 的內外比。
+    // 刻意逐招列、不對所有 gl_sircle_XXYY 一般化：其他招式沒有實戰佐證，猜錯會讓 AI 站進範圍裡。
+    // 3364 金碟 GATE「テュポーン：ステージ外周」：Omen gl_sircle_1512af（外 15／內 12）。
+    internal static AOEShapeDonut? OmenDonutOverride(uint actionID, byte effectRange, float hitboxRadius) => actionID switch
+    {
+        3364u => new AOEShapeDonut((effectRange + hitboxRadius) * (12f / 15f), effectRange + hitboxRadius),
+        _ => null
+    };
 
     private void OnCastFinished(Actor actor)
     {
