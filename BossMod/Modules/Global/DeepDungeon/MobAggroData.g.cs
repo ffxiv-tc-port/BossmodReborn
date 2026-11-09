@@ -5,8 +5,8 @@
 //           而那個檔本身是 NecroLensDataTools（xlsx → json）的產出物。
 // 🔑 鍵是 BNpcName id（＝BMR 的 Actor.NameID），**不是** OID／BNpcBase。
 //    用 OID 去查會全數 miss，而且是靜默的（表查不到就退回統一圓）。
-// 分布：{'Sight': 439, 'Sound': 61, 'Proximity': 197}
-// 校正 2 筆（產生工具的 OVERRIDES；來源不一致時取範圍較大者），見各行尾註解。
+// 分布：{'Sight': 438, 'Sound': 59, 'Proximity': 200}
+// 實機確認 5 筆（產生工具的 PINNED；來源值與實機相符，來源被改回去時產生工具會拒絕寫檔），見各行尾註解。
 
 using System.Collections.Frozen;
 using System.Collections.Generic;
@@ -185,7 +185,7 @@ internal static class MobAggroData
             [5361u] = MobAggroKind.Sight,
             [5362u] = MobAggroKind.Sound,
             [5363u] = MobAggroKind.Sight,
-            [5364u] = MobAggroKind.Proximity, // 校正：深宮駿鷹（Deep Palace Hippogryph）：NecroLens＝Sight，consolegameswiki 死者宮殿 101~110 層＝Proximity（來源原值 Sight）
+            [5364u] = MobAggroKind.Proximity, // 使用者 2026-11-09 實機：深宮駿鷹（Deep Palace Hippogryph）為範圍感知，非視覺錐形
             [5365u] = MobAggroKind.Sight,
             [5366u] = MobAggroKind.Proximity,
             [5367u] = MobAggroKind.Sound,
@@ -298,8 +298,8 @@ internal static class MobAggroData
             [5474u] = MobAggroKind.Proximity,
             [5475u] = MobAggroKind.Proximity,
             [5477u] = MobAggroKind.Proximity,
-            [5479u] = MobAggroKind.Sound,
-            [5480u] = MobAggroKind.Sound, // 校正：深宮元精（Deep Palace Sprite）：NecroLens＝Sight，consolegameswiki 死者宮殿 101~110 層＝Sound（來源原值 Sight）
+            [5479u] = MobAggroKind.Proximity, // 使用者 2026-11-09 實機：地宮元精（Palace Sprite）元精一律為範圍感知
+            [5480u] = MobAggroKind.Proximity, // 使用者 2026-11-09 實機：深宮元精（Deep Palace Sprite）為範圍感知，非視覺錐形
             [7262u] = MobAggroKind.Sight,
             [7263u] = MobAggroKind.Sight,
             [7264u] = MobAggroKind.Sight,
@@ -460,7 +460,7 @@ internal static class MobAggroData
             [12115u] = MobAggroKind.Sight,
             [12116u] = MobAggroKind.Sound,
             [12117u] = MobAggroKind.Proximity,
-            [12118u] = MobAggroKind.Proximity,
+            [12118u] = MobAggroKind.Proximity, // 使用者 2026-11-09 實機：正統水元精（Orthos Water Sprite）元精一律為範圍感知
             [12119u] = MobAggroKind.Sight,
             [12120u] = MobAggroKind.Proximity,
             [12121u] = MobAggroKind.Proximity,
@@ -522,7 +522,7 @@ internal static class MobAggroData
             [12177u] = MobAggroKind.Sight,
             [12178u] = MobAggroKind.Sight,
             [12179u] = MobAggroKind.Sound,
-            [12180u] = MobAggroKind.Sight,
+            [12180u] = MobAggroKind.Proximity, // 使用者 2026-11-09 實機：正統冰元精（Orthos Ice Sprite）元精一律為範圍感知
             [12181u] = MobAggroKind.Sight,
             [12182u] = MobAggroKind.Sight,
             [12183u] = MobAggroKind.Sight,
