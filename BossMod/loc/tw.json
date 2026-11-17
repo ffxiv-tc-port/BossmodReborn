@@ -9019,5 +9019,17 @@
   },
   "Extra distance kept from the cone or circle above, both when routing around mobs and while kiting, so the route does not brush along the edge - in recordings, mobs often noticed you up to about 1 yalm outside the assumed range.\n\nIt never pushes you away from where you already stand: close to a mob the margin shrinks to what you already have. If you stop making progress for a couple of seconds, the margin is dropped first (the edge is allowed again) before the avoidance switches off.\n\n0 = hug the edge as before.": {
     "message": "繞開怪物與風箏後退時，都與上方的扇形／圓形再保持這段距離，路線就不會擦著邊走——錄影裡怪物常在假設範圍外約 1 碼內就發現你。\n\n不會把你從現在站的位置推開：已經靠近某隻怪時，安全距離會縮到你目前與牠的距離。若幾秒內沒有前進，會先拿掉這段安全距離（允許貼邊），還是卡住才整個停止迴避。\n\n0＝跟以前一樣貼著邊緣走。"
+  },
+  "Pathfinding reversal debounce": {
+    "message": "尋路反轉去抖動"
+  },
+  "When the pathfinder suddenly wants to go the opposite way (for example around the left side of a danger zone instead of the right), keep going the previous way until the new direction has held for the time below. Switches immediately whenever the previous way, or the path to it, is no longer safe.\nHelps with standing in place while the route flips between two sides. It does not fix running into walls or wobbling on the spot after arriving.": {
+    "message": "尋路突然想往反方向走時（例如原本從危險區右側繞，下一刻改從左側繞），先照原本的方向走，等新方向持續到下面設定的秒數才換。原本的方向或走過去的路一旦不安全就立刻換。\n可以改善「路線在兩邊之間來回換、角色站在中間不動」；撞牆時的來回、到點後原地晃動不在這個設定的處理範圍。"
+  },
+  "Pathfinding reversal debounce: delay (seconds)": {
+    "message": "尋路反轉去抖動：等待秒數"
+  },
+  "How long a route in the opposite direction has to keep winning before the AI switches to it.": {
+    "message": "方向相反的新路線要持續勝出幾秒，AI 才改走它。"
   }
 }

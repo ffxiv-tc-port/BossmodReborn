@@ -122,6 +122,52 @@ public struct NavigationDecision
         }
     }
 
+    /// <summary>反轉去抖動的跨幀狀態（新的第一個路點與上一個方向相反時，先沿用上一個，反方向持續 <see cref="SwitchDelay"/> 秒才換）。</summary>
+    /// <remarks>
+    /// 契約：一個移動來源一份，不放進 <see cref="Context"/>（前景／背景兩份 Context 輪流用會各記一半）；
+    /// 同一時間只能有一條執行緒拿它 Build。沿用與否只看上一個路點與走過去那一段在<b>本幀</b>危險度地圖上的安全性，不安全一律當幀換。
+    /// </remarks>
+    public sealed class Hysteresis
+    {
+        public float SwitchDelay = 0.3f;
+        public float MinLeeway = 0.5f;
+        internal WPos? Waypoint;
+        internal float WaypointDistance;
+        internal DateTime PendingSince;
+
+        /// <summary>診斷：這一次 Build 是否沿用上一個路點。</summary>
+        public bool KeptLast { get; internal set; }
+
+        /// <summary>診斷：反轉時沒沿用的原因；沒有反轉＝<see cref="RejectReason.None"/>。</summary>
+        public RejectReason Reject { get; internal set; }
+
+        public void Reset()
+        {
+            Waypoint = null;
+            WaypointDistance = 0f;
+            PendingSince = default;
+            KeptLast = false;
+            Reject = RejectReason.None;
+        }
+
+        public void CopyFrom(Hysteresis other)
+        {
+            SwitchDelay = other.SwitchDelay;
+            MinLeeway = other.MinLeeway;
+            Waypoint = other.Waypoint;
+            WaypointDistance = other.WaypointDistance;
+            PendingSince = other.PendingSince;
+            KeptLast = other.KeptLast;
+            Reject = other.Reject;
+        }
+    }
+
+    public enum RejectReason { None, OutOfMap, PathUnsafe, LowLeeway, WaypointUnsafe, DelayElapsed, NotFollowed }
+
+    private static readonly MinuteLogDigest _hysteresisDigest = new("[尋路反轉去抖動][每分鐘彙總]",
+        ["沿用上一個路點（幀）", "上一個路點出了尋路範圍、不沿用", "路段會進危險區、立刻換", "餘裕不足、立刻換", "上一個路點不安全、立刻換", "反方向持續到時才換", "角色沒照上一個路點走、不沿用"],
+        [-1, -1, -1, -1, -1, -1, -1], []);
+
     public WPos? Destination;
     public WPos? NextWaypoint;
     public float LeewaySeconds; // can be used for finishing casts / slidecasting etc.
@@ -241,13 +287,18 @@ public struct NavigationDecision
     /// <param name="futureZones">未來危險區快照。null＝在呼叫端執行緒當場從 hints 取；背景執行緒呼叫時必須自己在主執行緒先取好。</param>
     public static NavigationDecision Build(Context ctx, WorldState ws, AIHints hints, Actor player, float playerSpeed = 6f, float forbiddenZoneCushion = default, bool avoidFutureAOEs = false, float activationTimeCushion = ActivationTimeCushion,
         (Func<WPos, float> shapeDistance, DateTime activation)[]? futureZones = null)
+        => Build(ctx, ws, hints, player, null, playerSpeed, forbiddenZoneCushion, avoidFutureAOEs, activationTimeCushion, futureZones);
+
+    /// <param name="sticky">反轉去抖動狀態；null＝不去抖動（與沒有這個參數的多載逐位元相同）。</param>
+    public static NavigationDecision Build(Context ctx, WorldState ws, AIHints hints, Actor player, Hysteresis? sticky, float playerSpeed = 6f, float forbiddenZoneCushion = default, bool avoidFutureAOEs = false, float activationTimeCushion = ActivationTimeCushion,
+        (Func<WPos, float> shapeDistance, DateTime activation)[]? futureZones = null)
     {
         // build a pathfinding map: rasterize all forbidden zones and goals
         hints.InitPathfindMap(ctx.Map);
         // local copies of forbidden zones and goals to ensure no race conditions during async pathfinding
         (Func<WPos, float>, DateTime, ulong)[] localForbiddenZones = [.. hints.ForbiddenZones];
         Func<WPos, float>[] localGoalZones = [.. hints.GoalZones];
-        return BuildFromSnapshot(ctx, ws.CurrentTime, player.Position, player.CastInfo != null, localForbiddenZones, localGoalZones, futureZones, hints, playerSpeed, forbiddenZoneCushion, avoidFutureAOEs, activationTimeCushion);
+        return BuildFromSnapshot(ctx, ws.CurrentTime, player.Position, player.CastInfo != null, localForbiddenZones, localGoalZones, futureZones, hints, playerSpeed, forbiddenZoneCushion, avoidFutureAOEs, activationTimeCushion, sticky);
     }
 
     /// <summary>與 <see cref="Build"/> 相同，但輸入全部由呼叫端先取好：<c>ctx.Map</c> 已經 <c>InitPathfindMap</c> 過，不讀 WorldState、不讀 Actor。</summary>
@@ -256,6 +307,13 @@ public struct NavigationDecision
         (Func<WPos, float>, DateTime, ulong)[] localForbiddenZones, Func<WPos, float>[] localGoalZones,
         (Func<WPos, float> shapeDistance, DateTime activation)[]? futureZones, AIHints? futureSource,
         float playerSpeed, float forbiddenZoneCushion, bool avoidFutureAOEs, float activationTimeCushion)
+        => BuildFromSnapshot(ctx, now, playerPosition, playerCasting, localForbiddenZones, localGoalZones, futureZones, futureSource, playerSpeed, forbiddenZoneCushion, avoidFutureAOEs, activationTimeCushion, null);
+
+    /// <param name="sticky">反轉去抖動狀態；null＝不去抖動（與沒有這個參數的多載逐位元相同）。</param>
+    public static NavigationDecision BuildFromSnapshot(Context ctx, DateTime now, WPos playerPosition, bool playerCasting,
+        (Func<WPos, float>, DateTime, ulong)[] localForbiddenZones, Func<WPos, float>[] localGoalZones,
+        (Func<WPos, float> shapeDistance, DateTime activation)[]? futureZones, AIHints? futureSource,
+        float playerSpeed, float forbiddenZoneCushion, bool avoidFutureAOEs, float activationTimeCushion, Hysteresis? sticky)
     {
         // 🔴 閘門必須看**快照**，不能看還活著的那份 List。
         //    這支會被 AIBehaviour 丟到執行緒集區跑，而主執行緒每幀都會
@@ -342,6 +400,34 @@ public struct NavigationDecision
         var startMaxG = playerInWindow ? ctx.Map.PixelMaxG[playerCell] : float.MaxValue;
         var startHit = !flattened && startMaxG >= 0f && startMaxG != float.MaxValue;
         var pathLeeway = startHit ? LeewayAlongPath(ctx.ThetaStar, ctx.Map, bestNodeIndex) : float.NaN;
+        if (sticky != null)
+        {
+            sticky.KeptLast = false;
+            if (TryKeepLastWaypoint(sticky, ctx.Map, now, playerPosition, startMaxG, waypoints.first, effectiveSpeed, out var keptLeeway))
+            {
+                waypoints = (sticky.Waypoint, null);
+                // 沿用時發布給詠唱讓位／位移閃避的餘裕取較小值：只會更保守
+                if (!float.IsNaN(keptLeeway))
+                {
+                    leeway = Math.Min(leeway, keptLeeway);
+                    if (startHit)
+                        pathLeeway = Math.Min(pathLeeway, keptLeeway);
+                }
+                sticky.KeptLast = true;
+            }
+            else
+            {
+                sticky.Waypoint = waypoints.first;
+            }
+            var swDist = sticky.Waypoint is WPos sw ? (sw - playerPosition).Length() : 0f;
+            sticky.WaypointDistance = sticky.KeptLast ? Math.Min(sticky.WaypointDistance, swDist) : swDist;
+            if (sticky.KeptLast)
+                _hysteresisDigest.Record(0, now);
+            else if (sticky.Reject != RejectReason.None)
+                _hysteresisDigest.Record((int)sticky.Reject, now);
+            else
+                _hysteresisDigest.Tick(now);
+        }
         var pathBy = startHit ? pathLeeway - Math.Max(0f, ServerJudgementLeadSeconds - activationTimeCushion) : float.MaxValue;
         ctx.PublishPath(now, pathBy);
         ctx.PublishPathLeeway(now, pathLeeway, activationTimeCushion, waypoints.first);
@@ -391,6 +477,72 @@ public struct NavigationDecision
         Service.Logger.Debug(steering
             ? $"[閃避預判]{tag} 目前位置接不上下一波：共 {r.Waves} 波、第一波 {r.FirstWaveIn:f1} 秒後；改往 {(destination is WPos d ? $"({d.X:f1},{d.Z:f1})" : "原地")}，約 {timeToGoal:f1} 秒到、餘裕 {(leeway < 1e6f ? $"{leeway:f1} 秒" : "不限")}（接得上的安全格 {r.GoodCells}／{r.SafeCells}）"
             : $"[閃避預判]{tag} 解除");
+    }
+
+    // 只在新舊第一路點夾角 > 90 度時介入；腳下安全時整段不得碰任何危險格，腳下危險時上一個路點要是安全格、整段可走且每格餘裕 >= MinLeeway。
+    // 沿用中記「離上一個路點最近的距離」，離它反而遠 0.5 碼以上＝移動不是照它走的（別的來源、手動、擊退），不沿用。不配置。
+    private static bool TryKeepLastWaypoint(Hysteresis h, Map map, DateTime now, WPos playerPosition, float startMaxG, WPos? newWaypoint, float speed, out float keptLeeway)
+    {
+        keptLeeway = float.NaN;
+        h.Reject = RejectReason.None;
+        if (h.Waypoint is not WPos old || newWaypoint is not WPos nw)
+        {
+            h.PendingSince = default;
+            return false;
+        }
+        var toOld = old - playerPosition;
+        var toNew = nw - playerPosition;
+        if (toOld.LengthSq() < 0.04f || toNew.LengthSq() < 1e-4f || toOld.Dot(toNew) >= 0f)
+        {
+            h.PendingSince = default;
+            return false;
+        }
+        if (toOld.Length() > h.WaypointDistance + 0.5f)
+            return Reject(h, RejectReason.NotFollowed);
+        var (ox, oy) = map.WorldToGrid(old);
+        var (sx, sy) = map.WorldToGrid(playerPosition);
+        if (!map.InBounds(ox, oy) || !map.InBounds(sx, sy))
+            return Reject(h, RejectReason.OutOfMap);
+        var startSafe = startMaxG == float.MaxValue;
+        if (!startSafe && map.PixelMaxG[map.GridToIndex(ox, oy)] != float.MaxValue)
+            return Reject(h, RejectReason.WaypointUnsafe);
+        var minLeeway = float.MaxValue;
+        int x = sx, y = sy, dx = Math.Abs(ox - sx), dy = -Math.Abs(oy - sy), stx = sx < ox ? 1 : -1, sty = sy < oy ? 1 : -1, err = dx + dy;
+        while (x != ox || y != oy)
+        {
+            var e2 = 2 * err;
+            if (e2 >= dy)
+            {
+                err += dy;
+                x += stx;
+            }
+            if (e2 <= dx)
+            {
+                err += dx;
+                y += sty;
+            }
+            var g = map.PixelMaxG[map.GridToIndex(x, y)];
+            if (g < 0f || startSafe && g != float.MaxValue)
+                return Reject(h, RejectReason.PathUnsafe);
+            if (g != float.MaxValue)
+                minLeeway = Math.Min(minLeeway, g - (map.GridToWorld(x, y, 0.5f, 0.5f) - playerPosition).Length() / speed);
+        }
+        if (!startSafe && minLeeway < h.MinLeeway)
+            return Reject(h, RejectReason.LowLeeway);
+        if (h.PendingSince == default)
+            h.PendingSince = now;
+        else if ((now - h.PendingSince).TotalSeconds >= h.SwitchDelay)
+            return Reject(h, RejectReason.DelayElapsed);
+        if (minLeeway != float.MaxValue)
+            keptLeeway = minLeeway;
+        return true;
+    }
+
+    private static bool Reject(Hysteresis h, RejectReason why)
+    {
+        h.Reject = why;
+        h.PendingSince = default;
+        return false;
     }
 
     private static void AvoidForbiddenZone(Map map, float forbiddenZoneCushion)

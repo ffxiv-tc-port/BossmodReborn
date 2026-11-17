@@ -27,6 +27,10 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
     private bool _naviCasting, _naviAvoidFutureAOEs;
     private float _naviCushion, _naviSpeed, _naviActivationCushion;
     private NavigationJob? _naviJob;
+    // 反轉去抖動：只有背景尋路（號誌保證同一時間一個）讀寫；開關與秒數由 LaunchNavigation 在主執行緒抄好
+    private readonly NavigationDecision.Hysteresis _naviSticky = new();
+    private bool _naviStickyOn;
+    private float _naviStickyDelay;
     private readonly GoalMemo _fallbackGoal = new(); // 只在主執行緒（Execute 前半段）用
     // Execute 後半段要用的前半段區域變數與遊戲狀態：丟到背景之前寫好、後半段讀，規則同上
     private Actor _exPlayer = null!, _exMaster = null!;
@@ -639,6 +643,8 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         _naviCushion = forbiddenZoneCushion;
         _naviAvoidFutureAOEs = _config.AvoidFutureAOEs;
         _naviActivationCushion = _config.ActivationTimeCushion;
+        _naviStickyOn = _config.NavigationReversalDebounce;
+        _naviStickyDelay = _config.NavigationReversalDelay;
         _exLaunched = true;
         (_naviJob ??= new(this)).Start();
     }
@@ -647,8 +653,18 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
     private NavigationDecision BuildNavigationOnPool()
     {
         AIHints.InitPathfindMap(_naviCtx.Map, in _naviMap);
+        NavigationDecision.Hysteresis? sticky = null;
+        if (_naviStickyOn)
+        {
+            _naviSticky.SwitchDelay = _naviStickyDelay;
+            sticky = _naviSticky;
+        }
+        else
+        {
+            _naviSticky.Reset();
+        }
         return NavigationDecision.BuildFromSnapshot(_naviCtx, _naviNow, _naviPosition, _naviCasting, _naviForbidden, _naviGoals, _naviFutureZones, null,
-            _naviSpeed, _naviCushion, _naviAvoidFutureAOEs, _naviActivationCushion);
+            _naviSpeed, _naviCushion, _naviAvoidFutureAOEs, _naviActivationCushion, sticky);
     }
 
     private void FocusMaster(Actor master)

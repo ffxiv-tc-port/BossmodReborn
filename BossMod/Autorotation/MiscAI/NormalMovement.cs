@@ -175,6 +175,8 @@ public sealed class NormalMovement : RotationModule
 
     private readonly NavigationDecision.Context _navCtx = new();
     private NavigationDecision.Context? _usedCtx;
+    // 反轉去抖動：前景與背景尋路共用這一份（主執行緒）；背景那次用 _bgSticky 複本，取用背景結果時才抄回來
+    private readonly NavigationDecision.Hysteresis _sticky = new();
 
     /// <summary>本模組這一幀的尋路結果出自哪一份 Context（詠唱讓位讀它發布的閃避預判與腳下餘裕；只讀那幾個 Volatile 欄位）。</summary>
     public static NavigationDecision.Context? NavigationContext => Instance is { } m ? m._usedCtx ?? m._navCtx : null;
@@ -205,6 +207,8 @@ public sealed class NormalMovement : RotationModule
     private (Func<WPos, float> shapeDistance, DateTime activation)[] _bgFuture = [];
     private int _bgReused;
     private bool _bgFaultLogged;
+    private readonly NavigationDecision.Hysteresis _bgSticky = new();
+    private bool _bgStickyOn;
 
     private static readonly MinuteLogDigest _bgDigest = new("[自動移動][背景尋路][每分鐘彙總]",
         ["背景尋路還沒算完、改在主執行緒算", "背景尋路擲例外、改在主執行緒算"], [-1, -1], []);
@@ -258,6 +262,9 @@ public sealed class NormalMovement : RotationModule
         _bgCasting = Player.CastInfo != null;
         _bgSpeed = _bgReqSpeed;
         _bgCushion = _bgReqCushion;
+        _bgStickyOn = _aiConfig.NavigationReversalDebounce;
+        _bgSticky.CopyFrom(_sticky);
+        _bgSticky.SwitchDelay = _aiConfig.NavigationReversalDelay;
         _bgJob.Start();
     }
 
@@ -306,7 +313,7 @@ public sealed class NormalMovement : RotationModule
     }
 
     private NavigationDecision RunBackgroundNavigation()
-        => NavigationDecision.BuildFromSnapshot(_bgCtx, _bgTime, _bgPosition, _bgCasting, _bgForbidden, _bgGoals, _bgFuture, null, _bgSpeed, _bgCushion, false, NavigationDecision.ActivationTimeCushion);
+        => NavigationDecision.BuildFromSnapshot(_bgCtx, _bgTime, _bgPosition, _bgCasting, _bgForbidden, _bgGoals, _bgFuture, null, _bgSpeed, _bgCushion, false, NavigationDecision.ActivationTimeCushion, _bgStickyOn ? _bgSticky : null);
 
     private void RequestBackgroundNavigation(float speed, float cushion)
     {
@@ -338,11 +345,26 @@ public sealed class NormalMovement : RotationModule
             return false;
         }
         if (_bgFrame + 1 != World.Frame.Index || (World.CurrentTime - _bgTime).TotalSeconds > BackgroundMaxAgeSeconds
-            || _bgPlayer != Player || _bgSpeed != speed || _bgCushion != cushion)
+            || _bgPlayer != Player || _bgSpeed != speed || _bgCushion != cushion || _bgStickyOn != _aiConfig.NavigationReversalDebounce)
             return false;
         navi = result;
+        if (_bgStickyOn)
+            _sticky.CopyFrom(_bgSticky);
+        else
+            _sticky.Reset();
         ++_bgReused;
         return true;
+    }
+
+    private NavigationDecision.Hysteresis? StickyForThisFrame()
+    {
+        if (!_aiConfig.NavigationReversalDebounce)
+        {
+            _sticky.Reset();
+            return null;
+        }
+        _sticky.SwitchDelay = _aiConfig.NavigationReversalDelay;
+        return _sticky;
     }
 
     private void LogBackgroundFault(Exception? ex)
@@ -444,7 +466,7 @@ public sealed class NormalMovement : RotationModule
             if (TakeBackgroundNavigation(speed, cushionSize, out navi))
                 ctx = _bgCtx;
             else
-                navi = NavigationDecision.Build(_navCtx, World, Hints, Player, speed, forbiddenZoneCushion: cushionSize);
+                navi = NavigationDecision.Build(_navCtx, World, Hints, Player, StickyForThisFrame(), speed, forbiddenZoneCushion: cushionSize);
             RequestBackgroundNavigation(speed, cushionSize);
         }
         else

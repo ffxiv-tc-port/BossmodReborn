@@ -106,6 +106,13 @@ sealed class AIConfig : ConfigNode
     [PropertySlider(0f, 3f)]
     public float MovementUrgencyThreshold = 0f;
 
+    [PropertyDisplay("Pathfinding reversal debounce", tooltip: "When the pathfinder suddenly wants to go the opposite way (for example around the left side of a danger zone instead of the right), keep going the previous way until the new direction has held for the time below. Switches immediately whenever the previous way, or the path to it, is no longer safe.\nHelps with standing in place while the route flips between two sides. It does not fix running into walls or wobbling on the spot after arriving.")]
+    public bool NavigationReversalDebounce = false;
+
+    [PropertyDisplay("Pathfinding reversal debounce: delay (seconds)", tooltip: "How long a route in the opposite direction has to keep winning before the AI switches to it.")]
+    [PropertySlider(0.1f, 1f)]
+    public float NavigationReversalDelay = 0.3f;
+
     public string? AIAutorotPresetName;
 
     // 執行期解析用這個：其他插件的覆寫優先；存檔、AI 視窗的下拉選單、/bmrai 看的仍是上面的使用者值。
