@@ -7,7 +7,9 @@ sealed class ScathingNet(BossModule module) : Components.StackWithIcon(module, (
 sealed class PhantomFlurryTB(BossModule module) : Components.TankSwap(module, (uint)AID.PhantomFlurryVisual, (uint)AID.PhantomFlurryTB, (uint)AID.AutoAttack2, 3.5f);
 sealed class PhantomFlurryAOE(BossModule module) : Components.SimpleAOEs(module, (uint)AID.PhantomFlurryAOE, new AOEShapeCone(41f, 90f.Degrees()));
 
-[ModuleInfo(BossModuleInfo.Maturity.Verified, Contributors = "The Combat Reborn Team (Malediktus)", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 1029, NameID = 7702, PlanLevel = 100)]
+// CFC 1029 is an empty row in the TC 7.3 sheet (the Unreal rotated to Seiryu); RemovedUnreal keeps the module
+// matchable by OID without the CFC row lookup that GroupType.CFC does in ModuleViewer.Classify.
+[ModuleInfo(BossModuleInfo.Maturity.Verified, Contributors = "The Combat Reborn Team (Malediktus)", GroupType = BossModuleInfo.GroupType.RemovedUnreal, GroupID = 1029, NameID = 7702, PlanLevel = 100)]
 public sealed class UnSuzaku(WorldState ws, Actor primary) : BossModule(ws, primary, ArenaCenter, Phase1Bounds)
 {
     public static readonly WPos ArenaCenter = new(100f, 100f);
