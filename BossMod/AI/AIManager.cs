@@ -81,6 +81,8 @@ sealed class AIManager : IDisposable
             _ = Beh.Execute(player, master);
         else
             Controller.Clear();
+        Controller.ArrivalHoldEnabled = _config.ArrivalHold;
+        Controller.ArrivalHoldDistance = _config.ArrivalHoldDistance;
         Controller.Update(player, Autorot.Hints, WorldState.CurrentTime);
     }
 

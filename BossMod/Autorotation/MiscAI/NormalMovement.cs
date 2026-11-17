@@ -109,6 +109,7 @@ public sealed class NormalMovement : RotationModule
     // KeyNotFoundException，整個外掛載入失敗。實例只在預設集啟用這個模組時才建立，必定在初始化之後。
     private readonly AutorotationConfig _visualConfig = Service.Config.Get<AutorotationConfig>();
     private readonly AIConfig _aiConfig = Service.Config.Get<AIConfig>();
+    private readonly AI.ArrivalHold _arrivalHold = new(); // 只在主執行緒的 ExecuteCore 用
 
     public NormalMovement(RotationModuleManager manager, Actor player) : base(manager, player)
     {
@@ -582,7 +583,10 @@ public sealed class NormalMovement : RotationModule
 
         var dir = navi.Destination.Value - Player.Position;
         var distSq = dir.LengthSq();
-        if (distSq <= 0.01f)
+        var misdirection = allowSpecialModes && Hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Misdirection && Hints.ImminentSpecialMode.activation <= World.CurrentTime;
+        var arrivalHold = _arrivalHold.ShouldHold(_aiConfig.ArrivalHold && !misdirection, World.CurrentTime, Player.Position, navi.Destination.Value, 0.01f,
+            World.Client.MoveSpeed, World.Frame.Duration, _aiConfig.ArrivalHoldDistance, Hints.ForbiddenZones);
+        if (distSq <= 0.01f || arrivalHold)
         {
             // we're already very close to destination
             // TODO: what should we do if forced-movement is already set to something?.. not sure who could set it, some other module?..

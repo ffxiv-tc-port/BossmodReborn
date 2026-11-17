@@ -113,6 +113,13 @@ sealed class AIConfig : ConfigNode
     [PropertySlider(0.1f, 1f)]
     public float NavigationReversalDelay = 0.3f;
 
+    [PropertyDisplay("Arrival hold (no wobbling on the spot)", tooltip: "Automatic movement only gives the game a direction and the game always walks at full speed, so near the destination a frame can overshoot it and the next frame walks back - the character wobbles on the spot. With this on, once the destination is reached (or is within two frames of walking) the AI stops, and only starts again when the destination moves further away than the distance below.\nNever holds while you are inside or within 0.5 yalms of any danger zone; then it moves exactly as with this off. Applies to the AI and to the \"automatic movement\" module of a preset.")]
+    public bool ArrivalHold = false;
+
+    [PropertyDisplay("Arrival hold: distance before moving again (yalms)", tooltip: "After arriving, the destination has to be further away than this before the AI walks again. This is also the most you can end up standing away from the exact spot.")]
+    [PropertySlider(0.2f, 1f)]
+    public float ArrivalHoldDistance = 0.3f;
+
     public string? AIAutorotPresetName;
 
     // 執行期解析用這個：其他插件的覆寫優先；存檔、AI 視窗的下拉選單、/bmrai 看的仍是上面的使用者值。

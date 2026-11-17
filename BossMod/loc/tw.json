@@ -9058,5 +9058,17 @@
   },
   "BMR tells your rotation (its own, or WrathCombo through IPC) which enemy casts should be interrupted. With this on, on normal floors only the casts that cannot be dodged or stall the fight are flagged (for example Infatuation, Horrisonous Blast, Mucin, Void Blizzard); casts you can walk out of or avoid with line of sight are left alone so the interrupt is ready for the ones that matter.\n\nBoss floors are unchanged. This only changes what BMR flags; whether your rotation plugin follows the flags is up to that plugin.": {
     "message": "BMR 會告訴循環（自己的循環，或透過 IPC 的 WrathCombo）哪些敵人的讀條該打斷。開啟後，一般層只標記躲不掉或拖時間的讀條（例如怨念、震耳巨響、黏膜、虛空暴雪）；走得出去或能用視線遮蔽躲開的讀條不標記，讓打斷技留給真正需要的。\n\nBOSS 層不變。這個設定只改 BMR 標記哪些讀條，循環插件要不要照標記打斷由該插件決定。"
+  },
+  "Arrival hold (no wobbling on the spot)": {
+    "message": "到點防過衝（到點後不原地來回）"
+  },
+  "Automatic movement only gives the game a direction and the game always walks at full speed, so near the destination a frame can overshoot it and the next frame walks back - the character wobbles on the spot. With this on, once the destination is reached (or is within two frames of walking) the AI stops, and only starts again when the destination moves further away than the distance below.\nNever holds while you are inside or within 0.5 yalms of any danger zone; then it moves exactly as with this off. Applies to the AI and to the \"automatic movement\" module of a preset.": {
+    "message": "自動移動只告訴遊戲「往哪個方向」，遊戲一律全速走，所以快到目的地時常會一幀走過頭、下一幀再走回來——角色在原地來回晃。開啟後，到了目的地（或只差兩幀的步長）AI 就停住，要等目的地離開超過下面的距離才再走。\n只要你站在任何危險區裡、或離危險區不到 0.5 碼，就不停住，移動與關閉時完全相同。AI 與預設集裡的「自動移動」模組都適用。"
+  },
+  "Arrival hold: distance before moving again (yalms)": {
+    "message": "到點防過衝：重新起步距離（碼）"
+  },
+  "After arriving, the destination has to be further away than this before the AI walks again. This is also the most you can end up standing away from the exact spot.": {
+    "message": "到點之後，目的地要離你超過這個距離 AI 才重新走。這也是你最多會離目標點多遠。"
   }
 }
