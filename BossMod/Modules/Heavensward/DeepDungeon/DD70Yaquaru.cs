@@ -21,7 +21,8 @@ public enum SID : uint
     Heavy = 14
 }
 
-class Douse(BossModule module) : Components.VoidzoneAtCastTarget(module, 8f, (uint)AID.Douse, GetVoidzones, 0.8f)
+// 留下的水窪只給王加速（狀態 226），玩家站進去不受影響 ⇒ 只躲讀條本身，水窪不列危險區
+class Douse(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Douse, 8f)
 {
     public static Actor[] GetVoidzones(BossModule module)
     {
@@ -62,6 +63,10 @@ class DousePuddle(BossModule module) : BossComponent(module)
 
     public override void DrawArenaBackground(int pcSlot, Actor pc)
     {
+        // 水窪只畫外框（不是危險區），讓人看得到「別讓王站進去」的範圍
+        var live = Douse.GetVoidzones(Module);
+        for (var i = 0; i < live.Length; ++i)
+            Arena.AddCircle(live[i].Position, 8f, Colors.Object);
         // indicate on minimap how far boss needs to be pulled
         if (BossInPuddle)
             Arena.AddCircle(Module.PrimaryActor.Position, Module.PrimaryActor.HitboxRadius, Colors.Danger);
