@@ -75,6 +75,7 @@ public sealed class ConfigRoot
 
     public void SaveToFile(FileInfo file)
     {
+        string? tmp = null;
         try
         {
             var ser = Serialization.BuildSerializationOptions();
@@ -89,26 +90,38 @@ public sealed class ConfigRoot
                 serializedNodes[entry.Key] = Encoding.UTF8.GetString(ms.ToArray());
             });
 
-            using var stream = new FileStream(file.FullName, FileMode.Create, FileAccess.Write, FileShare.None);
-            using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
-
-            writer.WriteStartObject();
-            writer.WriteNumber("Version", ConfigConverter.Schema.CurrentVersion);
-            writer.WritePropertyName("Payload");
-            writer.WriteStartObject();
-
-            foreach (var (t, jsonStr) in serializedNodes)
+            // 先寫完整的暫存檔、落盤後再一次換名蓋過原檔：寫到一半崩潰時原檔仍完整
+            tmp = file.FullName + ".tmp";
+            using (var stream = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None))
             {
-                writer.WritePropertyName(t.FullName!);
-                writer.WriteRawValue(jsonStr);
-            }
+                using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+                {
+                    writer.WriteStartObject();
+                    writer.WriteNumber("Version", ConfigConverter.Schema.CurrentVersion);
+                    writer.WritePropertyName("Payload");
+                    writer.WriteStartObject();
 
-            writer.WriteEndObject();
-            writer.WriteEndObject();
+                    foreach (var (t, jsonStr) in serializedNodes)
+                    {
+                        writer.WritePropertyName(t.FullName!);
+                        writer.WriteRawValue(jsonStr);
+                    }
+
+                    writer.WriteEndObject();
+                    writer.WriteEndObject();
+                }
+                stream.Flush(true);
+            }
+            File.Move(tmp, file.FullName, true);
+            tmp = null;
         }
         catch (Exception e)
         {
             Service.Log($"Failed to save config to {file.FullName}: {e}");
+            if (tmp != null)
+            {
+                try { File.Delete(tmp); } catch { }
+            }
         }
     }
 
