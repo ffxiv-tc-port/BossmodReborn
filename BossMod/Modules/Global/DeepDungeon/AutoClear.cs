@@ -83,6 +83,8 @@ public abstract partial class AutoClear : ZoneModule
     protected readonly List<(Actor Source, AOEShape Zone)> Voidzones = [];
     private readonly List<Gaze> Gazes = [];
     protected readonly List<Actor> Interrupts = [];
+    // 躲得掉／輕微的可打斷讀條：開了 DeepDungeonSelectiveInterrupt 就不設 ShouldBeInterrupted（各族 FloorModule 決定分級）
+    protected readonly List<Actor> OptionalInterrupts = [];
     protected readonly List<Actor> Stuns = [];
     protected readonly List<(Actor Actor, DateTime Timeout)> Spikes = [];
     protected readonly List<Actor> HintDisabled = [];
@@ -549,6 +551,7 @@ public abstract partial class AutoClear : ZoneModule
         Circles.Clear();
         Gazes.Clear();
         Interrupts.Clear();
+        OptionalInterrupts.Clear();
         Stuns.Clear();
         Spikes.Clear();
         HintDisabled.Clear();
@@ -2785,6 +2788,14 @@ public abstract partial class AutoClear : ZoneModule
 
     private DateTime CastFinishAt(Actor c) => World.FutureTime(c.CastInfo!.NPCRemainingTime);
 
+    /// <summary>可打斷但躲得掉或影響輕微的讀條；開了「只標必要打斷」時記一行 Information（讀條開始時一次）。</summary>
+    protected void AddOptionalInterrupt(Actor actor)
+    {
+        OptionalInterrupts.Add(actor);
+        if (Config.DeepDungeonSelectiveInterrupt && actor.CastInfo is { } ci)
+            Service.Logger.Information($"[DD] 選擇性打斷：{Service.LuminaRow<Lumina.Excel.Sheets.Action>(ci.Action.ID)?.Name}（{ci.Action.ID}）躲得掉，不標記為該打斷（樓層 {Palace.Floor}）");
+    }
+
     protected virtual void CalculateExtraHints(int playerSlot, Actor player, AIHints hints) { }
 
     /// <summary>首領戰中（首領模組接手提示）只跑喝藥；其餘自動化在首領層本來就停手。</summary>
@@ -3654,7 +3665,7 @@ public abstract partial class AutoClear : ZoneModule
     // 十張清單全空（多數幀）就不進 DrawAOEsCore：它的 lambda 捕獲參數，一進方法就先配閉包物件。
     private void DrawAOEs(int playerSlot, Actor player, AIHints hints)
     {
-        if (HintDisabled.Count != 0 || Gazes.Count != 0 || Donuts.Count != 0 || Circles.Count != 0 || Interrupts.Count != 0
+        if (HintDisabled.Count != 0 || Gazes.Count != 0 || Donuts.Count != 0 || Circles.Count != 0 || Interrupts.Count != 0 || OptionalInterrupts.Count != 0
             || Stuns.Count != 0 || LOS.Count != 0 || Voidzones.Count != 0 || KnockbackZones.Count != 0 || Spikes.Count != 0)
             DrawAOEsCore(playerSlot, player, hints);
     }
@@ -3716,6 +3727,14 @@ public abstract partial class AutoClear : ZoneModule
             IterAndExpire(Interrupts, d => d.CastInfo == null, d =>
             {
                 if (hints.FindEnemy(d) is { } e)
+                    e.ShouldBeInterrupted = true;
+            });
+
+        // 只有一般層會走到這裡（BOSS 層由首領模組接手），所以「BOSS 層照舊」不必另判
+        if (OptionalInterrupts.Count != 0)
+            IterAndExpire(OptionalInterrupts, d => d.CastInfo == null, d =>
+            {
+                if (!Config.DeepDungeonSelectiveInterrupt && hints.FindEnemy(d) is { } e)
                     e.ShouldBeInterrupted = true;
             });
 

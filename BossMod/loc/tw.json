@@ -9052,5 +9052,11 @@
   },
   "Needs \"Allow automatic pomander use\".\n\nOnce Raising is active it stays until it triggers, so using it early does not waste it. Works on any floor the module is running on (Protomander of Raising in Eureka Orthos), not while transformed or under item penalty.\n\nIn a party, Raising revives the first party member who falls, which may not be you. You also keep one fewer Raising in hand to make room when a gold coffer holds a fourth.": {
     "message": "需要先開啟「允許自動使用魔陶器／魔科學器」。\n\n復生生效後會一直保留到觸發，早用不會浪費。模組運作中的樓層都會用（正統優雷卡為「魔科學器：復生」），變身中、禁止使用道具時不使用。\n\n組隊時復生會復活第一個倒下的隊員，不一定是你；另外手上會少一個復生，金寶箱開出第 4 個時能騰的位置也少一個。"
+  },
+  "Only flag must-interrupt casts on normal floors": {
+    "message": "一般層只標記必要的打斷"
+  },
+  "BMR tells your rotation (its own, or WrathCombo through IPC) which enemy casts should be interrupted. With this on, on normal floors only the casts that cannot be dodged or stall the fight are flagged (for example Infatuation, Horrisonous Blast, Mucin, Void Blizzard); casts you can walk out of or avoid with line of sight are left alone so the interrupt is ready for the ones that matter.\n\nBoss floors are unchanged. This only changes what BMR flags; whether your rotation plugin follows the flags is up to that plugin.": {
+    "message": "BMR 會告訴循環（自己的循環，或透過 IPC 的 WrathCombo）哪些敵人的讀條該打斷。開啟後，一般層只標記躲不掉或拖時間的讀條（例如怨念、震耳巨響、黏膜、虛空暴雪）；走得出去或能用視線遮蔽躲開的讀條不標記，讓打斷技留給真正需要的。\n\nBOSS 層不變。這個設定只改 BMR 標記哪些讀條，循環插件要不要照標記打斷由該插件決定。"
   }
 }

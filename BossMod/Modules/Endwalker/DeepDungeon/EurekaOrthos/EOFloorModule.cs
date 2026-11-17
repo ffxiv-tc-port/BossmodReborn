@@ -126,9 +126,10 @@ public abstract class EOFloorModule(WorldState ws, bool autoRaiseOnEnter = false
                 break;
 
             // LOS attacks
+            // 可省：已畫視線遮蔽，躲得掉
             case (uint)AID.Quake:
             case (uint)AID.HighVoltage:
-                Interrupts.Add(actor);
+                AddOptionalInterrupt(actor);
                 AddLOS(actor, 30f);
                 break;
             case (uint)AID.EclipticMeteor:

@@ -47,14 +47,18 @@ public abstract class PalaceFloorModule(WorldState ws) : AutoClear(ws, 60)
             case (uint)AID.Chirp:
                 HintDisabled.Add(actor);
                 break;
+            // 必要：躲不掉的負面效果、拖時間的自身強化（虛空暴雪躲不掉，只是緩速也算必要）
             case (uint)AID.Infatuation:
             case (uint)AID.VoidBlizzard:
             case (uint)AID.HorroisonousBlast:
             case (uint)AID.Mucin:
             case (uint)AID.BladeOfSuffering:
+                Interrupts.Add(actor);
+                break;
+            // 可省：腳下 6 碼圓、讀條 5 秒，走得出去
             case (uint)AID.ParalyzeIII:
             case (uint)AID.ParalyzeIII2:
-                Interrupts.Add(actor);
+                AddOptionalInterrupt(actor);
                 break;
         }
     }
