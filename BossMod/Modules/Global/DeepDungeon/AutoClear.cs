@@ -325,6 +325,7 @@ public abstract partial class AutoClear : ZoneModule
         //    「WrathCombo 先卸載了」的情況包起來（IpcError 與非 IpcError 都接）。
         _wrathCombo.Dispose();
         DeepDungeonPullSafety.Clear();
+        DeepDungeonSelectiveInterruptState.Clear();
         FlushPotionSummary();
 
         _subscriptions.Dispose();
@@ -2911,6 +2912,7 @@ public abstract partial class AutoClear : ZoneModule
     /// <summary>首領戰中（首領模組接手提示）只跑喝藥；其餘自動化在首領層本來就停手。</summary>
     public override void CalculateAIHintsDuringBossModule(int playerSlot, Actor player, AIHints hints)
     {
+        DeepDungeonSelectiveInterruptState.Clear();
         if (!Config.Enable)
             return;
         if (_potionBossLoggedFloor != Palace.Floor)
@@ -2926,7 +2928,10 @@ public abstract partial class AutoClear : ZoneModule
     public override void CalculateAIHints(int playerSlot, Actor player, AIHints hints)
     {
         if (!Config.Enable)
+        {
+            DeepDungeonSelectiveInterruptState.Clear();
             return;
+        }
         PublishPullSafety(player);
         RecordTrapDiagFrame(player, hints);
 
@@ -2940,7 +2945,10 @@ public abstract partial class AutoClear : ZoneModule
         UpdateTacticalPomanders(player, hints);
 
         if (Palace.IsBossFloor || BetweenFloors)
+        {
+            DeepDungeonSelectiveInterruptState.Clear();
             return;
+        }
 
         // 按住指定按鍵＝「現在交給你走」。見 ForceTravelHeld。
         var forceTravel = ForceTravelHeld();
@@ -2992,6 +3000,7 @@ public abstract partial class AutoClear : ZoneModule
 
         // 仇恨迴避要等寶箱／傳送裝置／光點的目標區都決定了才疊（在本方法後段）。見 AddAggroAvoidance。
 
+        DeepDungeonSelectiveInterruptState.Publish(Config.DeepDungeonSelectiveInterrupt);
         DrawAOEs(playerSlot, player, hints);
         CalculateExtraHints(playerSlot, player, hints);
 

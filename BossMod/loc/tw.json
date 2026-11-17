@@ -9056,8 +9056,8 @@
   "Only flag must-interrupt casts on normal floors": {
     "message": "一般層只標記必要的打斷"
   },
-  "BMR tells your rotation (its own, or WrathCombo through IPC) which enemy casts should be interrupted. With this on, on normal floors only the casts that cannot be dodged or stall the fight are flagged (for example Infatuation, Horrisonous Blast, Mucin, Void Blizzard); casts you can walk out of or avoid with line of sight are left alone so the interrupt is ready for the ones that matter.\n\nBoss floors are unchanged. This only changes what BMR flags; whether your rotation plugin follows the flags is up to that plugin.": {
-    "message": "BMR 會告訴循環（自己的循環，或透過 IPC 的 WrathCombo）哪些敵人的讀條該打斷。開啟後，一般層只標記躲不掉或拖時間的讀條（例如怨念、震耳巨響、黏膜、虛空暴雪）；走得出去或能用視線遮蔽躲開的讀條不標記，讓打斷技留給真正需要的。\n\nBOSS 層不變。這個設定只改 BMR 標記哪些讀條，循環插件要不要照標記打斷由該插件決定。"
+  "BMR tells your rotation (its own, or WrathCombo through IPC) which enemy casts should be interrupted. With this on, on normal floors only the casts that cannot be dodged or stall the fight are flagged (for example Infatuation, Horrisonous Blast, Mucin, Void Blizzard); casts you can walk out of or avoid with line of sight are left alone so the interrupt is ready for the ones that matter.\n\nBoss floors are unchanged. This only changes what BMR flags; whether your rotation plugin follows the flags is up to that plugin.\n\nWrathCombo's deep dungeon selective interrupt option only filters while this is on and this module is running; otherwise it interrupts as usual.": {
+    "message": "BMR 會告訴循環（自己的循環，或透過 IPC 的 WrathCombo）哪些敵人的讀條該打斷。開啟後，一般層只標記躲不掉或拖時間的讀條（例如怨念、震耳巨響、黏膜、虛空暴雪）；走得出去或能用視線遮蔽躲開的讀條不標記，讓打斷技留給真正需要的。\n\nBOSS 層不變。這個設定只改 BMR 標記哪些讀條，循環插件要不要照標記打斷由該插件決定。\n\nWrathCombo 的「深層迷宮：只打斷 BossMod(Reborn) 標記的詠唱」只在這個設定開著、而且本模組正在運作時才過濾打斷；其他情況照常全打。"
   },
   "Arrival hold (no wobbling on the spot)": {
     "message": "到點防過衝（到點後不原地來回）"

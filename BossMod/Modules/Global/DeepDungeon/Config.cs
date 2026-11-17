@@ -410,7 +410,7 @@ public sealed class AutoDDConfig : ConfigNode
     public bool KeepRaisingActive = false;
 
     [PropertyDisplay("Only flag must-interrupt casts on normal floors",
-        tooltip: "BMR tells your rotation (its own, or WrathCombo through IPC) which enemy casts should be interrupted. With this on, on normal floors only the casts that cannot be dodged or stall the fight are flagged (for example Infatuation, Horrisonous Blast, Mucin, Void Blizzard); casts you can walk out of or avoid with line of sight are left alone so the interrupt is ready for the ones that matter.\n\nBoss floors are unchanged. This only changes what BMR flags; whether your rotation plugin follows the flags is up to that plugin.")]
+        tooltip: "BMR tells your rotation (its own, or WrathCombo through IPC) which enemy casts should be interrupted. With this on, on normal floors only the casts that cannot be dodged or stall the fight are flagged (for example Infatuation, Horrisonous Blast, Mucin, Void Blizzard); casts you can walk out of or avoid with line of sight are left alone so the interrupt is ready for the ones that matter.\n\nBoss floors are unchanged. This only changes what BMR flags; whether your rotation plugin follows the flags is up to that plugin.\n\nWrathCombo's deep dungeon selective interrupt option only filters while this is on and this module is running; otherwise it interrupts as usual.")]
     public bool DeepDungeonSelectiveInterrupt = false;
 
     #region 逐魔陶器的自動使用開關

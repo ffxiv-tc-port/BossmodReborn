@@ -573,6 +573,8 @@ sealed class IPCProvider : IDisposable
 
         // 深宮「拉這隻會不會一次帶上太多隻」；快照由 AutoClear 在框架執行緒每幀發佈，端點只讀快照、不經 IpcFrameworkGate。
         Register("DeepDungeon.IsPullSafe", (ulong gameObjectId) => Global.DeepDungeon.DeepDungeonPullSafety.IsPullSafe(gameObjectId));
+        // 深宮模組這一幀在一般層標記打斷、且「一般層只標記必要的打斷」開著；同上只讀快照。WrathCombo 用它決定要不要只打標記的讀條。
+        Register("DeepDungeon.SelectiveInterruptActive", () => Global.DeepDungeon.DeepDungeonSelectiveInterruptState.IsActive());
     }
 
     public void Dispose() => _disposeActions?.Invoke();
