@@ -3999,7 +3999,9 @@ public abstract partial class AutoClear : ZoneModule
         else if (_coordGateEverOk)
         {
             heldFor = (World.CurrentTime - _coordGateOkAt).TotalSeconds;
-            if (heldFor < CoordGateHoldSeconds)
+            if (heldFor < CoordGateHoldSeconds
+                || (raw == RoomCoordState.Mismatch && heldFor < RoomCoordGateNoise.CorridorHoldSeconds
+                    && RoomCoordGateNoise.IsNeighbourCorridor(_coordGateEverOk, rawRoom, nearest, rawDistance, RoomTolerance)))
                 state = RoomCoordState.Ok;
         }
 

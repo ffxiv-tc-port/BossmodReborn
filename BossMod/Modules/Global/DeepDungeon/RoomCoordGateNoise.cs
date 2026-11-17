@@ -18,4 +18,16 @@ internal static class RoomCoordGateNoise
     /// <remarks>距離超過兩倍容許誤差就不算邊界翻轉，照「真的不通過」記錄。</remarks>
     public static bool IsBoundaryFlip(bool everOkThisFloor, float distance, float tolerance)
         => everOkThisFloor && distance >= 0f && distance <= tolerance * 2f;
+
+    /// <summary>走廊遲滯的上限（秒）：邊界翻轉而且最近的是回報房的上下左右鄰房時，最多撐這麼久才降級。</summary>
+    public const double CorridorHoldSeconds = 30d;
+
+    /// <summary>邊界翻轉、最近的房是回報房本身或其上下左右鄰房（5×5 房號）⇒ 人在兩房之間的走廊，不是座標錯。</summary>
+    /// <remarks>只延長「本層已通過過」之後的降級等待（上限 <see cref="CorridorHoldSeconds"/>）；第一次通過的條件不變。</remarks>
+    public static bool IsNeighbourCorridor(bool everOkThisFloor, int reportedRoom, int nearestRoom, float distance, float tolerance)
+    {
+        if (!IsBoundaryFlip(everOkThisFloor, distance, tolerance) || (uint)reportedRoom >= 25u || (uint)nearestRoom >= 25u)
+            return false;
+        return Math.Abs(reportedRoom / 5 - nearestRoom / 5) + Math.Abs(reportedRoom % 5 - nearestRoom % 5) <= 1;
+    }
 }
