@@ -38,12 +38,24 @@ public sealed class ConfigRoot
             var data = ConfigConverter.Schema.Load(file);
             using var json = data.document;
             var ser = Serialization.BuildSerializationOptions();
+            var failedNodes = 0;
             foreach (var jconfig in data.payload.EnumerateObject())
             {
-                var type = Type.GetType(jconfig.Name);
-                var node = type != null ? _nodes.GetValueOrDefault(type) : null;
-                node?.Deserialize(jconfig.Value, ser);
+                // 逐節點隔離：一個節點讀到一半擲例外，只有它中斷處之後的欄位留預設值，其他節點照常讀
+                try
+                {
+                    var type = Type.GetType(jconfig.Name);
+                    var node = type != null ? _nodes.GetValueOrDefault(type) : null;
+                    node?.Deserialize(jconfig.Value, ser);
+                }
+                catch (Exception e)
+                {
+                    ++failedNodes;
+                    Service.Logger?.Warning($"[Config] 設定節點 {jconfig.Name} 讀到一半失敗：這個節點中斷處之後的欄位用預設值，其他節點照常讀取。{e.GetType().Name}: {e.Message}");
+                }
             }
+            if (failedNodes != 0)
+                BackupUnreadable(path, $"有 {failedNodes} 個設定節點沒有完整讀進來");
         }
         catch (Exception e)
         {
@@ -51,7 +63,7 @@ public sealed class ConfigRoot
             if (File.Exists(path))
             {
                 Service.Logger?.Warning($"Failed to load config from {path}: {e}");
-                BackupUnreadable(path);
+                BackupUnreadable(path, "設定檔讀取失敗");
             }
             else
                 Service.Log($"Failed to load config from {path}: {e}");
@@ -59,17 +71,17 @@ public sealed class ConfigRoot
     }
 
     // 讀檔失敗後下一次存檔會以預設值覆蓋原檔 ⇒ 先複製一份；複製失敗只記錄，不影響載入
-    private static void BackupUnreadable(string path)
+    private static void BackupUnreadable(string path, string reason)
     {
         var backup = $"{path}.bad-{DateTime.Now:yyyyMMdd-HHmmss}";
         try
         {
             File.Copy(path, backup, false);
-            Service.Logger?.Warning($"[Config] 設定檔讀取失敗，原檔已另存為 {backup}");
+            Service.Logger?.Warning($"[Config] {reason}，原檔已另存為 {backup}");
         }
         catch (Exception e)
         {
-            Service.Logger?.Warning($"[Config] 設定檔讀取失敗，另存原檔到 {backup} 也失敗: {e.Message}");
+            Service.Logger?.Warning($"[Config] {reason}，另存原檔到 {backup} 也失敗: {e.Message}");
         }
     }
 
