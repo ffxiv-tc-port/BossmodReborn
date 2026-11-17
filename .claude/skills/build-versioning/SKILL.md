@@ -45,13 +45,13 @@ The counter is read as a plain evaluated property (not inside a `<Target>`), so 
   `-p:Version=${tag} -p:AssemblyVersion=… -p:FileVersion=… -p:InformationalVersion=…` 從 git tag 覆蓋掉，
   csproj 的 `VersionPrefix`/`BuildNumber` 只影響本機建置產物的版本字串。
 - 因此 `VersionPrefix` 至今仍是 `7.15.0`，而 feed 上的版本是 `v7.20.0.x` ——**這不是漏改**，
-  不要為了「分支叫 tc-7.20」就去動 `VersionPrefix`（先看下面 build-check 那條，改它有副作用）。
+  不要為了「分支叫 tc-7.30」就去動 `VersionPrefix`（先看下面 build-check 那條，改它有副作用）。
 
 ## 目前的分支 / API 狀態
 
-- 這個 repo 現在在分支 **`tc-7.20`**，`BossMod/BossModReborn.json` 的 `DalamudApiLevel` 是 **13**，TFM 是 `net9.0-windows`。
+- 這個 repo 現在在分支 **`tc-7.30`**，`BossMod/BossModReborn.json` 的 `DalamudApiLevel` 是 **13**，TFM 是 `net9.0-windows`。
 - **`tc-7.15` 是凍結的 API12 archive**，只留著當歷史參考，不要往上面提交。
-  （注意 GitHub 上 `origin/HEAD` 目前還指向 `tc-7.15`，`git clone` 預設會落在舊分支上——clone 完先 `git checkout tc-7.20`。）
+  （注意 GitHub 上 `origin/HEAD` 目前還指向 `tc-7.15`，`git clone` 預設會落在舊分支上——clone 完先 `git checkout tc-7.30`。）
 
 ## CI
 
