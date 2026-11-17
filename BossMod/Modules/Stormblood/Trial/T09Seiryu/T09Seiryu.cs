@@ -121,7 +121,7 @@ public abstract class Seiryu(WorldState ws, Actor primary) : BossModule(ws, prim
     public static readonly ArenaBoundsComplex Phase2WaterBounds = new([new Polygon(arenaCenter, 44.5f, 48)]);
 }
 
-[ModuleInfo(BossModuleInfo.Maturity.Verified, Contributors = "The Combat Reborn Team (Malediktus, LTS)", PrimaryActorOID = (uint)OID.Seiryu, GroupType = BossModuleInfo.GroupType.CFC, GroupID = 637, NameID = 7922, Category = BossModuleInfo.Category.Extreme, Expansion = BossModuleInfo.Expansion.Stormblood)]
+[ModuleInfo(BossModuleInfo.Maturity.Verified, Contributors = "The Combat Reborn Team (Malediktus, LTS)", PrimaryActorOID = (uint)OID.Seiryu, GroupType = BossModuleInfo.GroupType.CFC, GroupID = 637, NameID = 7922, Category = BossModuleInfo.Category.Trial, Expansion = BossModuleInfo.Expansion.Stormblood)]
 public sealed class T09Seiryu(WorldState ws, Actor primary) : Seiryu(ws, primary)
 {
     protected override void DrawEnemies(int pcSlot, Actor pc)
