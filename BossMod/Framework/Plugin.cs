@@ -36,6 +36,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly DTRProvider _dtr;
     // 「不需掛 preset 的方位提示」的遲滯狀態。與 GoToPositional 模組各持一份、互不干擾。
     private readonly Autorotation.MiscAI.AutoPositional.Hysteresis _positionalHintAuto = new();
+    private readonly AI.MovementJitterLog _jitterLog = new();
     // 「不需掛 preset 的預測減傷」用的模組實例與它的預設策略值,見 UpdatePredictiveMitigationWithoutPreset。
     // 🔴 實例綁在某一個 Actor 上(RotationModule.Player 是 readonly),所以玩家換人就要重建 —— 不是每幀 new。
     private Autorotation.MiscAI.PredictiveMitigation? _predictiveMitAuto;
@@ -654,6 +655,15 @@ public sealed class Plugin : IDalamudPlugin
         {
             LogDrawStepFailure("ExecuteHints", ex);
         }
+        DrawStepTimer.Next("MovementJitterLog");
+        try
+        {
+            UpdateMovementJitterLog();
+        }
+        catch (Exception ex)
+        {
+            LogDrawStepFailure("MovementJitterLog", ex);
+        }
 
         DrawStepTimer.Next("Camera.DrawWorldPrimitives");
         try
@@ -910,6 +920,19 @@ public sealed class Plugin : IDalamudPlugin
                 _throttleInteract = _ws.FutureTime(1.1d);
             }
         }
+    }
+
+    // 只在 AI 或自動移動模組在跑時觀察；讀的是 ExecuteHints 剛寫好的最終移動輸出
+    private void UpdateMovementJitterLog()
+    {
+        var player = _ws.Party.Player();
+        if (player == null || player.IsDead || AI.AIManager.Instance?.Beh == null && Autorotation.MiscAI.NormalMovement.Instance == null)
+        {
+            _jitterLog.Reset(_ws.CurrentTime);
+            return;
+        }
+        var suppressed = _movementOverride.AutoMovementPaused || _movementOverride.IsMoveRequested() || _movementOverride.YieldingToFollowPath;
+        _jitterLog.Update(_ws.CurrentTime, player.Position, player.InCombat, _movementOverride.DesiredDirection, suppressed);
     }
 
     private unsafe bool CheckInteractRange(Actor? player, Actor? target)
