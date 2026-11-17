@@ -49,9 +49,27 @@ public sealed class ConfigRoot
         {
             // 全新安裝（沒有設定檔）照舊只記 Debug；檔案在卻讀不了＝使用者設定會回預設，要看得到
             if (File.Exists(path))
+            {
                 Service.Logger?.Warning($"Failed to load config from {path}: {e}");
+                BackupUnreadable(path);
+            }
             else
                 Service.Log($"Failed to load config from {path}: {e}");
+        }
+    }
+
+    // 讀檔失敗後下一次存檔會以預設值覆蓋原檔 ⇒ 先複製一份；複製失敗只記錄，不影響載入
+    private static void BackupUnreadable(string path)
+    {
+        var backup = $"{path}.bad-{DateTime.Now:yyyyMMdd-HHmmss}";
+        try
+        {
+            File.Copy(path, backup, false);
+            Service.Logger?.Warning($"[Config] 設定檔讀取失敗，原檔已另存為 {backup}");
+        }
+        catch (Exception e)
+        {
+            Service.Logger?.Warning($"[Config] 設定檔讀取失敗，另存原檔到 {backup} 也失敗: {e.Message}");
         }
     }
 
