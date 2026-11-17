@@ -2601,6 +2601,149 @@ public abstract partial class AutoClear : ZoneModule
 
     #endregion
 
+    #region 戰況魔陶器：被圍時用形態變化、復生保持生效（各自開關，預設關）
+
+    private (DeepDungeonState.DungeonType, byte) _tacticalFloor = (default, 255);
+    private PomanderID _tacticalAttemptKind;
+    private int _tacticalAttempts;
+    private DateTime _tacticalNextAttempt;
+    private byte _tacticalPushedCount;
+    private DateTime _tacticalLastPush;
+    // 復生用掉後「生效中」旗標晚約 1 秒才到：數量變動後等這麼久才再判斷，免得連用兩個
+    private static readonly TimeSpan RaisingSettle = TimeSpan.FromSeconds(3);
+    private byte _raisingLastCount = byte.MaxValue;
+    private DateTime _raisingCountChangedAt;
+    // 這一波被圍已經用掉一個形態變化：同一波不再用第二個，盯上的敵人數掉到門檻以下才重新起算
+    private bool _witchingUsedThisSwarm;
+
+    // 節流形狀與 ShouldAttemptTimedPomander 相同（3 秒一次、連續 3 次數量沒變就本層放棄、放棄名單共用），狀態各自一份
+    private bool ShouldAttemptTacticalPomander(PomanderID p)
+    {
+        if (World.CurrentTime < _tacticalNextAttempt)
+            return false;
+        if (_tacticalAttemptKind != p)
+        {
+            _tacticalAttemptKind = p;
+            _tacticalAttempts = 0;
+        }
+        if (_tacticalAttempts >= SpecialItemMaxAttempts)
+        {
+            _pomanderGiveUp.Add(p);
+            Service.Logger.Information(
+                $"[DD] 戰況魔陶器：「{PomanderLogName(p)}」連續 {SpecialItemMaxAttempts} 次送出數量都沒變，本層放棄這一種。");
+            return false;
+        }
+        ++_tacticalAttempts;
+        _tacticalNextAttempt = World.CurrentTime + SpecialItemRetryInterval;
+        return true;
+    }
+
+    private int CountEnemiesOnPlayerInWitchingRange(Actor player, AIHints hints)
+    {
+        var n = 0;
+        var count = hints.PotentialTargets.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var a = hints.PotentialTargets[i].Actor;
+            if (a.TargetID == player.InstanceID && !a.IsDeadOrDestroyed && TacticalPomanderRules.InWitchingRange((a.Position - player.Position).Length(), a.HitboxRadius))
+                ++n;
+        }
+        return n;
+    }
+
+    private void UpdateTacticalPomanders(Actor player, AIHints hints)
+    {
+        var now = World.CurrentTime;
+        var floor = (Palace.DungeonId, Palace.Floor);
+        if (floor != _tacticalFloor)
+        {
+            _tacticalFloor = floor;
+            _tacticalAttemptKind = PomanderID.None;
+            _tacticalAttempts = 0;
+            _tacticalPushedCount = 0;
+            _witchingUsedThisSwarm = false;
+        }
+        if (!Config.AllowPomander || !Config.UseWitchingWhenSwarmed && !Config.KeepRaisingActive || Palace.Floor == 0 || BetweenFloors)
+            return;
+
+        var eo = Palace.DungeonId == DeepDungeonState.DungeonType.EO;
+        var witchingId = TacticalPomanderRules.WitchingFor(eo);
+        var raisingId = TacticalPomanderRules.RaisingFor(eo);
+        var witching = Palace.GetPomanderState(witchingId);
+        var raising = Palace.GetPomanderState(raisingId);
+        if (raising.Count != _raisingLastCount)
+        {
+            _raisingLastCount = raising.Count;
+            _raisingCountChangedAt = now;
+        }
+
+        // 上一次送出的那一種在 5 秒內數量掉了＝用成功；超過 5 秒才掉的不算我們的（手動或別的路徑）
+        if (_tacticalPushedCount != 0)
+        {
+            var c = Palace.GetPomanderState(_tacticalAttemptKind).Count;
+            if (now - _tacticalLastPush > TimeSpan.FromSeconds(5))
+            {
+                _tacticalPushedCount = 0;
+            }
+            else if (c < _tacticalPushedCount)
+            {
+                Service.Logger.Information($"[DD] 戰況魔陶器：「{PomanderLogName(_tacticalAttemptKind)}」已使用（數量 {_tacticalPushedCount}→{c}），樓層 {Palace.Floor}。");
+                if (_tacticalAttemptKind == witchingId)
+                    _witchingUsedThisSwarm = true;
+                _tacticalAttemptKind = PomanderID.None;
+                _tacticalAttempts = 0;
+                _tacticalPushedCount = 0;
+            }
+        }
+
+        var enemies = Config.UseWitchingWhenSwarmed ? CountEnemiesOnPlayerInWitchingRange(player, hints) : 0;
+        if (enemies < Config.WitchingMinEnemies)
+            _witchingUsedThisSwarm = false;
+
+        // 與金寶箱騰位置、依時機使用兩條不搶同一幀；手動用過魔陶器 10 秒內不動
+        if (_chestPomanderPending || _timedPushedThisFrame)
+            return;
+        var manual = ActionManagerEx.LastManualPomanderUseTick;
+        if (manual != 0 && Environment.TickCount64 - manual < TimedManualPauseMs)
+            return;
+        var settled = _timedFloorSince > _timedCountsChangedAt ? _timedFloorSince : _timedCountsChangedAt;
+        if (now < settled + TimedSettle)
+            return;
+        if (IsPlayerTransformed(player) || player.FindStatus((uint)SID.Silence) != null || player.FindStatus((uint)SID.Pacification) != null || player.FindStatus((uint)SID.ItemPenalty) != null)
+            return;
+
+        var pick = PomanderID.None;
+        if (Config.UseWitchingWhenSwarmed && !_witchingUsedThisSwarm && !_pomanderGiveUp.Contains(witchingId)
+            && TacticalPomanderRules.WitchingWanted(Palace.IsBossFloor, player.InCombat, enemies, Config.WitchingMinEnemies, player.HPMP.CurHP, player.HPMP.MaxHP, Config.WitchingHP,
+                new PomanderSlotView(witchingId, witching.Count, witching.Usable, witching.Active)))
+            pick = witchingId;
+        else if (Config.KeepRaisingActive && !_pomanderGiveUp.Contains(raisingId) && now >= _raisingCountChangedAt + RaisingSettle
+            && TacticalPomanderRules.RaisingWanted(new PomanderSlotView(raisingId, raising.Count, raising.Usable, raising.Active)))
+            pick = raisingId;
+        if (pick == PomanderID.None)
+        {
+            if (_tacticalPushedCount == 0)
+            {
+                _tacticalAttemptKind = PomanderID.None;
+                _tacticalAttempts = 0;
+            }
+            return;
+        }
+        if (!ShouldAttemptTacticalPomander(pick))
+            return;
+
+        _tacticalPushedCount = Palace.GetPomanderState(pick).Count;
+        _tacticalLastPush = now;
+        var hpPct = player.HPMP.MaxHP > 0 ? player.HPMP.CurHP * 100 / player.HPMP.MaxHP : 0;
+        Service.Logger.Information(pick == witchingId
+            ? $"[DD] 戰況魔陶器：送出「{PomanderLogName(pick)}」第 {_tacticalAttempts}/{SpecialItemMaxAttempts} 次；盯上你的敵人 {enemies} 隻（{TacticalPomanderRules.WitchingRange:f0} 碼內，門檻 {Config.WitchingMinEnemies}）、HP {hpPct}%（門檻 {(Config.WitchingHP > 0 ? $"{Config.WitchingHP}%" : "不看")}）、存量 {witching.Count}、樓層 {Palace.Floor}"
+            : $"[DD] 戰況魔陶器：送出「{PomanderLogName(pick)}」第 {_tacticalAttempts}/{SpecialItemMaxAttempts} 次；身上沒有生效中的復生、存量 {raising.Count}、樓層 {Palace.Floor}、戰鬥中={player.InCombat}");
+        hints.ActionsToExecute.Push(new ActionID(ActionType.Pomander, (uint)pick), null, ActionQueue.Priority.VeryHigh);
+        _timedPushedThisFrame = true;
+    }
+
+    #endregion
+
     /// <summary>診斷用：送出那一刻兩個封印狀態在不在身上。</summary>
     private static string PenaltyStatusText(Actor player)
         => $"禁止使用道具(1094)={(player.FindStatus((uint)SID.ItemPenalty) != null ? "有" : "無")}、"
@@ -2673,6 +2816,7 @@ public abstract partial class AutoClear : ZoneModule
         UpdatePotions(player, hints);
         // 魅魔化要在 BOSS 層用，所以排在 BOSS 層的提早返回之前。
         UpdatePomanderTimedUse(player, hints);
+        UpdateTacticalPomanders(player, hints);
 
         if (Palace.IsBossFloor || BetweenFloors)
             return;

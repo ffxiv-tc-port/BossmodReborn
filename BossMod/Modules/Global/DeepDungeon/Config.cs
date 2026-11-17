@@ -387,6 +387,24 @@ public sealed class AutoDDConfig : ConfigNode
         tooltip: "Silver coffers in Heaven-on-High and Eureka Orthos can contain magicite / demiclones. If you already hold three, the game refuses the coffer and it used to be skipped forever.\n\nWith this on, one of the stones you are holding is used so the coffer can be opened.\n\nWhich one is picked is not arbitrary: on a boss floor Ifrit / Titan / Garuda only deal damage, while Odin defeats the boss outright, so Odin is kept until it is the only thing left. In Eureka Orthos, Unei and Doga are spent first and the Onion Knight is kept the same way.\n\nOnly ever fires for a coffer the game has already told us contains one (via the \"you cannot carry any more\" message).")]
     public bool AutoUseMagiciteWhenCapped = true;
 
+    // 下面兩項預設關（新功能＝沿用現行行為），而且要「Allow automatic pomander use」也開著才生效
+    [PropertyDisplay("Use a Pomander of Witching when several enemies are attacking you (normal floors)",
+        tooltip: "Needs \"Allow automatic pomander use\".\n\nIn combat on a normal floor, when at least the number of enemies set below are targeting you within the pomander's 20-yalm range and your HP is below the threshold, use one Pomander of Witching (Protomander of Witching in Eureka Orthos). Only one per wave: it is not used again until fewer enemies are on you.\n\nNever used on boss floors, while transformed, silenced, or under item penalty, or within 10 seconds of you using a pomander yourself.")]
+    public bool UseWitchingWhenSwarmed = false;
+
+    [PropertyDisplay("Pomander of Witching: at least this many enemies targeting you")]
+    [PropertySlider(2, 6)]
+    public int WitchingMinEnemies = 3;
+
+    [PropertyDisplay("Pomander of Witching: only when your HP is below this (%, 0 = at any HP)",
+        tooltip: "In your own recordings, being targeted by 3 or more enemies happened about 50 times in 20 hours; with HP below 60% it was 7 times, which are the ones that actually hurt. Witching only stacks up to 3, so using it every time would run out quickly.")]
+    [PropertySlider(0, 100)]
+    public int WitchingHP = 60;
+
+    [PropertyDisplay("Use a Pomander of Raising as soon as you have one and it is not active",
+        tooltip: "Needs \"Allow automatic pomander use\".\n\nOnce Raising is active it stays until it triggers, so using it early does not waste it. Works on any floor the module is running on (Protomander of Raising in Eureka Orthos), not while transformed or under item penalty.\n\nIn a party, Raising revives the first party member who falls, which may not be you. You also keep one fewer Raising in hand to make room when a gold coffer holds a fourth.")]
+    public bool KeepRaisingActive = false;
+
     #region 逐魔陶器的自動使用開關
 
     /// <summary>

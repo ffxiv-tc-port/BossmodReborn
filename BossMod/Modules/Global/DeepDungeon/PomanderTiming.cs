@@ -92,3 +92,25 @@ public static class PomanderTimingRules
         return PomanderID.None;
     }
 }
+
+/// <summary>戰況魔陶器（被圍時用形態變化、復生保持生效）的純判斷；節流、重試、手動暫停、變身與禁止道具守衛都在呼叫端。</summary>
+public static class TacticalPomanderRules
+{
+    /// <summary>形態變化的作用範圍：Action 6269 的 EffectRange 20、以自身為中心的圓（台服 EXD）。</summary>
+    public const float WitchingRange = 20f;
+
+    public static PomanderID WitchingFor(bool eurekaOrthos) => eurekaOrthos ? PomanderID.ProtoWitching : PomanderID.Witching;
+    public static PomanderID RaisingFor(bool eurekaOrthos) => eurekaOrthos ? PomanderID.ProtoRaising : PomanderID.Raising;
+
+    /// <summary>敵人的判定圈有沒有碰到以玩家為中心的形態變化範圍。</summary>
+    public static bool InWitchingRange(float distanceToEnemyCenter, float enemyHitboxRadius) => distanceToEnemyCenter - enemyHitboxRadius <= WitchingRange;
+
+    /// <summary>非 BOSS 層、交戰中、盯上玩家的敵人 ≥ <paramref name="minEnemies"/>、HP 低於 <paramref name="hpPercent"/>%（≤0＝不看血量）、手上有可用的形態變化。</summary>
+    public static bool WitchingWanted(bool bossFloor, bool inCombat, int enemiesOnPlayer, int minEnemies, uint curHP, uint maxHP, int hpPercent, in PomanderSlotView witching)
+        => !bossFloor && inCombat && minEnemies > 0 && enemiesOnPlayer >= minEnemies
+            && (hpPercent <= 0 || maxHP > 0 && (long)curHP * 100 < (long)maxHP * hpPercent)
+            && witching.Count > 0 && witching.Usable && !witching.Active;
+
+    /// <summary>有存量、遊戲說可用、身上還沒生效（生效後會保留到觸發，所以早用不浪費）。</summary>
+    public static bool RaisingWanted(in PomanderSlotView raising) => raising.Count > 0 && raising.Usable && !raising.Active;
+}

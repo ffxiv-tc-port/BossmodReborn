@@ -9031,5 +9031,26 @@
   },
   "How long a route in the opposite direction has to keep winning before the AI switches to it.": {
     "message": "方向相反的新路線要持續勝出幾秒，AI 才改走它。"
+  },
+  "Use a Pomander of Witching when several enemies are attacking you (normal floors)": {
+    "message": "被多隻敵人圍攻時使用形態變化（一般層）"
+  },
+  "Needs \"Allow automatic pomander use\".\n\nIn combat on a normal floor, when at least the number of enemies set below are targeting you within the pomander's 20-yalm range and your HP is below the threshold, use one Pomander of Witching (Protomander of Witching in Eureka Orthos). Only one per wave: it is not used again until fewer enemies are on you.\n\nNever used on boss floors, while transformed, silenced, or under item penalty, or within 10 seconds of you using a pomander yourself.": {
+    "message": "需要先開啟「允許自動使用魔陶器／魔科學器」。\n\n在一般層戰鬥中，當形態變化 20 碼範圍內盯上你的敵人達到下面設定的數量、而且 HP 低於門檻時，使用一個「魔陶器：形態變化」（正統優雷卡為「魔科學器：形態變化」）。同一波只用一個：盯上你的敵人少於門檻之後才會再用。\n\nBOSS 層、變身中、沉默、禁止使用道具時不使用；你自己手動用過魔陶器後 10 秒內也不使用。"
+  },
+  "Pomander of Witching: at least this many enemies targeting you": {
+    "message": "形態變化：盯上你的敵人至少幾隻"
+  },
+  "Pomander of Witching: only when your HP is below this (%, 0 = at any HP)": {
+    "message": "形態變化：只在 HP 低於多少時使用（%，0＝不看血量）"
+  },
+  "In your own recordings, being targeted by 3 or more enemies happened about 50 times in 20 hours; with HP below 60% it was 7 times, which are the ones that actually hurt. Witching only stacks up to 3, so using it every time would run out quickly.": {
+    "message": "在你自己的錄影裡，20 小時內被 3 隻以上敵人盯上約 50 次；其中 HP 曾低於 60% 的有 7 次，也就是真的被打痛的那幾次。形態變化最多只能存 3 個，每次都用很快就會用完。"
+  },
+  "Use a Pomander of Raising as soon as you have one and it is not active": {
+    "message": "有復生就先用（身上沒有生效中的復生時）"
+  },
+  "Needs \"Allow automatic pomander use\".\n\nOnce Raising is active it stays until it triggers, so using it early does not waste it. Works on any floor the module is running on (Protomander of Raising in Eureka Orthos), not while transformed or under item penalty.\n\nIn a party, Raising revives the first party member who falls, which may not be you. You also keep one fewer Raising in hand to make room when a gold coffer holds a fourth.": {
+    "message": "需要先開啟「允許自動使用魔陶器／魔科學器」。\n\n復生生效後會一直保留到觸發，早用不會浪費。模組運作中的樓層都會用（正統優雷卡為「魔科學器：復生」），變身中、禁止使用道具時不使用。\n\n組隊時復生會復活第一個倒下的隊員，不一定是你；另外手上會少一個復生，金寶箱開出第 4 個時能騰的位置也少一個。"
   }
 }
