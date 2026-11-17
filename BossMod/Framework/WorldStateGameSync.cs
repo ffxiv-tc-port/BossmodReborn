@@ -278,6 +278,8 @@ sealed class WorldStateGameSync : IDisposable
         _ws.Execute(_frameStartOp);
         if (_ws.CurrentZone != Service.ClientState.TerritoryType || _ws.CurrentCFCID != GameMain.Instance()->CurrentContentFinderConditionId)
         {
+            // RemoveActor 刻意留下讀條中消失的 Actor 的位置；換區後那些讀條不可能再接上 ⇒ 在這裡整份丟掉
+            _lastCastPositions.Clear();
             _ws.Execute(new WorldState.OpZoneChange(Service.ClientState.TerritoryType, GameMain.Instance()->CurrentContentFinderConditionId));
         }
         // proxy 在本方法裡沒有任何使用點，但取它要做 fwk->NetworkModuleProxy->ReceiverCallback 兩層裸解參考，
