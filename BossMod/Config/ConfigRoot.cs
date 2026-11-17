@@ -31,6 +31,8 @@ public sealed class ConfigRoot
 
     public void LoadFromFile(FileInfo file)
     {
+        // 版本轉換會 MoveTo 改掉 file 的路徑 ⇒ 先抄下原檔路徑
+        var path = file.FullName;
         try
         {
             var data = ConfigConverter.Schema.Load(file);
@@ -45,7 +47,11 @@ public sealed class ConfigRoot
         }
         catch (Exception e)
         {
-            Service.Log($"Failed to load config from {file.FullName}: {e}");
+            // 全新安裝（沒有設定檔）照舊只記 Debug；檔案在卻讀不了＝使用者設定會回預設，要看得到
+            if (File.Exists(path))
+                Service.Logger?.Warning($"Failed to load config from {path}: {e}");
+            else
+                Service.Log($"Failed to load config from {path}: {e}");
         }
     }
 
