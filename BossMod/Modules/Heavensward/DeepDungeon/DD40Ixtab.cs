@@ -16,7 +16,8 @@ public enum AID : uint
     Blizzard = 967, // NightmareBhoot->player, 1.0s cast, single-target
     EntropicFlame = 6431, // Boss->self, 3.0s cast, range 50+R width 8 rect
     Scream = 6433, // Boss->self, 3.0s cast, range 25 circle
-    ShadowFlare = 6432 // Boss->self, 3.0s cast, range 25+R circle
+    ShadowFlare = 6432, // Boss->self, 3.0s cast, range 25+R circle
+    Tornado = 6435 // NightmareBhoot->location, 3.0s cast, range 6 circle
 }
 
 class Adds(BossModule module) : Components.Adds(module, (uint)OID.NightmareBhoot, 1);
@@ -37,7 +38,8 @@ class AncientEruptionZone(BossModule module) : Components.PersistentInvertibleVo
         for (var i = 0; i < count; ++i)
         {
             var z = enemies[i];
-            if (z.ModelState.AnimState1 == 1)
+            // EventObj 沒有 ModelState（BMR 只同步角色的），用 EventState：生成時 0、約 33 秒後轉 7、再約 3 秒消失
+            if (z.EventState != 7)
                 voidzones[index++] = z;
         }
         return voidzones[..index];
@@ -46,6 +48,7 @@ class AncientEruptionZone(BossModule module) : Components.PersistentInvertibleVo
 class EntropicFlame(BossModule module) : Components.SimpleAOEs(module, (uint)AID.EntropicFlame, new AOEShapeRect(53.8f, 4f));
 class Scream(BossModule module) : Components.RaidwideCast(module, (uint)AID.Scream, "Raidwide + Fear, Adds need to be dead by now");
 class ShadowFlare(BossModule module) : Components.RaidwideCast(module, (uint)AID.ShadowFlare);
+class Tornado(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Tornado, 6f);
 
 class DD40IxtabStates : StateMachineBuilder
 {
@@ -58,7 +61,8 @@ class DD40IxtabStates : StateMachineBuilder
             .ActivateOnEnter<AncientEruptionZone>()
             .ActivateOnEnter<EntropicFlame>()
             .ActivateOnEnter<Scream>()
-            .ActivateOnEnter<ShadowFlare>();
+            .ActivateOnEnter<ShadowFlare>()
+            .ActivateOnEnter<Tornado>();
     }
 }
 
