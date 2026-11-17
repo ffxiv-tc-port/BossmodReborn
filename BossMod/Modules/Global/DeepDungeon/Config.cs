@@ -479,8 +479,10 @@ public sealed class AutoDDConfig : ConfigNode
     /// 改 <see cref="DefaultAutoUsable"/> 只有全新安裝的人吃得到。要把新預設帶給
     /// 既有使用者只能做一次性遷移（本欄位記到哪一版）。使用者遷移後手動關掉的話，
     /// 下次存檔會連本欄位一起存，不會被重複翻回來。
+    /// 初始式是現行版號：全新安裝的預設陣列已是最新白名單，不該再遷移；
+    /// 設定檔裡有這個節點卻沒有本欄位的舊檔，在 <see cref="Deserialize"/> 照舊當 0。
     /// </remarks>
-    public int PomanderAutoUseRevision;
+    public int PomanderAutoUseRevision = 1;
 
     /// <summary>反序列化之後把 <see cref="PomanderAutoUse"/> 的長度補回列舉長度，並套用白名單的一次性遷移。</summary>
     /// <remarks>
@@ -492,6 +494,8 @@ public sealed class AutoDDConfig : ConfigNode
     public override void Deserialize(System.Text.Json.JsonElement j, System.Text.Json.JsonSerializerOptions ser)
     {
         base.Deserialize(j, ser);
+        if (!j.TryGetProperty(nameof(PomanderAutoUseRevision), out _))
+            PomanderAutoUseRevision = 0;
 
         var want = (int)PomanderID.Count;
         if (PomanderAutoUse.Length != want)
