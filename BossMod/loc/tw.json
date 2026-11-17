@@ -9070,5 +9070,17 @@
   },
   "After arriving, the destination has to be further away than this before the AI walks again. This is also the most you can end up standing away from the exact spot.": {
     "message": "到點之後，目的地要離你超過這個距離 AI 才重新走。這也是你最多會離目標點多遠。"
+  },
+  "When travelling into a wall, hand the leg to vnavmesh or try another room": {
+    "message": "趕路撞牆時改由 vnavmesh 帶路，或換一間房間"
+  },
+  "Out of combat, if you keep heading the same way but move less than 1.5 yalms in 6 seconds (BMR's obstacle map does not match this floor and you are pushing against a wall), act on the first time instead of giving up and picking the same room again: vnavmesh walks you to the room along the real terrain (once per room per floor; the route is checked against known traps and the rooms in between first, it does not avoid mobs, and it stops as soon as combat starts).\n\nWithout vnavmesh, or if vnavmesh cannot get there either: a room picked by \"Reveal all rooms\" is skipped on this floor and another room is explored instead; the Cairn of Passage or a room you picked yourself is given up as before. Standing still is not treated as a wall. Off by default.": {
+    "message": "脫戰趕路時，如果一直朝同一個方向走、6 秒內卻前進不到 1.5 碼（BMR 的障礙物地圖與這一層對不上，角色頂著牆來回），第一次就處理，不再放棄後又選回同一間房間：改由 vnavmesh 照實際地形走到那間房間（每層每間房試一次；出發前會比對已知陷阱與途經的房間，路線不避怪，一進入戰鬥就停）。\n\n沒有 vnavmesh、或 vnavmesh 也走不到時：「前往下一層前探索所有房間」選的房間本層先跳過、改去探索別間；下一層傳送點或你自己點的房間照舊放棄。站著不動不算撞牆。預設關閉。"
+  },
+  "DD_StuckRerouteVnav": {
+    "message": "撞牆：前往房間 {0} 的這一段改由 vnavmesh 帶路（進入戰鬥就停）。"
+  },
+  "DD_StuckRerouteSkip": {
+    "message": "撞牆：本層先跳過房間 {0}，改去探索別的房間。"
   }
 }

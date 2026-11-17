@@ -226,6 +226,10 @@ public sealed class AutoDDConfig : ConfigNode
         tooltip: "Adds a button under the minimap that walks you to the room you picked, in one go. You press it, it walks, and it stops on arrival - it never opens coffers, never uses the Cairn of Passage, and never starts the next leg by itself. The route does not avoid mobs.\n\nBefore anything moves, the whole route is checked against known trap locations - every stretch between corners, not just the corners themselves - and refused outright, with the reason shown under the minimap, if any part of it passes too close. It is never re-routed around a trap. Off by default.")]
     public bool ManualRoomWalk = false;
 
+    [PropertyDisplay("When travelling into a wall, hand the leg to vnavmesh or try another room",
+        tooltip: "Out of combat, if you keep heading the same way but move less than 1.5 yalms in 6 seconds (BMR's obstacle map does not match this floor and you are pushing against a wall), act on the first time instead of giving up and picking the same room again: vnavmesh walks you to the room along the real terrain (once per room per floor; the route is checked against known traps and the rooms in between first, it does not avoid mobs, and it stops as soon as combat starts).\n\nWithout vnavmesh, or if vnavmesh cannot get there either: a room picked by \"Reveal all rooms\" is skipped on this floor and another room is explored instead; the Cairn of Passage or a room you picked yourself is given up as before. Standing still is not treated as a wall. Off by default.")]
+    public bool StuckReroute = false;
+
     // ── 風箏 ──────────────────────────────────────────────────────────
     // 📌 這幾個是「Deep Dungeon AI」自動循環模組的風箏參數。放在這一頁而不是模組的 track 選項，
     //    是因為 track 選項只吃列舉、給不了數值滑桿，而使用者要調的正是數值。

@@ -500,6 +500,9 @@ public abstract partial class AutoClear : ZoneModule
         _walkCorridor.Clear();
         _stuckMessage = null;
         _stuckSince = default;
+        _walkAuto = false;
+        _wallVnavTried.Clear();
+        _wallSkippedRooms.Clear();
 
         IgnoreTraps.Clear();
         IgnoreTraps.AddRange(ProblematicTrapLocations);
@@ -1272,20 +1275,126 @@ public abstract partial class AutoClear : ZoneModule
         {
             _stuckLastPos = player!.Position;
             _stuckSince = now;
+            StartWallWindow(player.Position);
             return;
         }
+        TrackWallWindow(player.Position);
 
         if ((now - _stuckSince).TotalSeconds < StuckSeconds)
             return;
 
         var abandoned = DesiredRoom;
+        var abandonedSource = _destinationSource;
         _stuckSince = default;
+        if (Config.StuckReroute && IsWallPush() && TryRerouteViaVnav(player, abandoned))
+            return;
+        if (_walkAuto)
+            StopAutoWalk(); // 放棄這個目標＝撞牆改道叫起來的 vnavmesh 也一起收回
         DesiredRoom = 0;
         _destinationSource = DestinationSource.User;
         _stuckMessage = string.Format(
             Loc.T("DD_StuckAbandoned", "Gave up on room {0}: no progress for {1:f0}s. The floor's obstacle map may not match this map; pick a destination again to retry."),
             abandoned, StuckSeconds);
         Service.Logger.Information($"[DD] 卡住偵測：{StuckSeconds} 秒內位移不足 {StuckMoveThreshold}y，放棄前往房間 {abandoned}（樓層 {Palace.Floor}、版面 {Palace.Progress.Tileset}）");
+        if (Config.StuckReroute && IsWallPush() && abandonedSource == DestinationSource.FullClear)
+            SkipWallRoom(abandoned);
+    }
+
+    #endregion
+
+    #region 撞牆改道（Config.StuckReroute，預設關）
+
+    // 「撞牆」＝同一段卡住偵測視窗裡一直朝同一個趕路方向在走（路程夠長），位移卻不到門檻；站著不動的卡住不算、照舊放棄。
+    // 第一次就處置：先交給 vnavmesh 照實際地形走（每層每個房間試一次）；不行時只有「探索所有房間」選的房間會本層跳過。
+    // 視窗量測（路程、方向）不論開關都記，只寫這一區的欄位；開關只決定要不要用它。
+    private const float WallPushMinPath = 3f;
+
+    private float _wallPath;
+    private WPos _wallPrevPos;
+    private bool _wallDirStable;
+    private Direction _wallDir;
+    private bool _walkAuto; // 目前這趟 vnavmesh 導航是撞牆改道叫起來的
+    private readonly HashSet<int> _wallVnavTried = [];
+    private readonly HashSet<int> _wallSkippedRooms = [];
+    private readonly RoomFlags[] _wallRoomsScratch = new RoomFlags[DeepDungeonState.NumRooms];
+
+    private void StartWallWindow(WPos pos)
+    {
+        _wallPath = 0f;
+        _wallPrevPos = pos;
+        _wallDir = _travelDirDir;
+        _wallDirStable = _travelGoalAdded;
+    }
+
+    private void TrackWallWindow(WPos pos)
+    {
+        var step = (pos - _wallPrevPos).Length();
+        if (step <= 3f) // 再大＝傳送／被拉走，不算路程
+            _wallPath += step;
+        _wallPrevPos = pos;
+        if (!_travelGoalAdded || _travelDirDir != _wallDir)
+            _wallDirStable = false;
+    }
+
+    private bool IsWallPush() => _wallDirStable && _wallPath >= WallPushMinPath;
+
+    private bool TryRerouteViaVnav(Actor player, int room)
+    {
+        if (_walkAuto && WalkActive)
+        {
+            // vnavmesh 自己也走不過去 ⇒ 交給呼叫端收回並「放棄／跳過」
+            Service.Logger.Information($"[DD] 撞牆改道：vnavmesh 也在 {StuckSeconds} 秒內前進不到 {StuckMoveThreshold}y，停止並放棄房間 {room}（樓層 {Palace.Floor}）");
+            return false;
+        }
+        if (WalkActive || !_wallVnavTried.Add(room))
+            return false;
+
+        ProbeVnav();
+        var coords = CheckRoomCoords(player, out _, out _);
+        if (!_vnavInstalled || !_vnavMeshReady || coords != RoomCoordState.Ok)
+        {
+            Service.Logger.Information($"[DD] 撞牆改道：沒交給 vnavmesh（已安裝={_vnavInstalled}、網格就緒={_vnavMeshReady}、房間座標={coords}），房間 {room}（樓層 {Palace.Floor}）");
+            return false;
+        }
+
+        StartWalk(player, room, true);
+        if (!WalkActive)
+            return false;
+        _walkAuto = true;
+        _stuckMessage = string.Format(Loc.T("DD_StuckRerouteVnav", "Walked into a wall on the way to room {0}; handing that leg to vnavmesh (it stops if combat starts)."), room);
+        Service.Logger.Information($"[DD] 撞牆改道：{StuckSeconds} 秒內朝同一方向走了 {_wallPath:f1}y、位移不到 {StuckMoveThreshold}y ⇒ 交給 vnavmesh 走到房間 {room}（樓層 {Palace.Floor}、版面 {Palace.Progress.Tileset}）");
+        return true;
+    }
+
+    private void SkipWallRoom(int room)
+    {
+        if (room <= 0 || !_wallSkippedRooms.Add(room))
+            return;
+        _stuckMessage = string.Format(Loc.T("DD_StuckRerouteSkip", "Walked into a wall on the way to room {0}; skipping it on this floor and exploring another room instead."), room);
+        Service.Logger.Information($"[DD] 撞牆改道：「探索所有房間」本層跳過房間 {room}、改去別間（樓層 {Palace.Floor}、本層已跳過 {_wallSkippedRooms.Count} 間）");
+    }
+
+    // 戰鬥一開始、模組或 AI 被關、設定被關就收回：vnavmesh 的路線不避怪，不能在戰鬥中繼續拖著走
+    private void UpdateAutoWalk(Actor? player)
+    {
+        if (!_walkAuto)
+            return;
+        if (!WalkActive)
+        {
+            _walkAuto = false;
+            return;
+        }
+        if (player == null || player.InCombat || !Config.Enable || !Config.StuckReroute || AI.AIManager.Instance?.Beh == null)
+        {
+            Service.Logger.Information($"[DD] 撞牆改道：停止 vnavmesh 導航（戰鬥中={player?.InCombat}、模組啟用={Config.Enable}、設定開={Config.StuckReroute}、AI 開={AI.AIManager.Instance?.Beh != null}）");
+            StopAutoWalk();
+        }
+    }
+
+    private void StopAutoWalk()
+    {
+        _walkAuto = false;
+        RequestWalkStop();
     }
 
     #endregion
@@ -1300,6 +1409,7 @@ public abstract partial class AutoClear : ZoneModule
 
         UpdateStopWatchdog();
         UpdateStuckDetection();
+        UpdateAutoWalk(World.Party.Player());
         UpdatePalacePal();
         UpdatePalacePalVisibleHoards();
         UpdateHoardWalk();
@@ -1614,7 +1724,7 @@ public abstract partial class AutoClear : ZoneModule
         _walkMessage = message;
     }
 
-    private void StartWalk(Actor player, int targetRoom)
+    private void StartWalk(Actor player, int targetRoom, bool auto = false)
     {
         var playerRoom = FindPlayerRoom(player);
         if (playerRoom < 0)
@@ -1650,7 +1760,7 @@ public abstract partial class AutoClear : ZoneModule
         _walkTaskGeneration = _walkGeneration;
         _walkState = WalkState.Pathfinding;
         _walkMessage = null;
-        Service.Logger.Information($"[DD] 手動導航：房間 {playerRoom} → {targetRoom}，走廊 [{string.Join(", ", _walkCorridor)}]");
+        Service.Logger.Information($"[DD] {(auto ? "撞牆改道導航" : "手動導航")}：房間 {playerRoom} → {targetRoom}，走廊 [{string.Join(", ", _walkCorridor)}]");
     }
 
     /// <summary>
@@ -4990,15 +5100,26 @@ public abstract partial class AutoClear : ZoneModule
     /// </remarks>
     private int FindNextUnexploredRoom(Actor player)
     {
+        var rooms = Config.StuckReroute && _wallSkippedRooms.Count != 0 ? RoomsWithoutSkipped() : Palace.Rooms;
         var playerRoom = FindPlayerRoom(player);
         if (playerRoom >= 0)
         {
-            var nearest = new FloorPathfind(Palace.Rooms).NearestRoom(playerRoom, IsUnexploredRoom);
+            var nearest = new FloorPathfind(rooms).NearestRoom(playerRoom, IsUnexploredRoom);
             if (nearest > 0)
                 return nearest;
         }
         // 退回原本的「房號最小」——呼叫端的 `> 0` 閘門與以前逐字相同
-        return Array.FindIndex(Palace.Rooms, IsUnexploredRoom);
+        return Array.FindIndex(rooms, IsUnexploredRoom);
+    }
+
+    // 撞牆跳過的房間當成已探索（只改「要不要去」，連通旗標不動，路過照樣可以）
+    private RoomFlags[] RoomsWithoutSkipped()
+    {
+        Array.Copy(Palace.Rooms, _wallRoomsScratch, _wallRoomsScratch.Length);
+        foreach (var r in _wallSkippedRooms)
+            if ((uint)r < (uint)_wallRoomsScratch.Length)
+                _wallRoomsScratch[r] |= RoomFlags.Revealed;
+        return _wallRoomsScratch;
     }
 
     private void HandleFloorPathfind(Actor player, AIHints hints)
