@@ -92,6 +92,20 @@ public sealed record class Preset(string Name)
 // we want to serialize track/option indices as internal names, to simplify making changes
 public class JsonPresetConverter : JsonConverter<Preset>
 {
+    // Read 略過的模組／設定數，累加在呼叫端執行緒（轉換器實例由 options 快取、跨執行緒共用，不能放實例欄位）。
+    // 契約：要計數的呼叫端在同一執行緒上「ResetSkipCounts → Deserialize → TakeSkipCounts」，中間不 await。
+    [ThreadStatic] private static int _skippedModules;
+    [ThreadStatic] private static int _skippedSettings;
+
+    public static void ResetSkipCounts() => _skippedModules = _skippedSettings = 0;
+
+    public static (int Modules, int Settings) TakeSkipCounts()
+    {
+        var res = (_skippedModules, _skippedSettings);
+        ResetSkipCounts();
+        return res;
+    }
+
     public override Preset? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         using var jdoc = JsonDocument.ParseValue(ref reader);
@@ -103,6 +117,7 @@ public class JsonPresetConverter : JsonConverter<Preset>
             {
                 // 📌 要使用者回報的診斷（Information）：模組整個被丟掉比單一軌道嚴重（該模組在這個預設集裡的所有設定一起消失）。
                 Service.Logger.Information($"[Autorotation] 預設集「{res.Name}」找不到模組 {jm.Name}，該模組的所有設定已略過（其餘模組不受影響）");
+                ++_skippedModules;
                 continue;
             }
 
@@ -120,6 +135,7 @@ public class JsonPresetConverter : JsonConverter<Preset>
                     //    這一行代表「使用者存好的某一項設定被丟掉了」——軌道被改名或改型別時就會走到，
                     //    UI 上只會看到設定憑空少一項，沒有這行的話完全查不出原因。
                     Service.Logger.Information($"[Autorotation] 預設集「{res.Name}」的模組 {jm.Name} 找不到軌道 {trackName}，該項設定已略過（其餘設定不受影響）");
+                    ++_skippedSettings;
                     continue;
                 }
 
@@ -137,6 +153,7 @@ public class JsonPresetConverter : JsonConverter<Preset>
                         {
                             // 📌 同上，走 Information：選項被改名或移除時使用者要看得到原因。
                             Service.Logger.Information($"[Autorotation] 預設集「{res.Name}」的軌道 {trackName}（模組 {jm.Name}）找不到選項 {optionName}，該項設定已略過");
+                            ++_skippedSettings;
                             continue;
                         }
                         break;

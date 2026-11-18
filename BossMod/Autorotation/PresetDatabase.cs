@@ -182,7 +182,7 @@ public sealed class PresetDatabase
         }
     }
 
-    // loss：檔在但沒有完整讀進來時的說明（有略過的預設、或整份無法解析）；完整讀到或檔不存在時為 null
+    // loss：檔在但沒有完整讀進來時的說明（有略過的預設／模組／設定、或整份無法解析）；完整讀到或檔不存在時為 null
     private List<Preset> LoadPresetsFromFile(FileInfo file, out string? loss)
     {
         loss = null;
@@ -199,12 +199,18 @@ public sealed class PresetDatabase
             List<Preset> res = [];
             var index = 0;
             var skipped = 0;
+            var skippedModules = 0;
+            var skippedSettings = 0;
             foreach (var jp in data.payload.EnumerateArray())
             {
                 ++index;
                 try
                 {
+                    JsonPresetConverter.ResetSkipCounts();
                     var p = jp.Deserialize<Preset>(opts);
+                    var (sm, ss) = JsonPresetConverter.TakeSkipCounts();
+                    skippedModules += sm;
+                    skippedSettings += ss;
                     if (p != null)
                         res.Add(p);
                 }
@@ -216,8 +222,15 @@ public sealed class PresetDatabase
                     ++skipped;
                 }
             }
+            List<string> parts = [];
             if (skipped > 0)
-                loss = $" {file.Name} 有 {skipped} 筆循環預設損毀、已略過";
+                parts.Add($"有 {skipped} 筆循環預設損毀");
+            if (skippedModules > 0)
+                parts.Add($"有 {skippedModules} 個模組找不到");
+            if (skippedSettings > 0)
+                parts.Add($"有 {skippedSettings} 項模組設定（軌道或選項）找不到");
+            if (parts.Count > 0)
+                loss = $" {file.Name} {string.Join("、", parts)}、已略過";
             return res;
         }
         catch (Exception ex)
