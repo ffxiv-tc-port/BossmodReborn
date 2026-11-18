@@ -3,21 +3,46 @@
 // information relevant for AI decision making process for a specific player
 public sealed class AIHints
 {
-    public class Enemy(Actor actor, int priority, bool shouldBeTanked)
+    public class Enemy
     {
         public const int PriorityPointless = -1; // attacking enemy won't improve your parse, but will give gauge and advance combo (e.g. boss locked to 1 HP, useless add in raid, etc)
         public const int PriorityInvincible = -2; // attacking enemy will have no effect at all besides breaking your combo, but hitting it with AOEs is fine
         public const int PriorityUndesirable = -3; // enemy can be attacked if targeted manually by a player, but should be considered forbidden for AOE actions (i.e. mobs that are not in combat, or are in combat with someone else's party)
         public const int PriorityForbidden = -4; // attacking this enemy will probably lead to a wipe; autoattacks and actions that target it will be forcibly prevented (if custom queueing is enabled)
 
-        public Actor Actor = actor;
-        public int Priority = priority;
+        public Enemy(Actor actor, int priority, bool shouldBeTanked)
+        {
+            Actor = actor;
+            Reset(priority, shouldBeTanked);
+        }
+
+        // 契約：Actor 以外的每個欄位都要在這裡設回新建時的值——AIHints.ReuseEnemy 逐幀沿用同一隻怪的實例，漏設＝上一幀的值漏進這一幀。
+        internal void Reset(int priority, bool shouldBeTanked)
+        {
+            Priority = priority;
+            AttackStrength = 0.05f;
+            DesiredPosition = Actor.Position;
+            DesiredRotation = Actor.Rotation;
+            TankDistance = 2;
+            ShouldBeTanked = shouldBeTanked;
+            PreferProvoking = false;
+            ForbidDOTs = false;
+            ShouldBeInterrupted = false;
+            ShouldBeStunned = false;
+            ShouldBeDispelled = false;
+            StayAtLongRange = false;
+            Spikes = false;
+            UrgentKill = false;
+        }
+
+        public Actor Actor;
+        public int Priority;
         //public float TimeToKill;
-        public float AttackStrength = 0.05f; // target's predicted HP percent is decreased by this amount (0.05 by default)
-        public WPos DesiredPosition = actor.Position; // tank AI will try to move enemy to this position
-        public Angle DesiredRotation = actor.Rotation; // tank AI will try to rotate enemy to this angle
-        public float TankDistance = 2; // enemy will start moving if distance between hitboxes is bigger than this
-        public bool ShouldBeTanked = shouldBeTanked; // tank AI will try to tank this enemy
+        public float AttackStrength; // target's predicted HP percent is decreased by this amount (0.05 by default)
+        public WPos DesiredPosition; // tank AI will try to move enemy to this position
+        public Angle DesiredRotation; // tank AI will try to rotate enemy to this angle
+        public float TankDistance; // enemy will start moving if distance between hitboxes is bigger than this
+        public bool ShouldBeTanked; // tank AI will try to tank this enemy
         public bool PreferProvoking; // tank AI will provoke enemy if not targeted
         public bool ForbidDOTs; // if true, dots on target are forbidden
         public bool ShouldBeInterrupted; // if set and enemy is casting interruptible spell, some ranged/tank will try to interrupt
@@ -67,6 +92,20 @@ public sealed class AIHints
     // list of potential targets
     public readonly Enemy?[] Enemies = new Enemy?[100];
     public Enemy? FindEnemy(Actor? actor) => Enemies.BoundSafeAt(actor?.CharacterSpawnIndex ?? -1);
+
+    // 每幀重建敵人清單時沿用的實例；格位上換了 Actor 就新建。跨幀拿著舊實例的人（AI 背景後半段、循環模組欄位）只讀 Actor，沿用時 Actor 不變。
+    private readonly Enemy?[] _enemyPool = new Enemy?[100];
+
+    /// <summary>主執行緒建敵人清單用：<paramref name="index"/> 上次放的是同一個 <paramref name="actor"/> 就重設沿用，否則新建；結果等同 <c>new Enemy(actor, priority, shouldBeTanked)</c>。</summary>
+    public Enemy ReuseEnemy(int index, Actor actor, int priority, bool shouldBeTanked)
+    {
+        var e = _enemyPool[index];
+        if (e != null && ReferenceEquals(e.Actor, actor))
+            e.Reset(priority, shouldBeTanked);
+        else
+            _enemyPool[index] = e = new(actor, priority, shouldBeTanked);
+        return e;
+    }
 
     // enemies in priority order
     public readonly List<Enemy> PotentialTargets = [];

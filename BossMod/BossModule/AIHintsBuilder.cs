@@ -187,7 +187,7 @@ public sealed class AIHintsBuilder : IDisposable
             else
                 priority = priorityPassive; // Default undesirable
 
-            var enemy = hints.Enemies[index] = new(actor, priority, playerIsDefaultTank);
+            var enemy = hints.Enemies[index] = hints.ReuseEnemy(index, actor, priority, playerIsDefaultTank);
             hints.PotentialTargets.Add(enemy);
         }
     }
