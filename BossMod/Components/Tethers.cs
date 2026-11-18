@@ -292,7 +292,7 @@ public class InterceptTetherAOE(BossModule module, uint aid, uint tetherID, floa
             else
                 for (var j = 0; j < raid.Length; ++j)
                 {
-                    ref var member = ref raid[i];
+                    ref var member = ref raid[j];
                     if (member != actor)
                         hints.AddForbiddenZone(ShapeDistance.Circle(member.Position, Radius), Activation);
                 }
@@ -753,7 +753,7 @@ public class InterceptTetherStatus(BossModule module, uint aid, uint tetherID, u
             {
                 for (var j = 0; j < raid.Length; ++j)
                 {
-                    ref var member = ref raid[i];
+                    ref var member = ref raid[j];
                     if (member != actor)
                     {
                         hints.AddForbiddenZone(ShapeDistance.Circle(member.Position, Radius), Activation);
