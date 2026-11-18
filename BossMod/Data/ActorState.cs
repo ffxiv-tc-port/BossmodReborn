@@ -200,6 +200,23 @@ public sealed class ActorState : IEnumerable<Actor>
             list.RemoveRange(kept, items.Length - kept);
     }
 
+    // 與 RemoveAll(s => s.StatusId == statusId && s.Effect.SourceInstanceId == sourceId) 同語意（同一套就地壓縮），不配置委派。
+    private static void RemovePendingStatus(List<PendingEffectStatusExtra> list, uint statusId, ulong sourceId)
+    {
+        var items = CollectionsMarshal.AsSpan(list);
+        var kept = 0;
+        for (var i = 0; i < items.Length; ++i)
+        {
+            if (items[i].StatusId == statusId && items[i].Effect.SourceInstanceId == sourceId)
+                continue;
+            if (kept != i)
+                items[kept] = items[i];
+            ++kept;
+        }
+        if (kept != items.Length)
+            list.RemoveRange(kept, items.Length - kept);
+    }
+
     private interface IPendingHeader<T> { static abstract PendingEffect Of(in T item); }
     private readonly struct DeltaHeader : IPendingHeader<PendingEffectDelta> { public static PendingEffect Of(in PendingEffectDelta item) => item.Effect; }
     private readonly struct StatusExtraHeader : IPendingHeader<PendingEffectStatusExtra> { public static PendingEffect Of(in PendingEffectStatusExtra item) => item.Effect; }
@@ -566,7 +583,7 @@ public sealed class ActorState : IEnumerable<Actor>
                     actor.Omnidirectional = false;
             }
             actor.Statuses[Index] = Value;
-            actor.PendingStatuses.RemoveAll(s => s.StatusId == Value.ID && s.Effect.SourceInstanceId == Value.SourceID);
+            RemovePendingStatus(actor.PendingStatuses, Value.ID, Value.SourceID);
             if (Value.ID != default)
             {
                 ws.Actors.StatusGain.Fire(actor, Index);
@@ -595,7 +612,7 @@ public sealed class ActorState : IEnumerable<Actor>
             if (prevSeq != 0 && (prevSeq != Value.GlobalSequence || prevIdx != Value.TargetIndex))
             {
                 if (prev.Effects.AnyOfType(ActionEffectType.Knockback, ActionEffectType.AttractCustom3))
-                    actor.PendingKnockbacks.RemoveAll(e => e.GlobalSequence == prevSeq && e.TargetIndex == prevIdx);
+                    RemoveConfirmed<PendingEffect, KnockbackHeader>(actor.PendingKnockbacks, prevSeq, prevIdx);
                 ws.Actors.IncomingEffectRemove.Fire(actor, Index);
             }
             actor.IncomingEffects[Index] = Value;
