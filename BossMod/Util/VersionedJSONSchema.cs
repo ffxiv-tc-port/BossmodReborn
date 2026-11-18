@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using Dalamud.Utility;
+using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -52,14 +53,21 @@ public sealed class VersionedJSONSchema
         return (json, json.RootElement.GetProperty("payload"));
     }
 
-    public void Save(FileInfo file, Action<Utf8JsonWriter> writePayload)
+    // 先序列化完整內容、再原子換名：序列化擲例外或寫到一半被結束，原檔都還是上一份完整內容。
+    // 換名在「別人開著原檔」時擲 Win32Exception（舊的 FileMode.Create 在對方分享寫入時會成功）⇒ 呼叫端必須 catch。
+    public void Save(FileInfo file, Action<Utf8JsonWriter> writePayload) => FilesystemUtil.WriteAllBytesSafe(file.FullName, Serialize(writePayload));
+
+    public byte[] Serialize(Action<Utf8JsonWriter> writePayload)
     {
-        using var fstream = new FileStream(file.FullName, FileMode.Create, FileAccess.Write, FileShare.Read);
-        using var jwriter = Serialization.WriteJson(fstream);
-        jwriter.WriteStartObject();
-        jwriter.WriteNumber("version", CurrentVersion);
-        jwriter.WritePropertyName("payload");
-        writePayload(jwriter);
-        jwriter.WriteEndObject();
+        using var ms = new MemoryStream();
+        using (var jwriter = Serialization.WriteJson(ms))
+        {
+            jwriter.WriteStartObject();
+            jwriter.WriteNumber("version", CurrentVersion);
+            jwriter.WritePropertyName("payload");
+            writePayload(jwriter);
+            jwriter.WriteEndObject();
+        }
+        return ms.ToArray();
     }
 }

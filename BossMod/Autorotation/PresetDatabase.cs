@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using Dalamud.Utility;
+using System.IO;
 using System.Text.Json;
 
 namespace BossMod.Autorotation;
@@ -25,6 +26,9 @@ public sealed class PresetDatabase
     public Event<Preset?, Preset?> PresetModified = new(); // (old, new); old == null if preset is added, new == null if preset is removed
 
     private readonly FileInfo _dbPath;
+    private readonly object _saveLock = new();
+    private byte[]? _pendingSave;
+    private bool _saveRunning;
 
     public List<Preset> AllPresets
     {
@@ -53,8 +57,11 @@ public sealed class PresetDatabase
     {
         _dbPath = new(rootPath + ".db.json");
         BackupUserPresetsOnce();
-        DefaultPresets = LoadPresetsFromFile(defaultPresets);
-        UserPresets = LoadPresetsFromFile(_dbPath);
+        DefaultPresets = LoadPresetsFromFile(defaultPresets, out _);
+        UserPresets = LoadPresetsFromFile(_dbPath, out var loss);
+        // 🔴 必須在任何 Save() 之前（含下面的空名改名）：存檔會把只讀進一部分的清單整份寫回
+        if (loss != null)
+            BackupAfterLoss(loss);
         // 🔴 在 BackupUserPresetsOnce 之後才動:改名會 Save() 覆寫 db，原檔已先備份成 .v1-backup.json。
         NormalizeBlankUserPresetNames();
     }
@@ -154,8 +161,29 @@ public sealed class PresetDatabase
         }
     }
 
-    private List<Preset> LoadPresetsFromFile(FileInfo file)
+    private void BackupAfterLoss(string loss)
     {
+        var name = _dbPath.Name;
+        var after = $"之後新增、修改、刪除或排序任何循環預設，都會用目前讀到的內容整份覆寫 {name}。";
+        // 要使用者回報的診斷
+        switch (UnreadableFileBackup.Backup(_dbPath.FullName, out var backup, out var error))
+        {
+            case UnreadableFileBackup.Result.Created:
+                Service.Logger.Information($"[Autorotation] 循環預設資料庫{loss}，原檔已另存為 {backup}。{after}");
+                break;
+            case UnreadableFileBackup.Result.AlreadyBackedUp:
+                Service.Logger.Information($"[Autorotation] 循環預設資料庫{loss}，相同內容先前已另存為 {backup}，這次不再另存。{after}");
+                break;
+            default:
+                Service.Logger.Information($"[Autorotation] 循環預設資料庫{loss}，另存原檔失敗: {error}。{after}");
+                break;
+        }
+    }
+
+    // loss：檔在但沒有完整讀進來時的說明（有略過的預設、或整份無法解析）；完整讀到或檔不存在時為 null
+    private List<Preset> LoadPresetsFromFile(FileInfo file, out string? loss)
+    {
+        loss = null;
         if (!file.Exists)
             return [];
 
@@ -168,6 +196,7 @@ public sealed class PresetDatabase
             var opts = Serialization.BuildSerializationOptions();
             List<Preset> res = [];
             var index = 0;
+            var skipped = 0;
             foreach (var jp in data.payload.EnumerateArray())
             {
                 ++index;
@@ -182,13 +211,17 @@ public sealed class PresetDatabase
                     var name = jp.ValueKind == JsonValueKind.Object && jp.TryGetProperty(nameof(Preset.Name), out var jn) ? jn.ToString() : $"第 {index} 筆";
                     // 要使用者回報的診斷
                     Service.Logger.Information($"[Autorotation] 循環預設「{name}」損毀，已略過（{file.Name} 裡其餘預設不受影響）: {ex.Message}");
+                    ++skipped;
                 }
             }
+            if (skipped > 0)
+                loss = $" {file.Name} 有 {skipped} 筆循環預設損毀、已略過";
             return res;
         }
         catch (Exception ex)
         {
             Service.Logger.Information($"[Autorotation] 循環預設資料庫 '{file.FullName}' 無法解析，本次以空清單載入（原檔與備份未動）: {ex.Message}");
+            loss = $" {file.Name} 無法解析、本次以空清單載入";
             return [];
         }
     }
@@ -212,16 +245,57 @@ public sealed class PresetDatabase
         Save();
     }
 
+    // 快照在呼叫端執行緒序列化（UserPresets 是主執行緒在改的裸 List）；寫檔在背景、同一時間只有一個，
+    // 拖曳排序這種連續存檔只落最後一份快照。
     public void Save()
     {
+        byte[] bytes;
         try
         {
-            PlanPresetConverter.PresetSchema.Save(_dbPath, jwriter => JsonSerializer.Serialize(jwriter, UserPresets, Serialization.BuildSerializationOptions()));
-            Service.Log($"Database saved successfully to '{_dbPath.FullName}'");
+            bytes = PlanPresetConverter.PresetSchema.Serialize(jwriter => JsonSerializer.Serialize(jwriter, UserPresets, Serialization.BuildSerializationOptions()));
         }
         catch (Exception ex)
         {
             Service.Log($"Failed to write database to '{_dbPath.FullName}': {ex}");
+            return;
+        }
+
+        lock (_saveLock)
+        {
+            _pendingSave = bytes;
+            if (_saveRunning)
+                return;
+            _saveRunning = true;
+        }
+        Task.Run(DrainPendingSaves);
+    }
+
+    // 不變式：_saveRunning 只在鎖內、確認沒有待寫快照時才清掉 ⇒ 不會有快照被留下沒人寫
+    private void DrainPendingSaves()
+    {
+        while (true)
+        {
+            byte[]? bytes;
+            lock (_saveLock)
+            {
+                bytes = _pendingSave;
+                _pendingSave = null;
+                if (bytes == null)
+                {
+                    _saveRunning = false;
+                    return;
+                }
+            }
+
+            try
+            {
+                FilesystemUtil.WriteAllBytesSafe(_dbPath.FullName, bytes);
+                Service.Log($"Database saved successfully to '{_dbPath.FullName}'");
+            }
+            catch (Exception ex)
+            {
+                Service.Log($"Failed to write database to '{_dbPath.FullName}': {ex}");
+            }
         }
     }
 

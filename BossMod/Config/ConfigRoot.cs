@@ -73,15 +73,19 @@ public sealed class ConfigRoot
     // 讀檔失敗後下一次存檔會以預設值覆蓋原檔 ⇒ 先複製一份；複製失敗只記錄，不影響載入
     private static void BackupUnreadable(string path, string reason)
     {
-        var backup = $"{path}.bad-{DateTime.Now:yyyyMMdd-HHmmss}";
-        try
+        var name = Path.GetFileName(path);
+        var after = $"之後下一次存檔（改任何設定時）就會用目前的值整份覆寫 {name}。";
+        switch (UnreadableFileBackup.Backup(path, out var backup, out var error))
         {
-            File.Copy(path, backup, false);
-            Service.Logger?.Warning($"[Config] {reason}，原檔已另存為 {backup}");
-        }
-        catch (Exception e)
-        {
-            Service.Logger?.Warning($"[Config] {reason}，另存原檔到 {backup} 也失敗: {e.Message}");
+            case UnreadableFileBackup.Result.Created:
+                Service.Logger?.Warning($"[Config] {reason}，原檔已另存為 {backup}。{after}");
+                break;
+            case UnreadableFileBackup.Result.AlreadyBackedUp:
+                Service.Logger?.Warning($"[Config] {reason}，相同內容先前已另存為 {backup}，這次不再另存。{after}");
+                break;
+            default:
+                Service.Logger?.Warning($"[Config] {reason}，另存原檔也失敗: {error}。{after}");
+                break;
         }
     }
 
