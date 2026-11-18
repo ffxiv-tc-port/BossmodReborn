@@ -229,6 +229,8 @@ public sealed class AIHints
         InteractWithTarget = null;
         ForbiddenZones.Clear();
         FutureForbiddenZones.Clear();
+        (_zoneFnPrev, _zoneFnCur) = (_zoneFnCur, _zoneFnPrev);
+        _zoneFnCur.Clear();
         GoalZones.Clear();
         RecommendedPositional = default;
         PositionalHintDisplayOnly = default;
@@ -307,10 +309,42 @@ public sealed class AIHints
     public void InteractWithOID<OID>(WorldState ws, OID oid) where OID : Enum => InteractWithOID(ws, (uint)(object)oid);
 
     public void AddForbiddenZone(Func<WPos, float> shapeDistance, DateTime activation = default, ulong source = default) => ForbiddenZones.Add((shapeDistance, activation, source));
-    public void AddForbiddenZone(AOEShape shape, WPos origin, Angle rot = default, DateTime activation = default, ulong source = default) => ForbiddenZones.Add((shape.Distance(origin, rot), activation, source));
+    public void AddForbiddenZone(AOEShape shape, WPos origin, Angle rot = default, DateTime activation = default, ulong source = default) => ForbiddenZones.Add((ShapeDistanceReused(shape, origin, rot), activation, source));
 
     public void AddFutureForbiddenZone(Func<WPos, float> shapeDistance, DateTime activation) => FutureForbiddenZones.Add((shapeDistance, activation));
-    public void AddFutureForbiddenZone(AOEShape shape, WPos origin, Angle rot, DateTime activation) => FutureForbiddenZones.Add((shape.Distance(origin, rot), activation));
+    public void AddFutureForbiddenZone(AOEShape shape, WPos origin, Angle rot, DateTime activation) => FutureForbiddenZones.Add((ShapeDistanceReused(shape, origin, rot), activation));
+
+    // 上一幀（含本幀稍早）用同一個形狀實例、逐位元相同的位置與角度建過的距離委派直接沿用：輸入相同的純函式，求值結果相同。
+    // 只收下面這幾種密封形狀——Distance 只讀 init 參數、閉包不帶可變狀態；AOEShapeCustom（自帶快取與清單）與模組自訂形狀照舊每次新建。
+    private List<(AOEShape Shape, WPos Origin, Angle Rot, Func<WPos, float> Fn)> _zoneFnPrev = [], _zoneFnCur = [];
+    private const int ZoneFnMemoCap = 256;
+
+    private Func<WPos, float> ShapeDistanceReused(AOEShape shape, WPos origin, Angle rot)
+    {
+        if (shape is not (AOEShapeCircle or AOEShapeCone or AOEShapeDonut or AOEShapeDonutSector or AOEShapeRect or AOEShapeCross or AOEShapeTriCone or AOEShapeCapsule))
+            return shape.Distance(origin, rot);
+        if (FindZoneFn(_zoneFnCur, shape, origin, rot) is { } fn)
+            return fn;
+        fn = FindZoneFn(_zoneFnPrev, shape, origin, rot) ?? shape.Distance(origin, rot);
+        if (_zoneFnCur.Count < ZoneFnMemoCap)
+            _zoneFnCur.Add((shape, origin, rot, fn));
+        return fn;
+    }
+
+    private static Func<WPos, float>? FindZoneFn(List<(AOEShape Shape, WPos Origin, Angle Rot, Func<WPos, float> Fn)> memo, AOEShape shape, WPos origin, Angle rot)
+    {
+        var x = BitConverter.SingleToInt32Bits(origin.X);
+        var z = BitConverter.SingleToInt32Bits(origin.Z);
+        var r = BitConverter.SingleToInt32Bits(rot.Rad);
+        var count = memo.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var m = memo[i];
+            if (ReferenceEquals(m.Shape, shape) && BitConverter.SingleToInt32Bits(m.Origin.X) == x && BitConverter.SingleToInt32Bits(m.Origin.Z) == z && BitConverter.SingleToInt32Bits(m.Rot.Rad) == r)
+                return m.Fn;
+        }
+        return null;
+    }
 
     // 背景執行緒（AIBehaviour 的背景尋路）只能拿這份快照，主執行緒下一幀會 Clear() 原清單
     public (Func<WPos, float> shapeDistance, DateTime activation)[] SnapshotFutureZones() => FutureForbiddenZones.Count == 0 ? [] : [.. FutureForbiddenZones];
