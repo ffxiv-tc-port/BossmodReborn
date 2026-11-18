@@ -9088,5 +9088,11 @@
   },
   "DD_StuckRerouteSkip": {
     "message": "撞牆：本層先跳過房間 {0}，改去探索別的房間。"
+  },
+  "Give up on a coffer when routing around mobs gets stuck on the way to it": {
+    "message": "去寶箱途中繞怪卡住時放棄那個寶箱"
+  },
+  "Used with \"Route around mobs that have not noticed you yet\". If, on the way to the same coffer, the avoidance has to switch itself off three times in a row (about 25 seconds) and you still have not moved 1.5 yalms from where it started, that coffer is skipped for the rest of the floor and BMR goes for the next target instead of repeating the same loop.\n\nOnly kicks in after you are already stuck; normal travel is unchanged. Untick to keep trying the same coffer.": {
+    "message": "搭配「繞開還沒發現你的怪」使用。走去同一個寶箱的路上，如果繞怪功能連續 3 次（約 25 秒）都得自己關掉讓路，而你離開始卡住的地方仍不到 1.5 碼，這一層就略過那個寶箱、改去下一個目標，不再重複同一個循環。\n\n只在已經卡住之後才作用，正常趕路不受影響。取消勾選＝繼續嘗試同一個寶箱。"
   }
 }

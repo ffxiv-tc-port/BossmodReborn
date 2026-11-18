@@ -271,6 +271,11 @@ public sealed class AutoDDConfig : ConfigNode
     [PropertySlider(0f, 5f, Speed = 0.1f)]
     public float AggroAvoidMargin = 2f;
 
+    // 新鍵：缺鍵的既有設定檔拿到這個初始值（BMR 反序列化只遍歷 JSON 鍵）。只在已經連續卡住之後才作用，正常趕路不受影響。
+    [PropertyDisplay("Give up on a coffer when routing around mobs gets stuck on the way to it",
+        tooltip: "Used with \"Route around mobs that have not noticed you yet\". If, on the way to the same coffer, the avoidance has to switch itself off three times in a row (about 25 seconds) and you still have not moved 1.5 yalms from where it started, that coffer is skipped for the rest of the floor and BMR goes for the next target instead of repeating the same loop.\n\nOnly kicks in after you are already stuck; normal travel is unchanged. Untick to keep trying the same coffer.")]
+    public bool AggroYieldGiveUpCoffer = true;
+
     // 🔴 預設 true。這個開關修的是一個靜默失效，完整說明見 AIHints.WantKiting。
     [PropertyDisplay("Kite: allow backing away while dodging",
         tooltip: "Whenever anything dangerous is telegraphed, the AI normally penalises any spot further from your target than where you stand now, so it does not drift away. That penalty is far stronger than the kiting preference, so without this, kiting silently does nothing while an AOE is up - which in a deep dungeon is most of the time.\n\nTicked, that one penalty is skipped while kiting is actually active. Dodging itself is completely unaffected - no dangerous spot ever becomes acceptable.\n\nUntick for the old behaviour.")]

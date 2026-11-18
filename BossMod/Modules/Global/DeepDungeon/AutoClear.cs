@@ -539,6 +539,7 @@ public abstract partial class AutoClear : ZoneModule
         _fakeExits.Clear();
         _unreachableCoffers.Clear();
         _cofferProgressId = 0;
+        _cofferYieldRounds = 0;
         // 🔴 寶箱累積值是「本層看過什麼」，換層一定要歸零，否則上一層的標記會跟著下來。
         Array.Clear(_chestSeen);
         // 換層／重新進場都讓寶箱摘要再印一次。簽章本身含樓層，同一輪往下走本來就會變；
@@ -5280,6 +5281,46 @@ public abstract partial class AutoClear : ZoneModule
             $" ⇒ 本層放棄這個寶箱、改走別的目標（寶箱 {CofferTrapNearRange:f0}y 內陷阱禁區 {nearTraps} 圈）。");
     }
 
+    /// <summary>走去同一個寶箱時，仇恨迴避連續這麼多輪「（放寬邊距→）讓路」都沒離開起點 <see cref="AggroStuckDistance"/>y 就本層放棄它。</summary>
+    private const int CofferYieldGiveUpRounds = 3;
+
+    /// <summary>兩次讓路相隔超過這麼久（秒）就不算連續；一輪＝放寬 1.25＋判定 2.5＋抑制 6 秒，約 10 秒。</summary>
+    private const double CofferYieldMaxGapSeconds = 15d;
+
+    private ulong _cofferYieldId;
+    private WPos _cofferYieldAnchor;
+    private DateTime _cofferYieldLast;
+    private int _cofferYieldRounds;
+
+    /// <summary>
+    /// 仇恨迴避判定讓路的那一幀呼叫：寶箱在仇恨迴避的讓路循環裡走不動時的退路。
+    /// </summary>
+    /// <remarks>
+    /// 契約：只在讓路事件當幀被呼叫、只寫 <see cref="_unreachableCoffers"/>；放棄之前不改變任何一幀的輸出。
+    /// 讓路期間（抑制 6 秒）也走不動＝擋路的不是怪；卡住偵測要 <c>DesiredRoom</c> &gt; 0、陷阱那條要寶箱旁有陷阱圈，兩條都接不到。
+    /// </remarks>
+    private void NoteCofferAggroYield(Actor player, Actor? coffer, DateTime now)
+    {
+        if (!Config.AggroYieldGiveUpCoffer || coffer == null || !AiDriving())
+        {
+            _cofferYieldRounds = 0;
+            return;
+        }
+        if (_cofferYieldRounds == 0 || coffer.InstanceID != _cofferYieldId || (now - _cofferYieldLast).TotalSeconds > CofferYieldMaxGapSeconds
+            || (player.Position - _cofferYieldAnchor).LengthSq() >= AggroStuckDistance * AggroStuckDistance)
+        {
+            (_cofferYieldId, _cofferYieldAnchor, _cofferYieldRounds) = (coffer.InstanceID, player.Position, 0);
+        }
+        _cofferYieldLast = now;
+        if (++_cofferYieldRounds < CofferYieldGiveUpRounds)
+            return;
+        _cofferYieldRounds = 0;
+        _unreachableCoffers.Add(coffer.InstanceID);
+        Service.Logger.Information(
+            $"[DD] 去寶箱放棄：樓層 {Palace.Floor}、目標 {coffer.Name}（OID {coffer.OID:X}、{player.DistanceToHitbox(coffer):f1}y 外）、" +
+            $"連續 {CofferYieldGiveUpRounds} 輪仇恨迴避讓路都沒離開起點 {AggroStuckDistance:f1}y（無進展）⇒ 本層略過這個寶箱、改找下一個目標。");
+    }
+
     /// <summary>本幀交給尋路的陷阱禁區圈裡，圓心在 <paramref name="pos"/> 附近 <see cref="CofferTrapNearRange"/> 內的有幾圈。</summary>
     private int CountTrapCirclesNear(WPos pos)
     {
@@ -5830,6 +5871,7 @@ public abstract partial class AutoClear : ZoneModule
                     $"[DD] 仇恨迴避讓路：樓層 {Palace.Floor}，{AggroStuckSeconds:f1} 秒內只移動了不到 " +
                     $"{AggroStuckDistance:f1}y（本幀 {added} 個迴避形狀）⇒ 判定繞不過去，" +
                     $"接下來 {AggroSuppressSeconds:f0} 秒不迴避、照舊行為直穿。");
+                NoteCofferAggroYield(player, coffer, now);
                 return;
             }
         }
