@@ -5508,11 +5508,78 @@ public abstract partial class AutoClear : ZoneModule
     /// <remarks>視覺怪＝面向扇形（半角 45°），其餘與表外的怪＝整個圓；死者宮殿擬態怪半徑另加 <see cref="MimicExtraRadius"/>。</remarks>
     public static Func<WPos, float> AggroShape(Actor a, float radius, bool inPotd, out MobAggroKind? kind, out bool isMimic, out float effRadius)
     {
+        var r = AggroShapeRadius(a, radius, inPotd, out kind, out isMimic, out effRadius);
+        return kind == MobAggroKind.Sight ? ShapeDistance.Cone(a.Position, r, a.Rotation, SightHalfAngle) : ShapeDistance.Circle(a.Position, r);
+    }
+
+    private static float AggroShapeRadius(Actor a, float radius, bool inPotd, out MobAggroKind? kind, out bool isMimic, out float effRadius)
+    {
         isMimic = inPotd && IsMimicOid(a.OID);
         effRadius = isMimic ? radius + MimicExtraRadius : radius;
-        var r = a.HitboxRadius + effRadius;
         kind = MobAggroData.Lookup(a.NameID);
-        return kind == MobAggroKind.Sight ? ShapeDistance.Cone(a.Position, r, a.Rotation, SightHalfAngle) : ShapeDistance.Circle(a.Position, r);
+        return a.HitboxRadius + effRadius;
+    }
+
+    // 趕路迴避每幀替每隻候選怪建形狀與加邊距的委派；輸入（位置、扇形才看的朝向、半徑、邊距）逐位元相同就沿用上一幀的那個。
+    // 兩種委派都只捕獲值、是純函式，可以同時交給背景尋路；只在主執行緒用，每幀最多記 AggroMemoCap 筆。
+    private List<(bool Cone, int X, int Z, int Rot, int R, Func<WPos, float> Fn)> _aggroShapePrev = [], _aggroShapeCur = [];
+    private List<(Func<WPos, float> Shape, int Margin, Func<WPos, float> Fn)> _aggroInflatePrev = [], _aggroInflateCur = [];
+    private const int AggroMemoCap = 64;
+
+    private void AggroMemoNextFrame()
+    {
+        (_aggroShapePrev, _aggroShapeCur) = (_aggroShapeCur, _aggroShapePrev);
+        _aggroShapeCur.Clear();
+        (_aggroInflatePrev, _aggroInflateCur) = (_aggroInflateCur, _aggroInflatePrev);
+        _aggroInflateCur.Clear();
+    }
+
+    private Func<WPos, float> AggroShapeReused(Actor a, float radius, bool inPotd, out MobAggroKind? kind, out bool isMimic, out float effRadius)
+    {
+        var r = AggroShapeRadius(a, radius, inPotd, out kind, out isMimic, out effRadius);
+        var cone = kind == MobAggroKind.Sight;
+        var pos = a.Position;
+        var x = BitConverter.SingleToInt32Bits(pos.X);
+        var z = BitConverter.SingleToInt32Bits(pos.Z);
+        var rot = cone ? BitConverter.SingleToInt32Bits(a.Rotation.Rad) : 0;
+        var rb = BitConverter.SingleToInt32Bits(r);
+        var fn = FindAggroShape(_aggroShapeCur, cone, x, z, rot, rb) ?? FindAggroShape(_aggroShapePrev, cone, x, z, rot, rb) ?? AggroShape(a, radius, inPotd, out kind, out isMimic, out effRadius);
+        if (_aggroShapeCur.Count < AggroMemoCap)
+            _aggroShapeCur.Add((cone, x, z, rot, rb, fn));
+        return fn;
+    }
+
+    private static Func<WPos, float>? FindAggroShape(List<(bool Cone, int X, int Z, int Rot, int R, Func<WPos, float> Fn)> memo, bool cone, int x, int z, int rot, int r)
+    {
+        var count = memo.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var m = memo[i];
+            if (m.Cone == cone && m.X == x && m.Z == z && m.Rot == rot && m.R == r)
+                return m.Fn;
+        }
+        return null;
+    }
+
+    private Func<WPos, float> InflateAggroShapeReused(Func<WPos, float> shape, float margin)
+    {
+        var bits = BitConverter.SingleToInt32Bits(margin);
+        var fn = FindAggroInflate(_aggroInflateCur, shape, bits) ?? FindAggroInflate(_aggroInflatePrev, shape, bits) ?? InflateAggroShape(shape, margin);
+        if (_aggroInflateCur.Count < AggroMemoCap)
+            _aggroInflateCur.Add((shape, bits, fn));
+        return fn;
+    }
+
+    private static Func<WPos, float>? FindAggroInflate(List<(Func<WPos, float> Shape, int Margin, Func<WPos, float> Fn)> memo, Func<WPos, float> shape, int margin)
+    {
+        var count = memo.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var m = memo[i];
+            if (ReferenceEquals(m.Shape, shape) && m.Margin == margin)
+                return m.Fn;
+        }
+        return null;
     }
 
     /// <summary>
@@ -5621,13 +5688,14 @@ public abstract partial class AutoClear : ZoneModule
         int cones = 0, circles = 0, unknown = 0, skippedInside = 0, mimics = 0, skippedTarget = 0, margined = 0;
         var pp = player.Position;
         _aggroInsideFrame.Clear();
+        AggroMemoNextFrame();
         // 死者宮殿的擬態怪偵測距離比別的怪遠，見 MimicExtraRadius。每幀算一次就好。
         var inPotd = Palace.DungeonId == DeepDungeonState.DungeonType.POTD;
 
         for (var i = 0; i < pickedCount; ++i)
         {
             var a = hints.PotentialTargets[picked[i]].Actor;
-            var shape = AggroShape(a, radius, inPotd, out var kind, out var isMimic, out var effRadius);
+            var shape = AggroShapeReused(a, radius, inPotd, out var kind, out var isMimic, out var effRadius);
             if (isMimic)
                 ++mimics;
 
@@ -5675,7 +5743,7 @@ public abstract partial class AutoClear : ZoneModule
             if (m > 0f)
                 ++margined;
             // activation 用預設值：RasterizeForbiddenZones 會把它夾到 current ⇒ g = 0 ⇒ 真的擋。
-            hints.AddForbiddenZone(m > 0f ? InflateAggroShape(shape, m) : shape, default, a.InstanceID);
+            hints.AddForbiddenZone(m > 0f ? InflateAggroShapeReused(shape, m) : shape, default, a.InstanceID);
         }
 
         // 「離開了就重置」：本幀沒再算到人在裡面的，從名單移除，下次再進去會重新印一行。
