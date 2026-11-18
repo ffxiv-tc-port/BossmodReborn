@@ -51,7 +51,7 @@ public sealed class DashInterceptTweak
         (Func<WPos, float> Shape, DateTime Activation)[] zones, DateTime now, bool aiActive, bool escapeHatchHeld, float threshold, ArenaBounds? bounds, WPos center)
     {
         public readonly (Func<WPos, float> Shape, DateTime Activation)[] Zones = zones;
-        // 只在 Zones 為空時由 Update 就地刷新（沿用上一幀快照省掉每幀配置）；此時 Now 只用於 log 節流
+        // 其餘欄位與 Zones 逐項都沒變時由 Update 就地刷新（沿用上一幀快照省掉每幀配置）；Now 只用於 log 節流與 log 裡的倒數
         public DateTime Now = now;
         public readonly bool AIActive = aiActive;
         public readonly bool EscapeHatchHeld = escapeHatchHeld;
@@ -146,16 +146,14 @@ public sealed class DashInterceptTweak
 
         var aiActive = AI.AIManager.Instance?.Beh != null;
         var center = hints.PathfindMapCenter;
-        if (kept == 0)
+        // 留下的區（同一個委派實例、同一個生效時間、同順序）與其餘條件都與上一幀相同：沿用舊快照只刷新時間。
+        // 邊界與委派都比參考不比值（record 的值比較可能很貴；AIHints 會沿用輸入相同的形狀委派）
+        var prev = _snapshot;
+        if (prev != null && SameZones(prev.Zones, src, horizon, kept) && ReferenceEquals(prev.Bounds, bounds) && prev.Center == center
+            && prev.AIActive == aiActive && prev.EscapeHatchHeld == escapeHatchHeld && prev.Threshold == threshold)
         {
-            // 只有場地邊界、其餘條件與上一幀相同：沿用舊快照只刷新時間。邊界比參考不比值（record 的值比較可能很貴）
-            var prev = _snapshot;
-            if (prev != null && prev.Zones.Length == 0 && ReferenceEquals(prev.Bounds, bounds) && prev.Center == center
-                && prev.AIActive == aiActive && prev.EscapeHatchHeld == escapeHatchHeld && prev.Threshold == threshold)
-            {
-                prev.Now = now;
-                return;
-            }
+            prev.Now = now;
+            return;
         }
 
         var zones = kept == 0 ? Array.Empty<(Func<WPos, float> Shape, DateTime Activation)>() : new (Func<WPos, float> Shape, DateTime Activation)[kept];
@@ -168,6 +166,25 @@ public sealed class DashInterceptTweak
         }
 
         _snapshot = new(zones, now, aiActive, escapeHatchHeld, threshold, bounds, center);
+    }
+
+    // 快照的 Zones 是否逐項等於這一幀會篩出來的那份（篩法與 Update 相同：activation <= horizon，依序）。
+    private static bool SameZones((Func<WPos, float> Shape, DateTime Activation)[] prev, List<(Func<WPos, float> shapeDistance, DateTime activation, ulong Source)> src, DateTime horizon, int kept)
+    {
+        if (prev.Length != kept)
+            return false;
+        var j = 0;
+        var count = src.Count;
+        for (var i = 0; i < count && j < kept; ++i)
+        {
+            var z = src[i];
+            if (z.activation > horizon)
+                continue;
+            if (!ReferenceEquals(prev[j].Shape, z.shapeDistance) || prev[j].Activation != z.activation)
+                return false;
+            ++j;
+        }
+        return true;
     }
 
     /// <summary>
