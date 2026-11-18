@@ -230,6 +230,11 @@ public sealed class AutoDDConfig : ConfigNode
         tooltip: "Out of combat, if you keep heading the same way but move less than 1.5 yalms in 6 seconds (BMR's obstacle map does not match this floor and you are pushing against a wall), act on the first time instead of giving up and picking the same room again: vnavmesh walks you to the room along the real terrain (once per room per floor; the route is checked against known traps and the rooms in between first, it does not avoid mobs, and it stops as soon as combat starts).\n\nWithout vnavmesh, or if vnavmesh cannot get there either: a room picked by \"Reveal all rooms\" is skipped on this floor and another room is explored instead; the Cairn of Passage or a room you picked yourself is given up as before. Standing still is not treated as a wall. Off by default.")]
     public bool StuckReroute = false;
 
+    // 新鍵、預設開：缺鍵的既有設定檔拿到 true。只在「寶箱太遠＋沒有任何房間目標＋原地 3 秒」才作用，那個狀態的舊行為是永遠站著。
+    [PropertyDisplay("Coffer too far away and nothing else to walk to: head for its room, or give it up",
+        tooltip: "When \"Automatically navigate to coffers\" picks a coffer so far away that its pull does not reach the area BMR plans paths in (usually 55 yalms or more), and there is no destination room, Cairn of Passage or hoard spot to walk to, the AI has nothing pulling it and just stands there. After 3 seconds without moving, the coffer's room becomes the destination (the room is worked out from this floor's room map, and only if the route there is known); if that is not possible, or you still do not move for 8 more seconds, the coffer is skipped for the rest of the floor and BMR goes for the next target.\n\nWorks with or without \"Route around mobs that have not noticed you yet\". Only kicks in in that stuck state; normal travel is unchanged. Untick for the old behaviour.")]
+    public bool FarCofferStallFallback = true;
+
     // ── 風箏 ──────────────────────────────────────────────────────────
     // 📌 這幾個是「Deep Dungeon AI」自動循環模組的風箏參數。放在這一頁而不是模組的 track 選項，
     //    是因為 track 選項只吃列舉、給不了數值滑桿，而使用者要調的正是數值。

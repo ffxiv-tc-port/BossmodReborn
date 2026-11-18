@@ -155,7 +155,9 @@ public abstract partial class AutoClear : ZoneModule
         /// <summary>使用者沒指定，由「自動前往通道石」填入。</summary>
         AutoPassage,
         /// <summary>「嘗試踩可能的寶箱點」正在往下一個站位走。</summary>
-        HoardWalk
+        HoardWalk,
+        /// <summary>使用者沒指定，遠距寶箱走不動時改由寶箱所在房間填入（見 UpdateFarCofferStall）。</summary>
+        FarCoffer
     }
 
     private DestinationSource _destinationSource;
@@ -540,6 +542,8 @@ public abstract partial class AutoClear : ZoneModule
         _unreachableCoffers.Clear();
         _cofferProgressId = 0;
         _cofferYieldRounds = 0;
+        _farCofferGuided.Clear();
+        _farCofferId = 0;
         // 🔴 寶箱累積值是「本層看過什麼」，換層一定要歸零，否則上一層的標記會跟著下來。
         Array.Clear(_chestSeen);
         // 換層／重新進場都讓寶箱摘要再印一次。簽章本身含樓層，同一輪往下走本來就會變；
@@ -1922,6 +1926,7 @@ public abstract partial class AutoClear : ZoneModule
             // 深牢內就用這一座傳送裝置的真名（每座不同），沒看過實體才退回通用詞
             DestinationSource.AutoPassage => string.Format(Loc.T("DD_DestFromAutoPassage", " (set by \"navigate to {0}\")"), PassageName),
             DestinationSource.HoardWalk => Loc.T("DD_DestFromHoardWalk", " (set by \"try the possible hoard spots\")"),
+            DestinationSource.FarCoffer => Loc.T("DD_DestFromFarCoffer", " (set to reach a coffer too far away to walk to directly)"),
             _ => "",
         };
         ImGui.Text(string.Format(Loc.T("DD_Destination", "Destination: room {0}{1}"), DesiredRoom, source));
@@ -3289,6 +3294,7 @@ public abstract partial class AutoClear : ZoneModule
 
         AddAggroAvoidance(player, hints, moveToCoffer, passageGoal, hoardLightGoal);
         UpdateCofferProgress(player, moveToCoffer);
+        UpdateFarCofferStall(player, hints, moveToCoffer, passageGoal, hoardLightGoal);
 
         var shouldTargetMobs = Config.AutoClear switch
         {
@@ -5331,6 +5337,96 @@ public abstract partial class AutoClear : ZoneModule
             if (c.Center.InCircle(pos, CofferTrapNearRange))
                 ++n;
         return n;
+    }
+
+    #endregion
+
+    #region 遠距寶箱走不動（Config.FarCofferStallFallback）
+
+    /// <summary>死結狀態下這麼久（秒）沒前進 <see cref="StuckMoveThreshold"/>y 才介入；正常走路不會連續 3 秒原地。</summary>
+    private const double FarCofferStallSeconds = 3d;
+
+    /// <summary>引導過（或引導不了）之後又這麼久（秒）沒前進就本層放棄這個寶箱；與「寶箱走不到」同值。</summary>
+    private const double FarCofferGiveUpSeconds = 8d;
+
+    /// <summary>本層已經引導（或判定引導不了）過的寶箱；每個寶箱只引導一次，第二次直接走放棄計時。換層清空。</summary>
+    private readonly HashSet<ulong> _farCofferGuided = [];
+    private ulong _farCofferId;
+    private WPos _farCofferPos;
+    private DateTime _farCofferSince;
+
+    /// <summary>
+    /// 走去寶箱時的死結退路：寶箱離尋路視窗超過 <see cref="TreasureApproachRadius"/>、又沒有任何房間目標／傳送裝置／光點目標區，
+    /// 尋路視窗裡的目標區整片是 0（權重場平），人就永遠站著；卡住偵測要 <c>DesiredRoom</c> &gt; 0、陷阱那條要寶箱旁有陷阱圈，都接不到。
+    /// </summary>
+    /// <remarks>
+    /// 契約：只讀寫本區的計時欄位，直到死結狀態連續 <see cref="FarCofferStallSeconds"/> 秒才改 <c>DesiredRoom</c> 或 <see cref="_unreachableCoffers"/>；
+    /// 其餘幀的輸出與沒有這段時相同。不看仇恨迴避，沒開它的人也接得到。
+    /// 先把寶箱所在房間設成目的地（交給樓層尋路，會走門）；房間對不出來或樓層尋路不通，就計時後放棄。
+    /// </remarks>
+    private void UpdateFarCofferStall(Actor player, AIHints hints, Actor? coffer, Actor? passageGoal, Actor? hoardLightGoal)
+    {
+        if (!Config.FarCofferStallFallback || coffer == null || DesiredRoom != 0 || _travelGoalAdded || passageGoal != null || hoardLightGoal != null
+            || HoardWalkSteering || player.InCombat || IsInteracting(player) || DistanceToPathfindWindow(hints, coffer.Position) <= TreasureApproachRadius || !AiDriving())
+        {
+            _farCofferId = 0;
+            return;
+        }
+        var now = World.CurrentTime;
+        if (coffer.InstanceID != _farCofferId || (player.Position - _farCofferPos).LengthSq() >= StuckMoveThreshold * StuckMoveThreshold)
+        {
+            (_farCofferId, _farCofferPos, _farCofferSince) = (coffer.InstanceID, player.Position, now);
+            return;
+        }
+        var stalled = (now - _farCofferSince).TotalSeconds;
+        var dist = player.DistanceToHitbox(coffer);
+        if (!_farCofferGuided.Contains(coffer.InstanceID))
+        {
+            if (stalled < FarCofferStallSeconds)
+                return;
+            _farCofferGuided.Add(coffer.InstanceID);
+            _farCofferId = 0;
+            var playerRoom = FindPlayerRoom(player);
+            var coords = CheckRoomCoords(player, out _, out _);
+            var cofferRoom = coords == RoomCoordState.Ok ? NearestRoom(coffer.Position, RoomTolerance) : -1;
+            var steps = playerRoom >= 0 && cofferRoom > 0 && cofferRoom != playerRoom ? FloorPathfind.FirstStep(Palace.Rooms, playerRoom, cofferRoom, out _) : 0;
+            if (steps > 0)
+            {
+                DesiredRoom = cofferRoom;
+                _destinationSource = DestinationSource.FarCoffer;
+                Service.Logger.Information(
+                    $"[DD] 遠距寶箱引導：樓層 {Palace.Floor}，{coffer.Name}（OID {coffer.OID:X}）在 {dist:f1}y 外（離尋路視窗 {DistanceToPathfindWindow(hints, coffer.Position):f1}y，超過走去寶箱的 {TreasureApproachRadius:f0}y 範圍），" +
+                    $"又沒有房間目標，{FarCofferStallSeconds:f0} 秒沒前進 ⇒ 目的地設為寶箱所在的房間 {cofferRoom}（目前在房間 {playerRoom}，樓層尋路 {steps} 步）。");
+                return;
+            }
+            Service.Logger.Information(
+                $"[DD] 遠距寶箱引導不可行：樓層 {Palace.Floor}，{coffer.Name}（OID {coffer.OID:X}）在 {dist:f1}y 外、{FarCofferStallSeconds:f0} 秒沒前進；" +
+                $"目前房間 {playerRoom}、寶箱房間 {cofferRoom}、房間座標 {coords}、樓層尋路 {steps} 步 ⇒ 再 {FarCofferGiveUpSeconds:f0} 秒沒前進就本層放棄它。");
+            return;
+        }
+        if (stalled < FarCofferGiveUpSeconds)
+            return;
+        _farCofferId = 0;
+        _unreachableCoffers.Add(coffer.InstanceID);
+        Service.Logger.Information(
+            $"[DD] 遠距寶箱放棄：樓層 {Palace.Floor}，{coffer.Name}（OID {coffer.OID:X}）在 {dist:f1}y 外，引導過（或引導不了）之後仍 {FarCofferGiveUpSeconds:f0} 秒沒前進 {StuckMoveThreshold}y" +
+            " ⇒ 本層略過這個寶箱、改找下一個目標。");
+    }
+
+    /// <summary>點到本幀尋路視窗的最近距離（碼）；大於 <see cref="TreasureApproachRadius"/>＝走去寶箱的目標區在整個視窗裡都是 0。</summary>
+    /// <remarks>不旋轉的矩形照實算；其他形狀用外接圓，只會算短（＝少判成「場平」）。</remarks>
+    private static float DistanceToPathfindWindow(AIHints hints, WPos p)
+    {
+        var off = p - hints.PathfindMapCenter;
+        if (hints.PathfindMapBounds is ArenaBoundsRect r && r.Rotation == default)
+        {
+            var dx = Math.Max(Math.Abs(off.X) - r.HalfWidth, 0f);
+            var dz = Math.Max(Math.Abs(off.Z) - r.HalfHeight, 0f);
+            return MathF.Sqrt(dx * dx + dz * dz);
+        }
+        var b = hints.PathfindMapBounds;
+        var reach = b is ArenaBoundsCircle ? b.Radius : b.Radius * MathF.Sqrt(2f);
+        return Math.Max(off.Length() - reach, 0f);
     }
 
     #endregion
