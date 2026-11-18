@@ -536,6 +536,8 @@ public class IconStackSpread(BossModule module, uint stackIcon, uint spreadIcon,
                     }
                 }
                 // stack not found, probably due to being self targeted
+                // 這一輪的結算已數滿，不論有沒有找到都要歸零，否則下一次同技能永遠數不到 MaxCasts
+                CastCounter = 0;
                 if (count != 0)
                 {
                     ++NumFinishedStacks;

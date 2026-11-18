@@ -25,7 +25,22 @@ sealed class OmegaJavelinSpread(BossModule module) : Components.SpreadFromIcon(m
 
 // not sure how this stack works, the sheets say radius 24 which doesn't make sense given that it is the whole arena radius
 // maybe it's a raidwide and a stack combined, radius 5 is guessed, but a typical stack radius
-sealed class StellarBurst(BossModule module) : Components.StackWithIcon(module, (uint)IconID.StellarBurst, (uint)AID.StellarBurst, 5f, 5.1d, PartyState.MaxAllianceSize, PartyState.MaxAllianceSize);
+sealed class StellarBurst(BossModule module) : Components.StackWithIcon(module, (uint)IconID.StellarBurst, (uint)AID.StellarBurst, 5f, 5.1d, PartyState.MaxAllianceSize, PartyState.MaxAllianceSize)
+{
+    public override void Update()
+    {
+        base.Update();
+        // 保險：預定結算 3 秒後還在＝漏接結算事件（實測一律在預定時間 0.1 秒內結算、下一次在百秒後），清掉免得圈一直掛著
+        var now = WorldState.CurrentTime;
+        for (var i = Stacks.Count - 1; i >= 0; --i)
+        {
+            if (now > Stacks[i].Activation.AddSeconds(3d))
+            {
+                Stacks.RemoveAt(i);
+            }
+        }
+    }
+}
 
 sealed class FlareRect(BossModule module) : Components.SimpleAOEs(module, (uint)AID.FlareRect, new AOEShapeRect(70f, 3f));
 sealed class QuakeFreeze(BossModule module) : Components.SimpleAOEGroups(module, [(uint)AID.Quake, (uint)AID.Freeze], new AOEShapeRect(16f, 24f));
