@@ -121,7 +121,14 @@ public unsafe struct ActionEffects : IEnumerable<ActionEffect>
         set => _effects[index] = value;
     }
 
-    public IEnumerator<ActionEffect> GetEnumerator()
+    // foreach 走這支（結構列舉器，不配置）；LINQ 走介面那支。兩者序列相同：8 格依序、跳過 Nothing，讀的是取列舉器當下的複本。
+    public Enumerator GetEnumerator() => new(this);
+
+    IEnumerator<ActionEffect> IEnumerable<ActionEffect>.GetEnumerator() => Iterate();
+
+    IEnumerator IEnumerable.GetEnumerator() => Iterate();
+
+    private IEnumerator<ActionEffect> Iterate()
     {
         for (var i = 0; i < 8; ++i)
         {
@@ -131,7 +138,44 @@ public unsafe struct ActionEffects : IEnumerable<ActionEffect>
         }
     }
 
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    // 有沒有任何一格的類型落在 [first, last]；等同 Any(eff => eff.Type is >= first and <= last)，不裝箱。
+    public bool AnyOfType(ActionEffectType first, ActionEffectType last)
+    {
+        for (var i = 0; i < MaxCount; ++i)
+        {
+            var type = Build(i).Type;
+            if (type != ActionEffectType.Nothing && type >= first && type <= last)
+                return true;
+        }
+        return false;
+    }
+
+    public struct Enumerator(ActionEffects effects) : IEnumerator<ActionEffect>
+    {
+        private ActionEffects _effects = effects;
+        private int _index = -1;
+
+        public ActionEffect Current { readonly get; private set; }
+        readonly object IEnumerator.Current => Current;
+
+        public bool MoveNext()
+        {
+            while (_index < MaxCount - 1)
+            {
+                var eff = _effects.Build(++_index);
+                if (eff.Type != ActionEffectType.Nothing)
+                {
+                    Current = eff;
+                    return true;
+                }
+            }
+            _index = MaxCount;
+            return false;
+        }
+
+        public void Reset() => _index = -1;
+        public readonly void Dispose() { }
+    }
 
     private unsafe ActionEffect Build(int index)
     {

@@ -172,6 +172,40 @@ public sealed class ActorState : IEnumerable<Actor>
             list.RemoveRange(kept, items.Length - kept);
     }
 
+    // OpEffectResult 每次確認都走：與 RemovePendingEffects(target, (in p) => p.GlobalSequence == seq && p.TargetIndex == targetIndex) 逐項相同、處理順序相同，不配置。
+    private static void RemoveConfirmedPendingEffects(Actor target, uint seq, int targetIndex)
+    {
+        RemoveConfirmed<PendingEffectDelta, DeltaHeader>(target.PendingHPDifferences, seq, targetIndex);
+        RemoveConfirmed<PendingEffectDelta, DeltaHeader>(target.PendingMPDifferences, seq, targetIndex);
+        RemoveConfirmed<PendingEffectStatusExtra, StatusExtraHeader>(target.PendingStatuses, seq, targetIndex);
+        RemoveConfirmed<PendingEffectStatus, StatusHeader>(target.PendingDispels, seq, targetIndex);
+        RemoveConfirmed<PendingEffect, KnockbackHeader>(target.PendingKnockbacks, seq, targetIndex);
+    }
+
+    // 與 RemoveExpired 同一套就地壓縮（＝List<T>.RemoveAll 的語意），只是判斷換成序號與目標索引。
+    private static void RemoveConfirmed<T, THeader>(List<T> list, uint seq, int targetIndex) where THeader : struct, IPendingHeader<T>
+    {
+        var items = CollectionsMarshal.AsSpan(list);
+        var kept = 0;
+        for (var i = 0; i < items.Length; ++i)
+        {
+            var h = THeader.Of(in items[i]);
+            if (h.GlobalSequence == seq && h.TargetIndex == targetIndex)
+                continue;
+            if (kept != i)
+                items[kept] = items[i];
+            ++kept;
+        }
+        if (kept != items.Length)
+            list.RemoveRange(kept, items.Length - kept);
+    }
+
+    private interface IPendingHeader<T> { static abstract PendingEffect Of(in T item); }
+    private readonly struct DeltaHeader : IPendingHeader<PendingEffectDelta> { public static PendingEffect Of(in PendingEffectDelta item) => item.Effect; }
+    private readonly struct StatusExtraHeader : IPendingHeader<PendingEffectStatusExtra> { public static PendingEffect Of(in PendingEffectStatusExtra item) => item.Effect; }
+    private readonly struct StatusHeader : IPendingHeader<PendingEffectStatus> { public static PendingEffect Of(in PendingEffectStatus item) => item.Effect; }
+    private readonly struct KnockbackHeader : IPendingHeader<PendingEffect> { public static PendingEffect Of(in PendingEffect item) => item; }
+
     private interface IPendingExpiration<T> { static abstract DateTime Of(in T item); }
     private readonly struct DeltaExpiration : IPendingExpiration<PendingEffectDelta> { public static DateTime Of(in PendingEffectDelta item) => item.Effect.Expiration; }
     private readonly struct StatusExtraExpiration : IPendingExpiration<PendingEffectStatusExtra> { public static DateTime Of(in PendingEffectStatusExtra item) => item.Effect.Expiration; }
@@ -511,7 +545,7 @@ public sealed class ActorState : IEnumerable<Actor>
     {
         protected override void ExecActor(WorldState ws, Actor actor)
         {
-            ws.Actors.RemovePendingEffects(actor, (in PendingEffect p) => p.GlobalSequence == Seq && p.TargetIndex == TargetIndex);
+            RemoveConfirmedPendingEffects(actor, Seq, TargetIndex);
             ws.Actors.EffectResult.Fire(actor, Seq, TargetIndex);
         }
         public override void Write(ReplayRecorder.Output output) => output.EmitFourCC("ER  "u8).EmitActor(InstanceID).Emit(Seq).Emit(TargetIndex);
@@ -560,14 +594,14 @@ public sealed class ActorState : IEnumerable<Actor>
             var prevIdx = prev.TargetIndex;
             if (prevSeq != 0 && (prevSeq != Value.GlobalSequence || prevIdx != Value.TargetIndex))
             {
-                if (prev.Effects.Any(eff => eff.Type is >= ActionEffectType.Knockback and <= ActionEffectType.AttractCustom3))
+                if (prev.Effects.AnyOfType(ActionEffectType.Knockback, ActionEffectType.AttractCustom3))
                     actor.PendingKnockbacks.RemoveAll(e => e.GlobalSequence == prevSeq && e.TargetIndex == prevIdx);
                 ws.Actors.IncomingEffectRemove.Fire(actor, Index);
             }
             actor.IncomingEffects[Index] = Value;
             if (Value.GlobalSequence != 0)
             {
-                if (prev.Effects.Any(eff => eff.Type is >= ActionEffectType.Knockback and <= ActionEffectType.AttractCustom3))
+                if (prev.Effects.AnyOfType(ActionEffectType.Knockback, ActionEffectType.AttractCustom3))
                     actor.PendingKnockbacks.Add(new(Value.GlobalSequence, Value.TargetIndex, Value.SourceInstanceId, ws.FutureTime(3d))); // note: sometimes effect can never be applied (eg if source dies shortly after actioneffect), so we need a timeout
                 ws.Actors.IncomingEffectAdd.Fire(actor, Index);
             }
