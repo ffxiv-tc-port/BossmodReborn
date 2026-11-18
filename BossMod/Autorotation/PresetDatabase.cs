@@ -195,7 +195,10 @@ public sealed class PresetDatabase
             using var json = data.document;
             // 逐筆反序列化：JsonPresetConverter.Read 對缺鍵/壞值會擲例外，整份一起反序列化時
             // 任何一筆壞 preset 會讓所有 preset 靜默消失 —— 壞的略過、好的保留。
+            // BuildSerializationOptions 每次回新實例 ⇒ 計數用的轉換器只在這次載入、這個執行緒上
             var opts = Serialization.BuildSerializationOptions();
+            var counts = new JsonPresetConverter.SkipCounter();
+            opts.Converters.Add(new JsonPresetConverter(counts));
             List<Preset> res = [];
             var index = 0;
             var skipped = 0;
@@ -206,11 +209,10 @@ public sealed class PresetDatabase
                 ++index;
                 try
                 {
-                    JsonPresetConverter.ResetSkipCounts();
+                    counts.Modules = counts.Settings = 0;
                     var p = jp.Deserialize<Preset>(opts);
-                    var (sm, ss) = JsonPresetConverter.TakeSkipCounts();
-                    skippedModules += sm;
-                    skippedSettings += ss;
+                    skippedModules += counts.Modules;
+                    skippedSettings += counts.Settings;
                     if (p != null)
                         res.Add(p);
                 }
