@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using Dalamud.Utility;
+using System.IO;
 using System.Text.Json;
 
 namespace BossMod.Autorotation;
@@ -122,8 +123,21 @@ public sealed class PlanDatabase
         ListModifed.Fire(encounter, cls);
         try
         {
-            using var fstream = new FileStream(_manifestPath.FullName, FileMode.Create, FileAccess.Write, FileShare.Read);
-            using var jwriter = Serialization.WriteJson(fstream);
+            FilesystemUtil.WriteAllBytesSafe(_manifestPath.FullName, SerializeManifest());
+            Service.Log($"Manifest saved successfully to '{_manifestPath.FullName}'");
+        }
+        catch (Exception ex)
+        {
+            LogSaveFailed(_manifestPath.Name, ex);
+        }
+    }
+
+    // 先序列化完整內容再原子換名：序列化中途擲例外時原檔不動（原本 FileMode.Create 會先截空）
+    private byte[] SerializeManifest()
+    {
+        using var ms = new MemoryStream();
+        using (var jwriter = Serialization.WriteJson(ms))
+        {
             jwriter.WriteStartObject();
             jwriter.WriteNumber("version", 0);
             jwriter.WriteStartObject("payload");
@@ -150,13 +164,12 @@ public sealed class PlanDatabase
             }
             jwriter.WriteEndObject();
             jwriter.WriteEndObject();
-            Service.Log($"Manifest saved successfully to '{_manifestPath.FullName}'");
         }
-        catch (Exception ex)
-        {
-            Service.Log($"Failed to write manifest to '{_manifestPath.FullName}': {ex}");
-        }
+        return ms.ToArray();
     }
+
+    private static void LogSaveFailed(string file, Exception ex)
+        => Service.Logger?.Warning($"[Autorotation] 冷卻計畫 {file} 存檔失敗，這次的改動沒有存進去，原檔仍是上一份完整內容。{ex.GetType().Name}: {ex.Message}");
 
     // either existing or modified should be non-null
     public void ModifyPlan(Plan? existing, Plan? modified)
@@ -208,7 +221,7 @@ public sealed class PlanDatabase
         }
         catch (Exception ex)
         {
-            Service.Log($"Failed to write database to '{filename}': {ex}");
+            LogSaveFailed(Path.GetFileName(filename), ex);
         }
     }
 

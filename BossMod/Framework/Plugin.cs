@@ -204,6 +204,7 @@ public sealed class Plugin : IDalamudPlugin
         SafeTeardown("_bossmod", () => _bossmod.Dispose());
         SafeTeardown("ActionDefinitions.Instance", () => ActionDefinitions.Instance.Dispose());
         SafeTeardown("CommandManager /bmr", () => CommandManager.RemoveHandler("/bmr"));
+        SafeTeardown("FlushPendingPresetSave", () => _rotationDB.Presets.FlushPendingSave(TimeSpan.FromSeconds(2))); // UI／IPC／循環都已拆完，不會再有新的預設存檔
         SafeTeardown("FlushPendingConfigSave", FlushPendingConfigSave); // 放在最後,連拆除過程中(例如回放清單)產生的改動也一併寫出去
         // 刻意不在卸載時強制 GC:Dalamud 此刻還握著本外掛實例,回收不到本外掛自己的物件圖,本外掛也沒有要靠 finalizer 才放開的資源;
         // 而這裡跑在框架執行緒上,兩次阻塞式 full GC 會讓遊戲整個停住。

@@ -1,6 +1,7 @@
 ﻿using Dalamud.Utility;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 
 namespace BossMod.Autorotation;
 
@@ -29,6 +30,7 @@ public sealed class PresetDatabase
     private readonly object _saveLock = new();
     private byte[]? _pendingSave;
     private bool _saveRunning;
+    private Task? _saveTask;
 
     public List<Preset> AllPresets
     {
@@ -256,7 +258,7 @@ public sealed class PresetDatabase
         }
         catch (Exception ex)
         {
-            Service.Log($"Failed to write database to '{_dbPath.FullName}': {ex}");
+            LogSaveFailed(ex);
             return;
         }
 
@@ -266,8 +268,8 @@ public sealed class PresetDatabase
             if (_saveRunning)
                 return;
             _saveRunning = true;
+            _saveTask = Task.Run(DrainPendingSaves);
         }
-        Task.Run(DrainPendingSaves);
     }
 
     // 不變式：_saveRunning 只在鎖內、確認沒有待寫快照時才清掉 ⇒ 不會有快照被留下沒人寫
@@ -294,9 +296,33 @@ public sealed class PresetDatabase
             }
             catch (Exception ex)
             {
-                Service.Log($"Failed to write database to '{_dbPath.FullName}': {ex}");
+                LogSaveFailed(ex);
             }
         }
+    }
+
+    // 不可擲例外：背景迴圈的 catch 裡擲出＝_saveRunning 永遠為真、之後的存檔全部不寫
+    private void LogSaveFailed(Exception ex)
+        => Service.Logger?.Warning($"[Autorotation] 循環預設資料庫 {_dbPath.Name} 存檔失敗，這次的改動沒有存進去，原檔仍是上一份完整內容。{ex.GetType().Name}: {ex.Message}");
+
+    // 卸載時呼叫：等背景寫入把待寫快照寫完，最多 timeout；逾時記 Warning 後放棄。
+    // 背景寫入只做檔案 I/O、不需要框架執行緒 ⇒ 在框架執行緒上等不會死鎖。
+    public void FlushPendingSave(TimeSpan timeout)
+    {
+        var task = Volatile.Read(ref _saveTask);
+        if (task == null || task.IsCompleted)
+            return;
+        try
+        {
+            if (task.Wait(timeout))
+                return;
+        }
+        catch (Exception ex)
+        {
+            LogSaveFailed(ex);
+            return;
+        }
+        Service.Logger?.Warning($"[Autorotation] 卸載時循環預設資料庫 {_dbPath.Name} 等了 {timeout.TotalSeconds:0.#} 秒還沒寫完，放棄等待；最後一次改動可能沒有存進去，原檔仍是上一份完整內容。");
     }
 
     public List<Preset> PresetsForClass(Class c)
