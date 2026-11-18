@@ -82,27 +82,36 @@ public class Cleave(BossModule module, uint aid, AOEShape shape, uint[]? enemyOI
         }
     }
 
+    private readonly List<(Actor, Actor, Angle)> _origins = [];
+
+    // 回傳的清單每次呼叫都會被清空重填（同一個實例）：呼叫端只能當場走完，不可留著或改它。
+    // 逐一走 EnemyOID 各自的清單，順序與 Module.Enemies(EnemyOID) 串起來的那份相同。
     public virtual List<(Actor origin, Actor target, Angle angle)> OriginsAndTargets()
     {
-        var enemies = Module.Enemies(EnemyOID);
-        var count = enemies.Count;
-        List<(Actor, Actor, Angle)> origins = new(count);
-        for (var i = 0; i < count; ++i)
+        var origins = _origins;
+        origins.Clear();
+        var oids = EnemyOID;
+        for (var o = 0; o < oids.Length; ++o)
         {
-            var enemy = enemies[i];
-            if (enemy.IsDead)
-                continue;
-
-            if (!ActiveForUntargetable && !enemy.IsTargetable)
-                continue;
-
-            if (!ActiveWhileCasting && enemy.CastInfo != null)
-                continue;
-
-            var target = WorldState.Actors.Find(enemy.TargetID);
-            if (target != null)
+            var enemies = Module.Enemies(oids[o]);
+            var count = enemies.Count;
+            for (var i = 0; i < count; ++i)
             {
-                origins.Add(new(OriginAtTarget ? target : enemy, target, Angle.FromDirection(target.Position - enemy.Position)));
+                var enemy = enemies[i];
+                if (enemy.IsDead)
+                    continue;
+
+                if (!ActiveForUntargetable && !enemy.IsTargetable)
+                    continue;
+
+                if (!ActiveWhileCasting && enemy.CastInfo != null)
+                    continue;
+
+                var target = WorldState.Actors.Find(enemy.TargetID);
+                if (target != null)
+                {
+                    origins.Add(new(OriginAtTarget ? target : enemy, target, Angle.FromDirection(target.Position - enemy.Position)));
+                }
             }
         }
         return origins;
