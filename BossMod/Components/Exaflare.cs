@@ -23,29 +23,50 @@ public class Exaflare(BossModule module, AOEShape shape, uint aid = default) : G
 
     public Exaflare(BossModule module, float radius, uint aid = default) : this(module, new AOEShapeCircle(radius), aid) { }
 
+    // ActiveAOEs 回傳這份暫存的切片：內容只由 Lines 與目前時間決定（與 slot、actor 無關），同一幀重複呼叫寫進的值相同。
+    private AOEInstance[] _activeAOEs = [];
+
+    // 與 FutureAOEs 接 ImminentAOEs 逐項相同（同順序、同值，ExplosionsLeft 為 0 的線也留一個預設位置的項），不另建清單與陣列。
     public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor)
     {
         var linesCount = Lines.Count;
         if (linesCount == 0)
             return [];
-        var futureAOEs = FutureAOEs(linesCount);
-        var imminentAOEs = ImminentAOEs(linesCount);
-        var futureCount = futureAOEs.Count;
-        var imminentCount = imminentAOEs.Length;
-
-        var aoes = new AOEInstance[futureCount + imminentCount];
-        for (var i = 0; i < futureCount; ++i)
+        var futureCount = 0;
+        for (var i = 0; i < linesCount; ++i)
         {
-            var aoe = futureAOEs[i];
-            aoes[i] = new(Shape, aoe.Item1, aoe.Item3, aoe.Item2, FutureColor);
+            var l = Lines[i];
+            var num = Math.Min(l.ExplosionsLeft, l.MaxShownExplosions);
+            if (num > 1)
+                futureCount += num - 1;
+        }
+        var total = futureCount + linesCount;
+        if (_activeAOEs.Length < total)
+            _activeAOEs = new AOEInstance[total];
+        var aoes = _activeAOEs;
+
+        var k = 0;
+        var currentTime = WorldState.CurrentTime;
+        for (var i = 0; i < linesCount; ++i)
+        {
+            var l = Lines[i];
+            var num = Math.Min(l.ExplosionsLeft, l.MaxShownExplosions);
+            var pos = l.Next;
+            var time = l.NextExplosion > currentTime ? l.NextExplosion : currentTime;
+            for (var j = 1; j < num; ++j)
+            {
+                pos += l.Advance;
+                time = time.AddSeconds(l.TimeToMove);
+                aoes[k++] = new(Shape, pos.Quantized(), l.Rotation, time, FutureColor);
+            }
         }
 
-        for (var i = 0; i < imminentCount; ++i)
+        for (var i = 0; i < linesCount; ++i)
         {
-            var aoe = imminentAOEs[i];
-            aoes[futureCount + i] = new(Shape, aoe.Item1, aoe.Item3, aoe.Item2, ImminentColor);
+            var l = Lines[i];
+            aoes[futureCount + i] = l.ExplosionsLeft != 0 ? new(Shape, l.Next.Quantized(), l.Rotation, l.NextExplosion, ImminentColor) : new(Shape, default, default, default, ImminentColor);
         }
-        return aoes;
+        return aoes.AsSpan(0, total);
     }
 
     protected (WPos, DateTime, Angle)[] ImminentAOEs(int count)
