@@ -21,7 +21,22 @@ sealed class EmpyrealVortexRW(BossModule module) : Components.RaidwideCastDelay(
         }
     }
 }
-sealed class OmegaJavelinSpread(BossModule module) : Components.SpreadFromIcon(module, (uint)IconID.OmegaJavelin, (uint)AID.OmegaJavelinSpread, 6f, 5.1d);
+sealed class OmegaJavelinSpread(BossModule module) : Components.SpreadFromIcon(module, (uint)IconID.OmegaJavelin, (uint)AID.OmegaJavelinSpread, 6f, 5.1d)
+{
+    public override void Update()
+    {
+        base.Update();
+        // 保險：預定結算 3 秒後還在＝漏接結算事件（實測每波都在預定時間 0.1 秒內結算、波與波間隔逾百秒），清掉免得圈一直掛在隊友身上
+        var now = WorldState.CurrentTime;
+        for (var i = Spreads.Count - 1; i >= 0; --i)
+        {
+            if (now > Spreads[i].Activation.AddSeconds(3d))
+            {
+                Spreads.RemoveAt(i);
+            }
+        }
+    }
+}
 
 // not sure how this stack works, the sheets say radius 24 which doesn't make sense given that it is the whole arena radius
 // maybe it's a raidwide and a stack combined, radius 5 is guessed, but a typical stack radius

@@ -560,7 +560,31 @@ public class IconStackSpread(BossModule module, uint stackIcon, uint spreadIcon,
                     return;
                 }
             }
+            // 主目標不是玩家（打地點的散開，主目標＝E0000000）時才改看命中清單、再退回最舊一筆；主目標是別的玩家時照舊不動
+            if (count == 0 || WorldState.Actors.Find(id) is Actor { Type: ActorType.Player })
+                return;
+            Spreads.RemoveAt(FirstSpreadHitBy(spell));
+            ++NumFinishedSpreads;
         }
+    }
+
+    // 命中清單裡第一個是散開目標的那一筆；都不是就回 0（最舊一筆）。呼叫端保證 Spreads 非空
+    private int FirstSpreadHitBy(ActorCastEvent spell)
+    {
+        var targets = spell.Targets;
+        var count = Spreads.Count;
+        for (var j = 0; j < targets.Count; ++j)
+        {
+            var id = targets[j].ID;
+            for (var i = 0; i < count; ++i)
+            {
+                if (Spreads[i].Target.InstanceID == id)
+                {
+                    return i;
+                }
+            }
+        }
+        return 0;
     }
 
     public override void Update()
