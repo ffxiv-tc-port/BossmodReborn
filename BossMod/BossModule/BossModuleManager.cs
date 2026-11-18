@@ -65,7 +65,7 @@ public sealed class BossModuleManager : IDisposable
         {
             var m = LoadedModules[i];
             var wasActive = m.StateMachine.ActiveState != null;
-            var allowUpdate = wasActive || !LoadedModules.Any(other => other.StateMachine.ActiveState != null && other.GetType() == m.GetType()); // hack: forbid activating multiple modules of the same type
+            var allowUpdate = wasActive || !AnyActiveOfType(m.GetType()); // hack: forbid activating multiple modules of the same type
             bool isActive;
             try
             {
@@ -148,6 +148,15 @@ public sealed class BossModuleManager : IDisposable
             _activeModule = bestModule;
             _activeModuleOverridden = false;
         }
+    }
+
+    // 等同 LoadedModules.Any(other => other.StateMachine.ActiveState != null && other.GetType() == type)；寫成 lambda 會讓 Update 每個模組每幀配置閉包與委派。
+    private bool AnyActiveOfType(Type type)
+    {
+        foreach (var other in LoadedModules)
+            if (other.StateMachine.ActiveState != null && other.GetType() == type)
+                return true;
+        return false;
     }
 
     private void LoadModule(BossModule m)
