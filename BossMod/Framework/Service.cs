@@ -36,6 +36,9 @@ public sealed class Service
     public static Action<string>? LogHandlerVerbose;
     public static void Log(string msg) => LogHandlerDebug?.Invoke(msg);
     public static void LogVerbose(string msg) => LogHandlerVerbose?.Invoke(msg);
+    // 每幀路徑組 Verbose 字串前先判這個：插件記錄器預設只收到 Debug，而 IPluginLog.Write 在判等級之前就先串好前綴，
+    // 不判的話字串照樣每次配置。沒有 Logger（離線工具）時照舊交給 LogHandlerVerbose 決定。
+    public static bool LogVerboseEnabled => LogHandlerVerbose != null && (Logger is not { } log || log.MinimumLogLevel <= Serilog.Events.LogEventLevel.Verbose);
 
     public static Lumina.GameData? LuminaGameData;
     public static Lumina.Excel.ExcelSheet<T>? LuminaSheet<T>() where T : struct, Lumina.Excel.IExcelRow<T> => LuminaGameData?.GetExcelSheet<T>(Lumina.Data.Language.English);

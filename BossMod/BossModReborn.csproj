@@ -101,6 +101,10 @@
       <HintPath>$(DalamudLibPath)SharpDX.Direct3D11.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="Serilog">
+      <HintPath>$(DalamudLibPath)Serilog.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
   <!-- FFXIVClientStructs 來源切換(與艦隊其他外掛一致)。
        預設 CustomCS=false:吃 Dalamud 自帶的那份,原生層偏移與注入端同一份,

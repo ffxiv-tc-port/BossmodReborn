@@ -29,6 +29,11 @@ sealed class WorldStateGameSync : IDisposable
     private readonly long _startQPC;
     private bool _loggedDeepDungeonBase;
 
+    // 每幀略過的「EntityId 高位元組是 FF」物件：本區的單幀最大數與一個例子，離開這一區時記一行 Information（0 就不記）。
+    private uint _badObjectsZone;
+    private int _badObjectsMax, _badObjectsExampleIndex;
+    private uint _badObjectsExampleId;
+
     // list of actors that are present in the user's enemy list
     private readonly List<ulong> _playerEnmity = [];
 
@@ -337,8 +342,11 @@ sealed class WorldStateGameSync : IDisposable
 
     private unsafe void UpdateActors()
     {
+        if (_badObjectsZone != _ws.CurrentZone)
+            FlushBadObjectReport();
         var mgr = GameObjectManager.Instance();
         var len = _actorsByIndex.Length;
+        var badObjects = 0;
         for (var i = 0; i < len; ++i)
         {
             var actor = _actorsByIndex[i];
@@ -349,7 +357,15 @@ sealed class WorldStateGameSync : IDisposable
 
             if (obj != null && (obj->EntityId & 0xFF000000) == 0xFF000000)
             {
-                Service.LogVerbose($"[WorldState] Skipping bad object #{i} with id {obj->EntityId:X}");
+                // 每幀路徑：Verbose 關著時不組字串（不判的話每個物件每幀兩個字串，見 Service.LogVerboseEnabled）
+                if (Service.LogVerboseEnabled)
+                    Service.LogVerbose($"[WorldState] Skipping bad object #{i} with id {obj->EntityId:X}");
+                if (++badObjects > _badObjectsMax)
+                {
+                    _badObjectsMax = badObjects;
+                    _badObjectsExampleIndex = i;
+                    _badObjectsExampleId = obj->EntityId;
+                }
                 obj = null;
             }
             var existing = obj != null ? _ws.Actors.Find(obj->EntityId) : null;
@@ -372,6 +388,15 @@ sealed class WorldStateGameSync : IDisposable
         foreach (var (id, ops) in _actorOps)
             Service.Log($"[WorldState] {ops.Count} actor events for unknown entity {id:X}");
         _actorOps.Clear();
+    }
+
+    // 要使用者回報的診斷：每幀都被略過的物件有多少，決定上面那行 Verbose 字串的成本；一區最多一行。
+    private void FlushBadObjectReport()
+    {
+        if (_badObjectsMax > 0)
+            Service.Logger.Information($"[WSG] 區域 {_badObjectsZone} 每幀最多有 {_badObjectsMax} 個 EntityId 高位元組為 FF 的物件被略過（例：#{_badObjectsExampleIndex} {_badObjectsExampleId:X8}）；它們不進世界狀態，這一行只是計數。");
+        _badObjectsZone = _ws.CurrentZone;
+        _badObjectsMax = 0;
     }
 
     private void RemoveActor(Actor actor)
