@@ -5365,7 +5365,7 @@ public abstract partial class AutoClear : ZoneModule
     /// 兩者搞混會靜默全 miss。
     /// <para>
     /// 📌 值逐字對應 NecroLens <c>DataIds.MimicIDs</c>。
-    /// 呼叫端有死者宮殿的閘門，所以實務上只有 5831~5835 那一段會命中；其餘區塊保留是為了
+    /// 呼叫端有死者宮殿的閘門，所以實務上只有 5831~5835、6359~6373 兩段會命中；其餘區塊保留是為了
     /// 兩邊的表能逐字對照，將來哪個副本也要加成時不必重新考古。
     /// </para>
     /// <para>
@@ -5375,8 +5375,9 @@ public abstract partial class AutoClear : ZoneModule
     /// </remarks>
     private static bool IsMimicOid(uint oid) => oid switch
     {
-        2566u or 6362u or 6363u => true,        // 上游既有值（寶藏地圖迷宮一帶），來源不明
-        >= 5831u and <= 5835u => true,          // 死者宮殿
+        2566u => true,                          // 上游既有值：BNpcName「擬態怪」的 NameId 誤植，刻意保留
+        >= 5831u and <= 5835u => true,          // 死者宮殿 1~50 層
+        >= 6359u and <= 6373u => true,          // 死者宮殿 51~200 層的金寶箱擬態怪
         >= 9042u and <= 9051u => true,          // 天之御柱
         >= 15996u and <= 16005u => true,        // 正統優雷卡
         18889u or 18890u => true,               // 巡禮道
