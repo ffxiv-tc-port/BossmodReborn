@@ -375,12 +375,19 @@ public sealed class MiniArena(WPos center, ArenaBounds bounds)
     public void ZoneCapsule(WPos start, WDir direction, float radius, float length, uint color)
         => Zone(_triCache[TriangulationCache.GetKeyHash(12, start, direction, radius, length)] ??= _bounds.ClipAndTriangulateCapsule(start - Center, direction, radius, length), color);
 
-    // fontSize is in unscaled px; it follows Dalamud's global scale like the rest of the UI.
+    // Dalamud's stock default font (Axis 12 pt) in unscaled px; radar font sizes are tuned against it.
+    public const float StockDefaultFontSizePx = 16f;
+
+    // Unscaled px of the user's default font / StockDefaultFontSizePx. Kept current by Plugin from UiBuilder.DefaultFontChanged
+    // instead of read per frame, because IFontSpec lookup allocates when the user never picked a font.
+    public static float DefaultFontSizeRatio { get; set; } = 1f;
+
+    // fontSize is px for the stock default font at global scale 1; it grows with the actual default font px (font size × global scale).
     // Measure at the same px it is drawn at, otherwise the text is not centred on `center`.
     public void TextScreen(Vector2 center, string text, uint color, float fontSize = 17f)
     {
         var font = ImGui.GetFont();
-        var px = fontSize * Config.ArenaScale * Config.RadarTextScale * ImGuiHelpers.GlobalScale;
+        var px = fontSize * Config.ArenaScale * Config.RadarTextScale * DefaultFontSizeRatio * ImGuiHelpers.GlobalScale;
         var size = ImGui.CalcTextSizeA(font, px, float.MaxValue, 0f, text, out _);
         ImGui.GetWindowDrawList().AddText(font, px, center - size * 0.5f, color, text);
     }

@@ -169,6 +169,8 @@ public sealed class Plugin : IDalamudPlugin
         _wndChangelog = new(hadExistingConfig);
 
         dalamud.UiBuilder.DisableAutomaticUiHide = true;
+        UpdateRadarFontRatio();
+        dalamud.UiBuilder.DefaultFontChanged += UpdateRadarFontRatio;
         dalamud.UiBuilder.Draw += DrawUI;
         dalamud.UiBuilder.OpenMainUi += () => OpenConfigUI();
         dalamud.UiBuilder.OpenConfigUi += () => OpenConfigUI();
@@ -182,6 +184,7 @@ public sealed class Plugin : IDalamudPlugin
         // 這**不是** AccessViolationException 的防護,處理的只有受管理例外。
         // 🔴 順序不要重排 —— 後面的子系統可能還在讀前面的狀態。
         SafeTeardown("Condition.ConditionChange", () => { Service.Condition.ConditionChange -= OnConditionChanged; });
+        SafeTeardown("UiBuilder.DefaultFontChanged", () => { Service.PluginInterface.UiBuilder.DefaultFontChanged -= UpdateRadarFontRatio; });
         SafeTeardown("_multibox", () => _multibox.Dispose());
         SafeTeardown("_wndChangelog", () => _wndChangelog.Dispose());
         SafeTeardown("_wndDebug", () => _wndDebug.Dispose());
@@ -208,6 +211,13 @@ public sealed class Plugin : IDalamudPlugin
         SafeTeardown("FlushPendingConfigSave", FlushPendingConfigSave); // 放在最後,連拆除過程中(例如回放清單)產生的改動也一併寫出去
         // 刻意不在卸載時強制 GC:Dalamud 此刻還握著本外掛實例,回收不到本外掛自己的物件圖,本外掛也沒有要靠 finalizer 才放開的資源;
         // 而這裡跑在框架執行緒上,兩次阻塞式 full GC 會讓遊戲整個停住。
+    }
+
+    // DefaultFontSpec is unscaled px (global scale is applied separately); a bad value falls back to the stock size.
+    private static void UpdateRadarFontRatio()
+    {
+        var px = Service.PluginInterface.UiBuilder.DefaultFontSpec.SizePx;
+        MiniArena.DefaultFontSizeRatio = float.IsFinite(px) && px > 0 ? px / MiniArena.StockDefaultFontSizePx : 1f;
     }
 
     // 拆除用的逐步隔離:一步失敗就記一行並繼續下一步,絕不讓例外傳出 Dispose。

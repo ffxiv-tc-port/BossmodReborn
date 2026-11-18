@@ -416,8 +416,8 @@
   "Radar text size multiplier": {
     "message": "雷達文字大小倍率"
   },
-  "Extra size multiplier for text drawn on the radar (cardinal directions, waymarks, labels from boss modules).\nRadar text already follows Dalamud's global font scale and the radar arena scale factor; use this to enlarge or shrink the text without resizing the radar": {
-    "message": "雷達上文字（方位、場地標記、Boss 模組的標示）的額外大小倍率。\n雷達文字已會跟隨 Dalamud 的整體字型縮放與雷達地圖縮放比例；用這個可以單獨放大或縮小文字，不必改變雷達大小"
+  "Extra size multiplier for text drawn on the radar (cardinal directions, waymarks, labels from boss modules).\nRadar text already follows the size of Dalamud's default font (font size and global scale) and the radar arena scale factor; use this to enlarge or shrink the text without resizing the radar": {
+    "message": "雷達上文字（方位、場地標記、Boss 模組的標示）的額外大小倍率。\n雷達文字已會跟隨 Dalamud 預設字型的大小（字型大小與整體縮放）與雷達地圖縮放比例；用這個可以單獨放大或縮小文字，不必改變雷達大小"
   },
   "Rotate radar to match camera orientation": {
     "message": "旋轉雷達以匹配攝影機方向"

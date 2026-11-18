@@ -42,7 +42,7 @@ public sealed class BossModuleConfig : ConfigNode
     [PropertySlider(0.1f, 10, Speed = 0.1f, Logarithmic = true)]
     public float ThicknessScale = 1;
 
-    [PropertyDisplay("Radar text size multiplier", tooltip: "Extra size multiplier for text drawn on the radar (cardinal directions, waymarks, labels from boss modules).\nRadar text already follows Dalamud's global font scale and the radar arena scale factor; use this to enlarge or shrink the text without resizing the radar")]
+    [PropertyDisplay("Radar text size multiplier", tooltip: "Extra size multiplier for text drawn on the radar (cardinal directions, waymarks, labels from boss modules).\nRadar text already follows the size of Dalamud's default font (font size and global scale) and the radar arena scale factor; use this to enlarge or shrink the text without resizing the radar")]
     [PropertySlider(0.5f, 4, Speed = 0.05f, Logarithmic = true)]
     public float RadarTextScale = 1;
 
