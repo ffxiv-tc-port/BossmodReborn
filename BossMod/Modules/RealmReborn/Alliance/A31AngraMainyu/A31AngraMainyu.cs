@@ -1,7 +1,8 @@
 ﻿namespace BossMod.RealmReborn.Alliance.A31AngraMainyu;
 
 class DoubleVision(BossModule module) : Components.RaidwideCast(module, (uint)AID.DoubleVision);
-class MortalGaze1(BossModule module) : Components.CastGaze(module, (uint)AID.MortalGaze1);
+// 判定的是 helper 與王同時開始、晚約 1.4 秒結束的 MortalGaze2（落點＝王的位置）；綁王的讀條會讓背對提示提早消失。
+class MortalGaze(BossModule module) : Components.CastGaze(module, (uint)AID.MortalGaze2);
 class Level100Flare1(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Level100Flare1, 10);
 class Level150Death1(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Level150Death1, 10);
 
