@@ -9103,5 +9103,11 @@
   },
   "DD_DestFromFarCoffer": {
     "message": "（寶箱太遠走不過去，改由寶箱所在房間設定）"
+  },
+  "Stand on the light side!": {
+    "message": "站到光的那一半！"
+  },
+  "Stand on the dark side!": {
+    "message": "站到暗的那一半！"
   }
 }
