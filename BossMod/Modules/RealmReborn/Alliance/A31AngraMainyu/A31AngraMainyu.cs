@@ -3,6 +3,8 @@
 class DoubleVision(BossModule module) : Components.RaidwideCast(module, (uint)AID.DoubleVision);
 // 判定的是 helper 與王同時開始、晚約 1.4 秒結束的 MortalGaze2（落點＝王的位置）；綁王的讀條會讓背對提示提早消失。
 class MortalGaze(BossModule module) : Components.CastGaze(module, (uint)AID.MortalGaze2);
+// 怪光線沒有讀條，判定方向＝王當下的面向＝朝王的目標。
+class Stare(BossModule module) : Components.Cleave(module, (uint)AID.Stare, new AOEShapeRect(63.2f, 4f));
 class Level100Flare1(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Level100Flare1, 10);
 class Level150Death1(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Level150Death1, 10);
 
