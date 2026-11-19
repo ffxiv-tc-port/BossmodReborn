@@ -9109,5 +9109,11 @@
   },
   "Stand on the dark side!": {
     "message": "站到暗的那一半！"
+  },
+  "Stop attacking Halicarnassus: bring the add to 0% before she absorbs it!": {
+    "message": "先別打哈利卡納蘇斯：趁她吸收前把小怪打到 0%！"
+  },
+  "Charm: forced walk towards boss": {
+    "message": "魅惑：會被迫走向王"
   }
 }
