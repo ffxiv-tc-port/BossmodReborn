@@ -23,6 +23,8 @@ public sealed class ReplayManagementWindow : UIWindow
     private bool _recordingManual; // recording was started manually, and so should not be stopped automatically
     private bool _recordingDuty; // recording was started automatically because we've entered duty
     private int _recordingActiveModules; // recording was started automatically, because we've activated N modules
+    private bool _dutyStartPending; // duty recording waiting for the player to appear
+    private DateTime _dutyStartPendingSince; // set on the first frame of the wait (world time may still be unset when the wait begins)
     private FileDialog? _folderDialog;
     private string _lastErrorMessage = "";
     private DalamudLinkPayload? _startLinkPayload;
@@ -45,6 +47,7 @@ public sealed class ReplayManagementWindow : UIWindow
                 UpdateLogDirectory();
             }),
             _ws.CurrentZoneChanged.Subscribe(op => OnZoneChange(op.CFCID)),
+            _ws.FrameStarted.Subscribe(_ => OnFrameStarted()),
             _bmm.ModuleActivated.Subscribe(OnModuleActivation),
             _bmm.ModuleDeactivated.Subscribe(OnModuleDeactivation)
         );
@@ -190,9 +193,17 @@ public sealed class ReplayManagementWindow : UIWindow
         if (_recordingDuty == isDuty)
             return false; // don't care
         _recordingDuty = isDuty;
+        _dutyStartPending = false;
 
         if (isDuty && !IsRecording())
         {
+            // 在副本中重新載入時，第一幀的區域變更先於隊伍更新、還拿不到玩家，檔名會少職業與名字：等到拿到玩家（最多約 3 秒）再開錄
+            if (_ws.Party.Player() == null)
+            {
+                _dutyStartPending = true;
+                _dutyStartPendingSince = default;
+                return false;
+            }
             StartRecording("");
             return true;
         }
@@ -204,6 +215,19 @@ public sealed class ReplayManagementWindow : UIWindow
         }
 
         return false;
+    }
+
+    private void OnFrameStarted()
+    {
+        if (!_dutyStartPending)
+            return;
+        if (_dutyStartPendingSince == default)
+            _dutyStartPendingSince = _ws.CurrentTime;
+        if (_ws.Party.Player() == null && (_ws.CurrentTime - _dutyStartPendingSince).TotalSeconds < 3d)
+            return;
+        _dutyStartPending = false;
+        if (_recordingDuty && ShouldAutoRecord && !_recordingManual && !IsRecording())
+            StartRecording("");
     }
 
     private static readonly Dictionary<uint, bool> StaticDutyImportance = GenerateStaticDutyMap();
