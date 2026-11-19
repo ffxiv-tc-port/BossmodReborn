@@ -77,7 +77,75 @@ class HandOfTheEmpire(BossModule module) : Components.SpreadFromCastTargets(modu
 class FestinaLente(BossModule module) : Components.StackWithCastTargets(module, (uint)AID.FestinaLente, 6f, 4, 4);
 class Innocence(BossModule module) : Components.SingleTargetCast(module, (uint)AID.Innocence);
 class HorridaBella(BossModule module) : Components.RaidwideCast(module, (uint)AID.HorridaBella);
-class Ductus(BossModule module) : Components.SimpleAOEs(module, (uint)AID.DuctusAOE, 8f);
+// 每輪 4 波、每波 3 發（每欄一發）：第一波落在南北兩端那一列，之後每約 2 秒往另一端前進一列。
+// 看到第一波就把同欄後三波連同各自的生效時間一起列出，AI 一開始就能選對整輪的位置，不必每 2 秒重新轉向。
+class Ductus(BossModule module) : Components.GenericAOEs(module, (uint)AID.DuctusAOE)
+{
+    private const float RowStep = 11.5f;
+    private const double WaveInterval = 2d;
+    private static readonly AOEShapeCircle circle = new(8f);
+    private readonly List<AOEInstance> _aoes = new(12);
+
+    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => CollectionsMarshal.AsSpan(_aoes);
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.Action.ID != WatchedAction)
+            return;
+        var loc = spell.LocXZ;
+        var finish = Module.CastFinishAt(spell);
+        var idx = Find(loc);
+        if (idx >= 0)
+        {
+            _aoes.Ref(idx).Activation = finish;
+            return;
+        }
+        _aoes.Add(new(circle, loc, default, finish));
+        // 只從端列往回推：中途才看到的那一發（例如模組晚建）不知道往哪走，不推
+        var offset = loc.Z - Arena.Center.Z;
+        if (Math.Abs(offset) > RowStep)
+        {
+            var step = new WDir(default, offset > 0f ? -RowStep : RowStep);
+            for (var k = 1; k <= 3; ++k)
+                _aoes.Add(new(circle, (loc + k * step).Quantized(), default, finish.AddSeconds(k * WaveInterval)));
+        }
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if (spell.Action.ID == WatchedAction)
+        {
+            ++NumCasts;
+            var idx = Find(spell.TargetXZ);
+            if (idx >= 0)
+                _aoes.RemoveAt(idx);
+        }
+    }
+
+    public override void Update()
+    {
+        // 推錯、始終沒等到讀條的預測，過了生效時間 1 秒就丟掉
+        var limit = WorldState.CurrentTime.AddSeconds(-1d);
+        for (var i = _aoes.Count - 1; i >= 0; --i)
+        {
+            if (_aoes[i].Activation < limit)
+                _aoes.RemoveAt(i);
+        }
+    }
+
+    private int Find(WPos pos)
+    {
+        var best = -1;
+        var aoes = CollectionsMarshal.AsSpan(_aoes);
+        for (var i = 0; i < aoes.Length; ++i)
+        {
+            ref readonly var a = ref aoes[i];
+            if (a.Origin.InCircle(pos, 1f) && (best < 0 || a.Activation < aoes[best].Activation))
+                best = i;
+        }
+        return best;
+    }
+}
 
 class AddEnrage(BossModule module) : BossComponent(module)
 {
