@@ -7,6 +7,7 @@ class A34CloudofDarknessStates : StateMachineBuilder
         TrivialPhase()
             .ActivateOnEnter<FeintParticleBeam>()
             .ActivateOnEnter<ZeroFormParticleBeam>()
-            .ActivateOnEnter<ParticleBeam2>();
+            .ActivateOnEnter<ParticleBeam2>()
+            .ActivateOnEnter<ParticleBeam1>();
     }
 }
