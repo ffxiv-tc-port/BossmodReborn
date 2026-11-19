@@ -246,6 +246,20 @@ public sealed class BossModuleManager : IDisposable
 
     private void ActorAdded(Actor actor)
     {
+        // 傳送（例：永恆黑暗的監牢）會讓同一個實體 id 換成新的 Actor 物件：改指到新物件，不另建第二個模組，
+        // 否則啟用中的模組一直拿已銷毀的舊物件（死亡判定、血量、雷達位置都停在換之前）。
+        // 先比對再建構：建出來又丟掉的模組不會 Dispose。
+        var oid = actor.OID;
+        var iid = actor.InstanceID;
+        for (var i = 0; i < LoadedModules.Count; ++i)
+        {
+            var loaded = LoadedModules[i];
+            if (loaded.PrimaryActor.OID == oid && loaded.PrimaryActor.InstanceID == iid)
+            {
+                loaded.PrimaryActor = actor;
+                return;
+            }
+        }
         var m = BossModuleRegistry.CreateModuleForActor(WorldState, actor, Config.MinMaturity);
         if (m != null)
         {

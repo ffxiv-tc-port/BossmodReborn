@@ -8,7 +8,8 @@ namespace BossMod;
 public abstract class BossModule : IDisposable
 {
     public readonly WorldState WorldState;
-    public readonly Actor PrimaryActor;
+    // 不是 readonly：同一個實體 id 的首領被換成新的 Actor 物件時，BossModuleManager 會改指到新物件。
+    public Actor PrimaryActor;
     public static readonly BossModuleConfig WindowConfig = Service.Config.Get<BossModuleConfig>();
     public readonly MiniArena Arena;
     public readonly BossModuleRegistry.Info? Info;
