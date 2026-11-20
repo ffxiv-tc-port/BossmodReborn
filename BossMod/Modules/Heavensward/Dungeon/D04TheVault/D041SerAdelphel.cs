@@ -175,7 +175,7 @@ class D041SerAdelphelStates : StateMachineBuilder
 }
 
 [ModuleInfo(BossModuleInfo.Maturity.Verified, Contributors = "The Combat Reborn Team (Malediktus, LTS), Xyzzy", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 34, NameID = 3634)]
-public class D041SerAdelphel(WorldState ws, Actor primary) : BossModule(ws, primary, new(default, -100f), arena)
+public class D041SerAdelphel(WorldState ws, Actor primary) : BossModule(ws, primary, arena.Center, arena)
 {
     protected override bool CheckPull()
     {
@@ -190,7 +190,8 @@ public class D041SerAdelphel(WorldState ws, Actor primary) : BossModule(ws, prim
         return base.CheckPull();
     }
 
-    public static readonly ArenaBounds arena = new ArenaBoundsComplex([new Circle(new(default, -100f), 19.5f)], [new Rectangle(new(default, -120), 20f, 1.75f), new Rectangle(new(-21f, -100f), 1.75f, 20f)]);
+    // 差集切掉北端與西端，外接框中心不在圓心 (0,-100)；多邊形以 arena.Center 為原點，傳別的中心整塊會錯開。
+    public static readonly ArenaBoundsComplex arena = new([new Circle(new(default, -100f), 19.5f)], [new Rectangle(new(default, -120), 20f, 1.75f), new Rectangle(new(-21f, -100f), 1.75f, 20f)]);
 
     protected override void DrawEnemies(int pcSlot, Actor pc)
     {
