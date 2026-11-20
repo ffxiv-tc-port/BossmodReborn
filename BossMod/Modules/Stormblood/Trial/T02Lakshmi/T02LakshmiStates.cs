@@ -10,6 +10,8 @@ class T02LakshmiStates : StateMachineBuilder
             .ActivateOnEnter<Stotram2>()
             .ActivateOnEnter<ThePallOfLightStack>()
             .ActivateOnEnter<ThePullOfLightTB1>()
-            .ActivateOnEnter<ThePullOfLightTB2>();
+            .ActivateOnEnter<ThePullOfLightTB2>()
+            .ActivateOnEnter<InnerDemons>()
+            .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }

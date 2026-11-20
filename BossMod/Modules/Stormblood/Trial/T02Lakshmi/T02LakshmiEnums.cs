@@ -11,6 +11,7 @@ public enum OID : uint
     Vril = 0x1E21, // R1.000, x12 (spawn during fight)
 }
 
+// 契約：列舉以外的敵方讀條由 Components.UnclaimedCastAOEs 照沒有模組時的猜法畫；列進來＝不再猜。
 public enum AID : uint
 {
     AutoAttack = 8535, // Boss->player, no cast, single-target
@@ -32,6 +33,8 @@ public enum AID : uint
 
     Chanchala = 9348, // Boss->self, 3.0s cast, single-target
     DivineDenial = 9349, // Boss->self, 8.0s cast, range 40 circle
+    InnerDemons = 9613, // DreamingKshatriya->self, 3.7s cast, range 6+R circle
+
     HandOfGrace = 9350, // Boss->self, 7.0s cast, single-target
     HandOfBeauty = 9351, // Boss->self, 7.0s cast, single-target
     Jagadishwari = 9026, // Boss->self, no cast, single-target
