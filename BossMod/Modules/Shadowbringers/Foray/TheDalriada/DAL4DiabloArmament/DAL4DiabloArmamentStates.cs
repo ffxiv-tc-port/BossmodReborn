@@ -18,6 +18,7 @@ sealed class DAL4DiabloArmamentStates : StateMachineBuilder
             .ActivateOnEnter<PillarOfShamash>()
             .ActivateOnEnter<UltimatePseudoterror>()
             .ActivateOnEnter<AdvancedDeathIV>()
+            .ActivateOnEnter<AdvancedDeathRay>()
             .ActivateOnEnter<PillarOfShamashBait>()
             .ActivateOnEnter<PillarOfShamashStack>()
             .ActivateOnEnter<AccelerationBomb>();
