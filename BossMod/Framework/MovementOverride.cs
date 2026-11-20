@@ -47,7 +47,7 @@ public sealed unsafe class MovementOverride : IDisposable
     /// ImGui context 由 Dalamud 建立場景時建一次、Dalamud 卸載時才銷毀，本插件的載入與卸載都落在那之間。
     /// 值是 ImGui 上一次開新幀時的鍵盤狀態 ⇒ 在 Draw 回呼裡讀，與下一次遊戲讀輸入時
     /// （<c>MovementBlocked</c> getter 經 <see cref="IsForceUnblocked"/> 在 <see cref="RMIWalkDetour"/> 裡讀）拿到的是同一份。
-    /// 📌 抽成 static 是為了讓滑鼠雙鍵那一條（唯一需要 unsafe 的部分）只有一份實作。
+    /// 📌 抽成 static 是為了讓滑鼠鍵那幾條（需要 unsafe 的部分）只有一份實作。
     /// </remarks>
     public static bool IsModifierHeld(ActionTweaksConfig.ModifierKey key) => key switch
     {
@@ -56,8 +56,20 @@ public sealed unsafe class MovementOverride : IDisposable
         ActionTweaksConfig.ModifierKey.Shift => ImGui.GetIO().KeyShift,
         // UIInputData.Instance() 是手寫包裝（UIModule 未建立時回 null），不是 [StaticAddress] 產生碼——判空回「沒按住」。
         ActionTweaksConfig.ModifierKey.M12 => UIInputData.Instance() is var input && input != null && input->UIFilteredCursorInputs.MouseButtonHeldFlags.HasFlag(MouseButtonFlags.LBUTTON | MouseButtonFlags.RBUTTON),
+        ActionTweaksConfig.ModifierKey.Mouse4 => IsSideButtonHeld(MouseButtonFlags.XBUTTON1, VkXButton1),
+        ActionTweaksConfig.ModifierKey.Mouse5 => IsSideButtonHeld(MouseButtonFlags.XBUTTON2, VkXButton2),
         _ => false,
     };
+
+    private const int VkXButton1 = 0x05;
+    private const int VkXButton2 = 0x06;
+
+    // 遊戲旗標漏收放開時（例如按著側鍵切到別的視窗才放）會留在按下；再對一次 OS 的實體狀態
+    // （GetAsyncKeyState 不走訊息佇列），實體放開了就一定回「沒按住」⇒ 不會卡住。
+    private static bool IsSideButtonHeld(MouseButtonFlags flag, int vk)
+        => UIInputData.Instance() is var input && input != null
+        && input->UIFilteredCursorInputs.MouseButtonHeldFlags.HasFlag(flag)
+        && TerraFX.Interop.Windows.Windows.GetAsyncKeyState(vk) < 0;
 
     public bool IsForceUnblocked() => IsModifierHeld(_tweaksConfig.MoveEscapeHatch);
 
@@ -154,9 +166,11 @@ public sealed unsafe class MovementOverride : IDisposable
         if (_pauseDangerNoticeShown || !_aiConfig.PauseKeyDangerNotice || moveIn is not double s || s > _aiConfig.PauseKeyDangerSeconds)
             return;
         _pauseDangerNoticeShown = true;
+        // 聊天框用設定頁上的顯示名（列舉名 M12／Mouse4 不是給人看的）；log 照舊印列舉名。
+        var keyLabel = UICombo.EnumString(key);
         Service.ChatGui.Print(yielding
-            ? $"[BMR] 腳下的危險區快生效了：暫時不理會「暫停自動移動」鍵（{key}），照常閃避"
-            : $"[BMR] 「暫停自動移動」鍵（{key}）按著，腳下的危險區快生效了");
+            ? $"[BMR] 腳下的危險區快生效了：暫時不理會「暫停自動移動」鍵（{keyLabel}），照常閃避"
+            : $"[BMR] 「暫停自動移動」鍵（{keyLabel}）按著，腳下的危險區快生效了");
         Service.Logger.Information($"[MovementOverride] 暫停自動移動鍵（{key}）已按住 {(Environment.TickCount64 - _autoMovementPausedSinceMs) / 1000d:f1} 秒，腳下危險區 {s:f1} 秒內就得動身：聊天框提示一次（同一次按住不再提示；危險時暫停鍵失效＝{(yielding ? "這次照常閃避" : "關")}）");
     }
 

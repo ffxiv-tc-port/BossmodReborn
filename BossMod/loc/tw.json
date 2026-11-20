@@ -1025,6 +1025,12 @@
   "LMB + RMB": {
     "message": "左鍵 + 右鍵"
   },
+  "Mouse button 4 (back)": {
+    "message": "滑鼠側鍵 4（後退鍵）"
+  },
+  "Mouse button 5 (forward)": {
+    "message": "滑鼠側鍵 5（前進鍵）"
+  },
   "Prevent movement and action execution when pyretic-like mechanics are imminent (set to 0 to disable, otherwise increase threshold depending on your ping).": {
     "message": "當類似灼熱的機制即將發動時禁止移動與技能使用（設為 0 停用，否則依據網路延遲調整閾值）。"
   },

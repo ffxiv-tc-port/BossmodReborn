@@ -38,7 +38,11 @@ public sealed class ActionTweaksConfig : ConfigNode
         [PropertyDisplay("Shift")]
         Shift,
         [PropertyDisplay("LMB + RMB")]
-        M12
+        M12,
+        [PropertyDisplay("Mouse button 4 (back)")]
+        Mouse4,
+        [PropertyDisplay("Mouse button 5 (forward)")]
+        Mouse5
     }
 
     [PropertyDisplay("Key to hold to allow movement while casting", tooltip: "Requires the above setting checked as well")]
