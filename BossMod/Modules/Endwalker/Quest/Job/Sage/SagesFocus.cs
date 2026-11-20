@@ -57,6 +57,7 @@ class AncelRockfistStates : StateMachineBuilder
     {
         TrivialPhase()
             .ActivateOnEnter<TripleThreat>()
+            .ActivateOnEnter<DosisIII>()
             .ActivateOnEnter<Explosion>()
             .ActivateOnEnter<ArmOfTheScholar>()
             .ActivateOnEnter<Noubelea>()
