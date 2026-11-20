@@ -9187,5 +9187,11 @@
   },
   "Marked: stand in the slime": {
     "message": "被點名：站進黏液"
+  },
+  "Squadron commands: order squadron members onto mechanic targets": {
+    "message": "分隊號令：指揮分隊員打機制目標"
+  },
+  "Only in Squadron Command Missions, and only for bosses whose module names a target for the squadron (for example adds that explode if left alive). When fewer than two squadron members attack that target for 1.5 seconds, issues the \"Engage\" order on it. Never changes your own target.\nWorks whether or not the AI is enabled. Never issues Disengage, Re-engage or the squadron limit break.": {
+    "message": "只在分隊攻略任務中、而且只對模組有指定分隊目標的首領生效（例如放著不打會爆炸的小怪）。打那個目標的分隊員少於兩人、持續 1.5 秒時，對它下「號令：戰鬥開始」。不會改變你自己的目標。\n不論 AI 有沒有開啟都會運作。不會下「號令：撤退」「號令：撤退解除」「號令：極限爆發」。"
   }
 }
