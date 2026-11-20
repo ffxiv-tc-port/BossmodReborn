@@ -128,7 +128,17 @@ sealed class DetermineArena(BossModule module) : BossComponent(module)
 {
     public bool IsBrionacArena;
 
-    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    // 戰鬥中在 Update 切：AI 的尋路視窗取自模組場地，雷達沒畫時也要跟著換。
+    public override void Update()
+    {
+        if (Raid.Player() is { } pc)
+            SwitchArena(pc);
+    }
+
+    // 刻意保留：這個元件在模組建構時就啟用，開打前 Update 不會跑，雷達仍要照玩家所在的那一層顯示。
+    public override void DrawArenaBackground(int pcSlot, Actor pc) => SwitchArena(pc);
+
+    private void SwitchArena(Actor pc)
     {
         if (IsBrionacArena && ArenaBottom.Contains(pc.Position - ArenaCenterBottom))
         {
