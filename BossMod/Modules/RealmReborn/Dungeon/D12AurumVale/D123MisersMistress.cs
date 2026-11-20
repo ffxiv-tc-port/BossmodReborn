@@ -139,7 +139,8 @@ sealed class D123MisersMistressStates : StateMachineBuilder
             .ActivateOnEnter<VineProbeCleave>()
             .ActivateOnEnter<VineProbe>()
             .ActivateOnEnter<GoldBilePlume>()
-            .ActivateOnEnter<BadBreath>();
+            .ActivateOnEnter<BadBreath>()
+            .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }
 

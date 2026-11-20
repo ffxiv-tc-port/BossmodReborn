@@ -36,7 +36,8 @@ sealed class D122CoincounterStates : StateMachineBuilder
             .ActivateOnEnter<HundredTonzeSwing>()
             .ActivateOnEnter<Glower>()
             .ActivateOnEnter<EyeOfTheBeholder>()
-            .ActivateOnEnter<GoldBilePlume>();
+            .ActivateOnEnter<GoldBilePlume>()
+            .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }
 

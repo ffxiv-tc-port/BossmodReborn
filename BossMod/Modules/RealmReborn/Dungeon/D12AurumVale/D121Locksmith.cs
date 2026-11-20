@@ -124,7 +124,8 @@ sealed class D121LocksmithStates : StateMachineBuilder
             .ActivateOnEnter<MorbolFruit>()
             .ActivateOnEnter<HundredLashings>()
             .ActivateOnEnter<GoldDust>()
-            .ActivateOnEnter<GoldBilePlume>();
+            .ActivateOnEnter<GoldBilePlume>()
+            .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }
 
