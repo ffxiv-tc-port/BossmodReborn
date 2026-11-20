@@ -9,6 +9,7 @@ public enum OID : uint
     TemplestBiast = 0x3DF // Templest Biast
 }
 
+// 契約：列舉以外的敵方讀條由 Components.UnclaimedCastAOEs 照沒有模組時的猜法畫；列進來＝不再猜。
 public enum AID : uint
 {
     // Boss
@@ -28,7 +29,8 @@ class D072InfernoDrakeStates : StateMachineBuilder
     public D072InfernoDrakeStates(BossModule module) : base(module)
     {
         TrivialPhase()
-            .ActivateOnEnter<BurningCyclone>();
+            .ActivateOnEnter<BurningCyclone>()
+            .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }
 

@@ -10,6 +10,7 @@ public enum OID : uint
     SableBack = 0x1AA // Sable Back
 }
 
+// 契約：列舉以外的敵方讀條由 Components.UnclaimedCastAOEs 照沒有模組時的猜法畫；列進來＝不再猜。
 public enum AID : uint
 {
     // Boss
@@ -29,7 +30,8 @@ class D071GreatYellowPelicanStates : StateMachineBuilder
     public D071GreatYellowPelicanStates(BossModule module) : base(module)
     {
         TrivialPhase()
-            .ActivateOnEnter<NumbingBreath>();
+            .ActivateOnEnter<NumbingBreath>()
+            .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }
 

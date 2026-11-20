@@ -12,6 +12,7 @@ public enum OID : uint
     QueerBubble = 0x428 // Queer Bubble
 }
 
+// 契約：列舉以外的敵方讀條由 Components.UnclaimedCastAOEs 照沒有模組時的猜法畫；列進來＝不再猜。
 public enum AID : uint
 {
     // Boss
@@ -85,7 +86,8 @@ class D120HellbenderStates : StateMachineBuilder
             .ActivateOnEnter<BogBubble>()
             .ActivateOnEnter<PeculiarLight>()
             .ActivateOnEnter<StagnantSpray>()
-            .ActivateOnEnter<PlayerBound>();
+            .ActivateOnEnter<PlayerBound>()
+            .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }
 
