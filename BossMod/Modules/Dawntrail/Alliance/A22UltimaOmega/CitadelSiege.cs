@@ -66,10 +66,11 @@ sealed class CitadelSiege(BossModule module) : Components.GenericAOEs(module)
     }
 
     // the burning ship and the escape platform are shown one at a time, depending on which side of x=780 the player is
-    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    // 在 Update 切而不是在畫雷達時切：AI 的尋路視窗取自模組場地，雷達沒畫時也要跟著換。
+    public override void Update()
     {
-        base.DrawArenaBackground(pcSlot, pc);
-        if (currentArena1Bounds == null)
+        base.Update();
+        if (Raid.Player() is not { } pc || currentArena1Bounds == null)
         {
             return;
         }
