@@ -3,8 +3,8 @@
 class Tetrapagos(BossModule module) : Components.GenericAOEs(module)
 {
     private readonly List<AOEInstance> _aoes = new(4);
-    private static readonly AOEShapeCircle circle = new(10f), circlePredict = new(8.5f);
-    private static readonly AOEShapeDonut donut = new(10f, 30f), donutPredict = new(11.5f, 30f);
+    private static readonly AOEShapeCircle circle = new(10f), circlePredict = new(8f);
+    private static readonly AOEShapeDonut donut = new(10f, 30f), donutPredict = new(12f, 30f);
     private static readonly AOEShapeCone cone = new(30f, 90f.Degrees());
 
     public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor)
@@ -26,16 +26,9 @@ class Tetrapagos(BossModule module) : Components.GenericAOEs(module)
             return;
         }
         var aoes = CollectionsMarshal.AsSpan(_aoes);
-        ref var aoe0 = ref aoes[0];
-        aoe0.Risky = true;
         if (count > 1)
         {
-            aoe0.Color = Colors.Danger;
-            ref var aoe1 = ref aoes[1];
-            if (aoe0.Shape != aoe1.Shape)
-            {
-                aoe1.Risky = true;
-            }
+            aoes[0].Color = Colors.Danger;
         }
     }
 
@@ -50,7 +43,7 @@ class Tetrapagos(BossModule module) : Components.GenericAOEs(module)
         };
         if (shape != null)
         {
-            _aoes.Add(new(shape, spell.LocXZ, caster.Rotation, Module.CastFinishAt(spell, 7.3d), risky: false));
+            _aoes.Add(new(shape, spell.LocXZ, caster.Rotation, Module.CastFinishAt(spell, 7.3d)));
             var count = _aoes.Count;
             if (count > 1)
             {
@@ -64,7 +57,7 @@ class Tetrapagos(BossModule module) : Components.GenericAOEs(module)
                 }
                 if (shape == cone && (prevAOE.Shape == cone || prev2Shape == cone))
                 {
-                    curAOE.Origin += 1.5f * curAOE.Rotation.ToDirection();
+                    curAOE.Origin += 3f * curAOE.Rotation.ToDirection();
                 }
                 else if (shape == circle && (prevAOE.Shape == donut || prev2Shape == donut))
                 {
