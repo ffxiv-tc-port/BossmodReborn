@@ -9193,5 +9193,23 @@
   },
   "Only in Squadron Command Missions, and only for bosses whose module names a target for the squadron (for example adds that explode if left alive). When fewer than two squadron members attack that target for 1.5 seconds, issues the \"Engage\" order on it. Never changes your own target.\nWorks whether or not the AI is enabled. Never issues Disengage, Re-engage or the squadron limit break.": {
     "message": "只在分隊攻略任務中、而且只對模組有指定分隊目標的首領生效（例如放著不打會爆炸的小怪）。打那個目標的分隊員少於兩人、持續 1.5 秒時，對它下「號令：戰鬥開始」。不會改變你自己的目標。\n不論 AI 有沒有開啟都會運作。不會下「號令：撤退」「號令：撤退解除」「號令：極限爆發」。"
+  },
+  "Pause key: warn when the danger under you is about to go off": {
+    "message": "暫停鍵：腳下危險區快生效時提示"
+  },
+  "While the \"pause automatic movement\" key (Action tweaks) is held and the AI works out that you have to start moving out of the danger zone under you within the time below, prints one short line in chat. Once per key press: let go and press again to be warned again.\nOnly a warning - nothing about movement changes. Needs the AI to be on.": {
+    "message": "按住「暫停自動移動」鍵（技能調整）時，若 AI 算出你必須在下方設定的秒數內開始離開腳下的危險區，就在聊天框印一行短訊。每按一次只提示一次：放開再按才會再提示。\n只是提示，不改任何移動。需要開啟 AI。"
+  },
+  "Pause key: ignore it when the danger under you is about to go off": {
+    "message": "暫停鍵：腳下危險區快生效時失效"
+  },
+  "While the \"pause automatic movement\" key (Action tweaks) is held and the AI works out that you have to start moving out of the danger zone under you within the time below, the key is ignored and the AI dodges as usual, dash dodge included.\nOnce it has started dodging it keeps going until the spot under you is safe again, then the key pauses movement again as long as it is still held. Your own movement input always wins. Needs the AI to be on; the deep dungeon \"Walk to room\" route stays paused.": {
+    "message": "按住「暫停自動移動」鍵（技能調整）時，若 AI 算出你必須在下方設定的秒數內開始離開腳下的危險區，就不理會這個鍵，AI 照常閃避（含位移閃避）。\n一旦開始閃避，會持續到腳下安全為止；之後若鍵仍按著，就恢復暫停移動。你自己的移動輸入永遠優先。需要開啟 AI；深層迷宮「走到房間」的路線仍維持暫停。"
+  },
+  "Pause key: danger threshold (seconds)": {
+    "message": "暫停鍵：危險門檻（秒）"
+  },
+  "How soon you have to start moving out of the danger zone under you, following the AI's own escape route, before the pause key options above react. It is the same deadline the AI uses to decide whether a cast still fits before you have to move.": {
+    "message": "照 AI 自己算出的退路，你必須在幾秒內開始離開腳下的危險區，上面兩個暫停鍵選項才會反應。與 AI 判斷「詠唱是否來得及在必須移動前結束」用的是同一個期限。"
   }
 }
