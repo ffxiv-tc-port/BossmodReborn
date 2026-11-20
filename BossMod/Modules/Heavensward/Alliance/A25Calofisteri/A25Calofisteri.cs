@@ -16,8 +16,11 @@ class SplitEnd1(BossModule module) : SplitEnd(module, (uint)AID.SplitEnd1);
 class SplitEnd2(BossModule module) : SplitEnd(module, (uint)AID.SplitEnd2);
 
 [ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 168, NameID = 4897)]
-public class A25Calofisteri(WorldState ws, Actor primary) : BossModule(ws, primary, new(-300, -35), new ArenaBoundsCircle(30))
+public class A25Calofisteri(WorldState ws, Actor primary) : BossModule(ws, primary, arena.Center, arena)
 {
+    // 外框取自碰撞；矩形是南端入口的條件式牆，牆外不算場地。多邊形以 arena.Center 為原點，中心不可另寫。
+    private static readonly ArenaBoundsComplex arena = new([new Polygon(new(-300f, -34f), 29.5f, 96)], [new Rectangle(new(-300f, -4.26167f), 16.5f, 1.25f)]);
+
     protected override void DrawEnemies(int pcSlot, Actor pc)
     {
         Arena.Actor(PrimaryActor);
