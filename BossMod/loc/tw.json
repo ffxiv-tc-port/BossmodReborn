@@ -9115,5 +9115,11 @@
   },
   "Charm: forced walk towards boss": {
     "message": "魅惑：會被迫走向王"
+  },
+  "Sludge": {
+    "message": "污泥"
+  },
+  "muddied": {
+    "message": "污泥"
   }
 }
