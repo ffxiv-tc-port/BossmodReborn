@@ -2,7 +2,9 @@
 
 public enum OID : uint
 {
-    Boss = 0x5BE // x1
+    Boss = 0x5BE, // x1
+    Plume1 = 0x5CA, // R0.5
+    Plume2 = 0x603 // R1.5
 }
 
 public enum AID : uint
@@ -13,7 +15,9 @@ public enum AID : uint
     HundredTonzeSwing = 628, // Boss->self, 4.0s cast, range 8+R circle aoe
     Glower = 629, // Boss->self, 3.0s cast, range 17+R width 7 rect aoe
     AnimalInstinct = 630, // Boss->self, no cast, single-target
-    EyeOfTheBeholder = 631 // Boss->self, 2.5s cast, range 8-15+R donut 270-degree cone aoe
+    EyeOfTheBeholder = 631, // Boss->self, 2.5s cast, range 8-15+R donut 270-degree cone aoe
+    GoldBilePlume1 = 1042, // Plume1->self, no cast, range 2 circle, knockback 5, away from source
+    GoldBilePlume2 = 1043 // Plume2->self, no cast, range 3+R width 2 rect
 }
 
 sealed class TenTonzeSwipe(BossModule module) : Components.Cleave(module, (uint)AID.TenTonzeSwipe, new AOEShapeCone(10, 60.Degrees()));
@@ -31,7 +35,8 @@ sealed class D122CoincounterStates : StateMachineBuilder
             .ActivateOnEnter<HundredTonzeSwipe>()
             .ActivateOnEnter<HundredTonzeSwing>()
             .ActivateOnEnter<Glower>()
-            .ActivateOnEnter<EyeOfTheBeholder>();
+            .ActivateOnEnter<EyeOfTheBeholder>()
+            .ActivateOnEnter<GoldBilePlume>();
     }
 }
 

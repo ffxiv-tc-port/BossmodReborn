@@ -3,6 +3,8 @@
 public enum OID : uint
 {
     Boss = 0x5BF, // R4.0
+    Plume1 = 0x5CA, // R0.5
+    Plume2 = 0x603, // R1.5
     MorbolFruit1 = 0x1E8ED9, // R0.5 --
     MorbolFruit2 = 0x1E8ED7, // R0.5 --
     MorbolFruit3 = 0x1E8ED8, // R0.5 --
@@ -20,7 +22,9 @@ public enum AID : uint
 
     HundredLashings = 1031, // Boss->self, no cast, range 8+R 120-degree cone
     GoldRush = 1032, // Boss->self, no cast, raidwide
-    GoldDust = 1033 // Boss->location, 3.5s cast, range 8 circle
+    GoldDust = 1033, // Boss->location, 3.5s cast, range 8 circle
+    GoldBilePlume1 = 1042, // Plume1->self, no cast, range 2 circle, knockback 5, away from source
+    GoldBilePlume2 = 1043 // Plume2->self, no cast, range 3+R width 2 rect
 }
 
 sealed class HundredLashings(BossModule module) : Components.Cleave(module, (uint)AID.HundredLashings, new AOEShapeCone(12f, 60f.Degrees()));
@@ -119,7 +123,8 @@ sealed class D121LocksmithStates : StateMachineBuilder
         TrivialPhase()
             .ActivateOnEnter<MorbolFruit>()
             .ActivateOnEnter<HundredLashings>()
-            .ActivateOnEnter<GoldDust>();
+            .ActivateOnEnter<GoldDust>()
+            .ActivateOnEnter<GoldBilePlume>();
     }
 }
 

@@ -43,28 +43,6 @@ sealed class VineProbeCleave(BossModule module) : Components.Cleave(module, (uin
 sealed class VineProbe(BossModule module) : Components.SimpleAOEs(module, (uint)AID.VineProbe, new AOEShapeRect(9.85f, 4f));
 sealed class BadBreath(BossModule module) : Components.SimpleAOEs(module, (uint)AID.BadBreath, new AOEShapeCone(16f, 60f.Degrees()));
 
-sealed class GoldBilePlume(BossModule module) : Components.GenericAOEs(module)
-{
-    private static readonly AOEShapeCircle circle = new(2f);
-    private static readonly AOEShapeRect rect = new(4.5f, 1f);
-    private readonly List<AOEInstance> _aoes = new(7);
-
-    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => CollectionsMarshal.AsSpan(_aoes);
-
-    public override void OnActorCreated(Actor actor)
-    {
-        void AddAOE(AOEShape shape) => _aoes.Add(new(shape, actor.Position.Quantized(), actor.Rotation));
-        if (actor.OID == (uint)OID.Plume1)
-        {
-            AddAOE(circle);
-        }
-        else if (actor.OID == (uint)OID.Plume2)
-        {
-            AddAOE(rect);
-        }
-    }
-}
-
 sealed class MorbolFruit(BossModule module) : BossComponent(module)
 {
     private BitMask burrs;
