@@ -1,9 +1,17 @@
-﻿// namespace BossMod.Shadowbringers.Alliance.A12Hobbes;
+﻿namespace BossMod.Shadowbringers.Alliance.A12Hobbes;
 
-// class A12HobbesStates : StateMachineBuilder
-// {
-//     public A12HobbesStates(BossModule module) : base(module)
-//     {
-//         TrivialPhase();
-//     }
-// }
+sealed class A12HobbesStates : StateMachineBuilder
+{
+    public A12HobbesStates(BossModule module) : base(module)
+    {
+        TrivialPhase()
+            .ActivateOnEnter<LaserResistanceTest>()
+            .ActivateOnEnter<RingLaserOuter>()
+            .ActivateOnEnter<ShockingDischarge>()
+            .ActivateOnEnter<VariableCombatTestCircle>()
+            .ActivateOnEnter<VariableCombatTestDonut>()
+            .ActivateOnEnter<Impact>()
+            .ActivateOnEnter<ShortRangeMissile>()
+            .ActivateOnEnter<Components.UnclaimedCastAOEs>();
+    }
+}
