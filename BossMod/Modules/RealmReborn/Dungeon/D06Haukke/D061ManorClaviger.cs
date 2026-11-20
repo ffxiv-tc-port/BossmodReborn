@@ -5,6 +5,7 @@ public enum OID : uint
     Boss = 0x110 // x1
 }
 
+// 契約：列舉以外的敵方讀條由 Components.UnclaimedCastAOEs 照沒有模組時的猜法畫；列進來＝不再猜。
 public enum AID : uint
 {
     AutoAttack = 870, // Boss->player, no cast
@@ -24,7 +25,8 @@ class D061ManorClavigerStates : StateMachineBuilder
         TrivialPhase()
             .ActivateOnEnter<SweetSteel>()
             .ActivateOnEnter<VoidFire2>()
-            .ActivateOnEnter<DarkMist>();
+            .ActivateOnEnter<DarkMist>()
+            .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }
 
