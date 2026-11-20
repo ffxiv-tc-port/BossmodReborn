@@ -1,9 +1,18 @@
-﻿// namespace BossMod.Shadowbringers.Alliance.A11CommandModel;
+﻿namespace BossMod.Shadowbringers.Alliance.A11CommandModel;
 
-// class A11CommandModelStates : StateMachineBuilder
-// {
-//     public A11CommandModelStates(BossModule module) : base(module)
-//     {
-//         TrivialPhase();
-//     }
-// }
+sealed class A11CommandModelStates : StateMachineBuilder
+{
+    public A11CommandModelStates(BossModule module) : base(module)
+    {
+        TrivialPhase()
+            .ActivateOnEnter<ClangingBlow>()
+            .ActivateOnEnter<ForcefulImpact>()
+            .ActivateOnEnter<EnergyBombardment>()
+            .ActivateOnEnter<EnergyAssault>()
+            .ActivateOnEnter<EnergyRing>()
+            .ActivateOnEnter<SidestrikingSpin>()
+            .ActivateOnEnter<CentrifugalSpin>()
+            .ActivateOnEnter<HighCaliberLaser>()
+            .ActivateOnEnter<Components.UnclaimedCastAOEs>();
+    }
+}
