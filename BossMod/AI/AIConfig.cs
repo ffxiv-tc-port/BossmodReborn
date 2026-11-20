@@ -124,6 +124,10 @@ sealed class AIConfig : ConfigNode
     [PropertyDisplay("Pause key: warn when the danger under you is about to go off", tooltip: "While the \"pause automatic movement\" key (Action tweaks) is held and the AI works out that you have to start moving out of the danger zone under you within the time below, prints one short line in chat. Once per key press: let go and press again to be warned again.\nOnly a warning - nothing about movement changes. Needs the AI to be on.")]
     public bool PauseKeyDangerNotice = true;
 
+    // 預設開是使用者裁的（暫停鍵兼用在 Alt+Tab）。
+    [PropertyDisplay("Pause key: ignore it when the danger under you is about to go off", tooltip: "While the \"pause automatic movement\" key (Action tweaks) is held and the AI works out that you have to start moving out of the danger zone under you within the time below, the key is ignored and the AI dodges as usual, dash dodge included.\nOnce it has started dodging it keeps going until the spot under you is safe again, then the key pauses movement again as long as it is still held. Your own movement input always wins. Needs the AI to be on; the deep dungeon \"Walk to room\" route stays paused.")]
+    public bool PauseKeyYieldsToDanger = true;
+
     [PropertyDisplay("Pause key: danger threshold (seconds)", tooltip: "How soon you have to start moving out of the danger zone under you, following the AI's own escape route, before the pause key options above react. It is the same deadline the AI uses to decide whether a cast still fits before you have to move.")]
     [PropertySlider(0.2f, 3f)]
     public float PauseKeyDangerSeconds = 1f;

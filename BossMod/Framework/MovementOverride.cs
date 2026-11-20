@@ -62,7 +62,8 @@ public sealed unsafe class MovementOverride : IDisposable
     public bool IsForceUnblocked() => IsModifierHeld(_tweaksConfig.MoveEscapeHatch);
 
     /// <summary>
-    /// 這一幀使用者有沒有按著「暫停自動移動」那顆鍵（<see cref="ActionTweaksConfig.PauseAutoMoveKey"/>）。
+    /// 這一幀自動移動要不要暫停：「暫停自動移動」鍵（<see cref="ActionTweaksConfig.PauseAutoMoveKey"/>）按著，
+    /// 而且沒有因為腳下危險而失效（<see cref="PauseYieldsToDanger"/>）。只看鍵本身用 <see cref="PauseKeyHeld"/>。
     /// </summary>
     /// <remarks>
     /// 每幀快照：由 <c>Plugin.DrawUI</c> 呼叫 <see cref="UpdateAutoMovementPause"/> 拍一次；讀取者之一
@@ -103,13 +104,47 @@ public sealed unsafe class MovementOverride : IDisposable
         var held = key != ActionTweaksConfig.ModifierKey.None && IsModifierHeld(key);
         // 只在鍵按著時才讀 AI 的期限：沒按的幀與加這段之前完全相同。
         var moveIn = held ? FootDangerMoveIn(AI.AIManager.Instance?.Beh?.NavigationContext, now) : null;
-        AutoMovementPaused = held;
+        var yielding = PauseYieldsToDanger(held, _aiConfig.PauseKeyYieldsToDanger, _aiConfig.PauseKeyDangerSeconds, moveIn, _pauseYieldingToDanger);
+        PauseKeyHeld = held;
+        AutoMovementPaused = held && !yielding;
         LogPauseKeyFlip(held, key);
-        UpdatePauseDangerNotice(held, key, moveIn);
+        LogPauseYieldFlip(yielding, held, moveIn);
+        UpdatePauseDangerNotice(held, key, moveIn, yielding);
     }
 
-    /// <summary>暫停鍵按著、腳下危險區在門檻內就得動身：同一次按住只在聊天框提示一次（不改任何行為）。</summary>
-    private void UpdatePauseDangerNotice(bool held, ActionTweaksConfig.ModifierKey key, double? moveIn)
+    /// <summary>暫停鍵是不是實體按著（不管「危險時暫停鍵失效」）；只給要照鍵本身行事的地方用，例如深宮路線的 vnavmesh 暫停。</summary>
+    public bool PauseKeyHeld { get; private set; }
+
+    /// <summary>上一幀暫停鍵是不是因為腳下危險而失效。</summary>
+    private bool _pauseYieldingToDanger;
+    private long _pauseYieldSinceMs;
+
+    /// <summary>
+    /// 暫停鍵按著時，這一幀要不要因為腳下危險而照常自動移動。
+    /// </summary>
+    /// <remarks>
+    /// 進入看門檻；一旦進入，期限還在（腳下仍會被打）就維持，不因走了幾步、期限變寬又停下 ⇒ 閃到一半不會卡住。
+    /// 腳下安全、期限過舊、AI 關掉或鍵放開才結束。純函式，離線量測台直接呼叫。
+    /// </remarks>
+    public static bool PauseYieldsToDanger(bool held, bool enabled, float threshold, double? moveIn, bool yieldingLastFrame)
+        => held && enabled && moveIn is double s && (yieldingLastFrame || s <= threshold);
+
+    private void LogPauseYieldFlip(bool yielding, bool held, double? moveIn)
+    {
+        if (yielding == _pauseYieldingToDanger)
+            return;
+        _pauseYieldingToDanger = yielding;
+        if (yielding)
+        {
+            _pauseYieldSinceMs = Environment.TickCount64;
+            Service.Logger.Information($"[MovementOverride] 危險時暫停鍵失效：暫停鍵按著，但腳下危險區 {moveIn ?? 0:f1} 秒內就得動身 ⇒ 暫時照常自動移動與閃避");
+        }
+        else
+            Service.Logger.Information($"[MovementOverride] 危險時暫停鍵失效：結束（{(held ? "腳下已安全或 AI 期限不再更新，恢復暫停" : "暫停鍵已放開")}；失效 {(Environment.TickCount64 - _pauseYieldSinceMs) / 1000d:f1} 秒）");
+    }
+
+    /// <summary>暫停鍵按著、腳下危險區在門檻內就得動身：同一次按住只在聊天框提示一次。</summary>
+    private void UpdatePauseDangerNotice(bool held, ActionTweaksConfig.ModifierKey key, double? moveIn, bool yielding)
     {
         if (!held)
         {
@@ -119,8 +154,10 @@ public sealed unsafe class MovementOverride : IDisposable
         if (_pauseDangerNoticeShown || !_aiConfig.PauseKeyDangerNotice || moveIn is not double s || s > _aiConfig.PauseKeyDangerSeconds)
             return;
         _pauseDangerNoticeShown = true;
-        Service.ChatGui.Print($"[BMR] 「暫停自動移動」鍵（{key}）按著，腳下的危險區快生效了");
-        Service.Logger.Information($"[MovementOverride] 暫停自動移動鍵（{key}）已按住 {(Environment.TickCount64 - _autoMovementPausedSinceMs) / 1000d:f1} 秒，腳下危險區 {s:f1} 秒內就得動身：聊天框提示一次（同一次按住不再提示）");
+        Service.ChatGui.Print(yielding
+            ? $"[BMR] 腳下的危險區快生效了：暫時不理會「暫停自動移動」鍵（{key}），照常閃避"
+            : $"[BMR] 「暫停自動移動」鍵（{key}）按著，腳下的危險區快生效了");
+        Service.Logger.Information($"[MovementOverride] 暫停自動移動鍵（{key}）已按住 {(Environment.TickCount64 - _autoMovementPausedSinceMs) / 1000d:f1} 秒，腳下危險區 {s:f1} 秒內就得動身：聊天框提示一次（同一次按住不再提示；危險時暫停鍵失效＝{(yielding ? "這次照常閃避" : "關")}）");
     }
 
     private void LogPauseKeyFlip(bool held, ActionTweaksConfig.ModifierKey key)

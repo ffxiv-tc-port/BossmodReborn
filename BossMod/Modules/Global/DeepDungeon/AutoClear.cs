@@ -1019,8 +1019,9 @@ public abstract partial class AutoClear : ZoneModule
 
         // 只有「路徑已經交出去、vnavmesh 正在走」才有東西可暫停。
         // Pathfinding 階段還沒有路徑，這時關掉全域開關只會白白影響到別的外掛。
+        // 看鍵本身：「危險時暫停鍵失效」只放開 BMR 自己的閃避，不讓 vnavmesh 接著走路線。
         var wantPause = _walkState == WalkState.Moving
-            && MovementOverride.Instance is { AutoMovementPaused: true };
+            && MovementOverride.Instance is { PauseKeyHeld: true };
 
         // 🔴 鎖內只拍快照就出來：底下每一條路都要呼叫 IPC，而對方自己也持鎖。
         bool held;
