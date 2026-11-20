@@ -9,8 +9,12 @@ class Mow(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Mow, new 
 class TailDrive(BossModule module) : Components.SimpleAOEs(module, (uint)AID.TailDrive, new AOEShapeCone(30, 45.Degrees()));
 
 [ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 168, NameID = 4878)]
-public class A22Forgall(WorldState ws, Actor primary) : BossModule(ws, primary, new(-300, -416), new ArenaBoundsCircle(30))
+public class A22Forgall(WorldState ws, Actor primary) : BossModule(ws, primary, arena.Center, arena)
 {
+    // 外框取自碰撞；兩個矩形是南北入口的條件式牆，牆外不算場地。多邊形以 arena.Center 為原點，中心不可另寫。
+    private static readonly ArenaBoundsComplex arena = new([new Polygon(new(-300.00003f, -416.49481f), 29.5f, 96)],
+        [new Rectangle(new(-300f, -386.82932f), 22.9f, 1.25f), new Rectangle(new(-300f, -446.47095f), 10.5f, 1f)]);
+
     protected override void DrawEnemies(int pcSlot, Actor pc)
     {
         Arena.Actor(PrimaryActor);
