@@ -25,6 +25,7 @@ sealed class T03QueenEternalStates : StateMachineBuilder
             .ActivateOnEnter<ProsecutionOfWar>()
             .ActivateOnEnter<VirtualShiftRoyalDomain>()
             .ActivateOnEnter<AbsoluteAuthorityRaidwide>()
+            .ActivateOnEnter<RoyalBanishmentRaidwide>()
             .ActivateOnEnter<DownburstKB>()
             .ActivateOnEnter<PowerfulGustDownburstRW>()
             .ActivateOnEnter<BrutalCrown>()
