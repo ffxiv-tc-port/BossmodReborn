@@ -6,6 +6,7 @@ using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Bindings.ImGui;
 using Lumina.Excel.Sheets;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 
 namespace BossMod;
@@ -324,16 +325,25 @@ public sealed class ReplayManagementWindow : UIWindow
         if (IsRecording())
             return; // already recording
 
+        // cleanup and recorder must agree on the folder; resolving it stays inside a try like the recorder construction did
+        DirectoryInfo replayFolder;
+        try
+        {
+            replayFolder = string.IsNullOrEmpty(_config.ReplayFolder) ? _logDir : new DirectoryInfo(_config.ReplayFolder);
+        }
+        catch (Exception ex)
+        {
+            Service.Log($"Failed to start recording: {ex}");
+            UpdateTitle();
+            return;
+        }
+
         // if there are too many replays, delete oldest
         if (_config.MaxReplays > 0)
         {
             try
             {
-                var replayFolder = new DirectoryInfo(_config.ReplayFolder);
-                var replays = replayFolder.GetFiles();
-                replays.Sort((a, b) => a.LastWriteTime.CompareTo(b.LastWriteTime));
-                foreach (var f in replays.Take(replays.Length - _config.MaxReplays))
-                    f.Delete();
+                DeleteOldReplays(replayFolder, _config.MaxReplays);
             }
             catch (Exception ex)
             {
@@ -343,7 +353,6 @@ public sealed class ReplayManagementWindow : UIWindow
 
         try
         {
-            var replayFolder = string.IsNullOrEmpty(_config.ReplayFolder) ? _logDir : new DirectoryInfo(_config.ReplayFolder);
             _recorder = new(_ws, _config.WorldLogFormat, true, replayFolder, prefix + GetPrefix());
         }
         catch (Exception ex)
@@ -352,6 +361,26 @@ public sealed class ReplayManagementWindow : UIWindow
         }
 
         UpdateTitle();
+    }
+
+    // Only files named like ReplayRecorder output ("<prefix>_yyyy_MM_dd_HH_mm_ss.log") are counted or deleted, oldest write time first:
+    // the folder is user-configurable and may hold unrelated files.
+    internal static void DeleteOldReplays(DirectoryInfo folder, int maxReplays)
+    {
+        if (maxReplays <= 0 || !folder.Exists)
+            return;
+        var replays = folder.GetFiles("*.log").Where(IsRecorderOutput).ToArray();
+        replays.Sort((a, b) => a.LastWriteTimeUtc.CompareTo(b.LastWriteTimeUtc));
+        foreach (var f in replays.Take(replays.Length - maxReplays))
+            f.Delete();
+    }
+
+    private static bool IsRecorderOutput(FileInfo f)
+    {
+        if (!f.Extension.Equals(".log", StringComparison.OrdinalIgnoreCase))
+            return false;
+        var stem = Path.GetFileNameWithoutExtension(f.Name);
+        return stem.Length >= 20 && stem[^20] == '_' && DateTime.TryParseExact(stem[^19..], "yyyy_MM_dd_HH_mm_ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
     }
 
     public void StopRecording()
