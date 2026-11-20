@@ -13,6 +13,7 @@ class A32FerdiadHollowStates : StateMachineBuilder
             .ActivateOnEnter<JongleursX>()
             .ActivateOnEnter<JugglingSphere>()
             .ActivateOnEnter<JugglingSphere2>()
+            .ActivateOnEnter<LuckyPierrot2>()
             .ActivateOnEnter<AtmosAOE1>()
             .ActivateOnEnter<AtmosAOE2>()
             .ActivateOnEnter<AtmosDonut>()

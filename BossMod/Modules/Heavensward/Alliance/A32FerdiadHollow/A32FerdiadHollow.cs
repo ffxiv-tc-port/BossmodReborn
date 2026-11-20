@@ -14,7 +14,7 @@ class JugglingSphere(BossModule module) : Components.ChargeAOEs(module, (uint)AI
 class JugglingSphere2(BossModule module) : Components.ChargeAOEs(module, (uint)AID.JugglingSphere2, 3);
 
 class LuckyPierrot1(BossModule module) : Components.ChargeAOEs(module, (uint)AID.LuckyPierrot1, 2.5f);
-class LuckyPierrot2(BossModule module) : Components.ChargeAOEs(module, (uint)AID.LuckyPierrot2, 2.5f);
+class LuckyPierrot2(BossModule module) : Components.ChargeAOEs(module, (uint)AID.LuckyPierrot2, 3f);
 
 class PetrifyingEye(BossModule module) : Components.CastGaze(module, (uint)AID.PetrifyingEye);
 
