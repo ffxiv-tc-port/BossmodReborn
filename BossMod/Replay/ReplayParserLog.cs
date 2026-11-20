@@ -16,6 +16,12 @@ public sealed class ReplayParserLog : IDisposable
         }
 
         protected virtual void Dispose(bool disposing) { }
+
+        // set when a read hit the end of the stream mid-record and returned a placeholder; that record is incomplete
+        public bool TruncatedRead;
+        // true once the whole stream has been consumed, i.e. the record being parsed is the last one
+        public virtual bool AtEnd => false;
+
         public abstract FourCC NextEntry();
         public abstract bool CanRead();
         public abstract void ReadVoid();
@@ -80,6 +86,7 @@ public sealed class ReplayParserLog : IDisposable
             return default;
         }
 
+        public override bool AtEnd => _input.EndOfStream;
         public override bool CanRead() => _nextPayload < _line.Length;
         public override void ReadVoid() => _nextPayload++;
         public override string ReadString() => _line[_nextPayload++];
@@ -192,6 +199,7 @@ public sealed class ReplayParserLog : IDisposable
             }
             catch (EndOfStreamException)
             {
+                TruncatedRead = true;
                 Service.Log("ReadSingle: Reached the end of the file unexpectedly. Returning default value.");
                 return default;
             }
@@ -204,6 +212,7 @@ public sealed class ReplayParserLog : IDisposable
             }
             catch (EndOfStreamException)
             {
+                TruncatedRead = true;
                 Service.Log("ReadDouble: Reached the end of the file unexpectedly. Returning default value.");
                 return default;
             }
@@ -216,6 +225,7 @@ public sealed class ReplayParserLog : IDisposable
             }
             catch (EndOfStreamException)
             {
+                TruncatedRead = true;
                 Service.Log("ReadVec3: Reached the end of the file unexpectedly. Returning default value.");
                 return default;
             }
@@ -228,6 +238,7 @@ public sealed class ReplayParserLog : IDisposable
             }
             catch (EndOfStreamException)
             {
+                TruncatedRead = true;
                 Service.Log("ReadAngle: Reached the end of the file unexpectedly. Returning default angle.");
                 return default;
             }
@@ -247,6 +258,7 @@ public sealed class ReplayParserLog : IDisposable
             }
             catch (EndOfStreamException)
             {
+                TruncatedRead = true;
                 Service.Log("ReadUInt: Reached the end of the file unexpectedly. Returning default value.");
                 return default;
             }
@@ -259,6 +271,7 @@ public sealed class ReplayParserLog : IDisposable
             }
             catch (EndOfStreamException)
             {
+                TruncatedRead = true;
                 Service.Log("ReadULong: Reached the end of the file unexpectedly. Returning default value.");
                 return default;
             }
@@ -316,14 +329,22 @@ public sealed class ReplayParserLog : IDisposable
             var curOp = 0;
             using ReplayBuilder builder = new(path);
             using ReplayParserLog parser = new(input, builder);
-            while (parser.ParseLine())
+            try
             {
-                if ((++curOp & 0x3ff) == 0)
+                while (parser.ParseLine())
                 {
-                    progress = rawStream.Position * streamInvLength;
-                    if (cancel.IsCancellationRequested)
-                        break;
+                    if ((++curOp & 0x3ff) == 0)
+                    {
+                        progress = rawStream.Position * streamInvLength;
+                        if (cancel.IsCancellationRequested)
+                            break;
+                    }
                 }
+            }
+            catch (Exception e) when (e is EndOfStreamException || input.AtEnd)
+            {
+                // truncated file (e.g. game crashed mid-write): the half-read record is dropped, everything before it is kept
+                Service.Log($"Replay {path} ends mid-record after {curOp} records, keeping what was read: {e.GetType().Name}: {e.Message}");
             }
             return cancel.IsCancellationRequested ? new() : builder.Finish();
         }
@@ -457,6 +478,8 @@ public sealed class ReplayParserLog : IDisposable
             throw new InvalidOperationException($"Replay contains unsupported tag {tag}");
 
         var op = parse();
+        if (_input.TruncatedRead)
+            return false; // last record was cut off; keep everything before it
         if (op != null)
             _builder.AddOp(op);
 
