@@ -68,7 +68,74 @@ class ElectromagneticRepellant(BossModule module) : Components.VoidzoneAtCastTar
 class InfantryDeterrent(BossModule module) : Components.SpreadFromCastTargets(module, (uint)AID.InfantryDeterrent, 6f);
 class NoFutureSpread(BossModule module) : Components.SpreadFromCastTargets(module, (uint)AID.NoFutureSpread, 6f);
 
-class NoFutureAOE(BossModule module) : Components.SimpleAOEs(module, (uint)AID.NoFutureAOE, 6f);
+// 一波一組方向、相隔約 1.5 秒，沿 6／13／18 碼三圈單向推進（內→外或外→內），三波為一組、下一組換方向。
+// 所以端圈之後一定是中圈、中圈之後是另一端；已知的下一波只交給 AI 的閃避預判（不畫、不當禁區）。
+// 下一組的第一波方向不可預測，不預告。
+class NoFutureAOE(BossModule module) : Components.SimpleAOEs(module, (uint)AID.NoFutureAOE, 6f)
+{
+    private static readonly float[] rings = [6f, 13f, 18f];
+    private const double WaveInterval = 1.5d;
+    private readonly List<WDir> _dirs = []; // 目前這一波各圓心相對場地中心的單位方向
+    private DateTime _waveAt, _prevWaveAt; // 生效時間
+    private int _ring = -1, _prevRing = -1; // rings 的索引；-1＝認不出
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        base.OnCastStarted(caster, spell);
+        if (spell.Action.ID != WatchedAction)
+            return;
+        var act = Module.CastFinishAt(spell);
+        var offset = spell.LocXZ - D062Peacekeeper.ArenaCenter;
+        var r = offset.Length();
+        var ring = RingOf(r);
+        if (Math.Abs((act - _waveAt).TotalSeconds) > 0.2d)
+        {
+            _prevRing = _ring;
+            _prevWaveAt = _waveAt;
+            _ring = ring;
+            _waveAt = act;
+            _dirs.Clear();
+        }
+        else if (ring != _ring)
+            _ring = -1; // 同一波混了不同圈：不是已知的型，不預告
+        if (r > 0.1f)
+            _dirs.Add(offset / r);
+    }
+
+    private static int RingOf(float r)
+    {
+        for (var i = 0; i < rings.Length; ++i)
+            if (Math.Abs(r - rings[i]) < 1.5f)
+                return i;
+        return -1;
+    }
+
+    private int NextRing()
+    {
+        if (_ring < 0)
+            return -1;
+        var chained = _prevRing >= 0 && (_waveAt - _prevWaveAt).TotalSeconds is > 1d and < 2d;
+        if (_ring == 1)
+            return chained && _prevRing != 1 ? 2 - _prevRing : -1;
+        return chained && _prevRing == 1 ? -1 : 1; // 端圈接在中圈之後＝這一組結束
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        if (!AIHints.LookaheadEnabled || _dirs.Count == 0)
+            return;
+        var next = NextRing();
+        var act = _waveAt.AddSeconds(WaveInterval);
+        if (next < 0 || act <= WorldState.CurrentTime)
+            return;
+        var radius = rings[next];
+        var center = D062Peacekeeper.ArenaCenter;
+        var count = _dirs.Count;
+        for (var i = 0; i < count; ++i)
+            hints.AddFutureForbiddenZone(Shape, center + _dirs[i] * radius, default, act);
+    }
+}
 class Peacefire(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Peacefire, 10f);
 class SmallBoreLaser(BossModule module) : Components.SimpleAOEs(module, (uint)AID.SmallBoreLaser, new AOEShapeRect(20f, 2f));
 
