@@ -6,6 +6,7 @@ public enum OID : uint
     GolemSoulstone = 0x477D // R2.2
 }
 
+// 契約：列舉以外的敵方讀條由 Components.UnclaimedCastAOEs 照沒有模組時的猜法畫；列進來＝不再猜。
 public enum AID : uint
 {
     AutoAttack = 872, // Boss->player, no cast, single-target
@@ -28,7 +29,8 @@ sealed class D082TempleGuardianStates : StateMachineBuilder
         TrivialPhase()
             .ActivateOnEnter<BoulderClapTrueGrit>()
             .ActivateOnEnter<Rockslide>()
-            .ActivateOnEnter<Obliterate>();
+            .ActivateOnEnter<Obliterate>()
+            .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }
 

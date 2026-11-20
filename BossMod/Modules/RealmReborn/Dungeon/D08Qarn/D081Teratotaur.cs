@@ -15,6 +15,7 @@ public enum OID : uint
     Platform3 = 0x1E87E4 // x1, EventObj type; eventstate 0 if active, 7 if inactive
 }
 
+// 契約：列舉以外的敵方讀條由 Components.UnclaimedCastAOEs 照沒有模組時的猜法畫；列進來＝不再猜。
 public enum AID : uint
 {
     // Boss
@@ -95,7 +96,8 @@ sealed class D081TeratotaurStates : StateMachineBuilder
             .ActivateOnEnter<Triclip>()
             .ActivateOnEnter<Mow>()
             .ActivateOnEnter<FrightfulRoar>()
-            .ActivateOnEnter<MortalRay>();
+            .ActivateOnEnter<MortalRay>()
+            .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }
 
