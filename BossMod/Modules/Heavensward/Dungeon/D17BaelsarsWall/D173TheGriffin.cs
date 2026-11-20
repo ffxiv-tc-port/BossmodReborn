@@ -179,6 +179,7 @@ class D173TheGriffinStates : StateMachineBuilder
             .ActivateOnEnter<SanguineBlade>()
             .ActivateOnEnter<ClawOfTheGriffin>()
             .ActivateOnEnter<BeakOfTheGriffin>()
+            .ActivateOnEnter<Lionshead>()
             .ActivateOnEnter<FlashPowder>();
     }
 }
