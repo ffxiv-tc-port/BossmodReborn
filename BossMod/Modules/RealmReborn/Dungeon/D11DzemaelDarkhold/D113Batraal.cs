@@ -7,6 +7,7 @@ public enum OID : uint
     VoidPitch = 0x6B4 // spawn during fight
 }
 
+// 契約：列舉以外的敵方讀條由 Components.UnclaimedCastAOEs 照沒有模組時的猜法畫；列進來＝不再猜。
 public enum AID : uint
 {
     AutoAttack = 870, // Boss->player, no cast, single-target
@@ -58,7 +59,8 @@ class D113BatraalStates : StateMachineBuilder
             .ActivateOnEnter<GrimFate>()
             .ActivateOnEnter<Desolation>()
             .ActivateOnEnter<AetherialSurge>()
-            .ActivateOnEnter<SeaOfPitch>();
+            .ActivateOnEnter<SeaOfPitch>()
+            .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }
 
