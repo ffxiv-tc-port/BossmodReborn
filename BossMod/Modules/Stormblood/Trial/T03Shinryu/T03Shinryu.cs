@@ -354,6 +354,9 @@ sealed class TailSlap(BossModule module) : Components.SimpleAOEGroups(module, [(
                 // never remove center square
                 if (actor.OID == (uint)OID.Platform && !actor.Position.AlmostEqual(default, 1f))
                 {
+                    // 中途進場沒看到初始狀態時先補主平台，不用空的聯集建場地。
+                    if (_active.Count < 1)
+                        _active.Add(new Square(Arena.Center, 30f));
                     _inactive.Add(new Square(actor.Position.Rounded(), 10f));
                     // New arena bounds are the main arena outline minus (difference) the broken tiles.
                     ArenaBoundsComplex tailSlapArena = new([.. _active], [.. _inactive]);
