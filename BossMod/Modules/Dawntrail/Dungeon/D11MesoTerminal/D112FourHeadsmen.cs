@@ -97,10 +97,14 @@ sealed class Prisons(BossModule module) : BossComponent(module)
 
     private void UpdateArena() => Arena.Bounds = borders.Count == 0 ? D112FourHeadsmen.DefaultBounds : new ArenaBoundsComplex(D112FourHeadsmen.DefaultRect, [.. D112FourHeadsmen.Differences, .. borders]);
 
-    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    // 在 Update 切而不是在畫雷達時切：AI 的尋路視窗取自模組場地，雷達沒畫時也要跟著換。
+    // 雷達的 pcSlot 實機恆為 PartyState.PlayerSlot，這裡直接用它。
+    public override void Update()
     {
+        if (Raid.Player() == null)
+            return;
         var isDefault = Arena.Bounds == D112FourHeadsmen.DefaultBounds;
-        if (_cell.AssignedBoss[pcSlot] == null)
+        if (_cell.AssignedBoss[PartyState.PlayerSlot] == null)
         {
             if (!isDefault)
             {
