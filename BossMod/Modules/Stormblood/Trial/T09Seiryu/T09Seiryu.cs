@@ -10,19 +10,19 @@ sealed class CoursingRiver(BossModule module) : Components.SimpleKnockbacks(modu
         if (_aoe.Casters.Count == 0 && Casters.Count != 0)
         {
             ref readonly var c = ref Casters.Ref(0);
-            hints.AddForbiddenZone(ShapeDistance.Rect(c.Direction.AlmostEqual(90f.Degrees(), Angle.DegToRad) ? c.Origin - new WDir(12.5f, default) : c.Origin - new WDir(-12.5f, default), c.Direction, 50f, default, 20f), c.Activation);
+            hints.AddForbiddenZone(ShapeDistance.InvertedCircle(Arena.Center - 25f * c.Direction.ToDirection(), 19f), c.Activation); // land within 19 of center after the 25 forward knockback
         }
     }
 }
 
 sealed class DragonsWake(BossModule module) : Components.RaidwideCast(module, (uint)AID.DragonsWake2);
 sealed class FifthElement(BossModule module) : Components.RaidwideCast(module, (uint)AID.FifthElement);
-sealed class FortuneBladeSigil(BossModule module) : Components.SimpleAOEs(module, (uint)AID.FortuneBladeSigil, new AOEShapeRect(100f, 2f));
+sealed class FortuneBladeSigil(BossModule module) : Components.SimpleAOEs(module, (uint)AID.FortuneBladeSigil, new AOEShapeRect(50.5f, 2f));
 
 sealed class InfirmSoul(BossModule module) : Components.BaitAwayCast(module, (uint)AID.InfirmSoul, 4f, tankbuster: true, damageType: AIHints.PredictedDamageType.Tankbuster);
 
 sealed class SerpentDescending(BossModule module) : Components.SpreadFromIcon(module, (uint)IconID.Spreadmarker, (uint)AID.SerpentDescending, 5f, 6d);
-sealed class YamaKagura(BossModule module) : Components.SimpleAOEs(module, (uint)AID.YamaKagura, new AOEShapeRect(60f, 3f));
+sealed class YamaKagura(BossModule module) : Components.SimpleAOEs(module, (uint)AID.YamaKagura, new AOEShapeRect(62.7f, 3f));
 sealed class Handprint(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Handprint1, new AOEShapeCone(40f, 90f.Degrees()));
 
 sealed class ForceOfNature1(BossModule module) : Components.SimpleKnockbacks(module, (uint)AID.ForceOfNature1, 10f)
@@ -34,7 +34,7 @@ sealed class ForceOfNature1(BossModule module) : Components.SimpleKnockbacks(mod
     }
 }
 sealed class ForceOfNature2(BossModule module) : Components.SimpleAOEs(module, (uint)AID.ForceOfNature2, 5f);
-sealed class KanaboBait(BossModule module) : Components.BaitAwayTethers(module, new AOEShapeCone(45f, 30f.Degrees()), (uint)TetherID.BaitAway, (uint)AID.KanaboVisual2, (uint)OID.IwaNoShiki, 5.9d)
+sealed class KanaboBait(BossModule module) : Components.BaitAwayTethers(module, new AOEShapeCone(44f, 30f.Degrees()), (uint)TetherID.BaitAway, (uint)AID.KanaboVisual2, (uint)OID.IwaNoShiki, 5.9d)
 {
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
@@ -46,7 +46,7 @@ sealed class KanaboBait(BossModule module) : Components.BaitAwayTethers(module, 
     }
 }
 
-sealed class KanaboAOE(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Kanabo, new AOEShapeCone(45f, 30f.Degrees()));
+sealed class KanaboAOE(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Kanabo, new AOEShapeCone(44f, 30f.Degrees()));
 sealed class BlueBolt(BossModule module) : Components.LineStack(module, aidMarker: (uint)AID.BlueBoltMarker, (uint)AID.BlueBolt, 5.9d, 83f, 2.5f)
 {
     public override void Update()
@@ -97,18 +97,6 @@ sealed class RedRush(BossModule module) : Components.BaitAwayTethers(module, new
         if (ActiveBaitsOn(actor).Count != 0)
         {
             hints.AddForbiddenZone(Arena.Bounds.Radius >= 20f ? ShapeDistance.InvertedCircle(Arena.Center, 5f) : ShapeDistance.Circle(Arena.Center, 18.5f), WorldState.FutureTime(ActivationDelay));
-        }
-    }
-}
-
-sealed class ArenaChange(BossModule module) : BossComponent(module)
-{
-
-    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
-    {
-        if (spell.Action.ID == (uint)AID.StrengthOfSpirit) // in phase 2 the arena no longer got a wall and we need to add back the player hitboxradius
-        {
-            Arena.Bounds = Seiryu.Phase2Bounds;
         }
     }
 }
