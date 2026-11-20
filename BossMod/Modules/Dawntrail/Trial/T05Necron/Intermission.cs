@@ -6,6 +6,8 @@ sealed class Prisons(BossModule module) : BossComponent(module)
 
     private static readonly WPos[] prisonPositions = [new(100f, -100f), new(300f, -100f), new(300f, 100f), new(300f, 300f),
     new(100f, 300f), new(-100f, 300f), new(-100f, 100f), new(-100f, -100f)];
+    // 每座監牢的場地只建一次：場地換成另一個實例會讓三角化與尋路底圖快取（存在場地實例上）失效，每幀 new＝每幀重建。
+    private readonly ArenaBoundsComplex?[] prisonArenas = new ArenaBoundsComplex?[8];
 
     public override void OnEventEnvControl(byte index, uint state)
     {
@@ -64,7 +66,7 @@ sealed class Prisons(BossModule module) : BossComponent(module)
                 var pos = prisonPositions[i];
                 if (playerPos.InSquare(pos, 50f))
                 {
-                    var arena = new ArenaBoundsComplex([new Polygon(pos, 9.5f, 32), new Polygon(pos + new WDir(-5f, -21f), 4.5f, 32),
+                    var arena = prisonArenas[i] ??= new ArenaBoundsComplex([new Polygon(pos, 9.5f, 32), new Polygon(pos + new WDir(-5f, -21f), 4.5f, 32),
                         new Polygon(pos + new WDir(14f, -14f), 4.5f, 32), new Polygon(pos + new WDir(20f, default), 3.25f, 32)]);
                     Arena.Bounds = arena;
                     Arena.Center = arena.Center;
