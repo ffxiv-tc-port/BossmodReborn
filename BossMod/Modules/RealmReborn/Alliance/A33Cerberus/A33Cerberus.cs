@@ -10,7 +10,7 @@ class LightningBolt2(BossModule module) : Components.ChargeAOEs(module, (uint)AI
 class HoundOutOfHell(BossModule module) : Components.ChargeAOEs(module, (uint)AID.HoundOutOfHell, 7);
 class Ululation(BossModule module) : Components.RaidwideCast(module, (uint)AID.Ululation);
 
-[ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 111, NameID = 3224)]
+[ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 111, NameID = 3234)]
 public class A33Cerberus(WorldState ws, Actor primary) : BossModule(ws, primary, new(0, -197), new ArenaBoundsRect(20, 40))
 {
     protected override void DrawEnemies(int pcSlot, Actor pc)
