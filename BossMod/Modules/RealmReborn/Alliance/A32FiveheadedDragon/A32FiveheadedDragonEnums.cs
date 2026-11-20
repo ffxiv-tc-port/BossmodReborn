@@ -16,7 +16,7 @@ public enum OID : uint
 
 public enum AID : uint
 {
-    AutoAttack1 = 3355, // Boss->players, no cast, range 6+R ?-degree cone
+    AutoAttack1 = 3355, // Boss->players, no cast, range 6+R 120-degree cone
     WhiteBreath = 3295, // Boss->self, 3.5s cast, range 22+R 120-degree cone
     BreathOfFire = 3285, // FiveHeadedDragonHelper->location, 3.0s cast, range 6 circle
     Fireball = 3290, // DragonfireFly->player, no cast, single-target

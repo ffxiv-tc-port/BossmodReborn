@@ -1,5 +1,7 @@
 ﻿namespace BossMod.RealmReborn.Alliance.A32FiveheadedDragon;
 
+// 普攻是朝目標的無讀條扇形。
+class AutoAttackCleave(BossModule module) : Components.Cleave(module, (uint)AID.AutoAttack1, new AOEShapeCone(14f, 60f.Degrees()));
 class WhiteBreath(BossModule module) : Components.SimpleAOEs(module, (uint)AID.WhiteBreath, new AOEShapeCone(30, 60.Degrees()));
 class BreathOfFire(BossModule module) : Components.SimpleAOEs(module, (uint)AID.BreathOfFire, 6);
 class BreathOfLight(BossModule module) : Components.SimpleAOEs(module, (uint)AID.BreathOfLight, 6);

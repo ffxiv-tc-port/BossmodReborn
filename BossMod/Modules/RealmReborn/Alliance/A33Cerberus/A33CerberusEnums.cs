@@ -20,7 +20,7 @@ public enum OID : uint
 public enum AID : uint
 {
     AutoAttack1 = 3509, // Boss->player, no cast, single-target
-    PredatorClaws = 3245, // Boss->self, no cast, range 9+R ?-degree cone
+    PredatorClaws = 3245, // Boss->self, no cast, range 9+R 90-degree cone
     TailBlow = 3246, // Boss->self, 2.0s cast, range 9+R 90-degree cone
     Innerspace = 3248, // Boss->player, no cast, single-target
     Slabber = 3241, // Boss->location, 3.0s cast, range 8 circle

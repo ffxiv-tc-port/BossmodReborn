@@ -5,6 +5,7 @@ class A33CerberusStates : StateMachineBuilder
     public A33CerberusStates(BossModule module) : base(module)
     {
         TrivialPhase()
+            .ActivateOnEnter<PredatorClaws>()
             .ActivateOnEnter<TailBlow>()
             .ActivateOnEnter<Slabber>()
             .ActivateOnEnter<Mini>()

@@ -1,5 +1,6 @@
 ﻿namespace BossMod.RealmReborn.Alliance.A33Cerberus;
 
+class PredatorClaws(BossModule module) : Components.Cleave(module, (uint)AID.PredatorClaws, new AOEShapeCone(19.8f, 45f.Degrees()));
 class TailBlow(BossModule module) : Components.SimpleAOEs(module, (uint)AID.TailBlow, new AOEShapeCone(19, 45.Degrees()));
 class Slabber(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Slabber, 8);
 class Mini(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Mini, 9);
