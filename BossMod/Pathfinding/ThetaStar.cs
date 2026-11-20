@@ -43,6 +43,8 @@ public sealed class ThetaStar
     private float _startMaxG;
     private float _startPrio;
     private Score _startScore;
+    // 起點格不可通行但旁邊有可通行格（擊退撞牆後站在場地邊界格）：搜尋把起點當成 maxG＝_startMaxG 的可通行格，見 Start。
+    private bool _virtualStart;
 
     private int _bestIndex; // node with best score
     private int _fallbackIndex; // best 'fallback' node: node that we don't necessarily want to go to, but might want to move closer to it (to the parent)
@@ -81,6 +83,9 @@ public sealed class ThetaStar
         }
     }
 
+    /// <summary>這一次搜尋的起點格不可通行，改用鄰格的最小 maxG 當起點的危險期限（見 <see cref="Start"/>）。</summary>
+    public bool StartFromNeighbourMaxG => _virtualStart;
+
     public ref Node NodeByIndex(int index) => ref _nodes[index];
     public WPos CellCenter(int index) => _map.GridToWorld(index % _map.Width, index / _map.Width, 0.5f, 0.5f);
 
@@ -110,10 +115,19 @@ public sealed class ThetaStar
         PrefillH();
 
         var startFrac = map.WorldToGridFrac(startPos);
-        var start = map.ClampToGrid(Map.FracToGrid(startFrac));
+        var unclamped = Map.FracToGrid(startFrac);
+        var start = map.ClampToGrid(unclamped);
         StartNodeIndex = _bestIndex = _fallbackIndex = _map.GridToIndex(start.x, start.y);
         _startMaxG = _map.PixelMaxG[StartNodeIndex];
         _startPrio = _map.PixelPriority[StartNodeIndex];
+        // 原本的負值會沿路徑一路被 min 帶下去，所有格子落在同一級、餘裕也不是真的期限；改取鄰格的最小 maxG 當起點的危險期限（偏保守）。
+        // 玩家在尋路視窗外（起點是夾到邊上的格子）或四周都不可通行時照舊：舊行為會把人往視窗裡帶。
+        _virtualStart = false;
+        if (_startMaxG < 0f && start == unclamped && TryMinPassableNeighbourMaxG(start.x, start.y, out var neighbourMaxG))
+        {
+            _startMaxG = neighbourMaxG;
+            _virtualStart = true;
+        }
         //if (_startMaxG < 0)
         //    _startMaxG = float.MaxValue; // TODO: this is a hack that allows navigating outside the obstacles, reconsider...
         _startScore = CalculateScore(_startMaxG, _startMaxG, _startMaxG, StartNodeIndex);
@@ -135,6 +149,26 @@ public sealed class ThetaStar
             Score = _startScore,
         };
         AddToOpen(StartNodeIndex);
+    }
+
+    private bool TryMinPassableNeighbourMaxG(int x, int y, out float minG)
+    {
+        minG = float.MaxValue;
+        var found = false;
+        for (var ny = Math.Max(0, y - 1); ny <= Math.Min(_map.Height - 1, y + 1); ++ny)
+        {
+            for (var nx = Math.Max(0, x - 1); nx <= Math.Min(_map.Width - 1, x + 1); ++nx)
+            {
+                var g = _map.PixelMaxG[_map.GridToIndex(nx, ny)];
+                if (g >= 0f)
+                {
+                    found = true;
+                    if (g < minG)
+                        minG = g;
+                }
+            }
+        }
+        return found;
     }
 
     // returns whether search is to be terminated; on success, first node of the open list would contain found goal
@@ -343,11 +377,16 @@ public sealed class ThetaStar
 
         while (true)
         {
-            ref var maxG = ref _map.PixelMaxG[y * _map.Width + x];
+            var cell = y * _map.Width + x;
+            var maxG = _map.PixelMaxG[cell];
 
             // If this pixel is considered impassable
             if (maxG < 0f)
-                return false;
+            {
+                if (!_virtualStart || cell != StartNodeIndex)
+                    return false;
+                maxG = _startMaxG;
+            }
 
             // Update the minG we have seen on this line
             if (maxG < lineOfSightMinG)
@@ -398,8 +437,11 @@ public sealed class ThetaStar
         if (destNode.OpenHeapIndex < 0 && destNode.Score >= Score.SemiSafeAsStart)
             return;
 
-        ref var destPixG = ref _map.PixelMaxG[nodeIndex];
-        ref var parentPixG = ref _map.PixelMaxG[parentIndex];
+        var destPixG = _map.PixelMaxG[nodeIndex];
+        var parentPixG = _map.PixelMaxG[parentIndex];
+        // 只替換「從起點出發」那一側：走回起點格照舊被下一行擋掉，起點的父節點鏈因此永遠不變。
+        if (_virtualStart && parentIndex == StartNodeIndex)
+            parentPixG = _startMaxG;
         if (destPixG < 0f && parentPixG >= 0f)
             return; // impassable
 

@@ -385,6 +385,10 @@ public struct NavigationDecision
         ref var bestNode = ref ctx.ThetaStar.NodeByIndex(bestNodeIndex);
         var waypoints = GetFirstWaypoints(ctx.ThetaStar, ctx.Map, bestNodeIndex, playerPosition);
         var leeway = bestNode.PathLeeway;
+        // 終點節點的餘裕只算最後一段直線（路在安全格轉彎後重算成無限大），會讓「急迫門檻」誤判成不急。
+        // 只在起點格不可通行時改取整條路的最小值（只會更急）；起點可通行時刻意維持原值，不改既有行為。
+        if (ctx.ThetaStar.StartFromNeighbourMaxG && bestNodeIndex != ctx.ThetaStar.StartNodeIndex)
+            leeway = Math.Min(leeway, LeewayAlongPath(ctx.ThetaStar, ctx.Map, bestNodeIndex));
         var steering = lookahead.Applied && !lookahead.StartGood;
         // 接不上：照併入的餘裕動身；接得上但還要走一段：照預判算的最晚動身時間（詠唱太長也會趕不上）
         var lookaheadBy = steering ? leeway : lookahead.StartGood && lookahead.MoveBySeconds != float.MaxValue ? lookahead.MoveBySeconds - ServerJudgementLeadSeconds : float.MaxValue;
