@@ -436,7 +436,7 @@ public sealed class Plugin : IDalamudPlugin
         // 這不是 AccessViolationException 的防護,處理的只有受管理例外。
         try
         {
-            _movementOverride.UpdateAutoMovementPause();
+            _movementOverride.UpdateAutoMovementPause(_ws.CurrentTime);
         }
         catch (Exception ex)
         {

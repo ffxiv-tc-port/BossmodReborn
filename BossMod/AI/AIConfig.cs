@@ -120,6 +120,14 @@ sealed class AIConfig : ConfigNode
     [PropertySlider(0.2f, 1f)]
     public float ArrivalHoldDistance = 0.3f;
 
+    // 預設開是使用者裁的；只發提示、不改移動。
+    [PropertyDisplay("Pause key: warn when the danger under you is about to go off", tooltip: "While the \"pause automatic movement\" key (Action tweaks) is held and the AI works out that you have to start moving out of the danger zone under you within the time below, prints one short line in chat. Once per key press: let go and press again to be warned again.\nOnly a warning - nothing about movement changes. Needs the AI to be on.")]
+    public bool PauseKeyDangerNotice = true;
+
+    [PropertyDisplay("Pause key: danger threshold (seconds)", tooltip: "How soon you have to start moving out of the danger zone under you, following the AI's own escape route, before the pause key options above react. It is the same deadline the AI uses to decide whether a cast still fits before you have to move.")]
+    [PropertySlider(0.2f, 3f)]
+    public float PauseKeyDangerSeconds = 1f;
+
     [PropertyDisplay("Squadron commands: order squadron members onto mechanic targets", tooltip: "Only in Squadron Command Missions, and only for bosses whose module names a target for the squadron (for example adds that explode if left alive). When fewer than two squadron members attack that target for 1.5 seconds, issues the \"Engage\" order on it. Never changes your own target.\nWorks whether or not the AI is enabled. Never issues Disengage, Re-engage or the squadron limit break.")]
     public bool SquadronCommands = true;
 

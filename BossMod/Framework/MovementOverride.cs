@@ -77,23 +77,58 @@ public sealed unsafe class MovementOverride : IDisposable
     /// <summary>「暫停自動移動」的長說明印過了沒；印過之後只留短行。</summary>
     private bool _explainedAutoMovementPause;
 
+    private readonly AI.AIConfig _aiConfig = Service.Config.Get<AI.AIConfig>();
+    /// <summary>這一次按住暫停鍵期間「腳下危險區快生效」的提示發過了沒；放開才歸零。</summary>
+    private bool _pauseDangerNoticeShown;
+
+    /// <summary>
+    /// 腳下這一格會被打時，照 AI 尋路選的路還剩幾秒就得動身（與詠唱讓位讀的是同一個期限）。
+    /// </summary>
+    /// <remarks>AI 沒開、腳下安全、或期限超過 0.5 秒沒更新＝null。只讀一個 Volatile long，不配置。</remarks>
+    public static double? FootDangerMoveIn(Pathfinding.NavigationDecision.Context? nav, DateTime now)
+        => nav != null && nav.TryGetPathDeadline(now, out var by) ? (by - now).TotalSeconds : null;
+
     /// <summary>
     /// 拍下這一幀的「暫停自動移動」鍵狀態。
     /// </summary>
     /// <remarks>
-    /// 由 <c>Plugin.DrawUI</c> 每幀呼叫一次，是 <see cref="AutoMovementPaused"/> 唯一的寫入點。
+    /// 由 <c>Plugin.DrawUI</c> 每幀呼叫一次，是 <see cref="AutoMovementPaused"/> 唯一的寫入點；<paramref name="now"/> 是 WorldState 的時間（AI 發布期限用的同一個時鐘）。
     /// 📌 log 走 <c>Debug</c>：用途是讓「我按著 Alt 它怎麼還在自己走」與「該閃卻站著不動」這種回報分辨「鍵根本沒被認到」
     /// 與「認到了但走的人不是 BMR」（例如 vnavmesh 在走）；這顆鍵常兼任別的熱鍵，平時不該佔一般 log。
     /// 只在翻轉時印——這支每幀都會被呼叫到。放開那一行附按住的秒數。
     /// </remarks>
-    public void UpdateAutoMovementPause()
+    public void UpdateAutoMovementPause(DateTime now)
     {
         var key = _tweaksConfig.PauseAutoMoveKey;
-        AutoMovementPaused = key != ActionTweaksConfig.ModifierKey.None && IsModifierHeld(key);
-        if (AutoMovementPaused == _loggedAutoMovementPaused)
+        var held = key != ActionTweaksConfig.ModifierKey.None && IsModifierHeld(key);
+        // 只在鍵按著時才讀 AI 的期限：沒按的幀與加這段之前完全相同。
+        var moveIn = held ? FootDangerMoveIn(AI.AIManager.Instance?.Beh?.NavigationContext, now) : null;
+        AutoMovementPaused = held;
+        LogPauseKeyFlip(held, key);
+        UpdatePauseDangerNotice(held, key, moveIn);
+    }
+
+    /// <summary>暫停鍵按著、腳下危險區在門檻內就得動身：同一次按住只在聊天框提示一次（不改任何行為）。</summary>
+    private void UpdatePauseDangerNotice(bool held, ActionTweaksConfig.ModifierKey key, double? moveIn)
+    {
+        if (!held)
+        {
+            _pauseDangerNoticeShown = false;
             return;
-        _loggedAutoMovementPaused = AutoMovementPaused;
-        if (AutoMovementPaused)
+        }
+        if (_pauseDangerNoticeShown || !_aiConfig.PauseKeyDangerNotice || moveIn is not double s || s > _aiConfig.PauseKeyDangerSeconds)
+            return;
+        _pauseDangerNoticeShown = true;
+        Service.ChatGui.Print($"[BMR] 「暫停自動移動」鍵（{key}）按著，腳下的危險區快生效了");
+        Service.Logger.Information($"[MovementOverride] 暫停自動移動鍵（{key}）已按住 {(Environment.TickCount64 - _autoMovementPausedSinceMs) / 1000d:f1} 秒，腳下危險區 {s:f1} 秒內就得動身：聊天框提示一次（同一次按住不再提示）");
+    }
+
+    private void LogPauseKeyFlip(bool held, ActionTweaksConfig.ModifierKey key)
+    {
+        if (held == _loggedAutoMovementPaused)
+            return;
+        _loggedAutoMovementPaused = held;
+        if (held)
         {
             _autoMovementPausedSinceMs = Environment.TickCount64;
             // 長說明只印第一次；翻轉本身仍然每次都印，那才是要保留的訊號。
