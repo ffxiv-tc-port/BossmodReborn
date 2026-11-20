@@ -51,7 +51,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         public ArenaBounds Bounds;
         public WPos Center;
         // 下游移動閘門與外部指定的移動方向，只給 LogStillInDanger 診斷用
-        public bool AutoMovePaused, UserMoveRequested, Moving, MovementBlocked, VnavPath, MoveMightInterruptCast, ExternalForcedMovement;
+        public bool AutoMovePaused, UserMoveRequested, Moving, MovementBlocked, VnavPath, MoveMightInterruptCast, ExternalForcedMovement, EscapeHatchHeld;
     }
 
     /// <summary>尋路用的 Context（背景執行緒寫；外部只准讀它的 <c>TryGetLookaheadDeadline</c>／<c>TryGetPathDeadline</c>）。</summary>
@@ -250,6 +250,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             VnavPath = gates.VnavPath,
             MoveMightInterruptCast = gates.CastGuard,
             ExternalForcedMovement = autorot.Hints.ForcedMovement != null,
+            EscapeHatchHeld = gates.EscapeHatch,
         };
 
         // note: if there are pending knockbacks, don't update navigation decision to avoid fucking up positioning
@@ -881,6 +882,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
     /// <remarks>
     /// 只讀，不改任何移動決策。玩家格危險度＝生效秒數扣掉 ActivationTimeCushion（0＝已在緩衝內）。
     /// 要連續 0.5 秒才記：危險區剛出現那一刻，角色下一幀才起步，不算。
+    /// 玩家格不可通行（負值）時看不出生效時間，改看覆蓋腳下的禁區：1.5 秒內有一個要生效才記（只在節流放行後才掃）。
     /// 契約：只從 UpdateMovement 呼叫（Execute 後半段，號誌區段內），讀的遊戲狀態都來自 _ex 快照。
     /// </remarks>
     private void LogStillInDanger(bool yieldMovement, string? branchReason, bool mustMoveNow)
@@ -888,7 +890,8 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         ref readonly var navi = ref _naviDecision;
         var g = navi.DiagPlayerMaxG;
         var cushion = _naviActivationCushion;
-        var imminent = navi.Destination != null && navi.DiagPlayerInWindow && !_ex.Moving && g >= 0f && (g == 0f || g + cushion <= 1.5f);
+        var blockedCell = g < 0f;
+        var imminent = navi.Destination != null && navi.DiagPlayerInWindow && !_ex.Moving && (blockedCell || g == 0f || g + cushion <= 1.5f);
         if (!imminent)
         {
             _stillInDangerSince = default;
@@ -900,6 +903,9 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         if (still < 0.5d || (_ex.Now - _stillInDangerLogged).TotalSeconds < 1d)
             return;
         _stillInDangerLogged = _ex.Now;
+        var blockedSoonest = blockedCell ? SoonestZoneAt(_ex.PlayerPosition) : 0d;
+        if (blockedSoonest > 1.5d)
+            return; // 站在場地邊界格、腳下沒有快生效的禁區：不是「該閃卻沒動」
 
         var reasons = new List<string>(4);
         if (branchReason != null)
@@ -907,6 +913,13 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         if (yieldMovement)
             reasons.Add("讓位給預設集的「自動移動」模組（本 AI 不設導航目標）");
         var target = ctrl.NaviTargetPos;
+        // 這三道擋的是所有自動移動（含預設集的自動移動模組），讓位時也要列
+        if (_ex.AutoMovePaused)
+            reasons.Add("「暫停自動移動」鍵按著");
+        if (_ex.EscapeHatchHeld)
+            reasons.Add("逃生鍵（詠唱期間允許移動需按住的按鍵）按著");
+        if (_ex.UserMoveRequested)
+            reasons.Add("使用者有移動輸入，AI 讓位");
         if (target == null && !yieldMovement && branchReason == null)
         {
             if (_ex.Now < _navStartTime)
@@ -916,14 +929,10 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         }
         if (target != null)
         {
-            if (_ex.AutoMovePaused)
-                reasons.Add("「暫停自動移動」鍵按著");
             if (_ex.VnavPath)
                 reasons.Add("vnavmesh 回報路徑執行中，BMR 讓路");
             if (_ex.MovementBlocked)
                 reasons.Add("移動被出招鎖住（MovementBlocked）");
-            if (_ex.UserMoveRequested)
-                reasons.Add("使用者有移動輸入，AI 讓位");
             if (!ctrl.AllowInterruptingCastByMovement && _ex.MoveMightInterruptCast)
                 reasons.Add($"保護詠唱：移動可能打斷詠唱（詠唱剩 {_ex.PlayerCastRemaining ?? 0f:f1} 秒、尋路餘裕 {navi.LeewaySeconds:f1} 秒）");
             if (!yieldMovement && _ex.ExternalForcedMovement)
@@ -934,8 +943,30 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         if (reasons.Count == 0)
             reasons.Add("找不到擋住的閘門（導航目標已交給控制器；可能是遊戲本身此刻不收移動輸入，例如被束縛或動作鎖定）");
         var dist = (navi.Destination!.Value - _ex.PlayerPosition).Length();
-        Service.Logger.Information($"[AI] 腳下危險區即將生效（玩家格危險度 {g:f2} 秒＋緩衝 {cushion:f1} 秒）、尋路目的地在 {dist:f1} 碼外，角色卻已 {still:f1} 秒沒動：{string.Join("；", reasons)}");
+        var cell = blockedCell
+            ? $"玩家站在不可通行格（場地邊界或障礙物），覆蓋腳下的禁區最早 {blockedSoonest:f1} 秒後生效；緩衝 {cushion:f1} 秒"
+            : $"玩家格危險度 {g:f2} 秒＋緩衝 {cushion:f1} 秒";
+        Service.Logger.Information($"[AI] 腳下危險區即將生效（{cell}）、尋路目的地在 {dist:f1} 碼外，角色卻已 {still:f1} 秒沒動：{string.Join("；", reasons)}");
         LogDangerSources(_ex.PlayerPosition);
+    }
+
+    // 覆蓋 pos 的禁區最早幾秒後生效（已生效＝0、沒有＝MaxValue）；禁區來源與 LogDangerSources 相同
+    private double SoonestZoneAt(WPos pos)
+    {
+        var soonest = double.MaxValue;
+        if (_exLaunched)
+        {
+            foreach (var z in _naviForbidden)
+                if (z.Item1(pos) <= 0f)
+                    soonest = Math.Min(soonest, Math.Max(0d, (z.Item2 - _ex.Now).TotalSeconds));
+        }
+        else
+        {
+            foreach (var z in autorot.Hints.ForbiddenZones)
+                if (z.shapeDistance(pos) <= 0f)
+                    soonest = Math.Min(soonest, Math.Max(0d, (z.activation - _ex.Now).TotalSeconds));
+        }
+        return soonest;
     }
 
     // 緊跟在上面那行之後（同樣每秒最多一次）。後半段可能在執行緒池上：禁區讀丟進尋路的那份快照，查 actor 與模組的部分排到框架執行緒再寫 log
