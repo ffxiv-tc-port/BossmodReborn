@@ -10,6 +10,7 @@ public enum OID : uint
     GymnasticEggplant = 0x3D50, // R0.84, icon 2, needs to be killed in order from 1 to 5 for maximum rewards
     GymnasticOnion = 0x3D4F, // R0.84, icon 1, needs to be killed in order from 1 to 5 for maximum rewards
     GymnasticTomato = 0x3D52, // R0.84, icon 4, needs to be killed in order from 1 to 5 for maximum rewards
+    GymnasiouLampas = 0x3D4D, //R=2.001, bonus loot adds
     Helper = 0x233C
 }
 
@@ -81,7 +82,7 @@ class GymnasiouLeonStates : StateMachineBuilder
 public class GymnasiouLeon(WorldState ws, Actor primary) : THTemplate(ws, primary)
 {
     private static readonly uint[] bonusAdds = [(uint)OID.GymnasticEggplant, (uint)OID.GymnasticGarlic, (uint)OID.GymnasticOnion, (uint)OID.GymnasticTomato,
-    (uint)OID.GymnasticQueen, (uint)OID.GymnasiouLyssa];
+    (uint)OID.GymnasticQueen, (uint)OID.GymnasiouLyssa, (uint)OID.GymnasiouLampas];
     public static readonly uint[] All = [(uint)OID.Boss, (uint)OID.GymnasiouLeonMikros, .. bonusAdds];
 
     protected override void DrawEnemies(int pcSlot, Actor pc)
@@ -99,11 +100,12 @@ public class GymnasiouLeon(WorldState ws, Actor primary) : THTemplate(ws, primar
             var e = hints.PotentialTargets[i];
             e.Priority = e.Actor.OID switch
             {
-                (uint)OID.GymnasticOnion => 6,
-                (uint)OID.GymnasticEggplant => 5,
-                (uint)OID.GymnasticGarlic => 4,
-                (uint)OID.GymnasticTomato => 3,
-                (uint)OID.GymnasticQueen or (uint)OID.GymnasiouLyssa => 2,
+                (uint)OID.GymnasticOnion => 7,
+                (uint)OID.GymnasticEggplant => 6,
+                (uint)OID.GymnasticGarlic => 5,
+                (uint)OID.GymnasticTomato => 4,
+                (uint)OID.GymnasticQueen or (uint)OID.GymnasiouLyssa => 3,
+                (uint)OID.GymnasiouLampas => 2,
                 (uint)OID.GymnasiouLeonMikros => 1,
                 _ => 0
             };
