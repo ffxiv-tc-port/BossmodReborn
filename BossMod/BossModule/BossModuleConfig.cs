@@ -22,6 +22,9 @@ public sealed class BossModuleConfig : ConfigNode
     [PropertyDisplay("Show radar in trials and raids without a boss module", tooltip: "In trials and raids (8-player and alliance raids) that have no dedicated boss module, the radar still opens and shows the area AI pathfinds in, enemies, and the danger zones guessed from enemy casts (the same guesses AI dodges when there is no module).\nDisplay only: how AI dodges is not changed")]
     public bool ShowRadarInTrialsWithoutModule = true;
 
+    [PropertyDisplay("Show radar in dungeons when no boss module is loaded", tooltip: "In dungeons, between bosses (and at bosses that have no dedicated module) the radar still opens and shows the area AI pathfinds in, the walls from the obstacle map when this dungeon has one, enemies, and the danger zones guessed from enemy casts.\nDisplay only: how AI moves is not changed")]
+    public bool ShowRadarInDungeonsWithoutModule = true;
+
     [PropertyDisplay("Lock radar and hint window movement and mouse interaction")]
     public bool Lock = false;
 

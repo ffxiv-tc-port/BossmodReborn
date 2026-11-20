@@ -33,8 +33,9 @@ public sealed class BossModuleMainWindow : UIWindow
     {
         base.PreOpenCheck();
         var showZoneModule = ShowZoneModule();
-        // 通用雷達只在沒有任何模組載入、也沒有區域模組要畫時才問；設定關著或有模組時在這一行短路
-        _showGenericRadar = BossModuleManager.Config.Enable && BossModuleManager.Config.ShowRadarInTrialsWithoutModule && !showZoneModule && _mgr.LoadedModules.Count == 0 && _genericRadar.ShouldShow();
+        // 通用雷達只在沒有任何模組載入、也沒有區域模組要畫時才問；兩個通用雷達設定都關著或有模組時在這一行短路
+        _showGenericRadar = BossModuleManager.Config.Enable && (BossModuleManager.Config.ShowRadarInTrialsWithoutModule || BossModuleManager.Config.ShowRadarInDungeonsWithoutModule)
+            && !showZoneModule && _mgr.LoadedModules.Count == 0 && _genericRadar.ShouldShow();
         IsOpen = BossModuleManager.Config.Enable && (_mgr.LoadedModules.Count > 0 || showZoneModule || _showGenericRadar);
         ShowCloseButton = _mgr.ActiveModule != null && !showZoneModule;
         WindowName = _showGenericRadar ? _genericRadarWindowName : showZoneModule ? ModuleWindowName(_zmm.ActiveModule?.GetType(), true) : _mgr.ActiveModule != null ? ModuleWindowName(_mgr.ActiveModule.GetType(), false) : _moduleListWindowName;

@@ -2,13 +2,14 @@ using Dalamud.Bindings.ImGui;
 
 namespace BossMod;
 
-// 沒有專屬模組的討伐戰與大型任務用的雷達：畫 AI 這一幀用的尋路範圍、敵我位置、AIHintsBuilder 從讀條猜出來的危險區。
+// 沒有專屬模組的討伐戰與大型任務、以及迷宮挑戰裡沒有模組載入時（首領之間的路上、沒有模組的首領）用的雷達：畫 AI 這一幀用的尋路範圍、敵我位置、AIHintsBuilder 從讀條猜出來的危險區。
 // 契約：只讀 AIHints／AIHintsBuilder，不寫回，也不改它們持有的邊界實例（顯示用的邊界自己建）。
 // 只在主執行緒、AIHintsBuilder.Update 之後呼叫；Draw 只在 ShouldShow 為 true 的那一幀呼叫。
 public sealed class GenericTrialRadar
 {
     private const uint ContentTypeTrial = 4; // ContentFinderCondition.ContentType：討伐殲滅戰
     private const uint ContentTypeRaid = 5; // 大型任務：8 人與 24 人團隊任務都是這一類
+    private const uint ContentTypeDungeon = 2; // 迷宮挑戰
     private static readonly BossModuleConfig _config = Service.Config.Get<BossModuleConfig>();
     private static readonly AI.AIConfig _aiConfig = Service.Config.Get<AI.AIConfig>();
     private static readonly List<RelTriangle> _noTriangles = [];
@@ -36,6 +37,7 @@ public sealed class GenericTrialRadar
     private ushort _cfc;
     private BossModuleInfo.Maturity _minMaturity;
     private bool _eligible;
+    private bool _dungeon; // 資格來自「迷宮挑戰」（看 ShowRadarInDungeonsWithoutModule），否則看 ShowRadarInTrialsWithoutModule
     private bool _faulted;
 
     // 顯示邊界的來源快照：任何一項變了才重建
@@ -44,7 +46,11 @@ public sealed class GenericTrialRadar
     private float _srcHalfHeight;
     private Angle _srcRotation;
     private bool _walls; // 外框是障礙物圖的牆（多邊形），不是尋路範圍的方框
-    private WDir _centerOffset; // 顯示中心相對尋路中心
+    private WDir _centerOffset; // 顯示中心相對尋路中心（捲動模式下是相對顯示視窗中心）
+    // 捲動模式：障礙物圖比尋路視窗大（迷宮挑戰的整張圖）時，牆照「顯示視窗」建，視窗中心離尋路視窗中心超過 _scrollStep 格才移過去重建
+    private bool _scroll;
+    private int _scrollX, _scrollY; // 顯示視窗中心（障礙物圖的格座標）
+    private int _scrollStep;
     private float _screenHalfSize;
     private int _generation;
     private int _frame;
@@ -57,7 +63,8 @@ public sealed class GenericTrialRadar
         _arena = new(default, new ArenaBoundsSquare(1f));
     }
 
-    // 在討伐戰或大型任務裡、這個副本沒有會載入的模組、而且還有東西可看（戰鬥中或場上有敵人）
+    // 在討伐戰或大型任務裡、這個副本沒有會載入的模組，或在迷宮挑戰裡（有沒有模組由呼叫端看「現在有沒有模組載入」），
+    // 而且還有東西可看（戰鬥中或場上有敵人）
     public bool ShouldShow()
     {
         var cfc = _ws.CurrentCFCID;
@@ -67,11 +74,14 @@ public sealed class GenericTrialRadar
             _cfc = cfc;
             _minMaturity = minMaturity;
             _faulted = false;
-            _eligible = cfc != 0 && IsTrialWithoutModule(cfc, minMaturity);
-            if (_eligible)
+            _dungeon = cfc != 0 && IsDungeon(cfc);
+            _eligible = _dungeon || cfc != 0 && IsTrialWithoutModule(cfc, minMaturity);
+            if (_dungeon)
+                Service.Logger.Information($"[GenericTrialRadar] 副本 {cfc} 是迷宮挑戰：沒有首領模組載入、場上有敵人或戰鬥中時顯示通用雷達（設定「迷宮挑戰沒有模組載入時也顯示雷達」）。");
+            else if (_eligible)
                 Service.Logger.Information($"[GenericTrialRadar] 副本 {cfc} 是討伐戰或大型任務而且沒有會載入的模組：場上有敵人或戰鬥中時顯示通用雷達。");
         }
-        if (!_eligible || _faulted)
+        if (!_eligible || _faulted || !(_dungeon ? _config.ShowRadarInDungeonsWithoutModule : _config.ShowRadarInTrialsWithoutModule))
             return false;
         var player = _ws.Party.Player();
         return player != null && (player.InCombat || _hints.PotentialTargets.Count != 0);
@@ -94,6 +104,19 @@ public sealed class GenericTrialRadar
         catch (Exception ex)
         {
             Service.Logger.Error(ex, $"[GenericTrialRadar] 查不到副本 {cfc} 的類型，這個副本不顯示通用雷達。");
+            return false;
+        }
+    }
+
+    public static bool IsDungeon(uint cfc)
+    {
+        try
+        {
+            return Service.LuminaRow<Lumina.Excel.Sheets.ContentFinderCondition>(cfc)?.ContentType.RowId == ContentTypeDungeon;
+        }
+        catch (Exception ex)
+        {
+            Service.Logger.Error(ex, $"[GenericTrialRadar] 查不到副本 {cfc} 的類型，當成不是迷宮挑戰。");
             return false;
         }
     }
@@ -139,23 +162,40 @@ public sealed class GenericTrialRadar
     {
         var src = _hints.PathfindMapBounds;
         var obstacles = _hints.PathfindMapObstacles;
-        // 整張圖都在尋路視窗裡（視窗不跟著玩家捲動）才把牆畫出來；刻意不畫會捲動的大圖：每走一格就要重建一次外框
+        var view = obstacles.Rect;
         var bitmap = _aiConfig.DisableObstacleMaps ? null : obstacles.Bitmap;
-        if (bitmap != null && (obstacles.Rect.Left > 0 || obstacles.Rect.Top > 0 || obstacles.Rect.Right < bitmap.Width || obstacles.Rect.Bottom < bitmap.Height))
+        // 整張圖都在尋路視窗裡＝視窗不捲動，牆照尋路視窗建一次；圖比視窗大：迷宮挑戰走捲動模式（牆照顯示視窗建，走出 _scrollStep 格才重建），
+        // 討伐戰與大型任務照舊只畫方框（刻意不動既有行為）
+        var scroll = bitmap != null && (view.Left > 0 || view.Top > 0 || view.Right < bitmap.Width || view.Bottom < bitmap.Height);
+        if (scroll && !_dungeon)
+        {
             bitmap = null;
+            scroll = false;
+        }
+        var viewX = (view.Left + view.Right) >> 1;
+        var viewY = (view.Top + view.Bottom) >> 1;
         var rect = src as ArenaBoundsRect;
         var halfWidth = rect?.HalfWidth ?? src.Radius;
         var halfHeight = rect?.HalfHeight ?? src.Radius;
         var rotation = rect?.Rotation ?? default;
-        if (!ReferenceEquals(bitmap, _srcBitmap) || halfWidth != _srcHalfWidth || halfHeight != _srcHalfHeight || rotation != _srcRotation)
+        var moved = scroll && (!_scroll || Math.Abs(viewX - _scrollX) > _scrollStep || Math.Abs(viewY - _scrollY) > _scrollStep);
+        if (moved || scroll != _scroll || !ReferenceEquals(bitmap, _srcBitmap) || halfWidth != _srcHalfWidth || halfHeight != _srcHalfHeight || rotation != _srcRotation)
         {
             _srcBitmap = bitmap;
             _srcHalfWidth = halfWidth;
             _srcHalfHeight = halfHeight;
             _srcRotation = rotation;
-            RebuildBounds(bitmap, obstacles.Rect, src.MapResolution);
+            _scroll = scroll;
+            if (scroll)
+            {
+                _scrollX = viewX;
+                _scrollY = viewY;
+                _scrollStep = Math.Max(view.Right - view.Left, view.Bottom - view.Top) / 6;
+            }
+            RebuildBounds(bitmap, view, src.MapResolution);
         }
-        var center = _hints.PathfindMapCenter + _centerOffset;
+        // 捲動模式：尋路中心每移一格，顯示視窗相對它的位移就反向移一格，兩者相加使顯示中心在重建之間不動
+        var center = _hints.PathfindMapCenter + _centerOffset + (_scroll ? new WDir(_scrollX - viewX, _scrollY - viewY) * src.MapResolution : default);
         if (_arena.Center != center)
         {
             _arena.Center = center;
@@ -173,6 +213,13 @@ public sealed class GenericTrialRadar
         ++_generation;
         _border.Clear();
         _borderEnds.Clear();
+        if (_scroll)
+        {
+            // 顯示視窗與尋路視窗同大小、中心在 (_scrollX, _scrollY)；圖外的格子照樣算可走（與 AIHints.InitPathfindMap 一致）
+            var halfW = (view.Right - view.Left) >> 1;
+            var halfH = (view.Bottom - view.Top) >> 1;
+            view = new(_scrollX - halfW, _scrollY - halfH, _scrollX + halfW, _scrollY + halfH);
+        }
         if (bitmap != null && _srcRotation == default && BuildWalkableArea(bitmap, view, resolution) is (var poly, var radius, var offset))
         {
             _walls = true;
