@@ -9154,5 +9154,38 @@
   },
   "Go through a matching door pair (Voidbound)!": {
     "message": "穿過同符號的門（虛無夾縫）！"
+  },
+  "Kill the Arcane Sphere!": {
+    "message": "打倒立體魔法陣！"
+  },
+  "Kill the Scorpion's Claw!": {
+    "message": "打倒硬螯蠍！"
+  },
+  "Sunseal: red sigil, Moonseal: blue sigil": {
+    "message": "太陽刻印站紅色紋章、月亮刻印站藍色紋章"
+  },
+  "Same mark as boss: go close!": {
+    "message": "標記與首領相同：靠近首領！"
+  },
+  "Different mark from boss: go away!": {
+    "message": "標記與首領不同：遠離首領！"
+  },
+  "Stand in a white circle (Levitation)": {
+    "message": "站進白圈（浮空）"
+  },
+  "Stand in a black circle (Leaden)": {
+    "message": "站進黑圈（沉重）"
+  },
+  "Green circle toggles Imp": {
+    "message": "綠圈會切換河童狀態"
+  },
+  "Hide behind a boulder!": {
+    "message": "躲到岩石後面！"
+  },
+  "Raidwide + knockback: stand next to boss, room behind you": {
+    "message": "全場傷害＋擊退：貼近首領、背後留空間"
+  },
+  "Marked: stand in the slime": {
+    "message": "被點名：站進黏液"
   }
 }
