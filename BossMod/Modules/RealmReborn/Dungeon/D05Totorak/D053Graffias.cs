@@ -26,6 +26,49 @@ class PodBurst(BossModule module) : Components.SimpleAOEs(module, (uint)AID.PodB
 class DeadlyThrust(BossModule module) : Components.CastHint(module, (uint)AID.DeadlyThrust, "Persistent voidzone at target");
 class PollenZone(BossModule module) : Components.Voidzone(module, 10, m => m.Enemies(OID.PollenZone));
 
+// 分隊號令：伴星蛛蠍黏著玩家或分隊補師滿 2 秒就要分隊去打它（讓分隊坦去拉）；黏最久的優先。玩家照打首領，所以不標 UrgentKill。
+class SquadronComesmite(BossModule module) : BossComponent(module)
+{
+    public const double HoldSeconds = 2;
+    private readonly Dictionary<ulong, DateTime> _onSoftSince = [];
+
+    public override void Update()
+    {
+        var player = Raid.Player();
+        foreach (var c in Module.Enemies((uint)OID.Comesmite))
+        {
+            if (c.IsDead || !IsSoftTarget(c.TargetID, player))
+                _onSoftSince.Remove(c.InstanceID);
+            else
+                _onSoftSince.TryAdd(c.InstanceID, WorldState.CurrentTime);
+        }
+    }
+
+    public override void OnActorDestroyed(Actor actor) => _onSoftSince.Remove(actor.InstanceID);
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        AIHints.Enemy? longest = null;
+        DateTime longestSince = default;
+        foreach (var e in hints.PotentialTargets)
+        {
+            if (e.Actor.OID != (uint)OID.Comesmite || !_onSoftSince.TryGetValue(e.Actor.InstanceID, out var since) || (WorldState.CurrentTime - since).TotalSeconds < HoldSeconds)
+                continue;
+            e.SquadronFocus = 1;
+            if (longest == null || since < longestSince)
+            {
+                longest = e;
+                longestSince = since;
+            }
+        }
+        if (longest != null)
+            longest.SquadronFocus = 2;
+    }
+
+    private bool IsSoftTarget(ulong target, Actor? player)
+        => target != 0 && (target == player?.InstanceID || WorldState.Actors.Find(target) is { Type: ActorType.Buddy, Role: Role.Healer });
+}
+
 class D053GraffiasStates : StateMachineBuilder
 {
     public D053GraffiasStates(BossModule module) : base(module)
@@ -35,7 +78,8 @@ class D053GraffiasStates : StateMachineBuilder
             .ActivateOnEnter<StickyWeb>()
             .ActivateOnEnter<PodBurst>()
             .ActivateOnEnter<DeadlyThrust>()
-            .ActivateOnEnter<PollenZone>();
+            .ActivateOnEnter<PollenZone>()
+            .ActivateOnEnter<SquadronComesmite>();
     }
 }
 

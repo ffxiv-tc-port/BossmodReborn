@@ -60,6 +60,45 @@ class PlainPound(BossModule module) : Components.ConcentricAOEs(module, _shapes)
     }
 }
 
+// 分隊號令：燃燒護盾期間要分隊去打怨火／毒火（沒打掉約 26 秒後放全場的焦土）；先出生的先打，同時出生的打離玩家近的。
+class SquadronAdds(BossModule module) : BossComponent(module)
+{
+    private readonly Dictionary<ulong, DateTime> _spawnedAt = [];
+
+    public override void OnActorCreated(Actor actor)
+    {
+        if (actor.OID is (uint)OID.Damantus or (uint)OID.Noxius)
+            _spawnedAt[actor.InstanceID] = WorldState.CurrentTime;
+    }
+
+    public override void OnActorDestroyed(Actor actor) => _spawnedAt.Remove(actor.InstanceID);
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (Module.PrimaryActor.FindStatus((uint)SID.BurningWard) == null)
+            return;
+        AIHints.Enemy? first = null;
+        DateTime firstAt = default;
+        var firstDist = float.MaxValue;
+        foreach (var e in hints.PotentialTargets)
+        {
+            if (e.Actor.OID is not ((uint)OID.Damantus or (uint)OID.Noxius))
+                continue;
+            e.SquadronFocus = 1;
+            var at = _spawnedAt.GetValueOrDefault(e.Actor.InstanceID); // 元件啟用前就在場的當作最早
+            var dist = (e.Actor.Position - actor.Position).LengthSq();
+            if (first == null || at < firstAt || at == firstAt && dist < firstDist)
+            {
+                first = e;
+                firstAt = at;
+                firstDist = dist;
+            }
+        }
+        if (first != null)
+            first.SquadronFocus = 2;
+    }
+}
+
 class D043TangataStates : StateMachineBuilder
 {
     public D043TangataStates(BossModule module) : base(module)
@@ -67,7 +106,8 @@ class D043TangataStates : StateMachineBuilder
         TrivialPhase()
             .ActivateOnEnter<Firewater>()
             .ActivateOnEnter<StraightPunch>()
-            .ActivateOnEnter<PlainPound>();
+            .ActivateOnEnter<PlainPound>()
+            .ActivateOnEnter<SquadronAdds>();
     }
 }
 

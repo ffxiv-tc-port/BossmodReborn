@@ -33,6 +33,7 @@ public sealed class AIHints
             StayAtLongRange = false;
             Spikes = false;
             UrgentKill = false;
+            SquadronFocus = 0;
         }
 
         public Actor Actor;
@@ -53,6 +54,9 @@ public sealed class AIHints
         // 模組宣告：時限內沒打掉會觸發致死／團滅機制。只有明確宣告的模組會設；
         // AutoFarm 的「不換目標」設定與外部自動化（IPC Hints.UrgentKillTargets）會為它破例切過去。
         public bool UrgentKill;
+        // 模組宣告：分隊攻略任務中該號令分隊員去打的目標，數字大者優先、0＝不宣告。只有 SquadronCommander 讀，
+        // 刻意與 UrgentKill 分開：這裡不改玩家目標、不讓 AutoDuty／AutoFarm 換目標。
+        public int SquadronFocus;
     }
 
     public enum SpecialMode

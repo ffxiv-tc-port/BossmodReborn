@@ -32,6 +32,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly RotationModuleManager _rotation;
     private readonly AI.AIManager _ai;
     private readonly AI.Broadcast _broadcast;
+    private readonly AI.SquadronCommander _squadron;
     private readonly IPCProvider _ipc;
     private readonly DTRProvider _dtr;
     // 「不需掛 preset 的方位提示」的遲滯狀態。與 GoToPositional 模組各持一份、互不干擾。
@@ -153,6 +154,9 @@ public sealed class Plugin : IDalamudPlugin
         _rotation = new(_rotationDB, _bossmod, _hints);
         _ai = new(_rotation, _amex, _movementOverride);
         _broadcast = new();
+        var aiConfig = Service.Config.Get<AI.AIConfig>();
+        _squadron = new(_ws, _bossmod, _hints, AI.SquadronCommander.ReadNativeGate, target => _amex.UseSquadronCommand(AI.SquadronCommander.CommandEngage, target),
+            msg => Service.Logger.Information(msg), () => aiConfig.SquadronCommands, () => Service.Framework.IsInFrameworkUpdateThread);
         _ipc = new(_bossmod, _hints, _rotation, _amex, _movementOverride, _ai);
         _dtr = new(_rotation, _ai, () => OpenConfigUI());
         _wndBossmod = new(_bossmod, _zonemod, _hints, _hintsBuilder, () => OpenConfigUI());
@@ -665,6 +669,16 @@ public sealed class Plugin : IDalamudPlugin
         catch (Exception ex)
         {
             LogDrawStepFailure("ExecuteHints", ex);
+        }
+        // 分隊號令：讀這一幀剛建好的 _hints；失敗＝這一幀不下令，不影響其他步驟。
+        DrawStepTimer.Next("SquadronCommander.Update");
+        try
+        {
+            _squadron.Update();
+        }
+        catch (Exception ex)
+        {
+            LogDrawStepFailure("SquadronCommander.Update", ex);
         }
         DrawStepTimer.Next("MovementJitterLog");
         try

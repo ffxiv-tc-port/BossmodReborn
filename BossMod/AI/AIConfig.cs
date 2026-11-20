@@ -120,6 +120,9 @@ sealed class AIConfig : ConfigNode
     [PropertySlider(0.2f, 1f)]
     public float ArrivalHoldDistance = 0.3f;
 
+    [PropertyDisplay("Squadron commands: order squadron members onto mechanic targets", tooltip: "Only in Squadron Command Missions, and only for bosses whose module names a target for the squadron (for example adds that explode if left alive). When fewer than two squadron members attack that target for 1.5 seconds, issues the \"Engage\" order on it. Never changes your own target.\nWorks whether or not the AI is enabled. Never issues Disengage, Re-engage or the squadron limit break.")]
+    public bool SquadronCommands = true;
+
     public string? AIAutorotPresetName;
 
     // 執行期解析用這個：其他插件的覆寫優先；存檔、AI 視窗的下拉選單、/bmrai 看的仍是上面的使用者值。

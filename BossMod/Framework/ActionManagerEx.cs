@@ -367,6 +367,29 @@ public sealed unsafe class ActionManagerEx : IDisposable
         return _inst->GetActionStatus((CSActionType)action.Type, action.ID, target, checkRecastActive, checkCastingActive, outOptExtraInfo);
     }
 
+    // 分隊號令（BgcArmyAction）兩支：只在框架執行緒呼叫，每次現取 ActionManager.Instance()（解析失敗會擲例外，由呼叫端接成「這一幀不下令」）。
+    // busy＝動畫鎖中／有排隊中的技能／正在詠唱：這時按下去會進遊戲的佇列、蓋掉玩家自己排的技能，所以不按。
+    public static uint SquadronCommandStatus(uint commandId, ulong targetId, out bool busy)
+    {
+        var am = ActionManager.Instance();
+        if (am == null)
+        {
+            busy = true;
+            return uint.MaxValue;
+        }
+        busy = am->AnimationLock > 0 || am->ActionQueued || am->CastSpellId != 0;
+        return am->GetActionStatus(CSActionType.BgcArmyAction, commandId, targetId);
+    }
+
+    // 直接呼叫 UseAction 的原函式：不經手動佇列、滑鼠指向、位移攔截；目標只由參數帶入，不改玩家目標。
+    public bool UseSquadronCommand(uint commandId, ulong targetId)
+    {
+        if (_disposed || _useActionHook.IsDisposed)
+            return false;
+        var am = ActionManager.Instance();
+        return am != null && _useActionHook.Original(am, CSActionType.BgcArmyAction, commandId, targetId, 0, ActionManager.UseActionMode.None, 0, null);
+    }
+
     // 純診斷：在 detour 內（遊戲主執行緒）當幀取樣，抄成值型別交出去，呼叫端不持有原生指標。
     // 不參與任何判斷，所以取不到就留預設值；Range 由呼叫端用它自己手上的定義補。
     private ActionBlockInfo DescribeActionBlockers(ActionID action, Actor? target)

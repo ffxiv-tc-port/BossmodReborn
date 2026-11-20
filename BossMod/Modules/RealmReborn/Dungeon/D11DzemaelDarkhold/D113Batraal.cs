@@ -89,6 +89,9 @@ public class D113Batraal(WorldState ws, Actor primary) : BossModule(ws, primary,
 
     protected override void CalculateModuleAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
+        var invincible = PrimaryActor.FindStatus((uint)SID.Invincibility) != null;
+        AIHints.Enemy? nearestCrystal = null;
+        var nearestDist = float.MaxValue;
         var count = hints.PotentialTargets.Count;
         for (var i = 0; i < count; ++i)
         {
@@ -96,9 +99,22 @@ public class D113Batraal(WorldState ws, Actor primary) : BossModule(ws, primary,
             e.Priority = e.Actor.OID switch
             {
                 (uint)OID.CorruptedCrystal => 1,
-                (uint)OID.Boss when PrimaryActor.FindStatus((uint)SID.Invincibility) != null => AIHints.Enemy.PriorityInvincible,
+                (uint)OID.Boss when invincible => AIHints.Enemy.PriorityInvincible,
                 _ => 0
             };
+            // 分隊號令：首領無敵（水晶在場）時要分隊去打水晶；無敵消失就不宣告，分隊會自己回首領
+            if (invincible && e.Actor.OID == (uint)OID.CorruptedCrystal)
+            {
+                e.SquadronFocus = 1;
+                var dist = (e.Actor.Position - actor.Position).LengthSq();
+                if (dist < nearestDist)
+                {
+                    nearestCrystal = e;
+                    nearestDist = dist;
+                }
+            }
         }
+        if (nearestCrystal != null)
+            nearestCrystal.SquadronFocus = 2;
     }
 }
