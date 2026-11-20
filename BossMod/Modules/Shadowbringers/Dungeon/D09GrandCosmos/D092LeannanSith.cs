@@ -70,7 +70,10 @@ class GreenTiles(BossModule module) : Components.GenericAOEs(module)
     public override void OnStatusLose(Actor actor, ActorStatus status)
     {
         if (status.ID == (uint)SID.Transporting)
+        {
             transporting[Raid.FindSlot(actor.InstanceID)] = false;
+            transportingCheckStartTimes.Remove(actor);
+        }
     }
 
     public override void OnEventEnvControl(byte index, uint state)
@@ -174,7 +177,7 @@ class GreenTiles(BossModule module) : Components.GenericAOEs(module)
             }
             hints.InteractWithTarget = closest;
         }
-        else if (!shape.Check(actor.Position))
+        else if ((AI.AIManager.Instance?.Beh != null || Autorotation.MiscAI.NormalMovement.Instance != null) && !shape.Check(actor.Position)) // only automatically drop seeds if AI is on
             HandleTransportingActor(ref actor, ref hints);
         else
             transportingCheckStartTimes.Remove(actor);
