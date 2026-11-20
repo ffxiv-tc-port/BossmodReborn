@@ -38,10 +38,11 @@ sealed class GrandCrossArenaChange(BossModule module) : Components.GenericAOEs(m
         }
     }
 
-    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    // 跟 Prisons 一樣在 Update 切場地（從監牢回來時換回圓形場地），不依賴雷達有沒有畫。
+    public override void Update()
     {
-        base.DrawArenaBackground(pcSlot, pc);
-        if (!active || pc.PosRot.Y < -100f)
+        base.Update();
+        if (Raid.Player() is not { } pc || !active || pc.PosRot.Y < -100f)
         {
             return;
         }

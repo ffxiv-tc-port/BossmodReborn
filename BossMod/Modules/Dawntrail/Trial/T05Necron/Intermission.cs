@@ -47,8 +47,11 @@ sealed class Prisons(BossModule module) : BossComponent(module)
         }
     }
 
-    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    // 場地在 Update 切而不是在畫雷達時切：AI 的尋路視窗取自模組場地，雷達沒畫（視窗關著、被隱藏）時也要跟著進監牢。
+    public override void Update()
     {
+        if (Raid.Player() is not { } pc)
+            return;
         if (pc.PosRot.Y < -100f)
         {
             var playerPos = pc.Position;
