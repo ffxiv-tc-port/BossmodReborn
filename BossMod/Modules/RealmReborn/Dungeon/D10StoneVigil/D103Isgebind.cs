@@ -6,6 +6,7 @@ public enum OID : uint
     Helper = 0x233C
 }
 
+// 契約：列舉以外的敵方讀條由 Components.UnclaimedCastAOEs 照沒有模組時的猜法畫；列進來＝不再猜。
 public enum AID : uint
 {
     AutoAttack = 870, // Boss->player, no cast
@@ -63,7 +64,8 @@ class D103IsgebindStates : StateMachineBuilder
             .ActivateOnEnter<SheetOfIce>()
             .ActivateOnEnter<SheetOfIce2>()
             .ActivateOnEnter<Cauterize>()
-            .ActivateOnEnter<Touchdown>();
+            .ActivateOnEnter<Touchdown>()
+            .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }
 

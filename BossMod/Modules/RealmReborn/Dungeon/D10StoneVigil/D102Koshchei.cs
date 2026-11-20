@@ -7,6 +7,7 @@ public enum OID : uint
     MaelstromHelper = 0x38D0
 }
 
+// 契約：列舉以外的敵方讀條由 Components.UnclaimedCastAOEs 照沒有模組時的猜法畫；列進來＝不再猜。
 public enum AID : uint
 {
     AutoAttack = 870, // Boss->player, no cast, single-target
@@ -87,7 +88,8 @@ class D102KoshcheiStates : StateMachineBuilder
         TrivialPhase()
             .ActivateOnEnter<SpikedTail>()
             .ActivateOnEnter<SonicStorm>()
-            .ActivateOnEnter<Typhoon>();
+            .ActivateOnEnter<Typhoon>()
+            .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }
 
