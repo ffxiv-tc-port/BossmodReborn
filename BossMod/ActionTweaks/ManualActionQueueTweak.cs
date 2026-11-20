@@ -78,6 +78,15 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
     private bool _castHazardPath; // 期限取自尋路的餘裕（安全處要繞路或得穿過別的區、或格子還沒走出去），比直線走出這一區早
     private bool _castHazardUnderfoot; // 玩家中心在已登記的危險區裡（_castHazardActivation／_castHazardExit 有值）
     private bool _castHazardLatched; // 期限來自「剛為了閃避取消了詠唱」的閂鎖，不是這一幀算出來的
+    private int _castHazardZones = -1, _castHazardZonesUnderfoot; // 最近一次 UpdateCastHazard 看到的禁區數／蓋到腳下的數；-1＝那一次沒算（AI 關、逃生鍵、沒有玩家）
+
+    // 硬詠唱放出查證（只寫 log）：放出時抄下讓位判斷當時的狀態，之後 ReleaseWatchSeconds 內第一次算出「早於詠唱結束」的期限就記一行，
+    // 用來分辨「放出那一幀還看不到剛出現的危險區」與「看得到卻放行」
+    private const double ReleaseWatchSeconds = 0.5, ReleaseLogInterval = 2;
+    private ActionID _releaseAction;
+    private DateTime _releaseAt, _releaseCastEnd, _releaseDeadline, _releaseLogTime;
+    private int _releaseZones, _releaseZonesUnderfoot;
+    private bool _releaseEmergency;
 
     // 詠唱取消：已經在詠唱、危險才冒出來時，期限（只看腳下危險區與尋路，不看閃避預判）早於滑步點就請 ActionManagerEx 取消。
     // 取消後把那個期限閂住到那一波生效為止：期限一幀內忽有忽無時，重送的硬詠唱仍讓位，不會「取消→升緊急→又取消」來回。
@@ -306,6 +315,8 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
             Service.Log(queued == action && original == action ? $"[MAO] Executed {action}"
                 : queued == action ? $"[MAO] Executed {action}（原始按鈕 {original}）"
                 : $"[MAO] Executed {action}（排隊時是 {queued}、原始按鈕 {original}）");
+            if (_queue[index].CastTime > 0)
+                WatchRelease(action, _queue[index].CastTime, _emergencyMode && index == 0);
             _queue.RemoveAt(index);
             FlushEmergencyLog(queued, "executed");
             FlushDashBlockLog(queued, "放出");
@@ -761,6 +772,8 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
         _castHazardPath = false;
         _castHazardUnderfoot = false;
         _castHazardLatched = false;
+        _castHazardZones = -1;
+        _castHazardZonesUnderfoot = 0;
         var player = active ? ws.Party.Player() : null;
         if (player == null)
         {
@@ -770,6 +783,7 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
         var zones = hints.ForbiddenZones;
         var count = zones.Count;
         var now = ws.CurrentTime;
+        _castHazardZones = count;
         if (count == 0)
         {
             // 危險區一幀內全部不見（模組或 hints 那一幀擲例外也是這樣）時閂鎖照舊有效
@@ -796,6 +810,7 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
                 var d = z.shapeDistance(pos);
                 if (!(d < 0f))
                     continue;
+                ++_castHazardZonesUnderfoot;
                 var exit = float.IsFinite(d) ? -d : 0f;
                 var g = Math.Max(0d, (clusterStart - now).TotalSeconds - Pathfinding.NavigationDecision.ActivationTimeCushion);
                 var deadline = now.AddSeconds(g - exit / speed);
@@ -825,6 +840,7 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
                 _castHazardLookahead = true;
             }
             ApplyCancelLatch(now);
+            CheckReleaseWatch(now);
             if (cancelBy != DateTime.MaxValue && player.CastInfo is { } cast && WantCancelCast(cast, cancelBy, now))
             {
                 hints.ForceCancelCast = true;
@@ -847,6 +863,66 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
         {
             _castDeadline = DateTime.MaxValue; // 算不出來＝不讓位（舊行為）；例外交給 DrawUI 的節流 log
             throw;
+        }
+    }
+
+    // Pop 時（框架執行緒）：_castDeadline／禁區數還是放行它的那一次 UpdateCastHazard 寫的。讓位判斷沒在算（AI 關、逃生鍵）就不查
+    private void WatchRelease(ActionID action, float castTime, bool emergency)
+    {
+        _releaseAction = default;
+        if (_castHazardZones < 0)
+            return;
+        var now = ws.CurrentTime;
+        _releaseAt = now;
+        _releaseCastEnd = now.AddSeconds(castTime);
+        _releaseDeadline = _castDeadline;
+        _releaseZones = _castHazardZones;
+        _releaseZonesUnderfoot = _castHazardZonesUnderfoot;
+        _releaseEmergency = emergency;
+        if (_castDeadline < _releaseCastEnd)
+            LogRelease(action, now, "放出時的期限已經早於詠唱結束 ⇒ 讓位判斷看得到卻放行了");
+        else
+            _releaseAction = action;
+    }
+
+    // UpdateCastHazard 算完這一次的期限之後呼叫；每次放出至多記一行
+    private void CheckReleaseWatch(DateTime now)
+    {
+        if (_releaseAction == default)
+            return;
+        if ((now - _releaseAt).TotalSeconds > ReleaseWatchSeconds)
+            _releaseAction = default;
+        else if (_castDeadline < _releaseCastEnd)
+            LogRelease(_releaseAction, now, null);
+    }
+
+    private void LogRelease(ActionID action, DateTime now, string? verdict)
+    {
+        _releaseAction = default;
+        if ((now - _releaseLogTime).TotalSeconds < ReleaseLogInterval)
+            return;
+        _releaseLogTime = now;
+        try
+        {
+            // 只在要寫的時候才掃：場上最晚開始的敵方讀條，換算成相對放出的時刻
+            var newest = double.MinValue;
+            foreach (var a in ws.Actors)
+                if (!a.IsAlly && a.CastInfo is { } c)
+                    newest = Math.Max(newest, (now - _releaseAt).TotalSeconds - c.ElapsedTime);
+            var cast = (_releaseCastEnd - _releaseAt).TotalSeconds;
+            var src = _castHazardLatched ? "取消詠唱的閂鎖" : _castHazardLookahead ? "閃避預判（接不上下一波）" : _castHazardPath ? "尋路餘裕" : "腳下危險區";
+            var atRelease = _releaseDeadline == DateTime.MaxValue ? "沒有讓位期限" : $"期限在放出後 {(_releaseDeadline - _releaseAt).TotalSeconds:f2} 秒";
+            var newestText = newest == double.MinValue ? "場上沒有敵方讀條" : $"場上最晚開始的敵方讀條在放出後 {newest:+0.00;-0.00} 秒開始";
+            verdict ??= newest > 0d
+                ? "放出時讓位判斷還沒有這一個讀條（放出那一幀看不到剛出現的危險區）"
+                : "最晚的讀條在放出前就開始了，放出時卻沒算出期限（查讓位判斷，或是先前的讀條後來才畫上危險區）";
+            Service.Logger.Information($"[MAO][詠唱放出查證] 「{action.Name()}」（{action}）詠唱 {cast:f2} 秒{(_releaseEmergency ? "（緊急模式）" : "")}：" +
+                $"放出時禁區 {_releaseZones} 個、蓋到腳下 {_releaseZonesUnderfoot} 個、{atRelease}；放出後 {(now - _releaseAt).TotalSeconds:f2} 秒這一次算出 {(_castDeadline - now).TotalSeconds:f2} 秒內要動身" +
+                $"（早於詠唱結束 {(_releaseCastEnd - _castDeadline).TotalSeconds:f2} 秒；來源={src}；禁區 {_castHazardZones} 個、蓋到腳下 {_castHazardZonesUnderfoot} 個）；{newestText} ⇒ {verdict}");
+        }
+        catch (Exception ex)
+        {
+            Service.Logger.Information($"[MAO][詠唱放出查證] 「{action}」寫不出來：{ex.GetType().Name}");
         }
     }
 
