@@ -102,8 +102,8 @@ public class D113Batraal(WorldState ws, Actor primary) : BossModule(ws, primary,
                 (uint)OID.Boss when invincible => AIHints.Enemy.PriorityInvincible,
                 _ => 0
             };
-            // 分隊號令：首領無敵（水晶在場）時要分隊去打水晶；無敵消失就不宣告，分隊會自己回首領
-            if (invincible && e.Actor.OID == (uint)OID.CorruptedCrystal)
+            // 分隊號令：水晶一可選取就宣告，不等首領身上的無敵（無敵要晚幾秒才上、與水晶同時消失）；水晶死了分隊會自己回首領
+            if (e.Actor.OID == (uint)OID.CorruptedCrystal)
             {
                 e.SquadronFocus = 1;
                 var dist = (e.Actor.Position - actor.Position).LengthSq();
