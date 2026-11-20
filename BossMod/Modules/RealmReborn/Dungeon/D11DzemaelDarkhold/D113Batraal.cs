@@ -13,6 +13,7 @@ public enum AID : uint
     AutoAttack = 870, // Boss->player, no cast, single-target
 
     GrimCleaver = 620, // Boss->player, no cast, single-target, random
+    GrimHalo = 621, // Boss->self, no cast, range 6+4.6 circle
     GrimFate = 624, // Boss->self, no cast, range 8+4.6 ?-degree cone cleave
     Desolation = 958, // Boss->self, 2.3s cast, range 55+4.6 width 6 rect aoe
     Hellssend = 1132, // Boss->self, no cast, damage up buff
@@ -26,6 +27,17 @@ public enum SID : uint
 }
 
 class GrimFate(BossModule module) : Components.Cleave(module, (uint)AID.GrimFate, new AOEShapeCone(12.6f, 60f.Degrees())); // TODO: verify angle
+// 無讀條、間隔不規律、半徑蓋過近戰距離：只在雷達畫外框，刻意不給 AI 禁區（否則近戰永遠貼不了王）。
+class GrimHalo(BossModule module) : BossComponent(module)
+{
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        var boss = Module.PrimaryActor;
+        if (!boss.IsDead && boss.IsTargetable)
+            Arena.AddCircle(boss.Position, 10.6f);
+    }
+}
+
 class Desolation(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Desolation, new AOEShapeRect(60f, 3f));
 class AetherialSurge(BossModule module) : Components.SimpleAOEs(module, (uint)AID.AetherialSurge, 6f);
 
@@ -57,6 +69,7 @@ class D113BatraalStates : StateMachineBuilder
     {
         TrivialPhase()
             .ActivateOnEnter<GrimFate>()
+            .ActivateOnEnter<GrimHalo>()
             .ActivateOnEnter<Desolation>()
             .ActivateOnEnter<AetherialSurge>()
             .ActivateOnEnter<SeaOfPitch>()
