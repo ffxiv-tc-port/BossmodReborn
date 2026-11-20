@@ -404,6 +404,10 @@ public struct NavigationDecision
         var startMaxG = playerInWindow ? ctx.Map.PixelMaxG[playerCell] : float.MaxValue;
         var startHit = !flattened && startMaxG >= 0f && startMaxG != float.MaxValue;
         var pathLeeway = startHit ? LeewayAlongPath(ctx.ThetaStar, ctx.Map, bestNodeIndex) : float.NaN;
+        // 腳下會被打時，急迫門檻與詠唱打斷看的餘裕也用整條路的值（與上面發布給詠唱讓位的同一個數），不讓終點那一段的無限大蓋掉。
+        // 腳下安全時刻意不動：那時移動是為了站位，換成路上的餘裕會讓 AI 為了站位打斷詠唱。
+        if (startHit)
+            leeway = Math.Min(leeway, pathLeeway);
         if (sticky != null)
         {
             sticky.KeptLast = false;
