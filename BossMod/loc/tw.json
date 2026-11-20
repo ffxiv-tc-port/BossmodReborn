@@ -9121,5 +9121,20 @@
   },
   "muddied": {
     "message": "污泥"
+  },
+  "Avoid puddles.": {
+    "message": "避開水窪。"
+  },
+  "OT soaks orbs!": {
+    "message": "副坦去吃球！"
+  },
+  "Avoid puddles during lightning bolts.": {
+    "message": "雷電期間避開水窪。"
+  },
+  "Stand in puddles during hellfire.": {
+    "message": "地獄火焰期間站進水窪。"
+  },
+  "Tankbuster! - Watch for Tethered Player!": {
+    "message": "坦克死刑！注意被連線的玩家！"
   }
 }
