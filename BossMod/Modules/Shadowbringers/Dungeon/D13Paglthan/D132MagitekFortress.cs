@@ -172,9 +172,12 @@ sealed class CorePlatform(BossModule module) : Components.GenericAOEs(module)
         }
     }
 
-    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    // 在 Update 切而不是在畫雷達時切：AI 的尋路視窗取自模組場地，雷達沒畫時也要跟著換。
+    public override void Update()
     {
-        base.DrawArenaBackground(pcSlot, pc);
+        base.Update();
+        if (Raid.Player() is not { } pc)
+            return;
 
         if (D132MagitekFortress.CoreBounds.Contains(pc.Position - D132MagitekFortress.CoreCenter))
         {
