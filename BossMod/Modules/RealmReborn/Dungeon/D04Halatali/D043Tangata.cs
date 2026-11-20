@@ -71,7 +71,7 @@ class D043TangataStates : StateMachineBuilder
     }
 }
 
-[ModuleInfo(BossModuleInfo.Maturity.Verified, Contributors = "The Combat Reborn Team (Malediktus)", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 7, NameID = 1194)]
+[ModuleInfo(BossModuleInfo.Maturity.Verified, Contributors = "The Combat Reborn Team (Malediktus)", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 7, NameID = 1197)]
 public class D043Tangata(WorldState ws, Actor primary) : BossModule(ws, primary, arena.Center, arena)
 {
     private static readonly WPos[] vertices = [new(-257.63f, -12.6f), new(-257.26f, -12.03f), new(-254.14f, -9.78f), new(-249.92f, -8.24f), new(-249.31f, -8.36f),
