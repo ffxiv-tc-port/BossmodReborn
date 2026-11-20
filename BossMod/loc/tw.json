@@ -9136,5 +9136,11 @@
   },
   "Tankbuster! - Watch for Tethered Player!": {
     "message": "坦克死刑！注意被連線的玩家！"
+  },
+  "Show radar in dungeons when no boss module is loaded": {
+    "message": "迷宮挑戰沒有載入首領模組時也顯示雷達"
+  },
+  "In dungeons, between bosses (and at bosses that have no dedicated module) the radar still opens and shows the area AI pathfinds in, the walls from the obstacle map when this dungeon has one, enemies, and the danger zones guessed from enemy casts.\nDisplay only: how AI moves is not changed": {
+    "message": "迷宮挑戰中，首領之間的路上（以及沒有專屬模組的首領）雷達照樣打開，畫出 AI 尋路用的範圍、副本有障礙物圖時的牆壁、敵人位置，以及照敵人讀條猜出來的危險區。\n只影響顯示，不會改變 AI 怎麼移動。"
   }
 }
