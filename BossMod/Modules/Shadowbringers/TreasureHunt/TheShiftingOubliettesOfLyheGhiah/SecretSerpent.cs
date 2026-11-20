@@ -11,6 +11,7 @@ public enum OID : uint
     SecretOnion = 0x301D, // R0.84, icon 1, needs to be killed in order from 1 to 5 for maximum rewards
     SecretEgg = 0x301E, // R0.84, icon 2, needs to be killed in order from 1 to 5 for maximum rewards
     KeeperOfKeys = 0x3034, // R3.23
+    FuathTrickster = 0x3033, // R0.75
     Helper = 0x233C
 }
 
@@ -103,7 +104,7 @@ class SecretSerpentStates : StateMachineBuilder
 public class SecretSerpent(WorldState ws, Actor primary) : THTemplate(ws, primary)
 {
     private static readonly uint[] bonusAdds = [(uint)OID.SecretEgg, (uint)OID.SecretGarlic, (uint)OID.SecretOnion, (uint)OID.SecretTomato,
-    (uint)OID.SecretQueen, (uint)OID.KeeperOfKeys];
+    (uint)OID.SecretQueen, (uint)OID.KeeperOfKeys, (uint)OID.FuathTrickster];
     public static readonly uint[] All = [(uint)OID.Boss, (uint)OID.SerpentHatchling, .. bonusAdds];
 
     protected override void DrawEnemies(int pcSlot, Actor pc)
@@ -121,11 +122,12 @@ public class SecretSerpent(WorldState ws, Actor primary) : THTemplate(ws, primar
             var e = hints.PotentialTargets[i];
             e.Priority = e.Actor.OID switch
             {
-                (uint)OID.SecretOnion => 6,
-                (uint)OID.SecretEgg => 5,
-                (uint)OID.SecretGarlic => 4,
-                (uint)OID.SecretTomato => 3,
-                (uint)OID.SecretQueen or (uint)OID.KeeperOfKeys => 2,
+                (uint)OID.SecretOnion => 7,
+                (uint)OID.SecretEgg => 6,
+                (uint)OID.SecretGarlic => 5,
+                (uint)OID.SecretTomato => 4,
+                (uint)OID.SecretQueen or (uint)OID.FuathTrickster => 3,
+                (uint)OID.KeeperOfKeys => 2,
                 (uint)OID.SerpentHatchling => 1,
                 _ => 0
             };
