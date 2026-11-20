@@ -388,6 +388,8 @@ public sealed unsafe class ActionManagerEx : IDisposable
         {
             { Type: ActionType.Spell, ID: 29391 or 29402 } => true, // phys ranged PVP actions
             { Type: ActionType.Mount } => true,
+            // 脫戰時瞬發（播魂種、全部彩繪）；讀 WorldState 的玩家、不解參原生物件，拿不到玩家＝當戰鬥中（不能邊走邊放）
+            { Type: ActionType.Spell, ID: 24387 or 34689 or 34664 or 34665 or 34690 or 34668 or 34669 or 34691 or 34667 or 34666 } => !(_ws.Party.Player()?.InCombat ?? true),
             _ => false
         };
     }
