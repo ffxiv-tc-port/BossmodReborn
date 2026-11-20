@@ -2,8 +2,11 @@ namespace BossMod.Stormblood.Extreme.Ex8Seiryu;
 
 sealed class ArenaChanges(BossModule module) : BossComponent(module)
 {
-    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    // 在 Update 切而不是在畫雷達時切：AI 的尋路視窗取自模組場地，雷達沒畫時也要跟著換。
+    public override void Update()
     {
+        if (Raid.Player() is not { } pc)
+            return;
         if (!pc.Position.InCircle(Arena.Center, 20f))
         {
             Arena.Bounds = Trial.T09Seiryu.Seiryu.Phase2WaterBounds;
