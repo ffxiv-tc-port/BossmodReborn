@@ -10,6 +10,7 @@ public enum OID : uint
     AltarOnion = 0x2546, // R0.84, icon 1, needs to be killed in order from 1 to 5 for maximum rewards
     AltarEgg = 0x2547, // R0.84, icon 2, needs to be killed in order from 1 to 5 for maximum rewards
     AltarMatanga = 0x2545, // R3.42
+    GoldWhisker = 0x2544, // R0.54
     Helper = 0x233C
 }
 
@@ -85,7 +86,7 @@ class AltarBeastStates : StateMachineBuilder
 public class AltarBeast(WorldState ws, Actor primary) : THTemplate(ws, primary)
 {
     private static readonly uint[] bonusAdds = [(uint)OID.AltarEgg, (uint)OID.AltarGarlic, (uint)OID.AltarOnion, (uint)OID.AltarTomato,
-    (uint)OID.AltarQueen, (uint)OID.AltarMatanga];
+    (uint)OID.AltarQueen, (uint)OID.AltarMatanga, (uint)OID.GoldWhisker];
     public static readonly uint[] All = [(uint)OID.Boss, (uint)OID.AltarKeeper, .. bonusAdds];
 
     protected override void DrawEnemies(int pcSlot, Actor pc)
@@ -107,8 +108,8 @@ public class AltarBeast(WorldState ws, Actor primary) : THTemplate(ws, primary)
                 (uint)OID.AltarEgg => 5,
                 (uint)OID.AltarGarlic => 4,
                 (uint)OID.AltarTomato => 3,
-                (uint)OID.AltarQueen or (uint)OID.AltarMatanga => 2,
-                (uint)OID.AltarKeeper => 1,
+                (uint)OID.AltarQueen or (uint)OID.GoldWhisker => 2,
+                (uint)OID.AltarKeeper or (uint)OID.AltarMatanga => 1,
                 _ => 0
             };
         }
