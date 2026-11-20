@@ -32,6 +32,16 @@ class AutoThancred(WorldState ws) : UnmanagedRotation(ws, 3)
 internal class AFrostyReception(WorldState ws) : QuestBattle(ws)
 {
     private readonly AutoThancred _ai = new(ws);
+    private bool _dodgePatrol;
+
+    public override void CalculateAIHints(int playerSlot, Actor player, AIHints hints)
+    {
+        _dodgePatrol = false;
+        base.CalculateAIHints(playerSlot, player, hints);
+        // 基底先跑 AddQuestAIHints、後跑目標的互動提示，放棄互動要等兩者都跑完才不會被蓋回
+        if (_dodgePatrol)
+            hints.InteractWithTarget = null;
+    }
 
     public override void AddQuestAIHints(Actor player, AIHints hints)
     {
@@ -44,6 +54,9 @@ internal class AFrostyReception(WorldState ws) : QuestBattle(ws)
                     hints.AddForbiddenZone(GetSightCone(h.Actor));
 
         _ai.Execute(player, hints);
+
+        // allow interrupting interact to dodge patrols
+        _dodgePatrol = hints.ForbiddenZones.Any(z => z.shapeDistance(player.Position) < 0f);
     }
 
     private static Func<WPos, float> GetSightCone(Actor p)
@@ -164,7 +177,7 @@ internal class AFrostyReception(WorldState ws) : QuestBattle(ws)
 
         new QuestObjective(ws)
             .Named("Carriage 2")
-            .MoveHint(new WPos(0, 235))
+            .WithConnection(new Vector3(0, 1, 235))
             .With(obj => {
                 obj.OnDirectorUpdate += (diru) => obj.CompleteIf(diru.UpdateID == 0x10000001 && diru.Param1 == 0x7B77);
             }),
