@@ -13,6 +13,7 @@ class A12IrminsulSawtoothStates : StateMachineBuilder
             .ActivateOnEnter<Rootstorm>()
             .ActivateOnEnter<Ambush>()
             //.ActivateOnEnter<AmbushKnockback>()
-            .ActivateOnEnter<ShockwaveStomp>();
+            .ActivateOnEnter<ShockwaveStomp>()
+            .ActivateOnEnter<Resistances>();
     }
 }

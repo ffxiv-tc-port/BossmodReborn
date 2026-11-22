@@ -11,6 +11,7 @@ class A11CetusStates : StateMachineBuilder
             .ActivateOnEnter<ElectricWhorl>()
             .ActivateOnEnter<ExpulsionAOE>()
             .ActivateOnEnter<ExpulsionKnockback>()
-            .ActivateOnEnter<BiteAndRun>();
+            .ActivateOnEnter<BiteAndRun>()
+            .ActivateOnEnter<Hydrospheres>();
     }
 }

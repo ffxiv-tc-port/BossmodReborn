@@ -28,6 +28,62 @@ class ShockwaveStomp(BossModule module) : Components.CastLineOfSightAOE(module, 
     }
 }
 
+// Which boss gets Ranged Resistance and which gets Magic Resistance is random, so immunity is read from statuses, never from OID.
+// Only lowers priority (never raises an enemy that is already below PriorityInvincible, e.g. one fighting another party).
+sealed class Resistances(BossModule module) : BossComponent(module)
+{
+    private readonly List<Actor> _irminsul = module.Enemies((uint)OID.Irminsul);
+    private readonly List<Actor> _sawtooth = module.Enemies((uint)OID.Sawtooth);
+
+    public static bool IsImmuneTo(Actor target, Actor attacker)
+    {
+        if (target.FindStatus((uint)SID.Invincibility2) != null)
+            return true;
+        var sid = attacker.Class.GetClassCategory(false) switch
+        {
+            ClassCategory.PhysRanged => (uint)SID.RangedResistance,
+            ClassCategory.Healer or ClassCategory.Caster => (uint)SID.MagicResistance,
+            _ => 0u
+        };
+        return sid != 0 && target.FindStatus(sid) != null;
+    }
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        if ((CurrentImmune(_irminsul, actor) ?? CurrentImmune(_sawtooth, actor)) is Actor t)
+            hints.Add(string.Format(Loc.T("{0} is immune to your attacks, switch targets!"), t.Name));
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        Lower(_irminsul, actor, hints);
+        Lower(_sawtooth, actor, hints);
+    }
+
+    private static Actor? CurrentImmune(List<Actor> targets, Actor actor)
+    {
+        var count = targets.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var t = targets[i];
+            if (t.InstanceID == actor.TargetID && !t.IsDead && IsImmuneTo(t, actor))
+                return t;
+        }
+        return null;
+    }
+
+    private static void Lower(List<Actor> targets, Actor actor, AIHints hints)
+    {
+        var count = targets.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var t = targets[i];
+            if (IsImmuneTo(t, actor) && hints.FindEnemy(t) is AIHints.Enemy e && e.Priority > AIHints.Enemy.PriorityInvincible)
+                e.Priority = AIHints.Enemy.PriorityInvincible;
+        }
+    }
+}
+
 [ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team", PrimaryActorOID = (uint)OID.Irminsul, GroupType = BossModuleInfo.GroupType.CFC, GroupID = 120, NameID = 4623)]
 public class A12IrminsulSawtooth(WorldState ws, Actor primary) : BossModule(ws, primary, new(0, 130), arena)
 {

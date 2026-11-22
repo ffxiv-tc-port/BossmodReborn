@@ -9235,5 +9235,14 @@
   },
   "Attacking invincible target!": {
     "message": "正在攻擊無敵的目標！"
+  },
+  "{0} has damage reduction x{1}: kill the tethered adds outside the barrier first!": {
+    "message": "{0}有受傷減輕×{1}：先打屏障外連線的小怪！"
+  },
+  "{0} is immune to your attacks, switch targets!": {
+    "message": "{0}對你的攻擊免疫，切換目標！"
+  },
+  "Tanks: pull {0} away from the other adds (damage reduction while close)!": {
+    "message": "坦克：把{0}從其他小怪身邊拉開（靠近時受傷減輕）！"
   }
 }

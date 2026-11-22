@@ -16,6 +16,7 @@ class A14EchidnaStates : StateMachineBuilder
             .ActivateOnEnter<BloodyHarvest>()
             .ActivateOnEnter<Deathstrike>()
             .ActivateOnEnter<FlameWreath>()
-            .ActivateOnEnter<SerpentineStrike>();
+            .ActivateOnEnter<SerpentineStrike>()
+            .ActivateOnEnter<PullApart>();
     }
 }
