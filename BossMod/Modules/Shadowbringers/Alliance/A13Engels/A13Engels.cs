@@ -139,7 +139,7 @@ sealed class WideAngleDiffuseLaser(BossModule module) : Components.RaidwideInsta
 
 class MarxCrush(BossModule module) : Components.SimpleAOEs(module, (uint)AID.MarxCrush, new AOEShapeRect(15, 15));
 
-class PrecisionGuidedMissile2(BossModule module) : Components.SpreadFromCastTargets(module, (uint)AID.PrecisionGuidedMissile2, 6);
+class PrecisionGuidedMissile2(BossModule module) : Components.BaitAwayCast(module, (uint)AID.PrecisionGuidedMissile2, 6f, tankbuster: true);
 class LaserSight1(BossModule module) : Components.SimpleAOEs(module, (uint)AID.LaserSight1, new AOEShapeRect(100, 10));
 class GuidedMissile2(BossModule module) : Components.SimpleAOEs(module, (uint)AID.GuidedMissile2, 6);
 class IncendiaryBombing2(BossModule module) : Components.SimpleAOEs(module, (uint)AID.IncendiaryBombing2, 8);
