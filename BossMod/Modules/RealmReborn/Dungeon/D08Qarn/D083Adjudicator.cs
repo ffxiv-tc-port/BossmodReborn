@@ -12,8 +12,8 @@ public enum AID : uint
     AutoAttack = 872, // Boss->player, no cast, single-target
 
     LoomingJudgement = 42245, // Boss->player, 5.0s cast, single-target
-    Summon1 = 42243, // Boss->self, 3.0s cast, single-target
-    Summon2 = 42239, // Boss->self, 3.0s cast, single-target
+    Summon1 = 42243, // Boss->self, 3.0s cast, single-target, spawns MythrilVerge1 (line aoes); 1st and 3rd summon
+    Summon2 = 42239, // Boss->self, 3.0s cast, single-target, spawns MythrilVerge2 (stun + pull); 2nd and 4th summon; stun cancels it (no adds)
     VergeLine = 42244, // MythrilVerge1->self, 2.2s cast, range 60+R width 4 rect
     CreepingDarkness = 42247, // Boss->self, 5.0s cast, range 50 circle
     Stun = 30506, // MythrilVerge2->player, no cast, single-target, stun before pull
@@ -30,6 +30,11 @@ sealed class DarkII(BossModule module) : Components.SimpleAOEs(module, (uint)AID
 sealed class Dark(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Dark, 5f);
 sealed class VergeLineVergePulse(BossModule module) : Components.SimpleAOEGroups(module, [(uint)AID.VergeLine, (uint)AID.VergePulse], new AOEShapeRect(60.6f, 2f));
 
+// 只標會拉人的那種召喚：AI 的眩暈只在有標記時才放，冷卻就會留給第 2、4 次。
+// 讀條旗標是不可打斷，但首領不免疫眩暈，眩暈中斷後這次召喚不會補放。
+sealed class Summon2Stun(BossModule module) : Components.CastInterruptHint(module, (uint)AID.Summon2, canBeInterrupted: false, canBeStunned: true, hintExtra: "prevents chains");
+sealed class VergePulseHint(BossModule module) : Components.CastHint(module, (uint)AID.VergePulse, "Kill the Mythril Verges before Verge Pulse!", true);
+
 sealed class D083AdjudicatorStates : StateMachineBuilder
 {
     public D083AdjudicatorStates(BossModule module) : base(module)
@@ -39,7 +44,9 @@ sealed class D083AdjudicatorStates : StateMachineBuilder
             .ActivateOnEnter<CreepingDarknessSelfDestruct>()
             .ActivateOnEnter<DarkII>()
             .ActivateOnEnter<Dark>()
-            .ActivateOnEnter<VergeLineVergePulse>();
+            .ActivateOnEnter<VergeLineVergePulse>()
+            .ActivateOnEnter<Summon2Stun>()
+            .ActivateOnEnter<VergePulseHint>();
     }
 }
 

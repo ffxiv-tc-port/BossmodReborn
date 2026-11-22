@@ -23,7 +23,7 @@ public enum AID : uint
     Triclip = 42231, // Boss->player, 5.0s cast, tankbuster
     Mow = 42232, // Boss->self, 2.5s cast, range 8.25 120-degree cone aoe
     FrightfulRoar = 42233, // Boss->self, 3.0s cast, range 6.0 aoe
-    MortalRay = 42229, // Boss->self, 3.0s cast, raidwide doom debuff
+    MortalRay = 42229, // Boss->self, 3.0s cast, raidwide doom debuff; not interruptible, stun cancels it (no doom)
 
     // DungWespe
     AutoAttackWespe = 871, // DungWespe->player, no cast
@@ -38,6 +38,9 @@ public enum SID : uint
 sealed class Triclip(BossModule module) : Components.SingleTargetCast(module, (uint)AID.Triclip);
 sealed class Mow(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Mow, new AOEShapeCone(8.25f, 60f.Degrees()));
 sealed class FrightfulRoar(BossModule module) : Components.SimpleAOEs(module, (uint)AID.FrightfulRoar, 6.0f);
+
+// 讀條旗標是不可打斷（插言／傷頭無效），但首領不免疫眩暈：眩暈會中斷讀條、整隊都不上死亡宣告。
+sealed class MortalRayStun(BossModule module) : Components.CastInterruptHint(module, (uint)AID.MortalRay, canBeInterrupted: false, canBeStunned: true, hintExtra: "prevents Doom");
 
 sealed class MortalRay(BossModule module) : Components.GenericAOEs(module)
 {
@@ -97,6 +100,7 @@ sealed class D081TeratotaurStates : StateMachineBuilder
             .ActivateOnEnter<Mow>()
             .ActivateOnEnter<FrightfulRoar>()
             .ActivateOnEnter<MortalRay>()
+            .ActivateOnEnter<MortalRayStun>()
             .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }

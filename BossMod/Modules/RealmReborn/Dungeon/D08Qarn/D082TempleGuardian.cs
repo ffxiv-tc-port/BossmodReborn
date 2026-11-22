@@ -18,9 +18,23 @@ public enum AID : uint
     Obliterate = 42238 // Boss->self, 2.0s cast, range 60 circle
 }
 
+public enum SID : uint
+{
+    DamageReduction = 350 // none->Boss, extra=0x0; applied when a Golem Soulstone spawns, removed when it dies
+}
+
 sealed class BoulderClapTrueGrit(BossModule module) : Components.SimpleAOEGroups(module, [(uint)AID.BoulderClap, (uint)AID.TrueGrit], new AOEShapeCone(14.2f, 60.Degrees()));
 sealed class Rockslide(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Rockslide, new AOEShapeRect(16.2f, 4f));
 sealed class Obliterate(BossModule module) : Components.RaidwideCast(module, (uint)AID.Obliterate);
+
+sealed class SoulstoneFirst(BossModule module) : BossComponent(module)
+{
+    public override void AddGlobalHints(GlobalHints hints)
+    {
+        if (Module.PrimaryActor.FindStatus((uint)SID.DamageReduction) != null)
+            hints.Add(Loc.T("Boss has damage reduction, kill Golem Soulstone first!"));
+    }
+}
 
 sealed class D082TempleGuardianStates : StateMachineBuilder
 {
@@ -30,6 +44,7 @@ sealed class D082TempleGuardianStates : StateMachineBuilder
             .ActivateOnEnter<BoulderClapTrueGrit>()
             .ActivateOnEnter<Rockslide>()
             .ActivateOnEnter<Obliterate>()
+            .ActivateOnEnter<SoulstoneFirst>()
             .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }
