@@ -9244,5 +9244,11 @@
   },
   "Tanks: pull {0} away from the other adds (damage reduction while close)!": {
     "message": "坦克：把{0}從其他小怪身邊拉開（靠近時受傷減輕）！"
+  },
+  "{0} is invulnerable: take the sword from the silver circle and break the tethered shields with the duty action!": {
+    "message": "{0}無敵：到銀色圓圈拿聖劍，用任務指令「聖劍攻擊」打掉連線的盾！"
+  },
+  "You hold the sword: face the tethered shields and use the duty action!": {
+    "message": "你持有聖劍：面向連線的盾使用任務指令「聖劍攻擊」！"
   }
 }
