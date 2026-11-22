@@ -25,10 +25,10 @@ public sealed class AIHintsBuilder : IDisposable
     // 契約：只收「打了零傷害」「打了會被反擊」或近乎無敵（PvP 防禦 3054 減傷 90%）的狀態，帶上就設 PriorityInvincible。
     // 刻意不收吸收盾（石膚 151、1936）與單純減傷／增益（3052、1303）：打了有效，盾還該打破，收了 AI 會白白停手。
     // 只對特定職能／團隊有效的條件式免疫（941/942、2409～2411 等）交給模組處理，不放進全域表。
-    // 198、385、2654 從說明判斷不了該不該停手，維持原樣。
+    // 刻意不收反擊類（197、198）：打了有效，只該停自動攻擊，見 MarkSpikes。385、2654 從說明判斷不了該不該停手，維持原樣。
     private static readonly HashSet<uint> invincibleStatuses =
     [
-        198u, 325u, 328u, 385u, 394u, 469u,
+        325u, 328u, 385u, 394u, 469u,
         529u, 592u, 656u, 671u, 775u, 776u,
         895u, 969u, 981u, 1240u, 1302u, 1567u,
         1570u, 1697u, 1829u, 2413u, 2654u, 3012u,
@@ -278,6 +278,28 @@ public sealed class AIHintsBuilder : IDisposable
         for (var i = 0; i < count; ++i)
         {
             hints.SetPriority(_invincible[i], AIHints.Enemy.PriorityInvincible);
+        }
+        MarkSpikes(hints);
+    }
+
+    // 契約：帶反擊狀態（197 火棘屏障、198 冰棘屏障）的敵人只設 Spikes（擋自動攻擊）、不動優先度，比照深宮 AutoClear。只設 true、不清。
+    // 每幀照狀態欄重算而不用增減清單：StatusGain 在狀態刷新時也會觸發、和 StatusLose 不成對，清單會殘留。
+    internal static void MarkSpikes(AIHints hints)
+    {
+        var targets = hints.PotentialTargets;
+        var count = targets.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var enemy = targets[i];
+            var statuses = enemy.Actor.Statuses;
+            for (var j = 0; j < statuses.Length; ++j)
+            {
+                if (statuses[j].ID is 197u or 198u)
+                {
+                    enemy.Spikes = true;
+                    break;
+                }
+            }
         }
     }
 
