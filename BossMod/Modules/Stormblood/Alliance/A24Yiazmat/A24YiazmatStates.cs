@@ -16,6 +16,7 @@ class A24YiazmatStates : StateMachineBuilder
             .ActivateOnEnter<AncientAero>()
             .ActivateOnEnter<Karma>()
             .ActivateOnEnter<UnholyDarkness>()
-            .ActivateOnEnter<SolarStorm1>();
+            .ActivateOnEnter<SolarStorm1>()
+            .ActivateOnEnter<PullApart>();
     }
 }

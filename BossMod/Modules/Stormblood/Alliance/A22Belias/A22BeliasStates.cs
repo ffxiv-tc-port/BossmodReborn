@@ -8,6 +8,7 @@ class A22BeliasStates : StateMachineBuilder
             .ActivateOnEnter<TimeEruption>()
             .ActivateOnEnter<TimeBomb2>()
             .ActivateOnEnter<Eruption>()
-            .ActivateOnEnter<FireIV>();
+            .ActivateOnEnter<FireIV>()
+            .ActivateOnEnter<PullApart>();
     }
 }
