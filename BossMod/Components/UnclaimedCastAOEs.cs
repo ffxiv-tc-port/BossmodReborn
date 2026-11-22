@@ -3,13 +3,12 @@ namespace BossMod.Components;
 // 模組沒認領的敵方讀條，照「沒有模組時」同一套猜法（AIHintsBuilder.GuessCastShape）畫在雷達上並交給 AI 閃避。
 // 契約：模組的 AID 列舉＝模組知道的技能（有元件處理，或刻意不處理）；只有列舉以外的讀條才猜。
 // 給機制沒寫全的模組用：模組啟用時 AIHintsBuilder 的後備猜測整個不跑，沒寫到的技能會連猜都不猜。
-// 帶無敵狀態的敵人也照沒有模組時的做法降成 PriorityInvincible；帶反擊狀態的只擋自動攻擊（AIHintsBuilder.MarkSpikes）。
+// 帶無敵狀態的敵人也照沒有模組時的做法降成 PriorityInvincible、帶反擊狀態的只擋自動攻擊（AIHintsBuilder.MarkInvincible／MarkSpikes，每幀看當下狀態欄）。
 public class UnclaimedCastAOEs : GenericAOEs
 {
     private readonly HashSet<uint> _claimed = [];
     private readonly List<AOEInstance> _aoes = [];
     private readonly List<(Actor Caster, Actor? Target, AOEShape Shape, WPos Location, Angle Rotation, DateTime Activation)> _gazes = [];
-    private readonly List<Actor> _invincible = [];
 
     public UnclaimedCastAOEs(BossModule module) : base(module)
     {
@@ -54,24 +53,10 @@ public class UnclaimedCastAOEs : GenericAOEs
                 _gazes.RemoveAt(i);
     }
 
-    public override void OnStatusGain(Actor actor, ActorStatus status)
-    {
-        if (AIHintsBuilder.IsInvincibleStatus(status.ID) && !_invincible.Contains(actor))
-            _invincible.Add(actor);
-    }
-
-    public override void OnStatusLose(Actor actor, ActorStatus status)
-    {
-        if (AIHintsBuilder.IsInvincibleStatus(status.ID))
-            _invincible.Remove(actor);
-    }
-
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         base.AddAIHints(slot, actor, assignment, hints);
-        var invincible = _invincible.Count;
-        for (var i = 0; i < invincible; ++i)
-            hints.SetPriority(_invincible[i], AIHints.Enemy.PriorityInvincible);
+        AIHintsBuilder.MarkInvincible(hints);
         AIHintsBuilder.MarkSpikes(hints);
         var count = _gazes.Count;
         for (var i = 0; i < count; ++i)

@@ -276,7 +276,7 @@ public sealed class AIHintsBuilder : IDisposable
     }
 
     // 每幀照狀態欄重算，理由同 MarkSpikes；增減清單在狀態刷新後會殘留，actor 消失後還會經由 spawn index 套到之後占同一格的敵人。
-    private static void MarkInvincible(AIHints hints)
+    internal static void MarkInvincible(AIHints hints)
     {
         var targets = hints.PotentialTargets;
         var count = targets.Count;
