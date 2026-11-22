@@ -50,6 +50,10 @@ public abstract class GenericStackSpread(BossModule module, bool alwaysShowSprea
     public List<Spread> Spreads = [];
     public const string StackHint = "Stack!";
 
+    // 傷害預告帶的來源技能（給 DamageSeverityTable 查危險度）；0＝不知道
+    protected virtual uint PredictedSpreadSource => 0u;
+    protected virtual uint PredictedStackSource => 0u;
+
     public bool Active => Stacks.Count + Spreads.Count > 0;
     public List<Stack> ActiveStacks
     {
@@ -312,7 +316,7 @@ public abstract class GenericStackSpread(BossModule module, bool alwaysShowSprea
             }
             if (spreadMask != default)
             {
-                hints.AddPredictedDamage(spreadMask, firstActivation, AIHints.PredictedDamageType.Raidwide);
+                hints.AddPredictedDamage(spreadMask, firstActivation, AIHints.PredictedDamageType.Raidwide, PredictedSpreadSource, spread: true);
             }
 
             BitMask stackMask = default;
@@ -330,7 +334,7 @@ public abstract class GenericStackSpread(BossModule module, bool alwaysShowSprea
             }
             if (anyStack && stackMask != mask)
             {
-                hints.AddPredictedDamage(stackMask, firstActivation, AIHints.PredictedDamageType.Shared);
+                hints.AddPredictedDamage(stackMask, firstActivation, AIHints.PredictedDamageType.Shared, PredictedStackSource);
             }
         }
     }
@@ -426,6 +430,8 @@ public class CastStackSpread(BossModule module, uint stackAID, uint spreadAID, f
     public readonly uint SpreadAction = spreadAID;
     public int NumFinishedStacks;
     public int NumFinishedSpreads;
+    protected override uint PredictedSpreadSource => SpreadAction;
+    protected override uint PredictedStackSource => StackAction;
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
@@ -497,6 +503,8 @@ public class IconStackSpread(BossModule module, uint stackIcon, uint spreadIcon,
     public int NumFinishedSpreads;
     public readonly int MaxCasts = maxCasts; // for stacks where the final AID hits multiple times
     public int CastCounter;
+    protected override uint PredictedSpreadSource => SpreadAction;
+    protected override uint PredictedStackSource => StackAction;
 
     public override void OnEventIcon(Actor actor, uint iconID, ulong targetID)
     {

@@ -16,6 +16,7 @@ public enum DamageSeverity
 /// <remarks>
 /// 資料檔由 <c>~/.claude/tools/bmr-replay/audit/rwsev/gen_bmr_severity.py</c> 產生；鍵是 (CFC, AID)，CFC 0＝不分副本。
 /// 查表順序：(本副本, AID) → (0, AID) → 副本類型預設。AID 0（元件沒填來源）直接走預設。
+/// 散開（<see cref="AIHints.DamagePrediction.Spread"/>）不是全體傷害：表上沒列的一律低，不走副本預設。
 /// 只讀、無鎖：資料表載入一次後不再改；預設值只快取「上一個副本」一筆，以參考整筆替換。
 /// </remarks>
 public static class DamageSeverityTable
@@ -31,6 +32,20 @@ public static class DamageSeverityTable
 
     public static DamageSeverity Get(ushort cfc, uint aid, AIHints.PredictedDamageType type)
         => aid != 0 && TryGetEntry(cfc, aid, out var e) ? e.Severity : GetDefault(cfc, type);
+
+    public static DamageSeverity Get(ushort cfc, in AIHints.DamagePrediction d)
+        => d.SourceAction != 0 && TryGetEntry(cfc, d.SourceAction, out var e) ? e.Severity
+        : d.Spread ? DamageSeverity.Low
+        : GetDefault(cfc, d.Type);
+
+    /// <summary>比較用的危險程度：低 &lt; 未知 &lt; 中 &lt; 高（未知在決策上照中處理，同分時已知的優先）。</summary>
+    public static int Rank(DamageSeverity s) => s switch
+    {
+        DamageSeverity.Low => 1,
+        DamageSeverity.Medium => 3,
+        DamageSeverity.High => 4,
+        _ => 2
+    };
 
     public static bool TryGetEntry(ushort cfc, uint aid, out Entry entry)
     {

@@ -76,13 +76,15 @@ public sealed class AIHints
         Shared, // cast is expected to hit multiple players; modules might have special behavior when intentionally taking this damage solo
     }
 
-    public readonly struct DamagePrediction(BitMask players, DateTime activation, PredictedDamageType type = PredictedDamageType.None, uint sourceAction = 0)
+    public readonly struct DamagePrediction(BitMask players, DateTime activation, PredictedDamageType type = PredictedDamageType.None, uint sourceAction = 0, bool spread = false)
     {
         public readonly BitMask Players = players;
         public readonly DateTime Activation = activation;
         public readonly PredictedDamageType Type = type;
-        // 造成這筆傷害的技能 AID（給 DamageSeverityTable 查危險度）；0＝元件沒填（瞬發、散開、狀態機提示），走副本預設
+        // 造成這筆傷害的技能 AID（給 DamageSeverityTable 查危險度）；0＝元件沒填（瞬發、狀態機提示），走副本預設
         public readonly uint SourceAction = sourceAction;
+        // 散開：每個被點名的人各吃一發，不是全體傷害；危險度表沒列就當低（見 DamageSeverityTable.Get）
+        public readonly bool Spread = spread;
     }
 
     public static readonly ArenaBounds DefaultBounds = new ArenaBoundsSquare(30f, AllowObstacleMap: true);
@@ -384,7 +386,45 @@ public sealed class AIHints
     // 背景執行緒（AIBehaviour 的背景尋路）只能拿這份快照，主執行緒下一幀會 Clear() 原清單
     public (Func<WPos, float> shapeDistance, DateTime activation)[] SnapshotFutureZones() => FutureForbiddenZones.Count == 0 ? [] : [.. FutureForbiddenZones];
 
-    public void AddPredictedDamage(BitMask players, DateTime activation, PredictedDamageType type = PredictedDamageType.Raidwide, uint sourceAction = 0) => PredictedDamage.Add(new(players, activation, type, sourceAction));
+    public void AddPredictedDamage(BitMask players, DateTime activation, PredictedDamageType type = PredictedDamageType.Raidwide, uint sourceAction = 0, bool spread = false) => PredictedDamage.Add(new(players, activation, type, sourceAction, spread));
+
+    /// <summary>同一波預告的合併窗：活化時刻差這麼多秒以內視為同一發（例：散開與全體傷害同時結算）。</summary>
+    public const float RaidwideCoalesceSeconds = 0.5f;
+
+    /// <summary>
+    /// 第一筆 <see cref="PredictedDamageType.Raidwide"/>（與 IPC <c>Hints.NextRaidwideDamageIn</c> 同一筆）的危險度；
+    /// 合併窗內另有更危險的同類預告就改取那筆。<paramref name="index"/>＝取用那筆的索引；沒有預告回 -1 與 <see cref="DamageSeverity.Unknown"/>。
+    /// </summary>
+    /// <remarks>合併是為了不讓同時結算的低危散開蓋掉真正的全體傷害。</remarks>
+    public DamageSeverity NextRaidwideSeverity(ushort cfc, out int index)
+    {
+        index = -1;
+        var res = DamageSeverity.Unknown;
+        var anchor = default(DateTime);
+        var span = CollectionsMarshal.AsSpan(PredictedDamage);
+        for (var i = 0; i < span.Length; ++i)
+        {
+            ref readonly var d = ref span[i];
+            if (d.Type != PredictedDamageType.Raidwide)
+                continue;
+            if (index < 0)
+            {
+                anchor = d.Activation;
+                index = i;
+                res = DamageSeverityTable.Get(cfc, in d);
+                continue;
+            }
+            if (Math.Abs((d.Activation - anchor).TotalSeconds) >= RaidwideCoalesceSeconds)
+                continue;
+            var sev = DamageSeverityTable.Get(cfc, in d);
+            if (DamageSeverityTable.Rank(sev) > DamageSeverityTable.Rank(res))
+            {
+                index = i;
+                res = sev;
+            }
+        }
+        return res;
+    }
 
     /// <summary>本幀最早一筆打到 <paramref name="slot"/> 的死刑（<see cref="PredictedDamageType.Tankbuster"/>）還有幾秒；沒有回 <see cref="float.MaxValue"/>。</summary>
     /// <remarks>活化時刻已過（剩餘 &lt; 0）的不算：那時再開減傷已經來不及。<paramref name="now"/> 要用世界時鐘，與模組寫入的活化時刻同一基準。</remarks>

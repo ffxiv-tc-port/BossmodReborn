@@ -189,6 +189,14 @@ public sealed class PredictiveMitigation(RotationModuleManager manager, Actor pl
     private ActionDamageType.Kind _lastRaidwideKind;
     private ActionDamageType.Kind _lastTankbusterKind;
     private DamageSeverity _lastRaidwideSeverity;
+    private bool _lastBySeverity = true;
+
+    // 同一幀對同一筆預告只判一次屬性（敵方減益與團隊增益常是同一筆）。
+    private (DateTime Now, uint Source, DateTime At, ActionDamageType.Kind Kind) _classifyMemo;
+
+    // 本隊＝隊伍格 0～7；格 8 起是聯盟其他小隊與 NPC。
+    private static readonly BitMask PartyMask = new(0xFFul);
+    private static readonly BitMask AnyoneMask = new(~0ul);
 
     // 「判成低／中所以少開」與「擺脫讓位」各自節流：同一招（AID＋活化時刻 2 秒內）只記一行。
     private readonly (uint Aid, DateTime At)[] _lastDecisionLog = new (uint, DateTime)[2];
@@ -199,9 +207,10 @@ public sealed class PredictiveMitigation(RotationModuleManager manager, Actor pl
     /// </remarks>
     public override string DescribeState()
     {
-        var im = Imminent();
-        var rwText = im.Raidwide < float.MaxValue ? $"{im.Raidwide:f1}{KindTag(_lastRaidwideKind)}{SeverityTag(_lastRaidwideSeverity, _lastRaidwideKind)}" : "-";
-        var tbText = im.Tankbuster < float.MaxValue ? $"{im.Tankbuster:f1}{KindTag(_lastTankbusterKind)}" : "-";
+        var rw = NextRaidwide(AnyoneMask, _lastBySeverity);
+        var tb = Imminent().Tankbuster;
+        var rwText = rw.Found ? $"{rw.In:f1}{KindTag(_lastRaidwideKind)}{SeverityTag(_lastRaidwideSeverity, _lastRaidwideKind)}" : "-";
+        var tbText = tb < float.MaxValue ? $"{tb:f1}{KindTag(_lastTankbusterKind)}" : "-";
         return $"RW {rwText} / TB {tbText}";
     }
 
@@ -228,35 +237,32 @@ public sealed class PredictiveMitigation(RotationModuleManager manager, Actor pl
             return;
 
         var im = Imminent();
-        var (raidwideIn, tankbusterIn) = (im.Raidwide, im.Tankbuster);
+        var tankbusterIn = im.Tankbuster;
 
         var raidwideLead = strategy.GetFloat(Track.RaidwideLead);
         var tankbusterLead = strategy.GetFloat(Track.TankbusterLead);
-
-        var raidwideImminent = raidwideIn <= raidwideLead;
         var tankbusterImminent = tankbusterIn <= tankbusterLead;
+        var bySeverity = strategy.Option(Track.Severity).As<SeverityStrategy>() == SeverityStrategy.BySeverity;
+        _lastBySeverity = bySeverity;
 
         _unknownSchool = strategy.Option(Track.UnknownSchool).As<UnknownSchoolStrategy>();
 
-        // 只在真的要用到時才去掃詠唱（每次都要走一遍 actor 表）。
-        _lastRaidwideKind = raidwideImminent ? Classify(im.RaidwideSource, im.RaidwideAt) : ActionDamageType.Kind.None;
-        _lastTankbusterKind = tankbusterImminent ? Classify(im.TankbusterSource, im.TankbusterAt) : ActionDamageType.Kind.None;
-        _lastRaidwideSeverity = raidwideImminent ? DamageSeverityTable.Get(World.CurrentCFCID, im.RaidwideSource, im.RaidwideType) : DamageSeverity.Unknown;
+        // 敵方減益（雪仇／牽制／昏亂）降的是敵人打每個人的傷害，誰被打到都算；團隊增益只看本隊有沒有人被打到。
+        var anyRw = NextRaidwide(AnyoneMask, bySeverity);
+        var partyRw = NextRaidwide(PartyMask, bySeverity);
+        var raidwideImminent = anyRw.Found && anyRw.In <= raidwideLead;
 
-        if (raidwideImminent && strategy.Enabled(Track.PartyMit))
+        // 只在真的要用到時才去掃詠唱（每次都要走一遍 actor 表）。
+        _lastRaidwideKind = raidwideImminent ? ClassifyPick(in anyRw) : ActionDamageType.Kind.None;
+        _lastTankbusterKind = tankbusterImminent ? Classify(im.TankbusterSource, im.TankbusterAt) : ActionDamageType.Kind.None;
+        _lastRaidwideSeverity = raidwideImminent ? anyRw.Severity : DamageSeverity.Unknown;
+
+        if (strategy.Enabled(Track.PartyMit))
         {
-            var bySeverity = strategy.Option(Track.Severity).As<SeverityStrategy>() == SeverityStrategy.BySeverity;
-            if (bySeverity && _lastRaidwideSeverity == DamageSeverity.Low)
-            {
-                LogSeverityDecision(im.RaidwideSource, im.RaidwideAt);
-            }
-            else
-            {
-                var full = !bySeverity || _lastRaidwideSeverity == DamageSeverity.High;
-                if (!full)
-                    LogSeverityDecision(im.RaidwideSource, im.RaidwideAt);
-                ExecutePartyMit(new(raidwideIn, _lastRaidwideKind, PrioParty), primaryTarget, full, im.Tankbuster < float.MaxValue, im.RaidwideSource, im.RaidwideAt);
-            }
+            var debuff = Plan(in anyRw, raidwideLead, bySeverity);
+            var buff = Plan(in partyRw, raidwideLead, bySeverity);
+            if (debuff.Use || buff.Use)
+                ExecutePartyMit(in buff, in debuff, primaryTarget, im.Tankbuster < float.MaxValue, partyRw.Source, partyRw.At);
         }
 
         var selfStrategy = strategy.Option(Track.SelfMit).As<SelfMitStrategy>();
@@ -264,8 +270,9 @@ public sealed class PredictiveMitigation(RotationModuleManager manager, Actor pl
         {
             if (tankbusterImminent)
                 ExecuteSelfMit(new(tankbusterIn, _lastTankbusterKind, PrioSelf));
-            else if (selfStrategy == SelfMitStrategy.Raidwides && raidwideImminent)
-                ExecuteSelfMit(new(raidwideIn, _lastRaidwideKind, PrioSelf));
+            else if (selfStrategy == SelfMitStrategy.Raidwides && World.Party.FindSlot(Player.InstanceID) is var slot && slot >= 0
+                && NextRaidwide(new BitMask().WithBit(slot), false) is { Found: true } selfRw && selfRw.In <= raidwideLead)
+                ExecuteSelfMit(new(selfRw.In, ClassifyPick(in selfRw), PrioSelf));
         }
 
         if (strategy.Enabled(Track.Emergency) && Player.PendingHPRatio < strategy.GetFloat(Track.EmergencyHP) * 0.01f)
@@ -277,47 +284,24 @@ public sealed class PredictiveMitigation(RotationModuleManager manager, Actor pl
         }
     }
 
-    private readonly record struct ImminentDamage(float Raidwide, DateTime RaidwideAt, uint RaidwideSource, AIHints.PredictedDamageType RaidwideType,
-        float Tankbuster, DateTime TankbusterAt, uint TankbusterSource);
+    private readonly record struct ImminentDamage(float Tankbuster, DateTime TankbusterAt, uint TankbusterSource);
 
-    /// <summary>
-    /// 本幀最近的團刀與指向自己的死刑：剩餘秒數、活化時刻、來源 AID；沒有就是 <c>float.MaxValue</c>／<c>default</c>。
-    /// </summary>
+    /// <summary>選中的一筆全體／分攤／散開預告；<see cref="Found"/> 為假＝沒有。來源、類型、危險度取合併窗內最危險的那筆。</summary>
+    private readonly record struct RaidwidePick(bool Found, float In, DateTime At, uint Source, AIHints.PredictedDamageType Type, DamageSeverity Severity, bool Spread);
+
+    /// <summary>這一類團減（團隊增益或敵方減益）這一幀要不要推；<see cref="Full"/>＝全部團減，否則只推冷卻 ≤60 秒的。</summary>
+    private readonly record struct PartyMitPlan(bool Use, bool Full, MitContext Ctx);
+
+    /// <summary>本幀指向自己的死刑：剩餘秒數、活化時刻、來源 AID；沒有就是 <c>float.MaxValue</c>／<c>default</c>。</summary>
     private ImminentDamage Imminent()
     {
         var now = World.CurrentTime;
-        var rw = float.MaxValue;
         var tb = float.MaxValue;
-        var rwAt = default(DateTime);
         var tbAt = default(DateTime);
-        var rwSrc = 0u;
         var tbSrc = 0u;
-        var rwType = AIHints.PredictedDamageType.Raidwide;
 
-        // 與走 AIBase.Raidwides／Tankbusters 的 LINQ 同一個順序與條件（死刑＝隊伍格依序、活著、在遮罩裡），只是不配置列舉器
+        // 與走 AIBase.Tankbusters 的 LINQ 同一個順序與條件（隊伍格依序、活著、在遮罩裡），只是不配置列舉器
         var party = World.Party;
-        foreach (ref readonly var d in CollectionsMarshal.AsSpan(Hints.PredictedDamage))
-        {
-            var t = d.Activation;
-            if (d.Type is AIHints.PredictedDamageType.Raidwide or AIHints.PredictedDamageType.Shared)
-            {
-                var dt = (float)(t - now).TotalSeconds;
-                if (dt > StaleCutoff && dt < rw)
-                {
-                    rw = dt;
-                    rwAt = t;
-                    rwSrc = d.SourceAction;
-                    rwType = d.Type;
-                }
-                // 同一時刻常疊一筆沒填來源的（散開、分攤），有來源的那筆才查得到危險度
-                else if (rwSrc == 0 && d.SourceAction != 0 && dt > StaleCutoff && dt - rw < 0.5f)
-                {
-                    rwSrc = d.SourceAction;
-                    rwType = d.Type;
-                }
-            }
-        }
-
         foreach (ref readonly var d in CollectionsMarshal.AsSpan(Hints.PredictedDamage))
         {
             if (d.Type != AIHints.PredictedDamageType.Tankbuster)
@@ -338,7 +322,67 @@ public sealed class PredictiveMitigation(RotationModuleManager manager, Actor pl
             }
         }
 
-        return new(rw, rwAt, rwSrc, rwType, tb, tbAt, tbSrc);
+        return new(tb, tbAt, tbSrc);
+    }
+
+    /// <summary>本幀最近一筆打到 <paramref name="targets"/> 任一格的全體／分攤／散開預告。</summary>
+    /// <param name="skipLow">true＝低危的不擋住後面較危險的：只有沒有其他預告時才回低危那筆（給「判成低、不開」用）。</param>
+    private RaidwidePick NextRaidwide(BitMask targets, bool skipLow)
+    {
+        var now = World.CurrentTime;
+        var cfc = World.CurrentCFCID;
+        RaidwidePick best = default, low = default;
+        foreach (ref readonly var d in CollectionsMarshal.AsSpan(Hints.PredictedDamage))
+        {
+            if (d.Type is not (AIHints.PredictedDamageType.Raidwide or AIHints.PredictedDamageType.Shared) || (d.Players & targets).None())
+                continue;
+            var dt = (float)(d.Activation - now).TotalSeconds;
+            if (dt <= StaleCutoff)
+                continue;
+            var sev = DamageSeverityTable.Get(cfc, in d);
+            if (skipLow && sev == DamageSeverity.Low)
+                Merge(ref low, in d, dt, sev);
+            else
+                Merge(ref best, in d, dt, sev);
+        }
+        return best.Found ? best : low;
+    }
+
+    // 合併窗內（同一波）取最早的時間、最危險的來源；同樣危險時有來源的優先（查得到屬性）。
+    private static void Merge(ref RaidwidePick pick, in AIHints.DamagePrediction d, float dt, DamageSeverity sev)
+    {
+        if (!pick.Found || dt < pick.In - AIHints.RaidwideCoalesceSeconds)
+        {
+            pick = new(true, dt, d.Activation, d.SourceAction, d.Type, sev, d.Spread);
+            return;
+        }
+        if (dt >= pick.In + AIHints.RaidwideCoalesceSeconds)
+            return;
+        var (t, at) = dt < pick.In ? (dt, d.Activation) : (pick.In, pick.At);
+        var rank = DamageSeverityTable.Rank(sev);
+        var pickRank = DamageSeverityTable.Rank(pick.Severity);
+        pick = rank > pickRank || rank == pickRank && pick.Source == 0 && d.SourceAction != 0
+            ? new(true, t, at, d.SourceAction, d.Type, sev, d.Spread)
+            : pick with { In = t, At = at };
+    }
+
+    private PartyMitPlan Plan(in RaidwidePick p, float lead, bool bySeverity)
+    {
+        if (!p.Found || p.In > lead)
+            return default;
+        if (bySeverity && p.Severity != DamageSeverity.High)
+            LogSeverityDecision(in p);
+        if (bySeverity && p.Severity == DamageSeverity.Low)
+            return default;
+        return new(true, !bySeverity || p.Severity == DamageSeverity.High, new(p.In, ClassifyPick(in p), PrioParty));
+    }
+
+    private ActionDamageType.Kind ClassifyPick(in RaidwidePick p)
+    {
+        var now = World.CurrentTime;
+        if (_classifyMemo.Now != now || _classifyMemo.Source != p.Source || _classifyMemo.At != p.At)
+            _classifyMemo = (now, p.Source, p.At, Classify(p.Source, p.At));
+        return _classifyMemo.Kind;
     }
 
     #region 傷害屬性判定
@@ -431,7 +475,8 @@ public sealed class PredictiveMitigation(RotationModuleManager manager, Actor pl
     /// 的判斷——太短＝可能提早補第二格、太長＝可能少開一格，<b>不會造成亂放技能</b>。</param>
     /// <param name="ctx">這次傷害的 context（剩餘秒數／屬性／優先級）。</param>
     /// <param name="target">目標；預設是自己。null 一律不推。</param>
-    /// <param name="coverStatus">非 0＝「還罩著多久」改讀 <paramref name="coverHolder"/> 身上自己施加的這個狀態（含待生效），不用 <paramref name="duration"/>。</param>
+    /// <param name="coverStatus">非 0＝「還罩著多久」改讀 <paramref name="coverHolder"/> 身上的這個狀態（含待生效），不用 <paramref name="duration"/>。
+    /// 掛在自己身上只算自己施加的；掛在敵人身上（雪仇／牽制／昏亂）任何人施加的都算——同一狀態不疊加，別人的已經罩著就不必再放。</param>
     /// <param name="coverHolder">狀態掛在誰身上（自己或敵人）。</param>
     /// <returns>true＝這一格已經解決（推出去了，或效果還罩著），呼叫端不要再往下找備援。</returns>
     private bool TryMit(ActionID action, School school, float duration, in MitContext ctx, Actor? target = null, uint coverStatus = 0, Actor? coverHolder = null)
@@ -449,7 +494,9 @@ public sealed class PredictiveMitigation(RotationModuleManager manager, Actor pl
         // 效果殘留 = 持續時間 -（已經過的冷卻）= duration -(maxCD - cd)。沒用過時 cd=0 ⇒ 必為 <= 0。
         // 🔑 這個推法不需要狀態 id，也就不會因為狀態 id 在台服對不上而靜默失效（沿用 TankAI 的做法）。
         // 狀態 id 對不上只會讓殘留讀成 0＝退回「冷卻好了才推」，不會多推。
-        var effectRemaining = coverStatus != 0 ? StatusDetails(coverHolder, coverStatus, Player.InstanceID).Left : duration + cd - def.Cooldown;
+        var effectRemaining = coverStatus == 0 ? duration + cd - def.Cooldown
+            : coverHolder == Player ? StatusDetails(coverHolder, coverStatus, Player.InstanceID).Left
+            : AnySourceStatusLeft(coverHolder, coverStatus);
         if (effectRemaining > ctx.TimeToHit)
             return true;
 
@@ -464,6 +511,21 @@ public sealed class PredictiveMitigation(RotationModuleManager manager, Actor pl
 
     private bool TryMit<AID>(AID aid, School school, float duration, in MitContext ctx, Actor? target = null, uint coverStatus = 0, Actor? coverHolder = null) where AID : Enum
         => TryMit(ActionID.MakeSpell(aid), school, duration, in ctx, target, coverStatus, coverHolder);
+
+    // 不分施放者、取最長的一筆；待生效的照 StatusDetails 的慣例當成罩很久（1000 秒）。
+    private float AnySourceStatusLeft(Actor? actor, uint sid)
+    {
+        if (actor == null)
+            return 0;
+        foreach (ref var s in actor.PendingStatuses.AsSpan())
+            if (s.StatusId == sid)
+                return 1000;
+        var res = 0f;
+        foreach (ref var s in actor.Statuses.AsSpan())
+            if (s.ID == sid)
+                res = Math.Max(res, StatusDuration(s.ExpireAt));
+        return res;
+    }
 
     /// <summary>
     /// 升級技的挑選：解鎖了就用升級版，否則用原版。
@@ -523,17 +585,17 @@ public sealed class PredictiveMitigation(RotationModuleManager manager, Actor pl
         return true;
     }
 
-    private void LogSeverityDecision(uint aid, DateTime at)
+    private void LogSeverityDecision(in RaidwidePick p)
     {
-        if (!ShouldLogDecision(0, aid, at))
+        if (!ShouldLogDecision(0, p.Source, p.At))
             return;
-        var text = _lastRaidwideSeverity switch
+        var text = p.Severity switch
         {
             DamageSeverity.Low => "判成低危險度，沒開團減",
             DamageSeverity.Medium => "判成中危險度，只開冷卻 60 秒以內的團減",
             _ => "危險度未知（照中處理），只開冷卻 60 秒以內的團減"
         };
-        Service.Logger.Information($"[PredMit] 全體傷害（技能 {aid}，副本 {World.CurrentCFCID}）{text}。");
+        Service.Logger.Information($"[PredMit] {(p.Spread ? "散開" : "全體傷害")}（技能 {p.Source}，副本 {World.CurrentCFCID}）{text}。");
     }
 
     private void LogShakeItOffSkip(uint aid, DateTime at, bool tankbusterOnMe)
@@ -560,37 +622,43 @@ public sealed class PredictiveMitigation(RotationModuleManager manager, Actor pl
 
     #region 團體減傷
 
-    /// <param name="full">true＝全部團減（危險度高或不看危險度）；false＝只用冷卻 ≤60 秒的，牽制／昏亂只在屬性對的那邊。</param>
+    /// <param name="buff">團隊增益（聖光幕簾、行吟、堅角清汁…）：本隊有人被打到才用。<c>Full</c> 為假＝只用冷卻 ≤60 秒的。</param>
+    /// <param name="debuff">敵方減益（雪仇／牽制／昏亂）：誰被打到都算。<c>Full</c> 為假＝牽制／昏亂只在屬性對的那邊。</param>
     /// <param name="tankbusterOnMe">有死刑預告打自己：擺脫讓位（它會解除戰慄／戮罪／原初的血氣）。</param>
-    private void ExecutePartyMit(in MitContext ctx, Actor? primaryTarget, bool full, bool tankbusterOnMe, uint source, DateTime activation)
+    private void ExecutePartyMit(in PartyMitPlan buff, in PartyMitPlan debuff, Actor? primaryTarget, bool tankbusterOnMe, uint source, DateTime activation)
     {
+        var fullBuff = buff.Use && buff.Full;
         switch (Player.Class)
         {
             // 聖光幕簾＝防護罩（抵消最大HP10%），描述無屬性限定 ⇒ All
             case Class.GLA:
             case Class.PLD:
-                if (full)
-                    TryMit(BossMod.PLD.AID.DivineVeil, School.All, 30, in ctx);
-                TryReprisal(in ctx, primaryTarget);
+                if (fullBuff)
+                    TryMit(BossMod.PLD.AID.DivineVeil, School.All, 30, buff.Ctx);
+                if (debuff.Use)
+                    TryReprisal(debuff.Ctx, primaryTarget);
                 break;
             // 擺脫＝防護罩（抵消最大HP15%），無屬性限定 ⇒ All
             case Class.MRD:
             case Class.WAR:
-                if (full)
-                    TryShakeItOff(in ctx, tankbusterOnMe, source, activation);
-                TryReprisal(in ctx, primaryTarget);
+                if (fullBuff)
+                    TryShakeItOff(buff.Ctx, tankbusterOnMe, source, activation);
+                if (debuff.Use)
+                    TryReprisal(debuff.Ctx, primaryTarget);
                 break;
             // ⚠️ 暗黑佈道在台服 7.20 是「物理減5%、魔法減10%」——兩種都減，不是舊版的魔法專用 ⇒ All
             case Class.DRK:
-                if (full)
-                    TryMit(BossMod.DRK.AID.DarkMissionary, School.All, 15, in ctx);
-                TryReprisal(in ctx, primaryTarget);
+                if (fullBuff)
+                    TryMit(BossMod.DRK.AID.DarkMissionary, School.All, 15, buff.Ctx);
+                if (debuff.Use)
+                    TryReprisal(debuff.Ctx, primaryTarget);
                 break;
             // ⚠️ 光之心同上，「物理減5%、魔法減10%」⇒ All
             case Class.GNB:
-                if (full)
-                    TryMit(BossMod.GNB.AID.HeartOfLight, School.All, 15, in ctx);
-                TryReprisal(in ctx, primaryTarget);
+                if (fullBuff)
+                    TryMit(BossMod.GNB.AID.HeartOfLight, School.All, 15, buff.Ctx);
+                if (debuff.Use)
+                    TryReprisal(debuff.Ctx, primaryTarget);
                 break;
 
             // 近戰：牽制（對敵單體，射程 10）。「物理降10%、魔法降5%」⇒ 全部團減時 All；只用便宜的時當物理專用
@@ -603,22 +671,23 @@ public sealed class PredictiveMitigation(RotationModuleManager manager, Actor pl
             case Class.SAM:
             case Class.RPR:
             case Class.VPR:
-                TryEnemyDebuff(ClassShared.AID.Feint, full ? School.All : School.Physical, ClassShared.SID.Feint, in ctx, primaryTarget);
+                if (debuff.Use)
+                    TryEnemyDebuff(ClassShared.AID.Feint, debuff.Full ? School.All : School.Physical, ClassShared.SID.Feint, debuff.Ctx, primaryTarget);
                 break;
 
             // 遠敏：各自的團減（皆為對自身施放的 30m 範圍增益），描述都是「所受到的傷害減輕15%」⇒ All；冷卻 120 秒，只在 full 用
             case Class.ARC:
             case Class.BRD:
-                if (full)
-                    TryMit(BossMod.BRD.AID.Troubadour, School.All, 15, in ctx);
+                if (fullBuff)
+                    TryMit(BossMod.BRD.AID.Troubadour, School.All, 15, buff.Ctx);
                 break;
             case Class.MCH:
-                if (full)
-                    TryMit(BossMod.MCH.AID.Tactician, School.All, 15, in ctx);
+                if (fullBuff)
+                    TryMit(BossMod.MCH.AID.Tactician, School.All, 15, buff.Ctx);
                 break;
             case Class.DNC:
-                if (full)
-                    TryMit(BossMod.DNC.AID.ShieldSamba, School.All, 15, in ctx);
+                if (fullBuff)
+                    TryMit(BossMod.DNC.AID.ShieldSamba, School.All, 15, buff.Ctx);
                 break;
 
             // 法系：昏亂（對敵單體，射程 25）。「物理降5%、魔法降10%」⇒ 全部團減時 All；只用便宜的時當魔法專用
@@ -628,14 +697,16 @@ public sealed class PredictiveMitigation(RotationModuleManager manager, Actor pl
             case Class.SMN:
             case Class.BLU:
             case Class.PCT:
-                TryEnemyDebuff(ClassShared.AID.Addle, full ? School.All : School.Magical, ClassShared.SID.Addle, in ctx, primaryTarget);
+                if (debuff.Use)
+                    TryEnemyDebuff(ClassShared.AID.Addle, debuff.Full ? School.All : School.Magical, ClassShared.SID.Addle, debuff.Ctx, primaryTarget);
                 break;
             // 🔑 抗死是整個模組裡唯一的魔法專用團減：「所受到的魔法傷害減輕10%」⇒ Magical。
             //    物理團刀時會被跳過，昏亂仍然照推（它兩種都降）。
             case Class.RDM:
-                if (full)
-                    TryMit(BossMod.RDM.AID.MagickBarrier, School.Magical, 10, in ctx);
-                TryEnemyDebuff(ClassShared.AID.Addle, full ? School.All : School.Magical, ClassShared.SID.Addle, in ctx, primaryTarget);
+                if (fullBuff)
+                    TryMit(BossMod.RDM.AID.MagickBarrier, School.Magical, 10, buff.Ctx);
+                if (debuff.Use)
+                    TryEnemyDebuff(ClassShared.AID.Addle, debuff.Full ? School.All : School.Magical, ClassShared.SID.Addle, debuff.Ctx, primaryTarget);
                 break;
 
             // 治療：只挑「按下去就生效、不打斷走位、不需要寵物」的那一個。
@@ -644,15 +715,16 @@ public sealed class PredictiveMitigation(RotationModuleManager manager, Actor pl
             // 三支的描述都是無屬性限定的「受到的傷害減輕10%」⇒ All；節制／疾風怒濤冷卻 120 秒只在 full，堅角清汁 30 秒都用
             case Class.CNJ:
             case Class.WHM:
-                if (full)
-                    TryMit(BossMod.WHM.AID.Temperance, School.All, 20, in ctx);
+                if (fullBuff)
+                    TryMit(BossMod.WHM.AID.Temperance, School.All, 20, buff.Ctx);
                 break;
             case Class.SCH:
-                if (full)
-                    TryMit(BossMod.SCH.AID.Expedient, School.All, 20, in ctx);
+                if (fullBuff)
+                    TryMit(BossMod.SCH.AID.Expedient, School.All, 20, buff.Ctx);
                 break;
             case Class.SGE:
-                TryMit(BossMod.SGE.AID.Kerachole, School.All, 15, in ctx);
+                if (buff.Use)
+                    TryMit(BossMod.SGE.AID.Kerachole, School.All, 15, buff.Ctx);
                 break;
         }
     }
