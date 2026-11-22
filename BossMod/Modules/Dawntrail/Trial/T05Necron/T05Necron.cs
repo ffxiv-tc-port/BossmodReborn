@@ -17,7 +17,7 @@ sealed class Wipe(BossModule module) : BossComponent(module)
 sealed class DarknessOfEternity(BossModule module) : Components.RaidwideCastDelay(module, (uint)AID.DarknessOfEternityVisual, (uint)AID.DarknessOfEternity, 6.4d);
 sealed class FearOfDeathAOE2(BossModule module) : Components.SimpleAOEs(module, (uint)AID.FearOfDeathAOE2, 3f);
 sealed class FearOfDeathGrandCross(BossModule module) : Components.RaidwideCasts(module, [(uint)AID.FearOfDeath, (uint)AID.GrandCross, (uint)AID.GrandCrossProximity]);
-sealed class BlueShockwave(BossModule module) : Components.BaitAwayIcon(module, new AOEShapeCone(100f, 50f.Degrees()), (uint)IconID.BlueShockwave, (uint)AID.BlueShockwave, 7.2d)
+sealed class BlueShockwave(BossModule module) : Components.BaitAwayIcon(module, new AOEShapeCone(100f, 50f.Degrees()), (uint)IconID.BlueShockwave, (uint)AID.BlueShockwave, 7.2d, tankbuster: true)
 {
     public override void Update()
     {

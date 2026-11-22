@@ -3,7 +3,7 @@
 // generic component for mechanics that require baiting some aoe (by proximity, by tether, etc) away from raid
 // some players can be marked as 'forbidden' - if any of them is baiting, they are warned
 // otherwise we show own bait as as outline (and warn if player is clipping someone) and other baits as filled (and warn if player is being clipped)
-public class GenericBaitAway(BossModule module, uint aid = default, bool alwaysDrawOtherBaits = true, bool centerAtTarget = false, bool tankbuster = false, bool onlyShowOutlines = false, AIHints.PredictedDamageType damageType = AIHints.PredictedDamageType.None) : CastCounter(module, aid)
+public class GenericBaitAway(BossModule module, uint aid = default, bool alwaysDrawOtherBaits = true, bool centerAtTarget = false, bool tankbuster = false, bool onlyShowOutlines = false, AIHints.PredictedDamageType? damageType = null) : CastCounter(module, aid)
 {
     public struct Bait(Actor source, Actor target, AOEShape shape, DateTime activation = default, BitMask forbidden = default, Angle? customRotation = null, int maxCasts = 1)
     {
@@ -30,7 +30,8 @@ public class GenericBaitAway(BossModule module, uint aid = default, bool alwaysD
     public PlayerPriority BaiterPriority = PlayerPriority.Interesting;
     public BitMask ForbiddenPlayers; // these players should avoid baiting
     public List<Bait> CurrentBaits = [];
-    public AIHints.PredictedDamageType DamageType = damageType;
+    // damageType 沒給（null）時：tankbuster 誘導預告成死刑，否則不預告；明寫的照明寫。
+    public AIHints.PredictedDamageType DamageType = damageType ?? (tankbuster ? AIHints.PredictedDamageType.Tankbuster : AIHints.PredictedDamageType.None);
     // 誘導只打被點名的人（與被波及的），不是全體傷害：危險度表沒列就當低（DamageSeverityTable.Get）
     protected virtual bool PredictedAsSpread => !tankbuster && DamageType == AIHints.PredictedDamageType.Raidwide;
     public const string BaitAwayHint = "Bait away from raid!";
@@ -423,9 +424,9 @@ public class BaitAwayTethers(BossModule module, AOEShape shape, uint tetherID, u
 }
 
 // component for mechanics requiring icon targets to bait their aoe away from raid
-public class BaitAwayIcon(BossModule module, AOEShape shape, uint iconID, uint aid = default, double activationDelay = 5.1d, bool centerAtTarget = false, Actor? source = null, bool tankbuster = false, AIHints.PredictedDamageType damageType = AIHints.PredictedDamageType.Raidwide) : GenericBaitAway(module, aid, centerAtTarget: centerAtTarget, tankbuster: tankbuster, damageType: damageType)
+public class BaitAwayIcon(BossModule module, AOEShape shape, uint iconID, uint aid = default, double activationDelay = 5.1d, bool centerAtTarget = false, Actor? source = null, bool tankbuster = false, AIHints.PredictedDamageType? damageType = null) : GenericBaitAway(module, aid, centerAtTarget: centerAtTarget, tankbuster: tankbuster, damageType: damageType ?? (tankbuster ? AIHints.PredictedDamageType.Tankbuster : AIHints.PredictedDamageType.Raidwide))
 {
-    public BaitAwayIcon(BossModule module, float radius, uint iconID, uint aid = default, double activationDelay = 5.1d, bool centerAtTarget = true, Actor? source = null, bool tankbuster = false, AIHints.PredictedDamageType damageType = AIHints.PredictedDamageType.Raidwide) : this(module, new AOEShapeCircle(radius), iconID, aid, activationDelay, centerAtTarget, source, tankbuster, damageType) { }
+    public BaitAwayIcon(BossModule module, float radius, uint iconID, uint aid = default, double activationDelay = 5.1d, bool centerAtTarget = true, Actor? source = null, bool tankbuster = false, AIHints.PredictedDamageType? damageType = null) : this(module, new AOEShapeCircle(radius), iconID, aid, activationDelay, centerAtTarget, source, tankbuster, damageType) { }
 
     public AOEShape Shape = shape;
     public uint IID = iconID;
@@ -465,9 +466,9 @@ public class BaitAwayIcon(BossModule module, AOEShape shape, uint iconID, uint a
 }
 
 // component for mechanics requiring cast targets to gtfo from raid (aoe tankbusters etc)
-public class BaitAwayCast(BossModule module, uint aid, AOEShape shape, bool centerAtTarget = false, bool endsOnCastEvent = false, bool tankbuster = false, AIHints.PredictedDamageType damageType = AIHints.PredictedDamageType.Raidwide) : GenericBaitAway(module, aid, centerAtTarget: centerAtTarget, tankbuster: tankbuster, damageType: damageType)
+public class BaitAwayCast(BossModule module, uint aid, AOEShape shape, bool centerAtTarget = false, bool endsOnCastEvent = false, bool tankbuster = false, AIHints.PredictedDamageType? damageType = null) : GenericBaitAway(module, aid, centerAtTarget: centerAtTarget, tankbuster: tankbuster, damageType: damageType ?? (tankbuster ? AIHints.PredictedDamageType.Tankbuster : AIHints.PredictedDamageType.Raidwide))
 {
-    public BaitAwayCast(BossModule module, uint aid, float radius, bool centerAtTarget = true, bool endsOnCastEvent = false, bool tankbuster = false, AIHints.PredictedDamageType damageType = AIHints.PredictedDamageType.Raidwide) : this(module, aid, new AOEShapeCircle(radius), centerAtTarget, endsOnCastEvent, tankbuster, damageType: damageType) { }
+    public BaitAwayCast(BossModule module, uint aid, float radius, bool centerAtTarget = true, bool endsOnCastEvent = false, bool tankbuster = false, AIHints.PredictedDamageType? damageType = null) : this(module, aid, new AOEShapeCircle(radius), centerAtTarget, endsOnCastEvent, tankbuster, damageType: damageType) { }
 
     public AOEShape Shape = shape;
     public bool EndsOnCastEvent = endsOnCastEvent;

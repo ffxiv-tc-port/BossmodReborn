@@ -1,6 +1,6 @@
 namespace BossMod.Dawntrail.Raid.M07NBruteAbombinator;
 
-sealed class AbominableBlink(BossModule module) : Components.BaitAwayIcon(module, 24f, (uint)IconID.AbominableBlink, (uint)AID.AbominableBlink, 6.3f)
+sealed class AbominableBlink(BossModule module) : Components.BaitAwayIcon(module, 24f, (uint)IconID.AbominableBlink, (uint)AID.AbominableBlink, 6.3f, tankbuster: true)
 {
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
