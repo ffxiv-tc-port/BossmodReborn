@@ -14,14 +14,10 @@ class A13MarxEngelsStates : StateMachineBuilder
             .ActivateOnEnter<IncendiaryBombing2>()
             //.ActivateOnEnter<IncendiaryBombing1>()
             .ActivateOnEnter<GuidedMissile>()
-            .ActivateOnEnter<DiffuseLaser>()
-            .ActivateOnEnter<MarxSmash1>()
-            .ActivateOnEnter<MarxSmash2>()
-            .ActivateOnEnter<MarxSmash3>()
-            .ActivateOnEnter<MarxSmash4>()
-            .ActivateOnEnter<MarxSmash5>()
-            .ActivateOnEnter<MarxSmash6>()
-            .ActivateOnEnter<MarxSmash7>()
+            .ActivateOnEnter<BossVisualAOEs>()
+            .ActivateOnEnter<ArmLaser>()
+            .ActivateOnEnter<MarxThrust>()
+            .ActivateOnEnter<WideAngleDiffuseLaser>()
             .ActivateOnEnter<MarxCrush>()
             .ActivateOnEnter<SurfaceMissile2>();
     }
