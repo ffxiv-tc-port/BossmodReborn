@@ -22,14 +22,17 @@ public sealed class AIHintsBuilder : IDisposable
     /// <summary>只給診斷查「危險來源」用的入口；Dispose 後為 null。</summary>
     public static AIHintsBuilder? Current { get; private set; }
 
-    private static readonly uint[] invincibleStatuses =
+    // 契約：只收「打了零傷害」「打了會被反擊」或近乎無敵（PvP 防禦 3054 減傷 90%）的狀態，帶上就設 PriorityInvincible。
+    // 刻意不收吸收盾（石膚 151、1936）與單純減傷／增益（3052、1303）：打了有效，盾還該打破，收了 AI 會白白停手。
+    // 只對特定職能／團隊有效的條件式免疫（941/942、2409～2411 等）交給模組處理，不放進全域表。
+    // 198、385、2654 從說明判斷不了該不該停手，維持原樣。
+    private static readonly HashSet<uint> invincibleStatuses =
     [
-        151u, 198u, 325u, 328u, 385u, 394u,
-        469u, 529u, 592u, 656u, 671u, 775u,
-        776u, 895u, 969u, 981u, 1240u, 1302u,
-        1303u, 1567u, 1570u, 1697u, 1829u, 1936u,
-        2413u, 2654u, 3012u, 3039u, 3052u, 3054u,
-        4410u, 4175u
+        198u, 325u, 328u, 385u, 394u, 469u,
+        529u, 592u, 656u, 671u, 775u, 776u,
+        895u, 969u, 981u, 1240u, 1302u, 1567u,
+        1570u, 1697u, 1829u, 2413u, 2654u, 3012u,
+        3039u, 3054u, 4410u, 4175u
     ];
     private static readonly HashSet<uint> ignore = [27503u, 33626u]; // action IDs that the AI should ignore
     private static readonly PartyRolesConfig _config = Service.Config.Get<PartyRolesConfig>();
@@ -354,28 +357,14 @@ public sealed class AIHintsBuilder : IDisposable
 
     private void OnStatusGain(Actor actor, int index)
     {
-        var statusID = actor.Statuses[index].ID;
-        for (var i = 0; i < 32; ++i)
-        {
-            if (statusID == invincibleStatuses[i])
-            {
-                _invincible.Add(actor);
-                return;
-            }
-        }
+        if (invincibleStatuses.Contains(actor.Statuses[index].ID))
+            _invincible.Add(actor);
     }
 
     private void OnStatusLose(Actor actor, int index)
     {
-        var statusID = actor.Statuses[index].ID;
-        for (var i = 0; i < 32; ++i)
-        {
-            if (statusID == invincibleStatuses[i])
-            {
-                _invincible.Remove(actor);
-                return;
-            }
-        }
+        if (invincibleStatuses.Contains(actor.Statuses[index].ID))
+            _invincible.Remove(actor);
     }
 
     private static Angle DetermineConeAngle(ref (byte, byte, byte, uint RowId, string Name, string PathAlly, string Path, int Pos, bool Omen, uint) data)
@@ -438,5 +427,5 @@ public sealed class AIHintsBuilder : IDisposable
     }
 
     // 沒有模組時會被降成「打了沒用」的無敵類狀態；Components.UnclaimedCastAOEs 共用同一張表
-    public static bool IsInvincibleStatus(uint statusID) => Array.IndexOf(invincibleStatuses, statusID) >= 0;
+    public static bool IsInvincibleStatus(uint statusID) => invincibleStatuses.Contains(statusID);
 }
