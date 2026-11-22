@@ -33,3 +33,8 @@ public enum AID : uint
     ShrapnelImpact = 18675, // Helper->players, 5.0s cast, range 6 circle, stack
     CentrifugalSpin = 19077, // Helper->self, 6.3s cast, range 30 width 8 rect
 }
+
+public enum SID : uint
+{
+    Invincibility = 775 // none->Boss, extra=0x0, while Goliath Tanks are tethered to it
+}

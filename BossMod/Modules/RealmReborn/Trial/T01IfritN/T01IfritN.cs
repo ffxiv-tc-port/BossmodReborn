@@ -20,6 +20,11 @@ public enum AID : uint
     RadiantPlumeAOE = 734 // Helper->location, 3.0s cast, range 8 aoe
 }
 
+public enum SID : uint
+{
+    Invincibility = 775 // none->Boss, extra=0x0, ~10s around Hellfire
+}
+
 class Hints(BossModule module) : BossComponent(module)
 {
     private DateTime _nailSpawn;
@@ -42,6 +47,8 @@ class Incinerate(BossModule module) : Components.Cleave(module, (uint)AID.Incine
 class Eruption(BossModule module) : Components.SimpleAOEs(module, (uint)AID.EruptionAOE, 8);
 class RadiantPlume(BossModule module) : Components.SimpleAOEs(module, (uint)AID.RadiantPlumeAOE, 8);
 class Nails(BossModule module) : Components.UrgentAdds(module, (uint)OID.InfernalNail, 2);
+class Hellfire(BossModule module) : Components.RaidwideCast(module, (uint)AID.Hellfire);
+class Invincibility(BossModule module) : Components.InvincibleStatus(module, (uint)SID.Invincibility, Loc.T("Attacking invincible target!"));
 
 class T01IfritNStates : StateMachineBuilder
 {
@@ -52,7 +59,9 @@ class T01IfritNStates : StateMachineBuilder
             .ActivateOnEnter<Incinerate>()
             .ActivateOnEnter<Eruption>()
             .ActivateOnEnter<RadiantPlume>()
-            .ActivateOnEnter<Nails>();
+            .ActivateOnEnter<Nails>()
+            .ActivateOnEnter<Hellfire>()
+            .ActivateOnEnter<Invincibility>();
     }
 }
 

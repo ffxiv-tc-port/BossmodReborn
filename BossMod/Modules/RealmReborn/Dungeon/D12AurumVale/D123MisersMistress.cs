@@ -42,6 +42,7 @@ public enum SID : uint
 sealed class VineProbeCleave(BossModule module) : Components.Cleave(module, (uint)AID.VineProbe, new AOEShapeRect(9.85f, 4f), activeWhileCasting: false);
 sealed class VineProbe(BossModule module) : Components.SimpleAOEs(module, (uint)AID.VineProbe, new AOEShapeRect(9.85f, 4f));
 sealed class BadBreath(BossModule module) : Components.SimpleAOEs(module, (uint)AID.BadBreath, new AOEShapeCone(16f, 60f.Degrees()));
+sealed class BurrBurrow(BossModule module) : Components.RaidwideCast(module, (uint)AID.BurrBurrow);
 
 sealed class MorbolFruit(BossModule module) : BossComponent(module)
 {
@@ -140,6 +141,7 @@ sealed class D123MisersMistressStates : StateMachineBuilder
             .ActivateOnEnter<VineProbe>()
             .ActivateOnEnter<GoldBilePlume>()
             .ActivateOnEnter<BadBreath>()
+            .ActivateOnEnter<BurrBurrow>()
             .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }

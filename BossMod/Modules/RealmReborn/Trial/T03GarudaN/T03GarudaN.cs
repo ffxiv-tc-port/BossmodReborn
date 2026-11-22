@@ -67,6 +67,8 @@ class EyeOfTheStorm(BossModule module) : Components.GenericAOEs(module, (uint)AI
     }
 }
 
+// 範圍畫法由 EyeOfTheStorm 照同一招的施放次數處理，這裡只負責全體傷害預告。
+class AerialBlast(BossModule module) : Components.RaidwideCast(module, (uint)AID.AerialBlast);
 class MistralSongP2(BossModule module) : Components.SimpleAOEs(module, (uint)AID.MistralSongP2, new AOEShapeCone(31.7f, 60f.Degrees()));
 class MistralShriek(BossModule module) : Components.SimpleAOEs(module, (uint)AID.MistralShriek, 24.7f);
 
@@ -80,6 +82,7 @@ class T03GarudaNStates : StateMachineBuilder
             .ActivateOnEnter<Slipstream>()
             .ActivateOnEnter<MistralSongP1>()
             .ActivateOnEnter<EyeOfTheStorm>()
+            .ActivateOnEnter<AerialBlast>()
             .ActivateOnEnter<MistralSongP2>()
             .ActivateOnEnter<MistralShriek>();
     }

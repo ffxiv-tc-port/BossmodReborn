@@ -9232,5 +9232,8 @@
   },
   "Interrupt!": {
     "message": "打斷！"
+  },
+  "Attacking invincible target!": {
+    "message": "正在攻擊無敵的目標！"
   }
 }

@@ -78,6 +78,26 @@ sealed class Divebomb(BossModule module) : Components.GenericAOEs(module)
     }
 }
 
+// 首領的無敵來自大型戰車的連線、戰車全倒才解除，所以首領無敵期間先打戰車；首領本身由 UnclaimedCastAOEs 降成無敵優先度。
+// 只把預設優先度的戰車拉高：被判成不該打（沒在跟我方戰鬥等）的照舊。
+sealed class GoliathTankPriority(BossModule module) : BossComponent(module)
+{
+    private readonly List<Actor> _tanks = module.Enemies((uint)OID.GoliathTank);
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (Module.PrimaryActor.FindStatus((uint)SID.Invincibility) == null)
+            return;
+        var count = _tanks.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var t = _tanks[i];
+            if (hints.FindEnemy(t) is { } e && e.Actor == t && e.Priority == 0)
+                e.Priority = 1;
+        }
+    }
+}
+
 // 場地＝碰撞資料的方形甲板（x 870.25～930、z 397.25～457），內縮到半邊 29.5；南側通道戰鬥中封閉，不放進場地。
 [ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team, ffxiv-tc-port", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 700, NameID = 9153)]
 public sealed class A14WalkingFortress(WorldState ws, Actor primary) : BossModule(ws, primary, new(900f, 427f), new ArenaBoundsSquare(29.5f));
