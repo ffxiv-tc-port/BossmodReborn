@@ -384,6 +384,22 @@ public sealed class AIHints
 
     public void AddPredictedDamage(BitMask players, DateTime activation, PredictedDamageType type = PredictedDamageType.Raidwide) => PredictedDamage.Add(new(players, activation, type));
 
+    /// <summary>本幀最早一筆打到 <paramref name="slot"/> 的死刑（<see cref="PredictedDamageType.Tankbuster"/>）還有幾秒；沒有回 <see cref="float.MaxValue"/>。</summary>
+    /// <remarks>活化時刻已過（剩餘 &lt; 0）的不算：那時再開減傷已經來不及。<paramref name="now"/> 要用世界時鐘，與模組寫入的活化時刻同一基準。</remarks>
+    public float NextTankbusterOnSlotIn(int slot, DateTime now)
+    {
+        var res = float.MaxValue;
+        foreach (ref readonly var d in CollectionsMarshal.AsSpan(PredictedDamage))
+        {
+            if (d.Type != PredictedDamageType.Tankbuster || !d.Players[slot])
+                continue;
+            var dt = (float)(d.Activation - now).TotalSeconds;
+            if (dt >= 0f && dt < res)
+                res = dt;
+        }
+        return res;
+    }
+
     public void AddSpecialMode(SpecialMode mode, DateTime activation)
     {
         if (ImminentSpecialMode == default || ImminentSpecialMode.activation > activation)

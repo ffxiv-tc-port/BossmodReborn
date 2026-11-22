@@ -140,6 +140,8 @@ sealed class IPCProvider : IDisposable
 
         Register("Hints.NextRaidwideDamageIn", () => IpcFrameworkGate.Get("Hints.NextRaidwideDamageIn", () => nextDamageOfType(AIHints.PredictedDamageType.Raidwide), float.MaxValue));
         Register("Hints.NextTankbusterDamageIn", () => IpcFrameworkGate.Get("Hints.NextTankbusterDamageIn", () => nextDamageOfType(AIHints.PredictedDamageType.Tankbuster), float.MaxValue));
+        // 只看打本機玩家（PlayerSlot）的死刑；上面那支不分打誰，給坦克決定要不要開減傷會把打別人的也當成打自己。
+        Register("Hints.NextTankbusterOnPlayerIn", () => IpcFrameworkGate.Get("Hints.NextTankbusterOnPlayerIn", () => hints.NextTankbusterOnSlotIn(PartyState.PlayerSlot, bossmod.WorldState.CurrentTime), float.MaxValue));
         Register("Hints.PredictedDamagePlayers", () => IpcFrameworkGate.Get("Hints.PredictedDamagePlayers", () => hints.PredictedDamage.Count == 0 ? 0ul : hints.PredictedDamage[0].Players.Raw, 0ul));
 
         Register("Hints.MaxCastTime", () => hints.MaxCastTime);
