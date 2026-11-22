@@ -9259,5 +9259,26 @@
   },
   "Ignore severity, use all party mitigation every time": {
     "message": "不看危險度，每次都用全部團隊減傷"
+  },
+  "Pull the Sanuwas apart!": {
+    "message": "把騰雲風蛇與騰雲水蛇拉開！"
+  },
+  "Sanuwas linked: they take less damage!": {
+    "message": "騰雲風蛇與騰雲水蛇連線中：受到的傷害減輕！"
+  },
+  "Keep the Sanuwas apart": {
+    "message": "讓騰雲風蛇與騰雲水蛇保持距離"
+  },
+  "Get on Bismarck's back to attack it!": {
+    "message": "站上俾斯麥的背才能攻擊！"
+  },
+  "Use the field generator now!": {
+    "message": "現在啟動魔導結界產生器！"
+  },
+  "Field generator: use it while Bismarck casts Cetacean Rage": {
+    "message": "魔導結界產生器：等俾斯麥詠唱白鯨之怒時再啟動"
+  },
+  "Fire the Dragonkiller cannons!": {
+    "message": "發射對龍弩砲！"
   }
 }
