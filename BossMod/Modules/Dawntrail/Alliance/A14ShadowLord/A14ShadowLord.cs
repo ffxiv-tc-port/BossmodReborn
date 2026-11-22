@@ -3,6 +3,10 @@
 sealed class Teleport(BossModule module) : Components.CastCounter(module, (uint)AID.Teleport);
 sealed class TeraSlash(BossModule module) : Components.CastCounter(module, (uint)AID.TeraSlash);
 sealed class DoomArc(BossModule module) : Components.RaidwideCast(module, (uint)AID.DoomArc);
+// 下面兩個只為了把傷害寫進 PredictedDamage（狀態機已標 Raidwide；減傷預判與 IPC 只看 PredictedDamage）
+sealed class BossRaidwides(BossModule module) : Components.RaidwideCasts(module, [(uint)AID.FlamesOfHatred, (uint)AID.CthonicFuryStart, (uint)AID.CthonicFuryEnd]);
+// 萬億斬擊沒有讀條，入夜讀條結束後 34.1 秒判定（與狀態機同值）；提示字串留空，畫面維持原樣
+sealed class TeraSlashRaidwide(BossModule module) : Components.RaidwideCastDelay(module, (uint)AID.Nightfall, (uint)AID.TeraSlash, 34.1d, "");
 sealed class UnbridledRage(BossModule module) : Components.BaitAwayIcon(module, new AOEShapeRect(100f, 4f), (uint)IconID.UnbridledRage, (uint)AID.UnbridledRageAOE, 5.9f);
 sealed class DarkNova(BossModule module) : Components.SpreadFromCastTargets(module, (uint)AID.DarkNova, 6f);
 

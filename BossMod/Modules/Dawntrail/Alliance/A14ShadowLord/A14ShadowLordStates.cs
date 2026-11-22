@@ -16,6 +16,8 @@ sealed class A14ShadowLordStates : StateMachineBuilder
             .ActivateOnEnter<BindingSigil>()
             .ActivateOnEnter<UnbridledRage>()
             .ActivateOnEnter<DoomArc>()
+            .ActivateOnEnter<BossRaidwides>()
+            .ActivateOnEnter<TeraSlashRaidwide>()
             .ActivateOnEnter<DarkNova>();
     }
 

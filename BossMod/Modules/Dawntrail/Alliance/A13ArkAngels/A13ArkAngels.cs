@@ -23,6 +23,8 @@ sealed class TachiGekko(BossModule module) : Components.CastGaze(module, (uint)A
 sealed class TachiKasha(BossModule module) : Components.SimpleAOEs(module, (uint)AID.TachiKasha, 20f);
 sealed class TachiYukikaze(BossModule module) : Components.SimpleAOEs(module, (uint)AID.TachiYukikaze, new AOEShapeRect(50f, 2.5f));
 sealed class Raiton(BossModule module) : Components.RaidwideCast(module, (uint)AID.Raiton);
+// 狀態機已標 Raidwide，這個元件只為了把傷害寫進 PredictedDamage（減傷預判與 IPC 只看那裡）
+sealed class EVRaidwides(BossModule module) : Components.RaidwideCasts(module, [(uint)AID.DominionSlash, (uint)AID.Holy]);
 sealed class Utsusemi(BossModule module) : Components.StretchTetherSingle(module, (uint)TetherID.Utsusemi, 10f, needToKite: true);
 
 [ModuleInfo(BossModuleInfo.Maturity.Verified, PrimaryActorOID = (uint)OID.BossGK, Contributors = "The Combat Reborn Team (Malediktus, LTS)", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 1015, NameID = 13640, SortOrder = 7, PlanLevel = 100)]

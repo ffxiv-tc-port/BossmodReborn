@@ -27,6 +27,7 @@ sealed class A13ArkAngelsStates : StateMachineBuilder
             .ActivateOnEnter<CrossReaver>()
             .ActivateOnEnter<Rampage>()
             .ActivateOnEnter<Raiton>()
+            .ActivateOnEnter<EVRaidwides>()
             .ActivateOnEnter<ArroganceIncarnate>()
             .Raw.Update = () =>
             {
