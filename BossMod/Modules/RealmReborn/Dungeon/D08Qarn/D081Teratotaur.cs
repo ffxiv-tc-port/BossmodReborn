@@ -42,6 +42,9 @@ sealed class FrightfulRoar(BossModule module) : Components.SimpleAOEs(module, (u
 // 讀條旗標是不可打斷（插言／傷頭無效），但首領不免疫眩暈：眩暈會中斷讀條、整隊都不上死亡宣告。
 sealed class MortalRayStun(BossModule module) : Components.CastInterruptHint(module, (uint)AID.MortalRay, canBeInterrupted: false, canBeStunned: true, hintExtra: "prevents Doom");
 
+// 兩次致命射線約隔 29 秒，掃腿冷卻 40 秒、下踢 25 秒：暈了別的讀條就趕不上下一發。
+sealed class MortalRayStunReservation(BossModule module) : Components.ControlReservation(module, [(uint)AID.MortalRay]);
+
 sealed class MortalRay(BossModule module) : Components.GenericAOEs(module)
 {
     private BitMask _dooms;
@@ -101,6 +104,7 @@ sealed class D081TeratotaurStates : StateMachineBuilder
             .ActivateOnEnter<FrightfulRoar>()
             .ActivateOnEnter<MortalRay>()
             .ActivateOnEnter<MortalRayStun>()
+            .ActivateOnEnter<MortalRayStunReservation>()
             .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }

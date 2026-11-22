@@ -51,6 +51,21 @@ public class CastHints(BossModule module, uint[] aids, string hint, bool showCas
     }
 }
 
+/// <summary>模組宣告「本場眩暈（和／或打斷）保留給這些讀條」：元件啟用期間每幀生效，見 <see cref="AIHints.StunReservedFor"/>。</summary>
+/// <remarks>只做保留、不加旗標：要暈的讀條仍要另外用 <see cref="CastInterruptHint"/> 標記。多個元件同時保留＝取聯集。</remarks>
+public class ControlReservation(BossModule module, uint[] aids, bool stuns = true, bool interrupts = false) : BossComponent(module)
+{
+    private readonly uint[] _aids = aids;
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (stuns)
+            hints.StunReservedFor = hints.StunReservedFor == null ? _aids : [.. hints.StunReservedFor, .. _aids];
+        if (interrupts)
+            hints.InterruptReservedFor = hints.InterruptReservedFor == null ? _aids : [.. hints.InterruptReservedFor, .. _aids];
+    }
+}
+
 public class CastInterruptHint : CastHint
 {
     public readonly bool CanBeInterrupted;

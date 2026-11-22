@@ -204,6 +204,10 @@ sealed class IPCProvider : IDisposable
 
         Register("Hints.ShouldInterruptTargets", () => IpcFrameworkGate.Get<ulong[]>("Hints.ShouldInterruptTargets", () => flaggedEnemies(hints.PotentialTargets, static e => e.ShouldBeInterrupted), []));
         Register("Hints.ShouldStunTargets", () => IpcFrameworkGate.Get<ulong[]>("Hints.ShouldStunTargets", () => flaggedEnemies(hints.PotentialTargets, static e => e.ShouldBeStunned), []));
+        // true＝本場眩暈／打斷保留給模組標記的讀條（AIHints.StunReservedFor）：呼叫端只可對上面兩個清單裡的目標出手，其餘一律不用。
+        // 只讀一個參考是否為 null，不必走主執行緒閘門；舊版 BMR 沒有這兩個端點＝呼叫端當作沒有保留。
+        Register("Hints.StunsReserved", () => hints.StunReservedFor != null);
+        Register("Hints.InterruptsReserved", () => hints.InterruptReservedFor != null);
         // 限時必殺目標（AIHints.Enemy.UrgentKill）：沒掛預設集也照樣算，給外部自動化切目標用；順序＝優先度由高到低。
         Register("Hints.UrgentKillTargets", () => IpcFrameworkGate.Get<ulong[]>("Hints.UrgentKillTargets", () => flaggedEnemies(hints.PotentialTargets, static e => e.UrgentKill), []));
 

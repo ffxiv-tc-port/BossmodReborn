@@ -125,6 +125,8 @@ public sealed class AIHintsBuilder : IDisposable
                 _zmm.ActiveModule?.CalculateAIHints(playerSlot, player, hints);
             }
         }
+        // 放在所有提示來源之後：保留要能壓過任何來源（含區域模組）寫的旗標。
+        hints.ApplyControlReservations();
         hints.Normalize();
         if (_rsr != null)
         {

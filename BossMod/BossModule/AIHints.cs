@@ -218,6 +218,16 @@ public sealed class AIHints
     /// </remarks>
     public bool WantKiting;
 
+    /// <summary>本幀眩暈保留給這些讀條（技能 ID）；<see langword="null"/>＝沒有保留。</summary>
+    /// <remarks>
+    /// 契約：非 null 時 <see cref="ApplyControlReservations"/> 清掉「不是正在讀這些技能」的敵人的 <see cref="Enemy.ShouldBeStunned"/>；
+    /// 自己挑眩暈目標的消費端（IPC <c>Hints.StunsReserved</c> 的讀者）只可暈眩仍帶旗標的敵人。寫入端是 <c>Components.ControlReservation</c>。
+    /// </remarks>
+    public uint[]? StunReservedFor;
+
+    /// <summary>同 <see cref="StunReservedFor"/>，對象是打斷（<see cref="Enemy.ShouldBeInterrupted"/>、IPC <c>Hints.InterruptsReserved</c>）。</summary>
+    public uint[]? InterruptReservedFor;
+
     // clear all stored data
     public void Clear()
     {
@@ -250,6 +260,25 @@ public sealed class AIHints
         WantJump = false;
         WantDismount = false;
         WantKiting = false;
+        StunReservedFor = null;
+        InterruptReservedFor = null;
+    }
+
+    /// <summary>所有提示來源都寫完後呼叫一次：保留生效時，清掉不屬於保留讀條的眩暈／打斷旗標。</summary>
+    public void ApplyControlReservations()
+    {
+        if (StunReservedFor == null && InterruptReservedFor == null)
+            return;
+        var count = PotentialTargets.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var e = PotentialTargets[i];
+            var aid = e.Actor.CastInfo?.Action.ID ?? 0;
+            if (StunReservedFor != null && e.ShouldBeStunned && (aid == 0 || Array.IndexOf(StunReservedFor, aid) < 0))
+                e.ShouldBeStunned = false;
+            if (InterruptReservedFor != null && e.ShouldBeInterrupted && (aid == 0 || Array.IndexOf(InterruptReservedFor, aid) < 0))
+                e.ShouldBeInterrupted = false;
+        }
     }
 
     public void PrioritizeTargetsByOID(uint oid, int priority = default)

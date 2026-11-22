@@ -140,7 +140,8 @@ public sealed class TankAI(RotationModuleManager manager, Actor player) : AIBase
         // interrupt
         if (interjectStrategy.IsEnabled() && NextChargeIn(ClassShared.AID.Interject) == 0)
         {
-            bool shouldInterrupt(AIHints.Enemy e) => e.Actor.InCombat && interjectStrategy.Check(e.ShouldBeInterrupted) && e.Actor.CastInfo?.Interruptible == true;
+            // 「全部打斷」選項也要守模組的打斷保留：保留中只打仍帶旗標的讀條。
+            bool shouldInterrupt(AIHints.Enemy e) => e.Actor.InCombat && interjectStrategy.Check(e.ShouldBeInterrupted) && (Hints.InterruptReservedFor == null || e.ShouldBeInterrupted) && e.Actor.CastInfo?.Interruptible == true;
 
             var interruptibleEnemy = Hints.PotentialTargets.FirstOrDefault(e => shouldInterrupt(e) && Player.DistanceToHitbox(e.Actor) <= 3);
             if (interruptibleEnemy != null)
