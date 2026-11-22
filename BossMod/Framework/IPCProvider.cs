@@ -172,6 +172,29 @@ sealed class IPCProvider : IDisposable
             return i < 0 ? 0u : hints.PredictedDamage[i].SourceAction;
         }, 0u));
 
+        // 下一筆值得考慮減傷的全體傷害（AIHints.NextMitigableRaidwide）：低危散開排在前面時，上面三支只看得到散開。
+        // 🔴 契約：三支指向同一筆；沒有＝float.MaxValue／0／0；危險度數值同上。名稱與型別不可改。
+        int nextMitigable(out DateTime now, out DamageSeverity severity)
+        {
+            now = bossmod.WorldState.CurrentTime;
+            return hints.NextMitigableRaidwide(bossmod.WorldState.CurrentCFCID, now, out severity);
+        }
+        Register("Hints.NextMitigableRaidwideIn", () => IpcFrameworkGate.Get("Hints.NextMitigableRaidwideIn", () =>
+        {
+            var i = nextMitigable(out var now, out _);
+            return i < 0 ? float.MaxValue : (float)(hints.PredictedDamage[i].Activation - now).TotalSeconds;
+        }, float.MaxValue));
+        Register("Hints.NextMitigableRaidwideSeverity", () => IpcFrameworkGate.Get("Hints.NextMitigableRaidwideSeverity", () =>
+        {
+            var i = nextMitigable(out _, out var severity);
+            return i < 0 ? 0 : (int)severity;
+        }, 0));
+        Register("Hints.NextMitigableRaidwideSourceAction", () => IpcFrameworkGate.Get("Hints.NextMitigableRaidwideSourceAction", () =>
+        {
+            var i = nextMitigable(out _, out _);
+            return i < 0 ? 0u : hints.PredictedDamage[i].SourceAction;
+        }, 0u));
+
         Register("Hints.MaxCastTime", () => hints.MaxCastTime);
 
         // 上游把「取消詠唱」的成因拆成 Mechanic／Other 兩個欄位，我方樹仍是單一 AIHints.ForceCancelCast。

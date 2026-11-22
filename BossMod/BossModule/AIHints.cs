@@ -426,6 +426,63 @@ public sealed class AIHints
         return res;
     }
 
+    /// <summary>
+    /// 下一筆值得考慮減傷的 <see cref="PredictedDamageType.Raidwide"/>（IPC <c>Hints.NextMitigableRaidwide*</c>）：活化時刻未過、危險度不是低的預告中最早的那波，
+    /// 波內（<see cref="RaidwideCoalesceSeconds"/>）取最危險的一筆；全部都是低時改取最早那波的低危預告。回傳索引，沒有回 -1 與 <see cref="DamageSeverity.Unknown"/>。
+    /// </summary>
+    /// <remarks>
+    /// 與 <see cref="NextRaidwideSeverity"/> 不同：低危預告不擋住後面的，時間、危險度、來源都取同一筆。
+    /// <paramref name="now"/> 用世界時鐘，與模組寫入的活化時刻同一基準。
+    /// </remarks>
+    public int NextMitigableRaidwide(ushort cfc, DateTime now, out DamageSeverity severity)
+    {
+        var span = CollectionsMarshal.AsSpan(PredictedDamage);
+        DateTime firstLow = DateTime.MaxValue, firstOther = DateTime.MaxValue;
+        for (var i = 0; i < span.Length; ++i)
+        {
+            ref readonly var d = ref span[i];
+            if (d.Type != PredictedDamageType.Raidwide || d.Activation < now)
+                continue;
+            ref var first = ref DamageSeverityTable.Get(cfc, in d) == DamageSeverity.Low ? ref firstLow : ref firstOther;
+            if (d.Activation < first)
+                first = d.Activation;
+        }
+
+        var lowOnly = firstOther == DateTime.MaxValue;
+        var start = lowOnly ? firstLow : firstOther;
+        var index = -1;
+        severity = DamageSeverity.Unknown;
+        if (start == DateTime.MaxValue)
+            return index;
+        var end = start.AddSeconds(RaidwideCoalesceSeconds);
+        for (var i = 0; i < span.Length; ++i)
+        {
+            ref readonly var d = ref span[i];
+            if (d.Type != PredictedDamageType.Raidwide || d.Activation < start || d.Activation >= end)
+                continue;
+            var sev = DamageSeverityTable.Get(cfc, in d);
+            if (!lowOnly && sev == DamageSeverity.Low)
+                continue;
+            if (index < 0 || IsBetter(sev, in d, severity, in span[index]))
+            {
+                index = i;
+                severity = sev;
+            }
+        }
+        return index;
+
+        // 較危險的優先；同樣危險時有來源的優先（WC 要靠來源判屬性），再來是較早的
+        static bool IsBetter(DamageSeverity sev, in DamagePrediction d, DamageSeverity curSev, in DamagePrediction cur)
+        {
+            int rank = DamageSeverityTable.Rank(sev), curRank = DamageSeverityTable.Rank(curSev);
+            if (rank != curRank)
+                return rank > curRank;
+            if ((d.SourceAction != 0) != (cur.SourceAction != 0))
+                return d.SourceAction != 0;
+            return d.Activation < cur.Activation;
+        }
+    }
+
     /// <summary>本幀最早一筆打到 <paramref name="slot"/> 的死刑（<see cref="PredictedDamageType.Tankbuster"/>）還有幾秒；沒有回 <see cref="float.MaxValue"/>。</summary>
     /// <remarks>活化時刻已過（剩餘 &lt; 0）的不算：那時再開減傷已經來不及。<paramref name="now"/> 要用世界時鐘，與模組寫入的活化時刻同一基準。</remarks>
     public float NextTankbusterOnSlotIn(int slot, DateTime now)
