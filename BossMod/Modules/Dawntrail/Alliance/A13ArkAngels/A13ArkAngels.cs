@@ -4,6 +4,21 @@ sealed class Cloudsplitter(BossModule module) : Components.BaitAwayCast(module, 
 sealed class CriticalReaverRaidwide(BossModule module) : Components.CastCounter(module, (uint)AID.CriticalReaverRaidwide);
 sealed class CriticalReaverEnrage(BossModule module) : Components.CastInterruptHint(module, (uint)AID.CriticalReaverEnrage);
 sealed class Meteor(BossModule module) : Components.CastInterruptHint(module, (uint)AID.Meteor);
+
+// 方舟之盾存活期間 HM 帶無敵：這時打斷會落空，而打斷技冷卻比讀條長、盾破後就沒得用，所以盾破後才要求打斷。
+sealed class MijinGakure(BossModule module) : Components.CastInterruptHint(module, (uint)AID.MijinGakure)
+{
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        var count = Casters.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var c = Casters[i];
+            if (c.FindStatus((uint)SID.ArkShieldInvincibility) == null && hints.FindEnemy(c) is { } e)
+                e.ShouldBeInterrupted = true;
+        }
+    }
+}
 sealed class TachiGekko(BossModule module) : Components.CastGaze(module, (uint)AID.TachiGekko);
 sealed class TachiKasha(BossModule module) : Components.SimpleAOEs(module, (uint)AID.TachiKasha, 20f);
 sealed class TachiYukikaze(BossModule module) : Components.SimpleAOEs(module, (uint)AID.TachiYukikaze, new AOEShapeRect(50f, 2.5f));

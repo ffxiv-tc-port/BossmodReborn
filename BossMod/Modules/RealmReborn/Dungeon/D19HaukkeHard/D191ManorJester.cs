@@ -16,6 +16,7 @@ public enum AID : uint
 }
 
 sealed class VoidBlizzard3(BossModule module) : Components.SingleTargetCast(module, (uint)AID.VoidBlizzard3);
+sealed class VoidBlizzard3Interrupt(BossModule module) : Components.CastInterruptHint(module, (uint)AID.VoidBlizzard3);
 
 sealed class D191ManorJesterStates : StateMachineBuilder
 {
@@ -23,6 +24,7 @@ sealed class D191ManorJesterStates : StateMachineBuilder
     {
         TrivialPhase()
             .ActivateOnEnter<VoidBlizzard3>()
+            .ActivateOnEnter<VoidBlizzard3Interrupt>()
             .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }

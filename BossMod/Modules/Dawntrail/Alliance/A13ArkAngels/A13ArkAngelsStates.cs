@@ -17,6 +17,7 @@ sealed class A13ArkAngelsStates : StateMachineBuilder
             .ActivateOnEnter<ConcertedDissolution>()
             .ActivateOnEnter<LightsChain>()
             .ActivateOnEnter<Meteor>()
+            .ActivateOnEnter<MijinGakure>()
             .ActivateOnEnter<Utsusemi>()
             .ActivateOnEnter<HavokSpiral>()
             .ActivateOnEnter<SpiralFinish>()

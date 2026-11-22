@@ -9,6 +9,7 @@ sealed class VoidFire2Maidservant(BossModule module) : Components.SpreadFromCast
 sealed class VoidThunder(BossModule module) : Components.SingleTargetCasts(module, [(uint)AID.VoidThunder2, (uint)AID.VoidThunder3]);
 sealed class VoidThunder3Amandine(BossModule module) : Components.SingleTargetCast(module, (uint)AID.VoidThunder3Amandine, "", AIHints.PredictedDamageType.None);
 sealed class VoidThunder3AmandineInterrupt(BossModule module) : Components.CastInterruptHint(module, (uint)AID.VoidThunder3Amandine);
+sealed class Stoneskin(BossModule module) : Components.CastInterruptHint(module, (uint)AID.Stoneskin);
 sealed class BeguilingMist(BossModule module) : Components.CastHint(module, (uint)AID.BeguilingMist, "Charm: forced walk towards boss");
 sealed class BloodRain(BossModule module) : Components.RaidwideCasts(module, [(uint)AID.BloodRain1, (uint)AID.BloodRain2, (uint)AID.BloodRain3]);
 
@@ -123,6 +124,7 @@ sealed class D193HalicarnassusStates : StateMachineBuilder
             .ActivateOnEnter<VoidThunder>()
             .ActivateOnEnter<VoidThunder3Amandine>()
             .ActivateOnEnter<VoidThunder3AmandineInterrupt>()
+            .ActivateOnEnter<Stoneskin>()
             .ActivateOnEnter<BeguilingMist>()
             .ActivateOnEnter<BloodRain>()
             .ActivateOnEnter<Absorption>()
