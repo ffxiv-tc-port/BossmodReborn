@@ -32,6 +32,17 @@ public enum AID : uint
     ClangingBlow = 18672, // SerialJointedServiceModel->player, 4.0s cast, single-target, tankbuster
     ShrapnelImpact = 18675, // Helper->players, 5.0s cast, range 6 circle, stack
     CentrifugalSpin = 19077, // Helper->self, 6.3s cast, range 30 width 8 rect
+
+    MissileBarrage5 = 19217, // Boss->self, 5.0s cast, single-target (checkerboard missiles follow)
+    MissileBarrage6 = 18657, // Boss->self, 6.0s cast, single-target
+    MissileBarrage9 = 18658, // Boss->self, 9.0s cast, single-target
+    MissileImpact = 18660, // Helper->self, no cast, range 15 width 15 rect (square centered on the Helper)
+    AnnihilationBombing = 18668, // Boss->self, 13.0s cast, range 80 circle, raidwide
+}
+
+public enum IconID : uint
+{
+    MissileTarget = 199 // Helper, marks a checkerboard square center at icon time
 }
 
 public enum SID : uint

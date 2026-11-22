@@ -18,6 +18,8 @@ sealed class A14WalkingFortressStates : StateMachineBuilder
             .ActivateOnEnter<ClangingBlow>()
             .ActivateOnEnter<ShrapnelImpact>()
             .ActivateOnEnter<CentrifugalSpin>()
+            .ActivateOnEnter<AnnihilationBombing>()
+            .ActivateOnEnter<MissileBarrage>()
             .ActivateOnEnter<GoliathTankPriority>()
             .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
