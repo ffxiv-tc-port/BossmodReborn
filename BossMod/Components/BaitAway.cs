@@ -31,6 +31,8 @@ public class GenericBaitAway(BossModule module, uint aid = default, bool alwaysD
     public BitMask ForbiddenPlayers; // these players should avoid baiting
     public List<Bait> CurrentBaits = [];
     public AIHints.PredictedDamageType DamageType = damageType;
+    // 誘導只打被點名的人（與被波及的），不是全體傷害：危險度表沒列就當低（DamageSeverityTable.Get）
+    protected virtual bool PredictedAsSpread => !tankbuster && DamageType == AIHints.PredictedDamageType.Raidwide;
     public const string BaitAwayHint = "Bait away from raid!";
 
     public List<Bait> ActiveBaits
@@ -232,9 +234,9 @@ public class GenericBaitAway(BossModule module, uint aid = default, bool alwaysD
         }
         if (predictedDamage != default)
         {
-            // 只有死刑誘導帶來源 AID：一般誘導多半是散開類，不是危險度表要分級的對象
-            var source = tankbuster || DamageType == AIHints.PredictedDamageType.Tankbuster ? WatchedAction : 0u;
-            hints.AddPredictedDamage(predictedDamage, CurrentBaits.Ref(0).Activation, DamageType, source);
+            var spread = PredictedAsSpread;
+            var source = spread || tankbuster || DamageType == AIHints.PredictedDamageType.Tankbuster ? WatchedAction : 0u;
+            hints.AddPredictedDamage(predictedDamage, CurrentBaits.Ref(0).Activation, DamageType, source, spread);
         }
     }
 

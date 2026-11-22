@@ -130,7 +130,7 @@ public class SingleTargetCast(BossModule module, uint aid, string hint = "Tankbu
             if (c.CastInfo != null)
             {
                 var target = c.CastInfo.TargetID != c.InstanceID ? c.CastInfo.TargetID : c.TargetID; // assume self-targeted casts actually hit main target
-                hints.AddPredictedDamage(new BitMask().WithBit(Raid.FindSlot(target)), Module.CastFinishAt(c.CastInfo), damageType, c.CastInfo.Action.ID);
+                hints.AddPredictedDamage(new BitMask().WithBit(Raid.FindSlot(target)), Module.CastFinishAt(c.CastInfo), damageType, c.CastInfo.Action.ID, spread: damageType == AIHints.PredictedDamageType.Raidwide);
             }
         }
     }
@@ -198,7 +198,7 @@ public class SingleTargetInstant(BossModule module, uint aid, double delay = def
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         foreach (var t in Targets)
-            hints.AddPredictedDamage(new BitMask().WithBit(t.slot), t.activation, damageType, WatchedAction);
+            hints.AddPredictedDamage(new BitMask().WithBit(t.slot), t.activation, damageType, WatchedAction, spread: damageType == AIHints.PredictedDamageType.Raidwide);
     }
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
