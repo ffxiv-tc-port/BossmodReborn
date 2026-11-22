@@ -9250,5 +9250,14 @@
   },
   "You hold the sword: face the tethered shields and use the duty action!": {
     "message": "你持有聖劍：面向連線的盾使用任務指令「聖劍攻擊」！"
+  },
+  "Raidwide severity": {
+    "message": "全體傷害危險度"
+  },
+  "By severity: high = all party mitigation, medium/unknown = only cheap ones (60s cooldown or less), low = none": {
+    "message": "依危險度：高＝全部團隊減傷；中／未知＝只用冷卻 60 秒以內的；低＝不使用"
+  },
+  "Ignore severity, use all party mitigation every time": {
+    "message": "不看危險度，每次都用全部團隊減傷"
   }
 }
