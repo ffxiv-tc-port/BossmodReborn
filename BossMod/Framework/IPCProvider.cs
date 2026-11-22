@@ -144,6 +144,34 @@ sealed class IPCProvider : IDisposable
         Register("Hints.NextTankbusterOnPlayerIn", () => IpcFrameworkGate.Get("Hints.NextTankbusterOnPlayerIn", () => hints.NextTankbusterOnSlotIn(PartyState.PlayerSlot, bossmod.WorldState.CurrentTime), float.MaxValue));
         Register("Hints.PredictedDamagePlayers", () => IpcFrameworkGate.Get("Hints.PredictedDamagePlayers", () => hints.PredictedDamage.Count == 0 ? 0ul : hints.PredictedDamage[0].Players.Raw, 0ul));
 
+        // 危險度：與 Hints.NextRaidwideDamageIn／NextTankbusterDamageIn 指向同一筆（第一筆該類型）。
+        // 🔴 契約（WrathCombo 照寫）：int 0 未知、1 低、2 中、3 高；沒有預測＝0；SourceAction 0＝元件沒填來源。名稱與型別不可改。
+        int firstOfType(AIHints.PredictedDamageType type)
+        {
+            var predicted = hints.PredictedDamage;
+            var count = predicted.Count;
+            for (var i = 0; i < count; ++i)
+            {
+                if (predicted[i].Type == type)
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+        int severityOf(AIHints.PredictedDamageType type)
+        {
+            var i = firstOfType(type);
+            return i < 0 ? 0 : (int)DamageSeverityTable.Get(bossmod.WorldState.CurrentCFCID, hints.PredictedDamage[i].SourceAction, type);
+        }
+        Register("Hints.NextRaidwideSeverity", () => IpcFrameworkGate.Get("Hints.NextRaidwideSeverity", () => severityOf(AIHints.PredictedDamageType.Raidwide), 0));
+        Register("Hints.NextTankbusterSeverity", () => IpcFrameworkGate.Get("Hints.NextTankbusterSeverity", () => severityOf(AIHints.PredictedDamageType.Tankbuster), 0));
+        Register("Hints.NextRaidwideSourceAction", () => IpcFrameworkGate.Get("Hints.NextRaidwideSourceAction", () =>
+        {
+            var i = firstOfType(AIHints.PredictedDamageType.Raidwide);
+            return i < 0 ? 0u : hints.PredictedDamage[i].SourceAction;
+        }, 0u));
+
         Register("Hints.MaxCastTime", () => hints.MaxCastTime);
 
         // 上游把「取消詠唱」的成因拆成 Mechanic／Other 兩個欄位，我方樹仍是單一 AIHints.ForceCancelCast。

@@ -7,7 +7,10 @@ public class RaidwideCast(BossModule module, uint aid, string hint = "Raidwide")
     {
         var count = Casters.Count;
         for (var i = 0; i < count; ++i)
-            hints.AddPredictedDamage(Raid.WithSlot().Mask(), Module.CastFinishAt(Casters[i].CastInfo));
+        {
+            var ci = Casters[i].CastInfo;
+            hints.AddPredictedDamage(Raid.WithSlot().Mask(), Module.CastFinishAt(ci), AIHints.PredictedDamageType.Raidwide, ci?.Action.ID ?? 0u);
+        }
     }
 }
 
@@ -64,6 +67,9 @@ public class RaidwideInstant(BossModule module, uint aid, double delay = default
     public readonly string Hint = hint;
     public DateTime Activation; // default if inactive, otherwise expected cast time
 
+    // 刻意預設 0：純瞬發沒有可靠的來源 AID，危險度走副本預設；有視覺讀條＋傷害 AID 的子類別才覆寫
+    protected virtual uint PredictedSourceAction => 0u;
+
     public override void AddGlobalHints(GlobalHints hints)
     {
         if (Activation != default && Hint.Length > 0)
@@ -73,7 +79,7 @@ public class RaidwideInstant(BossModule module, uint aid, double delay = default
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         if (Activation != default)
-            hints.AddPredictedDamage(Raid.WithSlot().Mask(), Activation);
+            hints.AddPredictedDamage(Raid.WithSlot().Mask(), Activation, AIHints.PredictedDamageType.Raidwide, PredictedSourceAction);
     }
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
@@ -90,6 +96,8 @@ public class RaidwideInstant(BossModule module, uint aid, double delay = default
 public class RaidwideCastDelay(BossModule module, uint actionVisual, uint actionAOE, double delay, string hint = "Raidwide") : RaidwideInstant(module, actionAOE, delay, hint)
 {
     public uint ActionVisual = actionVisual;
+
+    protected override uint PredictedSourceAction => WatchedAction;
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
@@ -122,7 +130,7 @@ public class SingleTargetCast(BossModule module, uint aid, string hint = "Tankbu
             if (c.CastInfo != null)
             {
                 var target = c.CastInfo.TargetID != c.InstanceID ? c.CastInfo.TargetID : c.TargetID; // assume self-targeted casts actually hit main target
-                hints.AddPredictedDamage(new BitMask().WithBit(Raid.FindSlot(target)), Module.CastFinishAt(c.CastInfo), damageType);
+                hints.AddPredictedDamage(new BitMask().WithBit(Raid.FindSlot(target)), Module.CastFinishAt(c.CastInfo), damageType, c.CastInfo.Action.ID);
             }
         }
     }
@@ -190,7 +198,7 @@ public class SingleTargetInstant(BossModule module, uint aid, double delay = def
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         foreach (var t in Targets)
-            hints.AddPredictedDamage(new BitMask().WithBit(t.slot), t.activation, damageType);
+            hints.AddPredictedDamage(new BitMask().WithBit(t.slot), t.activation, damageType, WatchedAction);
     }
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)

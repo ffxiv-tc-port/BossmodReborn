@@ -87,7 +87,7 @@ public class GenericSharedTankbuster(BossModule module, uint aid, AOEShape shape
             }
             if (predictedDamage != default)
             {
-                hints.AddPredictedDamage(predictedDamage, Activation, AIHints.PredictedDamageType.Tankbuster);
+                hints.AddPredictedDamage(predictedDamage, Activation, AIHints.PredictedDamageType.Tankbuster, WatchedAction);
             }
         }
     }

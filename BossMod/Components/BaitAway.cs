@@ -232,7 +232,9 @@ public class GenericBaitAway(BossModule module, uint aid = default, bool alwaysD
         }
         if (predictedDamage != default)
         {
-            hints.AddPredictedDamage(predictedDamage, CurrentBaits.Ref(0).Activation, DamageType);
+            // 只有死刑誘導帶來源 AID：一般誘導多半是散開類，不是危險度表要分級的對象
+            var source = tankbuster || DamageType == AIHints.PredictedDamageType.Tankbuster ? WatchedAction : 0u;
+            hints.AddPredictedDamage(predictedDamage, CurrentBaits.Ref(0).Activation, DamageType, source);
         }
     }
 

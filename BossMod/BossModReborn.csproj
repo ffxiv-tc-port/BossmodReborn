@@ -61,6 +61,7 @@
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="loc\*.json" />
+    <EmbeddedResource Include="Data\DamageSeverity.json" LogicalName="BossModReborn.Data.DamageSeverity.json" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="DalamudPackager" Version="13.0.0" />

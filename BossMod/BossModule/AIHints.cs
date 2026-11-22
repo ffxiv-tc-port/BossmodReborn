@@ -76,11 +76,13 @@ public sealed class AIHints
         Shared, // cast is expected to hit multiple players; modules might have special behavior when intentionally taking this damage solo
     }
 
-    public readonly struct DamagePrediction(BitMask players, DateTime activation, PredictedDamageType type = PredictedDamageType.None)
+    public readonly struct DamagePrediction(BitMask players, DateTime activation, PredictedDamageType type = PredictedDamageType.None, uint sourceAction = 0)
     {
         public readonly BitMask Players = players;
         public readonly DateTime Activation = activation;
         public readonly PredictedDamageType Type = type;
+        // 造成這筆傷害的技能 AID（給 DamageSeverityTable 查危險度）；0＝元件沒填（瞬發、散開、狀態機提示），走副本預設
+        public readonly uint SourceAction = sourceAction;
     }
 
     public static readonly ArenaBounds DefaultBounds = new ArenaBoundsSquare(30f, AllowObstacleMap: true);
@@ -382,7 +384,7 @@ public sealed class AIHints
     // 背景執行緒（AIBehaviour 的背景尋路）只能拿這份快照，主執行緒下一幀會 Clear() 原清單
     public (Func<WPos, float> shapeDistance, DateTime activation)[] SnapshotFutureZones() => FutureForbiddenZones.Count == 0 ? [] : [.. FutureForbiddenZones];
 
-    public void AddPredictedDamage(BitMask players, DateTime activation, PredictedDamageType type = PredictedDamageType.Raidwide) => PredictedDamage.Add(new(players, activation, type));
+    public void AddPredictedDamage(BitMask players, DateTime activation, PredictedDamageType type = PredictedDamageType.Raidwide, uint sourceAction = 0) => PredictedDamage.Add(new(players, activation, type, sourceAction));
 
     /// <summary>本幀最早一筆打到 <paramref name="slot"/> 的死刑（<see cref="PredictedDamageType.Tankbuster"/>）還有幾秒；沒有回 <see cref="float.MaxValue"/>。</summary>
     /// <remarks>活化時刻已過（剩餘 &lt; 0）的不算：那時再開減傷已經來不及。<paramref name="now"/> 要用世界時鐘，與模組寫入的活化時刻同一基準。</remarks>
