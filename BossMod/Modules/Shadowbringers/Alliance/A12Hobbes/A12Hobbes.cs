@@ -8,7 +8,101 @@ sealed class RingLaserOuter(BossModule module) : Components.SimpleAOEs(module, (
 sealed class ShockingDischarge(BossModule module) : Components.SimpleAOEs(module, (uint)AID.ShockingDischarge, 5f);
 sealed class VariableCombatTestCircle(BossModule module) : Components.SimpleAOEGroups(module, [(uint)AID.VariableCombatTestCircleFirst, (uint)AID.VariableCombatTestCircle], 2f);
 sealed class VariableCombatTestDonut(BossModule module) : Components.SimpleAOEGroups(module, [(uint)AID.VariableCombatTestDonutFirst, (uint)AID.VariableCombatTestDonut], new AOEShapeDonut(7f, 19f));
-sealed class Impact(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Impact, 20f);
+sealed class VariableCombatTestCone(BossModule module) : Components.SimpleAOEGroups(module, [(uint)AID.VariableCombatTestConeFirst, (uint)AID.VariableCombatTestCone], new AOEShapeCone(20f, 30f.Degrees()));
+
+// 塌方：整個平台都會挨打但傷害隨距離衰減（近中心三到五成、平台邊緣多半一成以下），畫成半徑 20 會讓 AI 處處危險；
+// 只把近中心畫成危險、讓 AI 往邊緣走；自己站在這個平台上才記全體傷害預告（減傷端不看遮罩，別的平台的塌方不能算進來）。
+sealed class Impact(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Impact, 14f)
+{
+    private const float PlatformRadius = 20f;
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        base.AddAIHints(slot, actor, assignment, hints);
+        var count = Casters.Count;
+        if (count == 0)
+            return;
+        var party = Raid.WithSlot();
+        for (var i = 0; i < count; ++i)
+        {
+            var c = Casters[i];
+            if (!actor.Position.InCircle(c.Origin, PlatformRadius))
+                continue;
+            BitMask mask = default;
+            for (var j = 0; j < party.Length; ++j)
+                if (party[j].Item2.Position.InCircle(c.Origin, PlatformRadius))
+                    mask.Set(party[j].Item1);
+            if (mask.Any())
+                hints.AddPredictedDamage(mask, c.Activation, AIHints.PredictedDamageType.Raidwide, (uint)AID.Impact);
+        }
+    }
+}
+
+// 崩塌：塌方結束約 2.4 秒後，平台中心往外 4 道互差 90 度的直線（不讀條，施放者落下前 0.1 秒才轉向）。
+// 方向由塌方讀條前約 2 秒該平台的場地狀態（EnvControl）決定：平台相對三平台中心的方位，加上狀態對應的 0／22.5／45／67.5 度。
+// 狀態值以外的組合不畫（寧可不畫也不畫錯）。
+sealed class Collapse(BossModule module) : Components.GenericAOEs(module)
+{
+    private static readonly AOEShapeRect line = new(20f, 4f);
+    private static readonly WPos hub = new(-805f, -240f);
+    private const double DelayAfterImpact = 2.4d, NoImpactFallback = 12.2d;
+    private readonly List<AOEInstance> _aoes = new(4);
+    private WPos _platform;
+    private int _resolved;
+
+    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => CollectionsMarshal.AsSpan(_aoes);
+
+    public override void OnEventEnvControl(byte index, uint state)
+    {
+        WPos? platform = index switch
+        {
+            0x07 => new(-805f, -270f),
+            0x09 => new(-779.02f, -225f),
+            0x0A => new(-830.98f, -225f),
+            _ => null
+        };
+        float? offset = state switch
+        {
+            0x00100010u => 0f,
+            0x20002000u => 22.5f,
+            0x04000400u => 45f,
+            0x00800080u => 67.5f,
+            _ => null
+        };
+        if (platform is not { } p || offset is not { } o)
+            return;
+        _platform = p;
+        _resolved = 0;
+        _aoes.Clear();
+        var rot = Angle.FromDirection(p - hub) + o.Degrees();
+        var activation = WorldState.FutureTime(NoImpactFallback);
+        for (var i = 0; i < 4; ++i)
+            _aoes.Add(new(line, p, rot + (90f * i).Degrees(), activation));
+    }
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.Action.ID == (uint)AID.Impact && _aoes.Count != 0 && spell.LocXZ.InCircle(_platform, 3f))
+        {
+            var activation = Module.CastFinishAt(spell, DelayAfterImpact);
+            var aoes = CollectionsMarshal.AsSpan(_aoes);
+            for (var i = 0; i < aoes.Length; ++i)
+                aoes[i].Activation = activation;
+        }
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if (spell.Action.ID == (uint)AID.Collapse && _aoes.Count != 0 && ++_resolved >= 4)
+            _aoes.Clear();
+    }
+
+    public override void Update()
+    {
+        if (_aoes.Count != 0 && WorldState.CurrentTime > _aoes[0].Activation.AddSeconds(2d))
+            _aoes.Clear();
+    }
+}
 sealed class ShortRangeMissile(BossModule module) : Components.SpreadFromCastTargets(module, (uint)AID.ShortRangeMissile, 8f);
 
 // 場地＝三個聯盟各自的圓形平台（碰撞資料半徑約 19.75，內縮到 19.5），彼此不相連；平台之間不放進場地。

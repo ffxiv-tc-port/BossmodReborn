@@ -11,6 +11,8 @@ sealed class A12HobbesStates : StateMachineBuilder
             .ActivateOnEnter<VariableCombatTestCircle>()
             .ActivateOnEnter<VariableCombatTestDonut>()
             .ActivateOnEnter<Impact>()
+            .ActivateOnEnter<VariableCombatTestCone>()
+            .ActivateOnEnter<Collapse>()
             .ActivateOnEnter<ShortRangeMissile>()
             .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }

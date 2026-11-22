@@ -19,8 +19,11 @@ public enum AID : uint
     VariableCombatTestCircle = 18448, // Helper->self, 2.0s cast, range 2 circle
     VariableCombatTestDonutFirst = 18887, // Helper->self, 5.7s cast, range 7-19 donut
     VariableCombatTestDonut = 18449, // Helper->self, 2.0s cast, range 7-19 donut
+    VariableCombatTestConeFirst = 18885, // Helper->self, 5.7s cast, range 20 60-degree cone
+    VariableCombatTestCone = 18447, // Helper->self, 2.0s cast, range 20 60-degree cone
 
-    Impact = 18450, // Helper->self, 7.7s cast, range 20 circle
+    Impact = 18450, // Helper->self, 7.7s cast, range 20 circle, damage falls off with distance
+    Collapse = 18451, // Helper->self, no cast, range 20 width 8 rect, 4 lines from the platform center ~2.4s after Impact
 
     ShortRangeMissile = 18453, // Helper->players, 8.0s cast, range 8 circle, spread
 }
