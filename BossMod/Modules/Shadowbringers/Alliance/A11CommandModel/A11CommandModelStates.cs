@@ -13,6 +13,9 @@ sealed class A11CommandModelStates : StateMachineBuilder
             .ActivateOnEnter<SidestrikingSpin>()
             .ActivateOnEnter<CentrifugalSpin>()
             .ActivateOnEnter<HighCaliberLaser>()
+            .ActivateOnEnter<Shockwave>()
+            .ActivateOnEnter<EnergyOrb>()
+            .ActivateOnEnter<GroundEnergyBomb>()
             .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }

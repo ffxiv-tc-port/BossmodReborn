@@ -6,6 +6,208 @@ sealed class EnergyBombardment(BossModule module) : Components.SimpleAOEs(module
 sealed class SidestrikingSpin(BossModule module) : Components.SimpleAOEGroups(module, [(uint)AID.SidestrikingSpinL, (uint)AID.SidestrikingSpinR], new AOEShapeRect(30f, 6f));
 sealed class CentrifugalSpin(BossModule module) : Components.SimpleAOEs(module, (uint)AID.CentrifugalSpin, new AOEShapeRect(30f, 4f));
 sealed class HighCaliberLaser(BossModule module) : Components.SimpleAOEs(module, (uint)AID.HighCaliberLaser, new AOEShapeRect(70f, 12f));
+sealed class Shockwave(BossModule module) : Components.RaidwideCast(module, (uint)AID.Shockwave);
+
+// 能量球：士兵機在場邊讀條後，一顆球瞬移到落點往面向 4 碼處，停約 0.85 秒再以約 4 碼／秒直線穿越全場，
+// 途中靠近玩家就對那個人爆炸（單體、沒有讀條），爆炸或撞到對邊停下就失效。
+// 球不出發時停在場外待機點或上次停下的地方，所以只畫有出發紀錄的球；方向以球實際的移動為準。
+sealed class EnergyOrb(BossModule module) : Components.GenericAOEs(module)
+{
+    private const float Radius = 3f, LookAhead = 4f, Speed = 4f, SpawnOffset = 4f;
+    private const double MoveDelay = 0.85d;
+    private static readonly AOEShapeCapsule capsule = new(Radius, LookAhead);
+
+    private sealed class Run(WPos spawn, WDir dir, DateTime launch)
+    {
+        public readonly WPos Spawn = spawn;
+        public WDir Dir = dir;
+        public readonly DateTime Launch = launch; // 讀條結束＝球瞬移的時刻
+        public ulong Orb;
+        public WPos LastPos = spawn;
+        public DateTime LastMoved;
+    }
+
+    private readonly List<Run> _runs = new(12);
+    private readonly List<Actor> _orbs = module.Enemies((uint)OID.EnergyOrb);
+    private readonly Dictionary<ulong, (WPos Pos, DateTime JumpedAt)> _orbPos = new(12);
+    private readonly List<AOEInstance> _aoes = new(12);
+
+    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => CollectionsMarshal.AsSpan(_aoes);
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.Action.ID == (uint)AID.EnergyOrbLaunch)
+        {
+            var dir = spell.Rotation.ToDirection();
+            _runs.Add(new(spell.LocXZ + SpawnOffset * dir, dir, Module.CastFinishAt(spell)));
+        }
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if (spell.Action.ID != (uint)AID.EnergyBomb)
+            return;
+        var best = -1;
+        var bestDist = 4f;
+        var now = WorldState.CurrentTime;
+        for (var i = 0; i < _runs.Count; ++i)
+        {
+            var r = _runs[i];
+            if (r.Orb == caster.InstanceID)
+            {
+                best = i;
+                break;
+            }
+            var d = r.Orb == 0 ? (Predicted(r, now) - caster.Position).Length() : float.MaxValue;
+            if (d < bestDist)
+            {
+                bestDist = d;
+                best = i;
+            }
+        }
+        if (best >= 0)
+            _runs.RemoveAt(best);
+    }
+
+    public override void Update()
+    {
+        var now = WorldState.CurrentTime;
+        var count = _orbs.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var o = _orbs[i];
+            var pos = o.Position;
+            // 瞬移＝一幀內位移超過 3 碼；用來把剛出發的球對上出發紀錄，避免誤綁停在同一點的舊球。
+            if (_orbPos.TryGetValue(o.InstanceID, out var prev))
+                _orbPos[o.InstanceID] = ((pos - prev.Pos).LengthSq() > 9f ? (pos, now) : (pos, prev.JumpedAt));
+            else
+                _orbPos[o.InstanceID] = (pos, default);
+        }
+
+        _aoes.Clear();
+        for (var i = _runs.Count - 1; i >= 0; --i)
+        {
+            var r = _runs[i];
+            if (r.Orb == 0 && now >= r.Launch)
+                Bind(r, now);
+            WPos origin;
+            if (r.Orb != 0)
+            {
+                var orb = WorldState.Actors.Find(r.Orb);
+                if (orb == null || orb.IsDestroyed)
+                {
+                    _runs.RemoveAt(i);
+                    continue;
+                }
+                origin = orb.Position;
+                var moved = origin - r.Spawn;
+                if (moved.LengthSq() > 0.25f)
+                    r.Dir = moved.Normalized();
+                if ((origin - r.LastPos).LengthSq() > 0.0025f)
+                {
+                    r.LastPos = origin;
+                    r.LastMoved = now;
+                }
+                else if (moved.LengthSq() > 1f && (now - r.LastMoved).TotalSeconds > 0.5d)
+                {
+                    _runs.RemoveAt(i); // 撞到對邊停下
+                    continue;
+                }
+            }
+            else
+            {
+                origin = Predicted(r, now);
+                if ((origin - r.Spawn).LengthSq() > 2500f)
+                {
+                    _runs.RemoveAt(i);
+                    continue;
+                }
+            }
+            var move = r.Launch.AddSeconds(MoveDelay);
+            _aoes.Add(new(capsule, origin, Angle.FromDirection(r.Dir), move > now ? move : now));
+        }
+    }
+
+    private void Bind(Run r, DateTime now)
+    {
+        foreach (var (id, s) in _orbPos)
+        {
+            if (s.JumpedAt == default || (now - s.JumpedAt).TotalSeconds > 1d || (s.Pos - r.Spawn).LengthSq() > 2.25f)
+                continue;
+            var taken = false;
+            for (var j = 0; j < _runs.Count; ++j)
+                taken |= _runs[j].Orb == id;
+            if (taken)
+                continue;
+            r.Orb = id;
+            r.LastPos = s.Pos;
+            r.LastMoved = now;
+            return;
+        }
+    }
+
+    private static WPos Predicted(Run r, DateTime now)
+    {
+        var t = (float)(now - r.Launch).TotalSeconds - (float)MoveDelay;
+        return t > 0f ? r.Spawn + Speed * t * r.Dir : r.Spawn;
+    }
+}
+
+// 對地能量彈：士兵機瞬發 19250 後沿場上的方框路線飛（約 3 碼／秒、會轉彎，所以不能用直線前進的 Exaflare），
+// 約 12 秒後起每 1.07 秒在機體位置（略前）炸半徑 5；畫機體前方一步（3.2 碼）的膠囊。
+// 第一發前 3 秒才交給 AI 閃，免得機體還沒開始炸就把 AI 推來推去。
+sealed class GroundEnergyBomb(BossModule module) : Components.GenericAOEs(module)
+{
+    private const float Radius = 5f, Step = 3.2f;
+    private const double Interval = 1.07d, FirstDelay = 12.2d, RiskyLead = 3d;
+    private static readonly AOEShapeCapsule capsule = new(Radius, Step);
+    private readonly List<Actor> _models = new(8);
+    private readonly List<AOEInstance> _aoes = new(8);
+    private DateTime _armed, _next, _last;
+
+    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => CollectionsMarshal.AsSpan(_aoes);
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        switch (spell.Action.ID)
+        {
+            case (uint)AID.GroundBombingStart:
+                if (_models.Count == 0)
+                {
+                    _armed = WorldState.CurrentTime;
+                    _next = _armed.AddSeconds(FirstDelay);
+                    _last = default;
+                }
+                if (!_models.Contains(caster))
+                    _models.Add(caster);
+                break;
+            case (uint)AID.GroundEnergyBomb:
+                _last = WorldState.CurrentTime;
+                _next = _last.AddSeconds(Interval);
+                break;
+        }
+    }
+
+    public override void Update()
+    {
+        _aoes.Clear();
+        if (_models.Count == 0)
+            return;
+        var now = WorldState.CurrentTime;
+        if (_last != default && (now - _last).TotalSeconds > 2d || (now - _armed).TotalSeconds > 40d)
+        {
+            _models.Clear();
+            return;
+        }
+        var risky = (_next - now).TotalSeconds < RiskyLead;
+        for (var i = 0; i < _models.Count; ++i)
+        {
+            var m = _models[i];
+            if (!m.IsDestroyed)
+                _aoes.Add(new(capsule, m.Position, m.Rotation, _next, risky: risky));
+        }
+    }
+}
 
 // 王轉向隨機玩家後從正面持續放扇形，到王的收尾技能為止；扇形角度沒有資料，保守畫正面半圓（cactbot：繞到背後）。
 sealed class EnergyAssault(BossModule module) : Components.GenericAOEs(module)

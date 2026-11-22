@@ -5,6 +5,8 @@ public enum OID : uint
 {
     Boss = 0x2C61, // R5.600
     Helper = 0x233C, // R0.500
+    ServiceModel = 0x2C63, // R2.400, launches the energy orbs / flies the ground bombing loops
+    EnergyOrb = 0x2C65, // R1.000, 12 parked off-arena until launched
 }
 
 public enum AID : uint
@@ -27,4 +29,12 @@ public enum AID : uint
     CentrifugalSpin = 18633, // Helper->self, 6.3s cast, range 30 width 8 rect
 
     HighCaliberLaser = 18682, // Helper->self, 7.0s cast, range 70 width 24 rect
+
+    Shockwave = 18627, // Boss->self, 5.0s cast, range 100 circle, raidwide
+
+    EnergyOrbLaunch = 18611, // ServiceModel->self, 0.7s cast, single-target; orb appears 4y ahead of the cast location
+    EnergyBomb = 18612, // EnergyOrb->player, no cast, single-target, proximity triggered
+
+    GroundBombingStart = 19250, // ServiceModel->self, no cast, single-target; starts the looping flight
+    GroundEnergyBomb = 18618, // Helper->self, no cast, range 5 circle, at the flying ServiceModel every ~1.07s
 }
