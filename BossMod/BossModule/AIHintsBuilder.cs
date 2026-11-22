@@ -14,7 +14,6 @@ public sealed class AIHintsBuilder : IDisposable
     private readonly RotationSolverRebornModule? _rsr;
     private readonly Dictionary<ulong, (Actor Caster, Actor? Target, AOEShape Shape, bool IsCharge)> _activeAOEs = [];
     private readonly Dictionary<ulong, (Actor Caster, Actor? Target, AOEShape Shape)> _activeGazes = [];
-    private readonly List<Actor> _invincible = [];
     private ArenaBoundsCircle? _activeFateBounds;
     private ArenaBoundsRect? _obstacleViewBounds;
     private bool isRSRpaused;
@@ -50,8 +49,6 @@ public sealed class AIHintsBuilder : IDisposable
         (
             ws.Actors.CastStarted.Subscribe(OnCastStarted),
             ws.Actors.CastFinished.Subscribe(OnCastFinished),
-            ws.Actors.StatusGain.Subscribe(OnStatusGain),
-            ws.Actors.StatusLose.Subscribe(OnStatusLose),
             ws.Client.ActiveFateChanged.Subscribe(_ => _activeFateBounds = null)
         );
     }
@@ -274,12 +271,29 @@ public sealed class AIHintsBuilder : IDisposable
                 hints.ForbiddenDirections.Add((Angle.FromDirection(target - player.Position), 45.Degrees(), finishAt));
         }
 
-        var count = _invincible.Count;
+        MarkInvincible(hints);
+        MarkSpikes(hints);
+    }
+
+    // 每幀照狀態欄重算，理由同 MarkSpikes；增減清單在狀態刷新後會殘留，actor 消失後還會經由 spawn index 套到之後占同一格的敵人。
+    private static void MarkInvincible(AIHints hints)
+    {
+        var targets = hints.PotentialTargets;
+        var count = targets.Count;
         for (var i = 0; i < count; ++i)
         {
-            hints.SetPriority(_invincible[i], AIHints.Enemy.PriorityInvincible);
+            var enemy = targets[i];
+            var statuses = enemy.Actor.Statuses;
+            for (var j = 0; j < statuses.Length; ++j)
+            {
+                var id = statuses[j].ID;
+                if (id != 0 && invincibleStatuses.Contains(id))
+                {
+                    enemy.Priority = AIHints.Enemy.PriorityInvincible;
+                    break;
+                }
+            }
         }
-        MarkSpikes(hints);
     }
 
     // 契約：帶反擊狀態（197 火棘屏障、198 冰棘屏障）的敵人只設 Spikes（擋自動攻擊）、不動優先度，比照深宮 AutoClear。只設 true、不清。
@@ -375,18 +389,6 @@ public sealed class AIHintsBuilder : IDisposable
     {
         _activeAOEs.Remove(actor.InstanceID);
         _activeGazes.Remove(actor.InstanceID);
-    }
-
-    private void OnStatusGain(Actor actor, int index)
-    {
-        if (invincibleStatuses.Contains(actor.Statuses[index].ID))
-            _invincible.Add(actor);
-    }
-
-    private void OnStatusLose(Actor actor, int index)
-    {
-        if (invincibleStatuses.Contains(actor.Statuses[index].ID))
-            _invincible.Remove(actor);
     }
 
     private static Angle DetermineConeAngle(ref (byte, byte, byte, uint RowId, string Name, string PathAlly, string Path, int Pos, bool Omen, uint) data)
