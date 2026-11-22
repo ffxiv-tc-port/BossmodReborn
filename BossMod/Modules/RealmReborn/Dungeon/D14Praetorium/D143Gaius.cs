@@ -78,15 +78,75 @@ class FestinaLente(BossModule module) : Components.StackWithCastTargets(module, 
 class Innocence(BossModule module) : Components.SingleTargetCast(module, (uint)AID.Innocence);
 class HorridaBella(BossModule module) : Components.RaidwideCast(module, (uint)AID.HorridaBella);
 // 每輪 4 波、每波 3 發（每欄一發）：第一波落在南北兩端那一列，之後每約 2 秒往另一端前進一列。
-// 看到第一波就把同欄後三波連同各自的生效時間一起列出，AI 一開始就能選對整輪的位置，不必每 2 秒重新轉向。
+// 看到第一波就把同欄後三波連同各自的生效時間一起交給 AI，一開始就能選對整輪的位置，不必每 2 秒重新轉向；
+// 畫面只畫接下來兩波，最早那波用危險色，看得出先後。
 class Ductus(BossModule module) : Components.GenericAOEs(module, (uint)AID.DuctusAOE)
 {
     private const float RowStep = 11.5f;
     private const double WaveInterval = 2d;
     private static readonly AOEShapeCircle circle = new(8f);
+    private const int ShownWaves = 2;
     private readonly List<AOEInstance> _aoes = new(12);
+    private readonly List<AOEInstance> _shown = new(12);
 
+    // AI 拿整輪（各自的生效時間）；畫面與文字提示只看 ShownAOEs
     public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => CollectionsMarshal.AsSpan(_aoes);
+
+    // 只留最早一波（危險色）與之後 ShownWaves-1 波（一般色）；最早一波排在最後，畫在上面。
+    // 同一波 3 發的生效時間差不到一幀、波距約 2 秒，所以用「比最早晚不到 1 秒」分波。
+    public ReadOnlySpan<AOEInstance> ShownAOEs()
+    {
+        _shown.Clear();
+        var aoes = CollectionsMarshal.AsSpan(_aoes);
+        var len = aoes.Length;
+        if (len == 0)
+            return [];
+        var first = aoes[0].Activation;
+        for (var i = 1; i < len; ++i)
+        {
+            if (aoes[i].Activation < first)
+                first = aoes[i].Activation;
+        }
+        var imminentLimit = first.AddSeconds(1d);
+        var shownLimit = imminentLimit.AddSeconds((ShownWaves - 1) * WaveInterval);
+        for (var i = 0; i < len; ++i)
+        {
+            ref readonly var a = ref aoes[i];
+            if (a.Activation >= imminentLimit && a.Activation < shownLimit)
+                _shown.Add(new(a.Shape, a.Origin, a.Rotation, a.Activation));
+        }
+        var danger = Colors.Danger;
+        for (var i = 0; i < len; ++i)
+        {
+            ref readonly var a = ref aoes[i];
+            if (a.Activation < imminentLimit)
+                _shown.Add(new(a.Shape, a.Origin, a.Rotation, a.Activation, danger));
+        }
+        return CollectionsMarshal.AsSpan(_shown);
+    }
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        var aoes = ShownAOEs();
+        for (var i = 0; i < aoes.Length; ++i)
+        {
+            if (aoes[i].Check(actor.Position))
+            {
+                hints.Add(Loc.T(WarningText));
+                return;
+            }
+        }
+    }
+
+    public override void DrawArenaBackground(int pcSlot, Actor pc)
+    {
+        var aoes = ShownAOEs();
+        for (var i = 0; i < aoes.Length; ++i)
+        {
+            ref readonly var c = ref aoes[i];
+            c.Shape.Draw(Arena, c.Origin, c.Rotation, c.Color);
+        }
+    }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
