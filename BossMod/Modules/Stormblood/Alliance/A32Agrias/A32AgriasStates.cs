@@ -9,6 +9,7 @@ class A32AgriasStates : StateMachineBuilder
             .ActivateOnEnter<NorthswainsStrikeEphemeralKnight>()
             .ActivateOnEnter<CleansingFlameSpread>()
             .ActivateOnEnter<HallowedBoltAOE>()
-            .ActivateOnEnter<ShieldKnightInvulnerable>();
+            .ActivateOnEnter<ShieldKnightInvulnerable>()
+            .ActivateOnEnter<HolyShieldBlock>();
     }
 }

@@ -9280,5 +9280,14 @@
   },
   "Fire the Dragonkiller cannons!": {
     "message": "發射對龍弩砲！"
+  },
+  "Face {0}, then use the duty action Holy Shield!": {
+    "message": "先面向{0}，再使用任務指令「聖盾防禦」！"
+  },
+  "Holy Shield is not facing {0}!": {
+    "message": "聖盾沒有對著{0}！"
+  },
+  "Holy Shield raised: do not act, move or turn until it resolves!": {
+    "message": "已舉起聖盾：判定前不要使用任何技能、移動或轉向（會解除聖盾防禦）！"
   }
 }

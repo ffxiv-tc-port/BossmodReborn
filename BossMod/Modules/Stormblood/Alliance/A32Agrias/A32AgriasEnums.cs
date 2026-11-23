@@ -42,6 +42,7 @@ public enum AID : uint
     JudgmentBlade = 14423, // Boss->self, 8.0s cast, range 60 circle
     // AoE Knockback and inflicts Vulnerability Up.
     // To avoid, step into one of the EmblazonedShield light pillars, face the boss, and use the duty action Holy Shield.
+    // Any other action or starting a cast drops the raised shield (SID HolyShield) before the hit lands.
 
     MortalBlow = 14430, // SwordKnight->self, 5.0s cast, range 30 circle
 
@@ -49,6 +50,8 @@ public enum AID : uint
     NorthswainsStrikeBoss = 14982, // Boss->self, 15.0s cast, single-target
 
     ThunderSlash = 14438, // Boss->self/player, 4.0s cast, range 60 ?-degree cone
+
+    HolyShield = 14415, // player->self, duty action granted by Shieldbearer; applies SID HolyShield
 
     Unknown1 = 14429, // Boss->self, no cast, single-target
     Unknown2 = 15058, // Helper->self, no cast, range 60 circle
@@ -70,6 +73,7 @@ public enum SID : uint
     Shieldbearer = 1733, // none->player, extra=0x0
     Stun = 149, // none->player, extra=0x0
     Swordbearer = 1734, // none->player, extra=0x0
+    HolyShield = 1735, // player->player, extra=0x181A, raised by the Holy Shield duty action
     TheEcho = 42, // none->player, extra=0x0
     TheHeatOfBattle = 365, // none->player, extra=0xA
     Transcendent = 418, // none->player, extra=0x0
