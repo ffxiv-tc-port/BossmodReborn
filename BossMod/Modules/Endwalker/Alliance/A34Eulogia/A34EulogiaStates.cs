@@ -38,10 +38,11 @@ class A34EulogiaStates : StateMachineBuilder
         Quintessence(id + 0x160000, 13.6f); // no logs past this here, just guessed
         Sunbeam(id + 0x170000, 7.2f);
         Whorl(id + 0x180000, 8.6f);
-        MechanicsInRandomOrder(id + 0x190000, 241.7f);
+        MechanicsInRandomOrder(id + 0x190000, 241.7f, false);
     }
 
-    private void MechanicsInRandomOrder(uint id, float delay)
+    // 這段的元件都不停用：第二輪時第一輪的還在啟用中，再啟用一次會被換成新的（丟掉累積的狀態）並記錯誤。
+    private void MechanicsInRandomOrder(uint id, float delay, bool activate = true)
     {
         // following mechanics order is either fully random, or has multiple possible forks...
         //Hydrostasis(id + 0x140000, 3.2f);
@@ -51,24 +52,24 @@ class A34EulogiaStates : StateMachineBuilder
         //DestructiveBolt(id + 0x180000, 2.5f);
         //LovesLight(id + 0x190000, 5.4f);
         Timeout(id + 0x140000, 241.7f, "Mechanics in random order")
-             .ActivateOnEnter<LovesLight>()
-             .ActivateOnEnter<SolarFans>()
-             .ActivateOnEnter<RadiantRhythm>()
-             .ActivateOnEnter<RadiantFlourish>()
-             .ActivateOnEnter<Hydrostasis>()
-             .ActivateOnEnter<DestructiveBolt>()
-             .ActivateOnEnter<Hieroglyphika>()
-             .ActivateOnEnter<HandOfTheDestroyerWrath>()
-             .ActivateOnEnter<HandOfTheDestroyerJudgment>()
-             .ActivateOnEnter<MatronsBreath>()
-             .ActivateOnEnter<TorrentialTrident>()
-             .ActivateOnEnter<ByregotStrikeJump>()
-             .ActivateOnEnter<ByregotStrikeKnockback>()
-             .ActivateOnEnter<ByregotStrikeCone>()
-             .ActivateOnEnter<ThousandfoldThrust>()
-             .ActivateOnEnter<AsAboveSoBelow>()
-             .ActivateOnEnter<ClimbingShot>()
-             .ActivateOnEnter<SoaringMinuet>();
+             .ActivateOnEnter<LovesLight>(activate)
+             .ActivateOnEnter<SolarFans>(activate)
+             .ActivateOnEnter<RadiantRhythm>(activate)
+             .ActivateOnEnter<RadiantFlourish>(activate)
+             .ActivateOnEnter<Hydrostasis>(activate)
+             .ActivateOnEnter<DestructiveBolt>(activate)
+             .ActivateOnEnter<Hieroglyphika>(activate)
+             .ActivateOnEnter<HandOfTheDestroyerWrath>(activate)
+             .ActivateOnEnter<HandOfTheDestroyerJudgment>(activate)
+             .ActivateOnEnter<MatronsBreath>(activate)
+             .ActivateOnEnter<TorrentialTrident>(activate)
+             .ActivateOnEnter<ByregotStrikeJump>(activate)
+             .ActivateOnEnter<ByregotStrikeKnockback>(activate)
+             .ActivateOnEnter<ByregotStrikeCone>(activate)
+             .ActivateOnEnter<ThousandfoldThrust>(activate)
+             .ActivateOnEnter<AsAboveSoBelow>(activate)
+             .ActivateOnEnter<ClimbingShot>(activate)
+             .ActivateOnEnter<SoaringMinuet>(activate);
     }
 
     private void DawnOfTime(uint id, float delay)
