@@ -25,6 +25,9 @@ class HallowedBolt(BossModule module) : Components.ConcentricAOEs(module, _shape
     }
 }
 
+sealed class CrushWeapon(BossModule module) : Components.SimpleAOEs(module, (uint)AID.CrushWeapon2, 6f);
+sealed class Duskblade(BossModule module) : Components.RaidwideCast(module, (uint)AID.Duskblade);
+
 [ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 636, NameID = 7899)] //7917
 public class A33ThunderGod(WorldState ws, Actor primary) : BossModule(ws, primary, new(-600, -600), arena)
 {
