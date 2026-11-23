@@ -10,12 +10,21 @@ sealed class WolvesReignCone(BossModule module) : Components.GenericAOEs(module)
 
     public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => Utils.ZeroOrOne(ref _aoe);
 
+    // 瞬移到扇形判定：長瞬移約 5 秒、短瞬移約 4.1 秒；扇形自己開始讀條後改用它的結束時間與方向。
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)
     {
-        if (spell.Action.ID is (uint)AID.WolvesReignTeleport2 or (uint)AID.WolvesReignTeleport4)
+        switch (spell.Action.ID)
         {
-            var pos = spell.LocXZ;
-            _aoe = new(cone, pos, Angle.FromDirection(Arena.Center - pos), Module.CastFinishAt(spell, 5.1f));
+            case (uint)AID.WolvesReignTeleport2:
+            case (uint)AID.WolvesReignTeleport4:
+                var pos = spell.LocXZ;
+                var delay = spell.Action.ID == (uint)AID.WolvesReignTeleport4 ? 4.1d : 5.1d;
+                _aoe = new(cone, pos, Angle.FromDirection(Arena.Center - pos), Module.CastFinishAt(spell, delay));
+                break;
+            case (uint)AID.WolvesReignCone1:
+            case (uint)AID.WolvesReignCone2:
+                _aoe = new(cone, spell.LocXZ, spell.Rotation, Module.CastFinishAt(spell));
+                break;
         }
     }
 
