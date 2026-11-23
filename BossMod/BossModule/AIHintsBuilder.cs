@@ -18,6 +18,15 @@ public sealed class AIHintsBuilder : IDisposable
     private ArenaBoundsRect? _obstacleViewBounds;
     private bool isRSRpaused;
 
+    private struct BombTrack
+    {
+        public uint Id;
+        public DateTime Activation, LastExpireAt, ExpiredSeen;
+    }
+    private const double BombStaleGrace = 3d;
+    private readonly BombTrack[] _bombTracks = new BombTrack[60]; // 對應 Actor.Statuses 的 slot
+    private ulong _bombOwner;
+
     /// <summary>只給診斷查「危險來源」用的入口；Dispose 後為 null。</summary>
     public static AIHintsBuilder? Current { get; private set; }
 
@@ -125,6 +134,8 @@ public sealed class AIHintsBuilder : IDisposable
                 _zmm.ActiveModule?.CalculateAIHints(playerSlot, player, hints);
             }
         }
+        // 刻意用隊伍 slot 重查，不用上面的 player：模組可經 ref 換掉它，炸彈掛在自己角色身上。
+        AddSelfStatusSpecialModes(hints, _ws.Party[playerSlot]);
         // 放在所有提示來源之後：保留要能壓過任何來源（含區域模組）寫的旗標。
         hints.ApplyControlReservations();
         hints.Normalize();
@@ -147,6 +158,55 @@ public sealed class AIHintsBuilder : IDisposable
                 _rsr.UnPauseRSR();
                 isRSRpaused = false;
             }
+        }
+    }
+
+    // 台服 Status 這六個名稱與說明完全相同：「效果時間結束時如未停止行動則會爆炸」。
+    private static bool IsAccelerationBomb(uint sid) => sid is 1072u or 1384u or 2657u or 3793u or 3802u or 4144u;
+
+    /// <summary>
+    /// 不依模組：自己身上有加速度炸彈就從上身起把熱病模式設在到期時刻（同 <see cref="Components.StayMove"/> 的 Stay），
+    /// 何時停手由各消費端自己的門檻決定（AI 1 秒、PyreticThreshold、IPC 的 SpecialModeIn）。走 AddSpecialMode＝與模組取較早者。
+    /// 到期後狀態沒拔照樣停手（伺服器判定完才拔）；超過 <see cref="BombStaleGrace"/> 仍在就放手，免得手動移動被一起鎖死。
+    /// 沒有炸彈時不寫 hints 任何欄位。
+    /// </summary>
+    private void AddSelfStatusSpecialModes(AIHints hints, Actor? self)
+    {
+        if (self == null)
+            return;
+        if (self.InstanceID != _bombOwner)
+        {
+            Array.Clear(_bombTracks);
+            _bombOwner = self.InstanceID;
+        }
+        var now = _ws.CurrentTime;
+        var statuses = self.Statuses;
+        var n = Math.Min(statuses.Length, _bombTracks.Length);
+        for (var i = 0; i < n; ++i)
+        {
+            ref var tr = ref _bombTracks[i];
+            var s = statuses[i];
+            if (!IsAccelerationBomb(s.ID))
+            {
+                if (tr.Id != 0)
+                    tr = default;
+                continue;
+            }
+            // 到期時刻取上身當下的值（同模組在 OnStatusGain 抄的那份），只在重新上身（換 id 或一次跳超過 1 秒）時更新：
+            // 到期後即時 ExpireAt 會跟著現在走，不能拿來當到期時刻。
+            if (tr.Id != s.ID || (s.ExpireAt - tr.LastExpireAt).TotalSeconds > 1d)
+                tr = new() { Id = s.ID, Activation = s.ExpireAt };
+            else if (s.ExpireAt < tr.Activation)
+                tr.Activation = s.ExpireAt;
+            tr.LastExpireAt = s.ExpireAt;
+            if (now >= tr.Activation)
+            {
+                if (tr.ExpiredSeen == default)
+                    tr.ExpiredSeen = now;
+                else if ((now - tr.ExpiredSeen).TotalSeconds > BombStaleGrace)
+                    continue;
+            }
+            hints.AddSpecialMode(AIHints.SpecialMode.Pyretic, tr.Activation);
         }
     }
 
