@@ -153,17 +153,77 @@ sealed class EnergyOrb(BossModule module) : Components.GenericAOEs(module)
     }
 }
 
-// 對地能量彈：士兵機瞬發 19250 後沿場上的方框路線飛（約 3 碼／秒、會轉彎，所以不能用直線前進的 Exaflare），
-// 約 12 秒後起每 1.07 秒在機體位置（略前）炸半徑 5；畫機體前方一步（3.2 碼）的膠囊。
-// 第一發前 3 秒才交給 AI 閃，免得機體還沒開始炸就把 AI 推來推去。
+// 對地能量彈：士兵機瞬發 19250 後約 7.3 秒起沿方框路線飛（約 2.85 碼／秒），約 12 秒後起每 1.07 秒在機體略前方炸半徑 5。
+// 路線＝出發角所在象限的方框（中心離場地中心 ±12、半邊 4 或 10），從出發角順時針繞（+x 向右、+z 向上看）⇒ 畫接下來 4 發的落點。
+// 認不出方框的機體照舊只畫前方一步（3.2 碼）的膠囊；兩種都是第一發前約 3 秒才交給 AI 閃，免得機體還沒開始炸就把 AI 推來推去。
 sealed class GroundEnergyBomb(BossModule module) : Components.GenericAOEs(module)
 {
-    private const float Radius = 5f, Step = 3.2f;
-    private const double Interval = 1.07d, FirstDelay = 12.2d, RiskyLead = 3d;
+    private const float Radius = 5f, Step = 3.2f, Speed = 2.85f, BombAhead = 1f;
+    private const double Interval = 1.07d, FirstDelay = 12.2d, RiskyLead = 3d, MoveDelay = 7.35d;
+    private const int PredictedBombs = 4;
+    private static readonly WPos _center = new(-500f, default);
     private static readonly AOEShapeCapsule capsule = new(Radius, Step);
+    private static readonly AOEShapeCircle circle = new(Radius);
     private readonly List<Actor> _models = new(8);
-    private readonly List<AOEInstance> _aoes = new(8);
+    private readonly List<Route?> _routes = new(8); // 與 _models 同索引
+    private readonly List<AOEInstance> _aoes = new(8 * PredictedBombs);
     private DateTime _armed, _next, _last;
+
+    private sealed class Route(WPos[] corners, float side, DateTime start)
+    {
+        public readonly DateTime Start = start;
+
+        public static Route? Create(WPos corner, DateTime start)
+        {
+            var d = corner - _center;
+            var q = new WDir(d.X >= 0f ? 12f : -12f, d.Z >= 0f ? 12f : -12f);
+            var r = d - q;
+            var h = Math.Abs(r.X);
+            if (h < 1f || Math.Abs(Math.Abs(r.Z) - h) > 1f)
+                return null;
+            int sx = r.X > 0f ? 1 : -1, sz = r.Z > 0f ? 1 : -1;
+            var corners = new WPos[4];
+            for (var i = 0; i < 4; ++i)
+            {
+                corners[i] = _center + q + new WDir(sx * h, sz * h);
+                if (sx == sz)
+                    sz = -sz;
+                else
+                    sx = -sx;
+            }
+            return new(corners, 2f * h, start);
+        }
+
+        // 路線上離 p 最近的點，回傳從出發角起算的路程
+        public float Project(WPos p)
+        {
+            float best = float.MaxValue, s = 0f;
+            for (var i = 0; i < 4; ++i)
+            {
+                var a = corners[i];
+                var e = (corners[(i + 1) & 3] - a) / side;
+                var u = Math.Clamp((p - a).Dot(e), 0f, side);
+                var dist = (p - (a + e * u)).LengthSq();
+                if (dist < best)
+                {
+                    best = dist;
+                    s = i * side + u;
+                }
+            }
+            return s;
+        }
+
+        public WPos At(float s)
+        {
+            var loop = 4f * side;
+            s %= loop;
+            if (s < 0f)
+                s += loop;
+            var i = Math.Min((int)(s / side), 3);
+            var a = corners[i];
+            return a + (corners[(i + 1) & 3] - a) / side * (s - i * side);
+        }
+    }
 
     public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => CollectionsMarshal.AsSpan(_aoes);
 
@@ -179,7 +239,10 @@ sealed class GroundEnergyBomb(BossModule module) : Components.GenericAOEs(module
                     _last = default;
                 }
                 if (!_models.Contains(caster))
+                {
                     _models.Add(caster);
+                    _routes.Add(Route.Create(caster.Position, WorldState.CurrentTime));
+                }
                 break;
             case (uint)AID.GroundEnergyBomb:
                 _last = WorldState.CurrentTime;
@@ -197,14 +260,31 @@ sealed class GroundEnergyBomb(BossModule module) : Components.GenericAOEs(module
         if (_last != default && (now - _last).TotalSeconds > 2d || (now - _armed).TotalSeconds > 40d)
         {
             _models.Clear();
+            _routes.Clear();
             return;
         }
-        var risky = (_next - now).TotalSeconds < RiskyLead;
+        var lead = (_next - now).TotalSeconds;
+        var risky = lead < RiskyLead;
+        const double lookahead = (PredictedBombs - 1) * Interval + 0.1d;
         for (var i = 0; i < _models.Count; ++i)
         {
             var m = _models[i];
-            if (!m.IsDestroyed)
+            if (m.IsDestroyed)
+                continue;
+            if (_routes[i] is not { } route || lead > lookahead)
+            {
                 _aoes.Add(new(capsule, m.Position, m.Rotation, _next, risky: risky));
+                continue;
+            }
+            // 起飛前機體停在出發角（路程 0）：飛行時間從起飛那一刻才開始算
+            var s = route.Project(m.Position);
+            var flownUntil = Math.Max((now - route.Start).TotalSeconds, MoveDelay);
+            for (var k = 0; k < PredictedBombs; ++k)
+            {
+                var at = _next.AddSeconds(k * Interval);
+                var travel = Math.Max(0d, (at - route.Start).TotalSeconds - flownUntil);
+                _aoes.Add(new(circle, route.At(s + (float)travel * Speed + BombAhead), default, at));
+            }
         }
     }
 }
