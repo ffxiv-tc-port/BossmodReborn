@@ -84,7 +84,6 @@ sealed class Stage31Act1States : StateMachineBuilder
             .ActivateOnEnter<MimickedSap>()
             .ActivateOnEnter<MimickedDoomImpending>()
             .ActivateOnEnter<MimickedProteanWave>()
-            .ActivateOnEnter<MimickedFireBlast>()
             .ActivateOnEnter<MimickedImpSong>()
             .ActivateOnEnter<MimickedFireBlast>()
             .ActivateOnEnter<MimickedRawInstinct>()

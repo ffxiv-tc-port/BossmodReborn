@@ -57,7 +57,6 @@ class D022MyathStates : StateMachineBuilder
             .ActivateOnEnter<MadDashStack>()
             .ActivateOnEnter<MadDashSpread>()
             .ActivateOnEnter<ThirdLegForward>()
-            .ActivateOnEnter<ThirdLegForward>()
             .ActivateOnEnter<RazorScales>()
             .ActivateOnEnter<PrimordialRoar>();
     }

@@ -35,7 +35,6 @@ sealed class Stage20Act2States : StateMachineBuilder
     {
         TrivialPhase()
             .DeactivateOnEnter<Hints>()
-            .ActivateOnEnter<LightningBolt>()
             .ActivateOnEnter<Waterspout>()
             .ActivateOnEnter<Megavolt>()
             .ActivateOnEnter<AquaBreath>()

@@ -149,7 +149,6 @@ class TristitiaStates : StateMachineBuilder
         TrivialPhase()
             .ActivateOnEnter<ShockSpikes>()
             .ActivateOnEnter<MightyStrikes>()
-            .ActivateOnEnter<TornadoIIAerogaIVDualCast>()
             .ActivateOnEnter<WatergaIII>()
             .ActivateOnEnter<TornadoIIAerogaIVDualCast>()
             .ActivateOnEnter<SpineLash2>()
