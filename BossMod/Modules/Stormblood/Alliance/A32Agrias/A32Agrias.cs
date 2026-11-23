@@ -4,6 +4,9 @@ class DivineLight(BossModule module) : Components.RaidwideCast(module, (uint)AID
 class NorthswainsStrikeEphemeralKnight(BossModule module) : Components.SimpleAOEs(module, (uint)AID.NorthswainsStrikeEphemeralKnight, new AOEShapeRect(60, 3));
 class CleansingFlameSpread(BossModule module) : Components.SpreadFromCastTargets(module, (uint)AID.CleansingFlameSpread, 6);
 class HallowedBoltAOE(BossModule module) : Components.SimpleAOEs(module, (uint)AID.HallowedBoltAOE, 15);
+sealed class HallowedBoltDonut(BossModule module) : Components.SimpleAOEs(module, (uint)AID.HallowedBoltDonut, new AOEShapeDonut(15f, 30f));
+sealed class MortalBlow(BossModule module) : Components.SimpleAOEs(module, (uint)AID.MortalBlow, 30f);
+sealed class HeavenlyJudgment(BossModule module) : Components.RaidwideCast(module, (uint)AID.HeavenlyJudgment2);
 
 // 持有聖盾的人面向阿格莉亞絲按任務指令「聖盾防禦」，才擋得下不動無明劍與聖光爆裂破。
 // 聖盾防禦和武裝戍衛同類（狀態旗標相同）：用技能、開始詠唱、移動、轉向都會解除 ⇒
@@ -94,6 +97,16 @@ sealed class HolyShieldBlock(BossModule module) : Components.GenericGaze(module)
             base.AddAIHints(slot, actor, assignment, hints);
         else
             hints.AddSpecialMode(AIHints.SpecialMode.Pyretic, WorldState.CurrentTime);
+    }
+}
+
+// 聖光爆裂破：從阿格莉亞絲往每個連線者各拉一條直線；線上的人沒舉盾（見 HolyShieldBlock）就會被打中。
+// 不預告成死刑：預告會讓別的插件替線上的人放減傷，而任何技能都會解除聖盾防禦。
+sealed class DivineRuination : Components.BaitAwayTethers
+{
+    public DivineRuination(BossModule module) : base(module, new AOEShapeRect(60f, 3f), (uint)TetherID.Tether2, (uint)AID.DivineRuination2, (uint)OID.Boss, 8.1d)
+    {
+        DamageType = AIHints.PredictedDamageType.None;
     }
 }
 

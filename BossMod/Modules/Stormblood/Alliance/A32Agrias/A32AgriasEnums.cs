@@ -28,11 +28,11 @@ public enum AID : uint
     DivineLight = 14439, // Boss->self, 4.0s cast, range 60 circle // Raid-wide AoE
 
     DivineRuination1 = 14424, // Boss->self, 8.0s cast, single-target
-    DivineRuination2 = 14425, // Helper->self, no cast, range 60 width 6 rect
+    DivineRuination2 = 14425, // Helper->self, no cast, range 60 width 6 rect, one line from the boss towards each Tether2 player; blocked by Holy Shield
 
     HallowedBolt1 = 14426, // Boss->self, 4.0s cast, single-target
     HallowedBoltAOE = 14427, // Helper->self, 4.0s cast, range 15 circle
-    HallowedBoltDonut = 14428, // Helper->self, no cast, range ?-30 donut
+    HallowedBoltDonut = 14428, // Helper->self, 4.0s cast, range 15-30 donut
     //Two random players are marked for an AoE attack that hits twice in succession: Once as a circle AoE centered on the player,
     //and once as a ring AoE centered on the player, with an inner radius equal to the prior circle AoE.
 

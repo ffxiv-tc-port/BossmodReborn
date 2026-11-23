@@ -10,6 +10,10 @@ class A32AgriasStates : StateMachineBuilder
             .ActivateOnEnter<CleansingFlameSpread>()
             .ActivateOnEnter<HallowedBoltAOE>()
             .ActivateOnEnter<ShieldKnightInvulnerable>()
-            .ActivateOnEnter<HolyShieldBlock>();
+            .ActivateOnEnter<HallowedBoltDonut>()
+            .ActivateOnEnter<MortalBlow>()
+            .ActivateOnEnter<HeavenlyJudgment>()
+            .ActivateOnEnter<HolyShieldBlock>()
+            .ActivateOnEnter<DivineRuination>();
     }
 }
