@@ -27,8 +27,7 @@ sealed class DRS4QueensGuardStates : StateMachineBuilder
 
     private void Phase1(uint id)
     {
-        ActorTargetable(id, _module.Knight, true, 3.3f, "Warrior + Knight appear")
-            .DeactivateOnEnter<ArenaChange>();
+        ActorTargetable(id, _module.Knight, true, 3.3f, "Warrior + Knight appear");
         Phase1Repeat(id + 0x100000, 8.1f);
         Phase1Repeat(id + 0x200000, 8.1f);
         // TODO: enrage

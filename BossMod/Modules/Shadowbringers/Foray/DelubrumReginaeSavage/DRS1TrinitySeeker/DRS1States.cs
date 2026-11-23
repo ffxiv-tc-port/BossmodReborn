@@ -8,7 +8,6 @@ sealed class DRS1TrinitySeekerStates : StateMachineBuilder
             .ActivateOnEnter<ArenaChange>()
             .Raw.Update = () => Module.PrimaryActor.IsDestroyed || Module.PrimaryActor.HPMP.CurHP <= 1u || (Module.PrimaryActor.CastInfo?.IsSpell(AID.VerdantPathSword) ?? false);
         SimplePhase(1u, Phase2, "P2")
-            .DeactivateOnEnter<ArenaChange>()
             .Raw.Update = () => Module.PrimaryActor.IsDestroyed || Module.PrimaryActor.HPMP.CurHP <= 1u || (Module.PrimaryActor.CastInfo?.IsSpell(AID.VerdantPathFist) ?? false);
         SimplePhase(2u, Phase3, "P3")
             .Raw.Update = () => Module.PrimaryActor.IsDestroyed || Module.PrimaryActor.HPMP.CurHP <= 1u || (Module.PrimaryActor.CastInfo?.IsSpell(AID.VerdantPathKatana) ?? false);
