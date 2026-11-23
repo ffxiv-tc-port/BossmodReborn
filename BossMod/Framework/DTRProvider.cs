@@ -44,6 +44,7 @@ internal sealed class DTRProvider : IDisposable
                 _ai.SwitchToFollow(_aiConfig.FollowSlot);
             else
                 _ai.SwitchToIdle();
+            _ai.NoteState(AI.AIManager.SrcDtr);
         };
     }
 

@@ -329,6 +329,7 @@ sealed class AIManagementWindow : UIWindow
         }
         if (configModified)
             _config.Modified.Fire();
+        _manager.NoteState(AIManager.SrcWindowAI);
     }
 
     public override void OnClose() => SetVisible(false);

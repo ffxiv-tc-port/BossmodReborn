@@ -315,6 +315,7 @@ public sealed class Plugin : IDalamudPlugin
                 break;
             case "CFG":
                 var output = Service.Config.ConsoleCommand(new ArraySegment<string>(split, 1, split.Length - 1));
+                _ai.NoteState(AI.AIManager.SrcCommandCfg);
                 foreach (var msg in output)
                     Service.ChatGui.Print(msg);
                 break;

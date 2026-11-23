@@ -364,7 +364,12 @@ sealed class IPCProvider : IDisposable
 
         #endregion
 
-        Register("Configuration", (List<string> args, bool save) => IpcFrameworkGate.Get<List<string>>("Configuration", () => Service.Config.ConsoleCommand(args.AsSpan(), save), []));
+        Register("Configuration", (List<string> args, bool save) => IpcFrameworkGate.Get<List<string>>("Configuration", () =>
+        {
+            var result = Service.Config.ConsoleCommand(args.AsSpan(), save);
+            ai.NoteState(AIManager.SrcIpcConfiguration);
+            return result;
+        }, []));
 
         DateTime lastModified = DateTime.Now;
         Service.Config.Modified.Subscribe(() => lastModified = DateTime.Now);
@@ -606,7 +611,11 @@ sealed class IPCProvider : IDisposable
         //    這裡兩側都 .Trim() 是 SetPreset 這個呼叫點的區域輸入正規化（去掉呼叫方傳來的 preset 名頭尾空白），
         //    與大小寫敏感度是兩件事——刻意保留在此呼叫點，不提進 canonical 比較器：那會回頭讓已出貨的
         //    Presets.Create/Delete/FindPresetByName 也開始 Trim，可能把本來區分得開的名字折在一起。
-        Register("AI.SetPreset", (string name) => IpcFrameworkGate.Run("AI.SetPreset", () => ai.SetAIPreset(autorotation.Database.Presets.AllPresets.FirstOrDefault(x => x.Name.Trim().Equals(name.Trim(), PresetDatabase.NameComparison)))));
+        Register("AI.SetPreset", (string name) => IpcFrameworkGate.Run("AI.SetPreset", () =>
+        {
+            ai.SetAIPreset(autorotation.Database.Presets.AllPresets.FirstOrDefault(x => x.Name.Trim().Equals(name.Trim(), PresetDatabase.NameComparison)));
+            ai.NoteState(AIManager.SrcIpcSetPreset);
+        }));
         Register("AI.GetPreset", () => ai.GetAIPreset);
 
         // 🔑 給「全艦隊急停」用（TCToolbox 一鍵關掉所有會自己動的外掛）：外部外掛要能直接開關 AI。
@@ -620,6 +629,7 @@ sealed class IPCProvider : IDisposable
             return IpcFrameworkGate.Get("AI.SetEnabled", () =>
             {
                 ai.EnableConfig(enable);
+                ai.NoteState(AIManager.SrcIpcSetEnabled);
                 var now = ai.IsEnabled;
                 Service.Logger.Information($"[BMR IPC] AI 由 IPC {(enable ? "開啟" : "關閉")}，目前狀態：{(now ? "開啟" : "關閉")}。");
                 return now;

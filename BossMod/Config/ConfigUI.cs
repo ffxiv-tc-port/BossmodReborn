@@ -76,6 +76,7 @@ public sealed class ConfigUI : IDisposable
     public void Draw()
     {
         _tabs.Draw();
+        AI.AIManager.Instance?.NoteState(AI.AIManager.SrcWindowConfig);
     }
 
     private static readonly (string, string)[] _availableAICommands =

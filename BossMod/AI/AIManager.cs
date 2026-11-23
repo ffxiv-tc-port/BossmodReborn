@@ -17,6 +17,21 @@ sealed class AIManager : IDisposable
     public Preset? AiPreset;
     private bool _autoEnableAttempted;
     private TransientConfigOverrides.StringOverride? _appliedPresetOverride;
+    private readonly AIStateLog _stateLog = new(static () => Environment.TickCount64, static msg => Service.Logger?.Information(msg));
+
+    // 狀態 log 的來源標籤（同時是節流的鍵）；別的類別的寫入點用 NoteState 傳自己的常數。
+    internal const string SrcUnknown = "未列管的路徑（設定檔重新載入、反射或其他插件直接改欄位）";
+    internal const string SrcCommandAI = "指令 /bmrai";
+    internal const string SrcCommandCfg = "指令 /bmr cfg";
+    internal const string SrcWindowAI = "AI 視窗";
+    internal const string SrcWindowConfig = "設定視窗";
+    internal const string SrcDtr = "伺服器資訊欄點擊";
+    internal const string SrcIpcSetEnabled = "IPC BossMod.AI.SetEnabled";
+    internal const string SrcIpcSetPreset = "IPC BossMod.AI.SetPreset";
+    internal const string SrcIpcConfiguration = "IPC BossMod.Configuration";
+    internal const string SrcIpcTransientPreset = "IPC 暫時覆寫 AI 預設（SetTransientString／ClearTransient／ClearAllTransient／擁有者卸載）";
+    private const string SrcAutoEnable = "登入後自動開啟（Enable AI automatically when the plugin loads）";
+    private const string SrcMasterGone = "跟隨對象不在隊伍資料裡，自動關閉";
 
     public WorldState WorldState => Autorot.Bossmods.WorldState;
     public float ForceMovementIn => Beh?.ForceMovementIn ?? float.MaxValue;
@@ -49,6 +64,9 @@ sealed class AIManager : IDisposable
 
     public void Dispose()
     {
+        // 卸載不一定在主執行緒，不碰 _stateLog
+        if (Beh != null)
+            Service.Logger?.Information("[BMR AI 狀態] AI 開→關（來源：插件卸載）");
         SwitchToIdle();
         _wndAI.Dispose();
         Service.CommandManager.RemoveHandler("/bmrai");
@@ -56,8 +74,15 @@ sealed class AIManager : IDisposable
         Instance = null;
     }
 
+    private AIStateSnapshot CaptureState()
+        => new(Beh != null, Beh != null ? MasterSlot : PartyState.PlayerSlot, _config.ForbidMovement, _config.ForbidAIMovementMounted, _config.ForbidActions, AiPreset?.Name);
+
+    /// <summary>寫入點改完 AI 狀態後呼叫：真的變了才記一行。只在主執行緒呼叫；<paramref name="source"/> 傳上面的常數。</summary>
+    internal void NoteState(string source) => _stateLog.Note(CaptureState(), source);
+
     public void Update()
     {
+        NoteState(SrcUnknown);
         ApplyTransientAIPresetIfChanged();
 
         if (!_autoEnableAttempted && _config.AutoEnableOnLoad && Beh == null && WorldState.Party.Player() != null
@@ -70,10 +95,14 @@ sealed class AIManager : IDisposable
             // same frame it just enabled AI (and it never retries, since the attempt flag is already set).
             _autoEnableAttempted = true;
             SwitchToFollow(_config.FollowSlot);
+            NoteState(SrcAutoEnable);
         }
 
         if (!WorldState.Party.Members[MasterSlot].IsValid())
+        {
             SwitchToIdle();
+            NoteState(SrcMasterGone);
+        }
 
         var player = WorldState.Party.Player();
         var master = WorldState.Party[MasterSlot];
@@ -132,6 +161,7 @@ sealed class AIManager : IDisposable
                 : $"[BMR AI] {ov.Owner} 暫時把 AI 自動循環預設改成「{ov.Value ?? "（不選）"}」{(name != null && preset == null ? "（找不到同名預設，AI 不帶自動循環）" : "")}，不寫進設定檔。");
         AiPreset = preset;
         Beh?.AIPreset = preset;
+        NoteState(SrcIpcTransientPreset);
     }
 
     private unsafe int FindPartyMemberSlotFromSender(SeString sender)
@@ -156,6 +186,12 @@ sealed class AIManager : IDisposable
     }
 
     private void OnCommand(string cmd, string message)
+    {
+        OnCommandCore(cmd, message);
+        NoteState(SrcCommandAI);
+    }
+
+    private void OnCommandCore(string cmd, string message)
     {
         var messageData = message.Split(' ');
         if (messageData.Length == 0)
