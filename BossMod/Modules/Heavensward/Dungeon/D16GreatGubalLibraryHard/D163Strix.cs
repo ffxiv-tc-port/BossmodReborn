@@ -3,16 +3,27 @@ namespace BossMod.Heavensward.Dungeon.D16GreatGubalLibraryHard.D163Strix;
 public enum OID : uint
 {
     Boss = 0x176E, // 博學林鴞
-    BehemothWard = 0x176F // 凶惡巨獸護衛
+    BehemothWard = 0x176F, // 凶惡巨獸護衛
+    LevitationCircle = 0x1E9582, // 白圈（浮空之章讀條處）
+    LeadenCircle = 0x1EA1E2, // 黑圈（重力之章讀條處）
+    ImpCircle = 0x1EA1D4 // 綠圈（重力之章沒讀條的另外兩角）
+}
+
+public enum SID : uint
+{
+    Imp = 1134 // 河童：無法發動任何技能
 }
 
 // 契約：這個列舉＝模組知道的技能。列舉以外的敵方讀條由 Components.UnclaimedCastAOEs 照沒有模組時的猜法處理，
 // 所以刻意不把其他技能列進來（列了就不再被猜）。
 public enum AID : uint
 {
+    PropertiesOfLevitation = 6479, // Helper->self, 3.0s cast, 白圈出現處，沒有傷害
+    PropertiesOfGravity = 6480, // Helper->self, 3.0s cast, 黑圈出現處，沒有傷害
     PropertiesOfDarknessII = 6485, // Boss->self, 3.0s cast, range 100 circle
     PropertiesOfQuakes = 6486, // Boss->self, 7.0s cast, range 100 circle
     PropertiesOfTornados = 6487, // Boss->self, 7.0s cast, single-target
+    PropertiesOfTornadosAOE = 6488, // Helper->player, no cast, range 4 circle
     PropertiesOfImps = 6489, // Boss->self, 3.0s cast, range 100 circle
     PropertiesOfThunderIII = 6490, // Boss->self, 6.0s cast, single-target
     PropertiesOfThunderIIIAOE = 6491, // Boss->player, no cast, range 3 circle
@@ -52,11 +63,112 @@ sealed class PropertiesOfThunderIII(BossModule module) : Components.UniformStack
     }
 }
 
+// 白圈／黑圈：人在圈裡才有浮空／沉重、離開就掉 ⇒ 大地槌之章、龍捲風之章判定時要站在圈裡。
+// 綠圈：踩進去切換河童，站著不走約 5 秒會再切一次 ⇒ 是河童才進去、解除後離開，不是河童就別進。
+// 半徑：拿到狀態最遠約 5.6 碼、離開 5.5 碼外就掉 ⇒ 進圈縮到 4 碼、避開綠圈放大到 6.5 碼。
+sealed class PropertyCircles(BossModule module) : BossComponent(module)
+{
+    private const float InsideRadius = 4f;
+    private const float ImpAvoidRadius = 6.5f;
+    private DateTime _levitateBy, _leadenBy;
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.Action.ID == (uint)AID.PropertiesOfQuakes)
+            _levitateBy = Module.CastFinishAt(spell);
+        else if (spell.Action.ID == (uint)AID.PropertiesOfTornados)
+            _leadenBy = Module.CastFinishAt(spell);
+    }
+
+    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.Action.ID == (uint)AID.PropertiesOfQuakes)
+            _levitateBy = default;
+    }
+
+    // 龍捲風之章讀條結束後約 0.8 秒才由 Helper 判定，等判定事件才放人離開黑圈。
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if (spell.Action.ID == (uint)AID.PropertiesOfTornadosAOE)
+            _leadenBy = default;
+    }
+
+    public override void Update()
+    {
+        if (_leadenBy != default && WorldState.CurrentTime > _leadenBy.AddSeconds(3d))
+            _leadenBy = default;
+    }
+
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        if (_levitateBy != default)
+        {
+            StayInside(hints, (uint)OID.LevitationCircle, _levitateBy);
+            return;
+        }
+        if (_leadenBy != default)
+        {
+            StayInside(hints, (uint)OID.LeadenCircle, _leadenBy);
+            return;
+        }
+        var imps = Module.Enemies((uint)OID.ImpCircle);
+        var count = imps.Count;
+        if (count == 0)
+            return;
+        if (actor.FindStatus((uint)SID.Imp) != null)
+        {
+            StayInside(hints, (uint)OID.ImpCircle, default);
+            return;
+        }
+        for (var i = 0; i < count; ++i)
+            hints.AddForbiddenZone(ShapeDistance.Circle(imps[i].Position, ImpAvoidRadius));
+    }
+
+    private void StayInside(AIHints hints, uint oid, DateTime activation)
+    {
+        var circles = Module.Enemies(oid);
+        var count = circles.Count;
+        if (count == 0)
+            return;
+        var inside = new Func<WPos, float>[count];
+        for (var i = 0; i < count; ++i)
+            inside[i] = ShapeDistance.Circle(circles[i].Position, InsideRadius);
+        hints.AddForbiddenZone(ShapeDistance.InvertedUnion(inside), activation);
+    }
+
+    public override void AddHints(int slot, Actor actor, TextHints hints)
+    {
+        if (actor.FindStatus((uint)SID.Imp) != null && Module.Enemies((uint)OID.ImpCircle).Count != 0)
+            hints.Add("Imp: step into a green circle to turn back!");
+    }
+
+    public override void DrawArenaForeground(int pcSlot, Actor pc)
+    {
+        if (_levitateBy != default)
+            DrawCircles((uint)OID.LevitationCircle, InsideRadius, Colors.Safe);
+        else if (_leadenBy != default)
+            DrawCircles((uint)OID.LeadenCircle, InsideRadius, Colors.Safe);
+        else if (pc.FindStatus((uint)SID.Imp) != null)
+            DrawCircles((uint)OID.ImpCircle, InsideRadius, Colors.Safe);
+        else
+            DrawCircles((uint)OID.ImpCircle, ImpAvoidRadius, Colors.Danger);
+    }
+
+    private void DrawCircles(uint oid, float radius, uint color)
+    {
+        var circles = Module.Enemies(oid);
+        var count = circles.Count;
+        for (var i = 0; i < count; ++i)
+            Arena.AddCircle(circles[i].Position, radius, color);
+    }
+}
+
 sealed class D163StrixStates : StateMachineBuilder
 {
     public D163StrixStates(BossModule module) : base(module)
     {
         TrivialPhase()
+            .ActivateOnEnter<PropertyCircles>()
             .ActivateOnEnter<PropertiesOfDarknessII>()
             .ActivateOnEnter<PropertiesOfQuakes>()
             .ActivateOnEnter<PropertiesOfTornados>()

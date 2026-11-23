@@ -9289,5 +9289,8 @@
   },
   "Holy Shield raised: do not act, move or turn until it resolves!": {
     "message": "已舉起聖盾：判定前不要使用任何技能、移動或轉向（會解除聖盾防禦）！"
+  },
+  "Imp: step into a green circle to turn back!": {
+    "message": "變成河童：踩進綠圈變回原狀！"
   }
 }
