@@ -45,6 +45,7 @@ class UnByakkoStates : StateMachineBuilder
     {
         return Cast(id, (uint)AID.StormPulse, delay, 3.7f, name)
             .ActivateOnEnter<StormPulse>()
+            .DeactivateOnExit<StormPulse>()
             .SetHint(StateMachine.StateHint.Raidwide);
     }
 
@@ -54,7 +55,6 @@ class UnByakkoStates : StateMachineBuilder
         StormPulse(id, delay);
         Cast(id + 0x10, (uint)AID.FireAndLightningBoss, 9, 3.7f, "Line")
             .ActivateOnEnter<FireAndLightningBoss>()
-            .DeactivateOnExit<StormPulse>()
             .DeactivateOnExit<FireAndLightningBoss>();
     }
 
