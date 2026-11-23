@@ -12,6 +12,7 @@ public enum OID : uint
 public enum AID : uint
 {
     Bibliocide = 6469, // Boss->self, 3.0s cast, range 100 circle
+    Rush = 6471, // Boss->player, 5.0s cast, width 4 rect charge
     SealOfNightAndDay = 6473, // Boss->self, 6.0s cast, range 100 circle
     Ferrofluid = 6475, // Boss->self, 6.0s cast, range 100 circle
     Magnetism = 6476, // Boss->player, no cast, single-target
@@ -26,6 +27,37 @@ public enum IconID : uint
 
 sealed class Bibliocide(BossModule module) : Components.RaidwideCast(module, (uint)AID.Bibliocide);
 sealed class SealOfNightAndDay(BossModule module) : Components.CastHint(module, (uint)AID.SealOfNightAndDay, "Sunseal: red sigil, Moonseal: blue sigil", true);
+
+// 突進：讀條時點一名玩家，判定時衝到他當下的位置 ⇒ 範圍每幀從首領畫到被點的人，不是讀條開始時的那一點。
+// 刻意不報死刑：被點的不一定是坦克，傷害也只是一般技能的量。
+sealed class Rush(BossModule module) : Components.GenericBaitAway(module, (uint)AID.Rush)
+{
+    private const float HalfWidth = 2f;
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.Action.ID == WatchedAction && WorldState.Actors.Find(spell.TargetID) is Actor target)
+            CurrentBaits.Add(new(caster, target, new AOEShapeRect((target.Position - caster.Position).Length(), HalfWidth), Module.CastFinishAt(spell)));
+    }
+
+    public override void Update()
+    {
+        var baits = CollectionsMarshal.AsSpan(CurrentBaits);
+        for (var i = 0; i < baits.Length; ++i)
+        {
+            ref var b = ref baits[i];
+            var length = (b.Target.Position - b.Source.Position).Length();
+            if (b.Shape is AOEShapeRect rect && Math.Abs(rect.LengthFront - length) > 0.5f)
+                b.Shape = new AOEShapeRect(length, HalfWidth);
+        }
+    }
+
+    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.Action.ID == WatchedAction)
+            CurrentBaits.RemoveAll(b => b.Source == caster);
+    }
+}
 
 // 磁石：首領和玩家頭上各一個 +／- 標記；和首領同號靠近首領、異號遠離（cactbot、攻略）。
 // 只給文字提示：吸／推的距離沒有證據，畫不出安全範圍。
@@ -71,6 +103,7 @@ sealed class D162LiquidFlameStates : StateMachineBuilder
     {
         TrivialPhase()
             .ActivateOnEnter<Bibliocide>()
+            .ActivateOnEnter<Rush>()
             .ActivateOnEnter<SealOfNightAndDay>()
             .ActivateOnEnter<Ferrofluid>()
             .ActivateOnEnter<Components.UnclaimedCastAOEs>();
