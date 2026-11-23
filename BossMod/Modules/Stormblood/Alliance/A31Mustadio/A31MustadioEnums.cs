@@ -39,7 +39,7 @@ public enum AID : uint
     Searchlight2 = 14148, // Helper->self, no cast, range 5 circle
 
     Analysis = 14133, // Boss->self, 4.0s cast, single-target
-    LastTestament = 14135, // Boss->self, 6.0s cast, range 100 width 60 rect
+    LastTestament = 14135, // Boss->self, 6.0s cast, range 100 width 60 rect, lethal unless the unseen side faces the boss
     Unknown1 = 14134, // Boss->self, no cast, single-target
     Unknown2 = 14150, // Boss->self, no cast, single-target
     Unknown3 = 14188, // Helper->self, no cast, range 60 circle

@@ -32,5 +32,9 @@ class Compress(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Comp
 
 class BallisticSpread(BossModule module) : Components.SpreadFromCastTargets(module, (uint)AID.BallisticImpact1, 6);
 
+// 分析給的「X側未解析」那一側要對著讀條中的姆斯塔迪奧，其他方向被最終聖約打中會死。
+// 沒收到某人的未解析狀態（例：中途才載入模組）就不畫那個人的提示，不猜方向。
+sealed class LastTestament(BossModule module) : Components.CastWeakpoint(module, (uint)AID.LastTestament, new AOEShapeRect(100f, 30f), default, (uint)SID.BackUnseen, (uint)SID.LeftUnseen, (uint)SID.RightUnseen);
+
 [ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 636, NameID = 7915)] // 7919 
 public class A31Mustadio(WorldState ws, Actor primary) : BossModule(ws, primary, new(600, 290), new ArenaBoundsSquare(30, 45.Degrees()));
