@@ -103,6 +103,96 @@ sealed class Collapse(BossModule module) : Components.GenericAOEs(module)
             _aoes.Clear();
     }
 }
+
+// 耐火焰檢測：塌方平台收到崩塌的場地狀態時，火焰會在「下一個」平台（0x09→0x07→0x0A→0x09）隨塌方判定噴 5 下、約 1 秒一下。
+// 方向＝火焰平台相對三平台中心的方位加偏移：扇形 0、兩道牆 ±115（牆從平台外緣往內燒 12 碼）、半邊 ±95。
+// 半邊的正負號只在兩組（平台, 狀態）看過，其餘組合不畫（寧可不畫也不畫錯）；扇形角度比實際打到的人略寬。
+sealed class FireResistanceTest(BossModule module) : Components.GenericAOEs(module)
+{
+    private static readonly AOEShapeCone cone = new(41f, 20f.Degrees());
+    private static readonly AOEShapeRect band = new(12f, 19f), half = new(22f, 21f);
+    private static readonly WPos hub = new(-805f, -240f);
+    private const float WallDistance = 20.5f;
+    private const double NoImpactFallback = 9.8d, LastTickAfterImpact = 4.8d, TickInterval = 1d;
+    private readonly List<AOEInstance> _aoes = new(2);
+    private WPos _impactPlatform;
+    private DateTime _expire;
+
+    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => CollectionsMarshal.AsSpan(_aoes);
+
+    public override void OnEventEnvControl(byte index, uint state)
+    {
+        (WPos impact, WPos fire)? platforms = index switch
+        {
+            0x07 => (new(-805f, -270f), new(-830.98f, -225f)),
+            0x09 => (new(-779.02f, -225f), new(-805f, -270f)),
+            0x0A => (new(-830.98f, -225f), new(-779.02f, -225f)),
+            _ => null
+        };
+        if (platforms is not { } p)
+            return;
+        var (impact, fire) = p;
+        var dir = Angle.FromDirection(fire - hub);
+        var activation = WorldState.FutureTime(NoImpactFallback);
+        switch (state)
+        {
+            case 0x00100010u:
+                _aoes.Clear();
+                _aoes.Add(new(cone, fire + WallDistance * dir.ToDirection(), dir + 180f.Degrees(), activation));
+                break;
+            case 0x00800080u:
+                _aoes.Clear();
+                AddWall(fire, dir + 115f.Degrees(), activation);
+                AddWall(fire, dir - 115f.Degrees(), activation);
+                break;
+            case 0x04000400u when index == 0x07:
+                _aoes.Clear();
+                _aoes.Add(new(half, fire, dir + 95f.Degrees(), activation));
+                break;
+            case 0x20002000u when index == 0x0A:
+                _aoes.Clear();
+                _aoes.Add(new(half, fire, dir - 95f.Degrees(), activation));
+                break;
+            default:
+                return;
+        }
+        _impactPlatform = impact;
+        _expire = activation.AddSeconds(LastTickAfterImpact);
+    }
+
+    private void AddWall(WPos platform, Angle wall, DateTime activation)
+        => _aoes.Add(new(band, platform + WallDistance * wall.ToDirection(), wall + 180f.Degrees(), activation));
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.Action.ID == (uint)AID.Impact && _aoes.Count != 0 && spell.LocXZ.InCircle(_impactPlatform, 3f))
+        {
+            var activation = Module.CastFinishAt(spell);
+            SetActivation(activation);
+            _expire = activation.AddSeconds(LastTickAfterImpact);
+        }
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        if (spell.Action.ID is (uint)AID.FireResistanceTestCone or (uint)AID.FireResistanceTestBand or (uint)AID.FireResistanceTestHalf && _aoes.Count != 0)
+            SetActivation(WorldState.FutureTime(TickInterval));
+    }
+
+    private void SetActivation(DateTime activation)
+    {
+        var aoes = CollectionsMarshal.AsSpan(_aoes);
+        for (var i = 0; i < aoes.Length; ++i)
+            aoes[i].Activation = activation;
+    }
+
+    public override void Update()
+    {
+        if (_aoes.Count != 0 && WorldState.CurrentTime > _expire)
+            _aoes.Clear();
+    }
+}
+
 sealed class ShortRangeMissile(BossModule module) : Components.SpreadFromCastTargets(module, (uint)AID.ShortRangeMissile, 8f);
 
 // 場地＝三個聯盟各自的圓形平台（碰撞資料半徑約 19.75，內縮到 19.5），彼此不相連；平台之間不放進場地。

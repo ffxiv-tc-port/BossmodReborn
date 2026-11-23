@@ -26,4 +26,8 @@ public enum AID : uint
     Collapse = 18451, // Helper->self, no cast, range 20 width 8 rect, 4 lines from the platform center ~2.4s after Impact
 
     ShortRangeMissile = 18453, // Helper->players, 8.0s cast, range 8 circle, spread
+
+    FireResistanceTestCone = 18454, // Helper->self, no cast, 5 ticks from the next platform's outer wall toward the hub
+    FireResistanceTestBand = 18455, // Helper->self, no cast, range 12 width 38 rect, 5 ticks, two walls burning 8.5-20.5y from the platform center
+    FireResistanceTestHalf = 18456, // Helper->self, no cast, range 22 width 42 rect, 5 ticks, front half of the platform
 }
