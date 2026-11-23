@@ -4,6 +4,7 @@ public enum OID : uint
 {
     Boss = 0x176E, // 博學林鴞
     BehemothWard = 0x176F, // 凶惡巨獸護衛
+    Meteor = 0x1770, // 隕石：隕石衝擊落地處出現，R2.4
     LevitationCircle = 0x1E9582, // 白圈（浮空之章讀條處）
     LeadenCircle = 0x1EA1E2, // 黑圈（重力之章讀條處）
     ImpCircle = 0x1EA1D4 // 綠圈（重力之章沒讀條的另外兩角）
@@ -35,8 +36,56 @@ sealed class PropertiesOfDarknessII(BossModule module) : Components.RaidwideCast
 sealed class PropertiesOfQuakes(BossModule module) : Components.CastHint(module, (uint)AID.PropertiesOfQuakes, "Stand in a white circle (Levitation)", true);
 sealed class PropertiesOfTornados(BossModule module) : Components.CastHint(module, (uint)AID.PropertiesOfTornados, "Stand in a black circle (Leaden)", true);
 sealed class PropertiesOfImps(BossModule module) : Components.CastHint(module, (uint)AID.PropertiesOfImps, "Green circle toggles Imp");
-// 隕石要躲在岩石後面；岩石的 OID 與半徑沒有證據，只給提示不畫視線遮蔽。
 sealed class EclipticMeteor(BossModule module) : Components.CastHint(module, (uint)AID.EclipticMeteor, "Hide behind a boulder!", true);
+
+// 黃道隕石：雷達畫出每顆隕石背後的影子，視線起點取 Helper 出生處（判定 6492 由那裡的 Helper 放）。
+// 刻意只畫、不交給 AI：重播裡這招判定時隊上沒有活人，影子擋不擋得住、視線從哪裡算都沒有證據。
+sealed class EclipticMeteorShadow(BossModule module) : Components.GenericLineOfSightAOE(module, (uint)AID.EclipticMeteor, 100f)
+{
+    private static readonly WPos sightOrigin = new(364f, -154f);
+    private DateTime _activation;
+    private int _blockerCount;
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.Action.ID == WatchedAction)
+        {
+            _activation = Module.CastFinishAt(spell);
+            _blockerCount = -1;
+        }
+    }
+
+    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.Action.ID == WatchedAction)
+        {
+            _activation = default;
+            Safezones.Clear();
+            Modify(null, []);
+        }
+    }
+
+    // 隕石在讀條中途才一顆顆落下 ⇒ 顆數變了就重算影子。
+    public override void Update()
+    {
+        if (_activation == default)
+            return;
+        var meteors = Module.Enemies((uint)OID.Meteor);
+        var count = meteors.Count;
+        if (count == _blockerCount)
+            return;
+        _blockerCount = count;
+        var blockers = new (WPos, float)[count];
+        for (var i = 0; i < count; ++i)
+            blockers[i] = (meteors[i].Position, meteors[i].HitboxRadius);
+        Modify(sightOrigin, blockers, _activation);
+        Safezones.Clear();
+        AddSafezone(_activation);
+    }
+
+    public override void AddHints(int slot, Actor actor, TextHints hints) { }
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints) { }
+}
 // 距離衰減（Omen 是 shipimpact）；後備猜法遇到 52 碼圓會當全場而不畫。衰減沒有量過，15 碼沿用 BMR 慣例值。
 sealed class MeteorImpact(BossModule module) : Components.SimpleAOEs(module, (uint)AID.MeteorImpact, 15f);
 
@@ -175,6 +224,7 @@ sealed class D163StrixStates : StateMachineBuilder
             .ActivateOnEnter<PropertiesOfImps>()
             .ActivateOnEnter<PropertiesOfThunderIII>()
             .ActivateOnEnter<EclipticMeteor>()
+            .ActivateOnEnter<EclipticMeteorShadow>()
             .ActivateOnEnter<MeteorImpact>()
             .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
