@@ -9,7 +9,27 @@ sealed class SublimeElementsWide(BossModule module) : Components.SimpleAOEGroups
 (uint)AID.SublimeEarthWide, (uint)AID.SublimeWaterWide, (uint)AID.SublimeWindWide], new AOEShapeCone(40f, 50f.Degrees()), riskyWithSecondsLeft: 6d);
 sealed class SublimeElementsNarrow(BossModule module) : Components.SimpleAOEGroups(module, [(uint)AID.SublimeIceNarrow, (uint)AID.SublimeLightningNarrow, (uint)AID.SublimeFireNarrow,
 (uint)AID.SublimeEarthNarrow, (uint)AID.SublimeWaterNarrow, (uint)AID.SublimeWindNarrow], new AOEShapeCone(40f, 10f.Degrees()), riskyWithSecondsLeft: 6d);
-sealed class EmpyrealBanishIV(BossModule module) : Components.StackWithCastTargets(module, (uint)AID.EmpyrealBanishIV, 5f, PartyState.MaxAllianceSize, PartyState.MaxAllianceSize);
+sealed class EmpyrealBanishIV(BossModule module) : Components.StackWithCastTargets(module, (uint)AID.EmpyrealBanishIV, 5f, PartyState.MaxAllianceSize, PartyState.MaxAllianceSize)
+{
+    // 分攤目標站在同時結算的半場順劈裡時，「進分攤圈」和「離開順劈」互斥，AI 會兩邊都不做、站著挨順劈；這時先閃順劈
+    protected override bool ShouldJoinStack(int slot, Actor actor, in Stack stack)
+    {
+        var cone = Module.FindComponent<GreatWheelCone>();
+        if (cone == null)
+            return true;
+        var target = stack.Target.Position;
+        var latest = stack.Activation.AddSeconds(1d);
+        var aoes = cone.ActiveAOEs(slot, actor);
+        for (var i = 0; i < aoes.Length; ++i)
+        {
+            ref readonly var aoe = ref aoes[i];
+            if (aoe.Activation <= latest && aoe.Check(target))
+                return false;
+        }
+        return true;
+    }
+}
+
 sealed class EmpyrealBanishIII(BossModule module) : Components.SpreadFromCastTargets(module, (uint)AID.EmpyrealBanishIII, 5f);
 sealed class GreatWheelCircle(BossModule module) : Components.SimpleAOEGroups(module, [(uint)AID.GreatWheelCircle1, (uint)AID.GreatWheelCircle2,
 (uint)AID.GreatWheelCircle3, (uint)AID.GreatWheelCircle4], 10f);

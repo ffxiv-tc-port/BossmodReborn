@@ -54,6 +54,9 @@ public abstract class GenericStackSpread(BossModule module, bool alwaysShowSprea
     protected virtual uint PredictedSpreadSource => 0u;
     protected virtual uint PredictedStackSource => 0u;
 
+    /// <summary>非分攤目標的玩家要不要被提示「進這個分攤圈」。回 false 只拿掉這一條提示（其餘提示與傷害預告照舊）；預設一律要。</summary>
+    protected virtual bool ShouldJoinStack(int slot, Actor actor, in Stack stack) => true;
+
     public bool Active => Stacks.Count + Spreads.Count > 0;
     public List<Stack> ActiveStacks
     {
@@ -294,7 +297,7 @@ public abstract class GenericStackSpread(BossModule module, bool alwaysShowSprea
                     continue;
                 if (firstActive < 0)
                     firstActive = i;
-                if (!x.ForbiddenPlayers[slot] && (x.IsInside(actor) && !x.TooManyInside(Module) || !x.IsInside(actor) && x.InsufficientAmountInside(Module)))
+                if (!x.ForbiddenPlayers[slot] && (x.IsInside(actor) && !x.TooManyInside(Module) || !x.IsInside(actor) && x.InsufficientAmountInside(Module)) && ShouldJoinStack(slot, actor, x))
                     (forbidden ??= []).Add(ShapeDistance.InvertedCircle(x.Target.Position.Quantized(), x.Radius - 0.25f));
             }
             if (forbidden != null)
