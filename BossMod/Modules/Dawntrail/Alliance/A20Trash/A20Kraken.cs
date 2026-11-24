@@ -84,6 +84,15 @@ sealed class Flood(BossModule module) : Components.GenericAOEs(module)
             AOE = [];
         }
     }
+
+    // 吸蝕之後才放洪水；克拉肯在這之間死了就不會有洪水，預告要跟著撤掉。
+    public override void OnActorDeath(Actor actor)
+    {
+        if (actor.IsDead && actor.OID == (uint)OID.Kraken)
+        {
+            AOE = [];
+        }
+    }
 }
 
 sealed class A20KrakenStates : StateMachineBuilder
