@@ -364,6 +364,32 @@ sealed class IPCProvider : IDisposable
 
         #endregion
 
+        // 推播：實機 WorldState 的 DirectorUpdate 原樣轉發 (DirectorID, UpdateID, Param1..Param4)，讓其他插件不必再掛一份 ActorControl hook。
+        //   只訂 bossmod.WorldState（實機那份）；重播／模擬器各有自己的 WorldState，不會進來。hook 沒裝成＝沒有事件，不另補救。
+        // 🔴 訂閱端擲例外時 Dalamud 的 SendMessage 會往上拋並跳過其餘訂閱者；這裡跑在 BMR 執行 ops 的迴圈裡，不攔會截斷這一幀後面的 ops。
+        var directorUpdateProvider = Service.PluginInterface.GetIpcProvider<uint, uint, uint, uint, uint, uint, object>("BossMod.WorldState.DirectorUpdate");
+        long directorUpdateErrorLoggedAt = -60000;
+        void OnDirectorUpdate(WorldState.OpDirectorUpdate op)
+        {
+            if (directorUpdateProvider.SubscriptionCount == 0)
+                return;
+            try
+            {
+                directorUpdateProvider.SendMessage(op.DirectorID, op.UpdateID, op.Param1, op.Param2, op.Param3, op.Param4);
+            }
+            catch (Exception ex)
+            {
+                var now = Environment.TickCount64;
+                if (now - directorUpdateErrorLoggedAt >= 60000)
+                {
+                    directorUpdateErrorLoggedAt = now;
+                    Service.Logger.Information($"[BMR IPC] BossMod.WorldState.DirectorUpdate 的訂閱端擲例外，已略過；60 秒內同類不再記：{ex}");
+                }
+            }
+        }
+        var directorUpdateSubscription = bossmod.WorldState.DirectorUpdate.Subscribe(OnDirectorUpdate);
+        _disposeActions += directorUpdateSubscription.Dispose;
+
         Register("Configuration", (List<string> args, bool save) => IpcFrameworkGate.Get<List<string>>("Configuration", () =>
         {
             var result = Service.Config.ConsoleCommand(args.AsSpan(), save);
