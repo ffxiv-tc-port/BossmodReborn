@@ -423,6 +423,9 @@ public sealed class ActionDefinitions : IDisposable
         return check;
     }
 
+    /// <summary>落點離每個危險區邊緣至少要這麼遠才算安全：判定看的是玩家的 hitbox（半徑 0.5），落點只在邊緣外一點點照樣會被打中。</summary>
+    public const float DashLandingClearance = 0.5f;
+
     // check if dashing to target will put the player inside a forbidden zone
     public static bool IsDashDangerous(WPos from, WPos to, AIHints hints)
     {
@@ -434,7 +437,7 @@ public sealed class ActionDefinitions : IDisposable
         if (from != to && PathCrossesCustomBounds(hints.PathfindMapBounds, from - center, to - from))
             return true;
 
-        return hints.ForbiddenZones.Any(d => d.shapeDistance(to) < 0f);
+        return hints.ForbiddenZones.Any(d => d.shapeDistance(to) < DashLandingClearance);
     }
 
     // IntersectRay 量的是無限長射線（方向要正規化）：封閉場地裡往哪個方向都打得到牆，只有牆比落點近才算穿過
@@ -495,7 +498,7 @@ public sealed class ActionDefinitions : IDisposable
 
         var zones = CollectionsMarshal.AsSpan(hints.ForbiddenZones);
         for (var i = 0; i < zones.Length; ++i)
-            if (zones[i].shapeDistance(to) < 0f)
+            if (zones[i].shapeDistance(to) < DashLandingClearance)
                 return 4;
         return 0;
     }
@@ -521,7 +524,7 @@ public sealed class ActionDefinitions : IDisposable
                 var soonest = DateTime.MaxValue;
                 foreach (var z in hints.ForbiddenZones)
                 {
-                    if (z.shapeDistance(to) < 0f)
+                    if (z.shapeDistance(to) < DashLandingClearance)
                     {
                         ++count;
                         if (z.activation < soonest)
@@ -529,7 +532,7 @@ public sealed class ActionDefinitions : IDisposable
                     }
                 }
                 var when = soonest <= now ? "已經生效" : $"最快 {(soonest - now).TotalSeconds:f1} 秒後生效";
-                return $"落點在 {count} 個危險區內（{when}），{route}";
+                return $"落點在 {count} 個危險區內或離邊緣不到 {DashLandingClearance:f1} 碼（{when}），{route}";
             default:
                 return $"落點檢查以外的條件，{route}";
         }
@@ -590,7 +593,7 @@ public sealed class ActionDefinitions : IDisposable
             return DashQueryDangerous;
         var zones = CollectionsMarshal.AsSpan(hints.ForbiddenZones);
         for (var i = 0; i < zones.Length; ++i)
-            if (zones[i].shapeDistance(to) < 0f)
+            if (zones[i].shapeDistance(to) < DashLandingClearance)
                 return DashQueryDangerous;
         return DashQuerySafe;
     }

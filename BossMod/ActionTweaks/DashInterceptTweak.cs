@@ -298,9 +298,11 @@ public sealed class DashInterceptTweak
         for (var k = 1; k <= steps; ++k)
         {
             var p = from + delta * (k * invSteps);
+            // 中途只是經過；落點要多留玩家 hitbox 的餘裕（與 ActionDefinitions.IsDashDangerous 同一個值）
+            var clearance = k == steps ? ActionDefinitions.DashLandingClearance : 0f;
             for (var i = 0; i < nz; ++i)
             {
-                if (zones[i].Shape(p) < 0f)
+                if (zones[i].Shape(p) < clearance)
                 {
                     LogBlock(action, geo, from, to, p, k, steps, len, zones[i].Activation, snapshot);
                     return true;
