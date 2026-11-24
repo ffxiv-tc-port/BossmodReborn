@@ -9298,5 +9298,11 @@
   },
   "Danger zones guessed from enemy casts (no boss module, or a cast the boss module does not handle) are removed when the cast should already be over but never ended: the cast bar has been full for more than 3 seconds, the caster has been dead for more than 3 seconds, or the caster is gone.\nAffects both the radar and AI dodging/pathfinding. Turn off to keep such zones until the game ends the cast": {
     "message": "從敵人讀條猜出來的危險區（沒有首領模組時，或首領模組沒處理的讀條），在讀條早該結束卻沒結束時移除：讀條條已滿超過 3 秒、施放者倒地超過 3 秒，或施放者已不在。\n雷達與 AI 閃避／尋路都會跟著改變。關閉後這類危險區會一直保留到遊戲結束讀條為止"
+  },
+  "Treasure hunt dungeons: lock your target onto bonus enemies": {
+    "message": "寶物庫：目標鎖定獎勵怪"
+  },
+  "While a bonus enemy (mandragora party, golden cat, vaultkeeper and the like) is alive in a treasure hunt dungeon, your in-game target is kept on it until it dies, then moved to the next one. Mandragoras are taken strictly in kill order (onion, eggplant, garlic, tomato, queen).\n\nWhile the lock lasts, neither you nor another plugin can switch your target away. Movement and dodging are not affected.\n\nBonus enemies are always ranked above normal enemies for BMR's own AI targeting, even with this off.": {
+    "message": "寶物庫裡有獎勵怪（曼德拉戰隊、黃金貓、金庫守衛等）活著時，遊戲目標會一直鎖在那一隻身上直到牠倒下，再換到下一隻。曼德拉戰隊一律照擊殺順序（洋蔥、茄子、蒜頭、番茄、王后）。\n\n鎖定期間，自己手動或其他插件都無法把目標換走。移動與閃避不受影響。\n\n就算不開這個選項，BMR 自己的 AI 選目標時也一律把獎勵怪排在普通怪前面。"
   }
 }
