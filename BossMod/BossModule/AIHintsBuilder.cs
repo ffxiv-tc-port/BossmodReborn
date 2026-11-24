@@ -14,6 +14,9 @@ public sealed class AIHintsBuilder : IDisposable
     private readonly RotationSolverRebornModule? _rsr;
     private readonly Dictionary<ulong, (Actor Caster, Actor? Target, AOEShape Shape, bool IsCharge)> _activeAOEs = [];
     private readonly Dictionary<ulong, (Actor Caster, Actor? Target, AOEShape Shape)> _activeGazes = [];
+    private readonly Dictionary<ulong, CastGuessTimeout> _guessTimeouts = []; // 鍵同上兩表；只在逾時清除開著時更新
+    private readonly List<ulong> _expiredGuesses = [];
+    private readonly CastGuessTimeoutReport _timeoutReport = new("沒有模組時的讀條猜測");
     private ArenaBoundsCircle? _activeFateBounds;
     private ArenaBoundsRect? _obstacleViewBounds;
     private bool isRSRpaused;
@@ -310,6 +313,7 @@ public sealed class AIHintsBuilder : IDisposable
             // keep default bounds
         }
 
+        ExpireStaleGuesses();
         foreach (var aoe in _activeAOEs.Values)
         {
             var caster = aoe.Caster.CastInfo!;
@@ -449,6 +453,38 @@ public sealed class AIHintsBuilder : IDisposable
     {
         _activeAOEs.Remove(actor.InstanceID);
         _activeGazes.Remove(actor.InstanceID);
+        _guessTimeouts.Remove(actor.InstanceID);
+    }
+
+    // 讀條結束事件沒來、讀條卻早該結束的猜測（見 CastGuessTimeout）從兩張表移除，雷達與診斷讀的是同兩張表，跟著一起消失。
+    private void ExpireStaleGuesses()
+    {
+        _timeoutReport.Flush(_ws.CurrentTime);
+        if (_activeAOEs.Count == 0 && _activeGazes.Count == 0 || !CastGuessTimeout.Enabled)
+            return;
+        _expiredGuesses.Clear();
+        foreach (var (id, aoe) in _activeAOEs)
+            CheckGuessTimeout(id, aoe.Caster);
+        foreach (var (id, gaze) in _activeGazes)
+            CheckGuessTimeout(id, gaze.Caster);
+        var count = _expiredGuesses.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var id = _expiredGuesses[i];
+            _activeAOEs.Remove(id);
+            _activeGazes.Remove(id);
+            _guessTimeouts.Remove(id);
+        }
+    }
+
+    private void CheckGuessTimeout(ulong id, Actor caster)
+    {
+        ref var timeout = ref CollectionsMarshal.GetValueRefOrAddDefault(_guessTimeouts, id, out _);
+        var verdict = timeout.Update(_ws, caster);
+        if (verdict == CastGuessTimeout.Verdict.None)
+            return;
+        _expiredGuesses.Add(id);
+        _timeoutReport.Record(_ws, caster, verdict);
     }
 
     private static Angle DetermineConeAngle(ref (byte, byte, byte, uint RowId, string Name, string PathAlly, string Path, int Pos, bool Omen, uint) data)

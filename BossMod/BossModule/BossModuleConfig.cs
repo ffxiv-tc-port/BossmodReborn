@@ -25,6 +25,9 @@ public sealed class BossModuleConfig : ConfigNode
     [PropertyDisplay("Show radar in dungeons when no boss module is loaded", tooltip: "In dungeons, between bosses (and at bosses that have no dedicated module) the radar still opens and shows the area AI pathfinds in, the walls from the obstacle map when this dungeon has one, enemies, and the danger zones guessed from enemy casts.\nDisplay only: how AI moves is not changed")]
     public bool ShowRadarInDungeonsWithoutModule = true;
 
+    [PropertyDisplay("Clear stuck guessed danger zones", tooltip: "Danger zones guessed from enemy casts (no boss module, or a cast the boss module does not handle) are removed when the cast should already be over but never ended: the cast bar has been full for more than 3 seconds, the caster has been dead for more than 3 seconds, or the caster is gone.\nAffects both the radar and AI dodging/pathfinding. Turn off to keep such zones until the game ends the cast")]
+    public bool GenericZoneTimeout = true;
+
     [PropertyDisplay("Lock radar and hint window movement and mouse interaction")]
     public bool Lock = false;
 

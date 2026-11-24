@@ -9292,5 +9292,11 @@
   },
   "Imp: step into a green circle to turn back!": {
     "message": "變成河童：踩進綠圈變回原狀！"
+  },
+  "Clear stuck guessed danger zones": {
+    "message": "通用危險區逾時清除"
+  },
+  "Danger zones guessed from enemy casts (no boss module, or a cast the boss module does not handle) are removed when the cast should already be over but never ended: the cast bar has been full for more than 3 seconds, the caster has been dead for more than 3 seconds, or the caster is gone.\nAffects both the radar and AI dodging/pathfinding. Turn off to keep such zones until the game ends the cast": {
+    "message": "從敵人讀條猜出來的危險區（沒有首領模組時，或首領模組沒處理的讀條），在讀條早該結束卻沒結束時移除：讀條條已滿超過 3 秒、施放者倒地超過 3 秒，或施放者已不在。\n雷達與 AI 閃避／尋路都會跟著改變。關閉後這類危險區會一直保留到遊戲結束讀條為止"
   }
 }

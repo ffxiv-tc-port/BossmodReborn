@@ -9,6 +9,8 @@ public class UnclaimedCastAOEs : GenericAOEs
     private readonly HashSet<uint> _claimed = [];
     private readonly List<AOEInstance> _aoes = [];
     private readonly List<(Actor Caster, Actor? Target, AOEShape Shape, WPos Location, Angle Rotation, DateTime Activation)> _gazes = [];
+    private readonly Dictionary<ulong, CastGuessTimeout> _timeouts = []; // 鍵＝施放者；只在逾時清除開著時更新
+    private readonly CastGuessTimeoutReport _timeoutReport = new("模組沒認領的讀條猜測");
 
     public UnclaimedCastAOEs(BossModule module) : base(module)
     {
@@ -44,13 +46,57 @@ public class UnclaimedCastAOEs : GenericAOEs
 
     public override void OnCastFinished(Actor caster, ActorCastInfo spell)
     {
-        var id = caster.InstanceID;
+        RemoveCaster(caster.InstanceID);
+    }
+
+    private void RemoveCaster(ulong id)
+    {
+        _timeouts.Remove(id);
         for (var i = _aoes.Count - 1; i >= 0; --i)
             if (_aoes[i].ActorID == id)
                 _aoes.RemoveAt(i);
         for (var i = _gazes.Count - 1; i >= 0; --i)
-            if (_gazes[i].Caster == caster)
+            if (_gazes[i].Caster.InstanceID == id)
                 _gazes.RemoveAt(i);
+    }
+
+    // 同 AIHintsBuilder 的沒有模組路徑：讀條結束事件沒來、讀條卻早該結束的猜測移除（見 CastGuessTimeout）。
+    public override void Update()
+    {
+        _timeoutReport.Flush(WorldState.CurrentTime);
+        if (_aoes.Count == 0 && _gazes.Count == 0 || !CastGuessTimeout.Enabled)
+            return;
+        for (var i = _aoes.Count - 1; i >= 0; --i)
+        {
+            if (i >= _aoes.Count)
+                continue;
+            var id = _aoes[i].ActorID;
+            if (CheckTimeout(id, WorldState.Actors.Find(id)))
+                RemoveCaster(id);
+        }
+        for (var i = _gazes.Count - 1; i >= 0; --i)
+        {
+            if (i >= _gazes.Count)
+                continue;
+            var caster = _gazes[i].Caster;
+            if (CheckTimeout(caster.InstanceID, caster))
+                RemoveCaster(caster.InstanceID);
+        }
+    }
+
+    private bool CheckTimeout(ulong id, Actor? caster)
+    {
+        if (caster == null)
+        {
+            Service.Logger.Debug($"[ZoneTTL] 模組沒認領的讀條猜測：移除讀條猜測危險區（施放者已不在物件表）：{id:X}");
+            return true;
+        }
+        ref var timeout = ref CollectionsMarshal.GetValueRefOrAddDefault(_timeouts, id, out _);
+        var verdict = timeout.Update(WorldState, caster);
+        if (verdict == CastGuessTimeout.Verdict.None)
+            return false;
+        _timeoutReport.Record(WorldState, caster, verdict);
+        return true;
     }
 
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
