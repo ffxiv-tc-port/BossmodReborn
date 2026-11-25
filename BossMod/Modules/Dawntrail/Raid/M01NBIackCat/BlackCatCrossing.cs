@@ -16,17 +16,15 @@ sealed class BlackCatCrossing(BossModule module) : Components.GenericAOEs(module
 
         var aoes = CollectionsMarshal.AsSpan(_aoes);
         var color = Colors.Danger;
-        for (var i = 0; i < 4; ++i)
+        var max = count > 4 ? 4 : count;
+        for (var i = 0; i < max; ++i)
         {
             ref var aoe = ref aoes[i];
-            if (i < 4)
-            {
-                if (count == 8)
-                    aoe.Color = color;
-                aoe.Risky = true;
-            }
+            if (count == 8)
+                aoe.Color = color;
+            aoe.Risky = true;
         }
-        return aoes;
+        return aoes[..max];
     }
 
     public override void OnCastStarted(Actor caster, ActorCastInfo spell)

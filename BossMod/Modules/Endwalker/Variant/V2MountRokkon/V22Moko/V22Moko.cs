@@ -17,9 +17,7 @@ sealed class Explosion(BossModule module) : Components.SimpleAOEs(module, (uint)
         if (count == 0)
             return [];
         var aoes = CollectionsMarshal.AsSpan(Casters);
-        ref readonly var aoe0 = ref aoes[0];
-        ref readonly var aoe1 = ref aoes[1];
-        var hasDifferentRotations = count > 1 && aoe0.Rotation != aoe1.Rotation;
+        var hasDifferentRotations = count > 1 && aoes[0].Rotation != aoes[1].Rotation;
         var max = count > MaxCasts ? MaxCasts : count;
 
         for (var i = 0; i < max; ++i)
