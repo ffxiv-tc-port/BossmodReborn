@@ -20,7 +20,7 @@ public enum AID : uint
     WhiteBreath = 3295, // Boss->self, 3.5s cast, range 22+R 120-degree cone
     BreathOfFire = 3285, // FiveHeadedDragonHelper->location, 3.0s cast, range 6 circle
     Fireball = 3290, // DragonfireFly->player, no cast, single-target
-    BreathOfThunder = 3287, // FiveHeadedDragonHelper->players, no cast, range 6 circle
+    BreathOfThunder = 3287, // FiveHeadedDragonHelper->players, no cast, range 6 circle stack on Icon318 target
     Discordance = 3282, // Boss->self, 5.0s cast, range 60 circle
     BreathOfLight = 3284, // FiveHeadedDragonHelper->location, 3.0s cast, range 6 circle
     BreathOfPoison = 3288, // FiveHeadedDragonHelper->location, 3.0s cast, range 6 circle
@@ -60,7 +60,7 @@ public enum SID : uint
 
 public enum IconID : uint
 {
-    Icon318 = 318, // player
+    Icon318 = 318, // player, Breath of Thunder stack target (~6.1s)
     Icon46 = 46, // player
 }
 

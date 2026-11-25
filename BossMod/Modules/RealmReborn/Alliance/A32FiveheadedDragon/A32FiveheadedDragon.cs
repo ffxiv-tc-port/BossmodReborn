@@ -7,6 +7,8 @@ class BreathOfFire(BossModule module) : Components.SimpleAOEs(module, (uint)AID.
 class BreathOfLight(BossModule module) : Components.SimpleAOEs(module, (uint)AID.BreathOfLight, 6);
 class BreathOfPoison(BossModule module) : Components.SimpleAOEs(module, (uint)AID.BreathOfPoison, 6);
 class BreathOfIce(BossModule module) : Components.SimpleAOEs(module, (uint)AID.BreathOfIce, 6);
+// 雷之吐息沒有讀條：標記 318 落在一人身上約 6.1 秒後，以他為中心半徑 6 分攤（錄影兩次 17、19 人一起吃）。
+class BreathOfThunder(BossModule module) : Components.StackWithIcon(module, (uint)IconID.Icon318, (uint)AID.BreathOfThunder, 6f, 6.1d);
 
 class Radiance(BossModule module) : Components.RaidwideCast(module, (uint)AID.Radiance);
 class HeatWave(BossModule module) : Components.RaidwideCast(module, (uint)AID.HeatWave);
