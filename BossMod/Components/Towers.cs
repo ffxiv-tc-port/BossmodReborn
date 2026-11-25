@@ -154,6 +154,15 @@ public class GenericTowers(BossModule module, uint aid = default, bool prioritiz
         if (len == 0)
             return;
 
+        // 時間取「目前有效的塔」最早那座：子類別覆寫 ActiveTowers 時 Towers 可能為空或順序不同
+        var firstActivation = DateTime.MaxValue;
+        for (var i = 0; i < len; ++i)
+        {
+            var act = towers[i].Activation;
+            if (act < firstActivation)
+                firstActivation = act;
+        }
+
         var forbiddenInverted = new List<Func<WPos, float>>(len);
         var forbidden = new List<Func<WPos, float>>(len);
 
@@ -238,11 +247,11 @@ public class GenericTowers(BossModule module, uint aid = default, bool prioritiz
             var fcount = forbidden.Count;
             if (fcount == 0 || inTower || missingSoakers && forbiddenInverted.Count != 0)
             {
-                hints.AddForbiddenZone(ShapeDistance.Intersection(forbiddenInverted), Towers.Ref(0).Activation);
+                hints.AddForbiddenZone(ShapeDistance.Intersection(forbiddenInverted), firstActivation);
             }
             else if (fcount != 0 && !inTower)
             {
-                hints.AddForbiddenZone(ShapeDistance.Union(forbidden), Towers.Ref(0).Activation);
+                hints.AddForbiddenZone(ShapeDistance.Union(forbidden), firstActivation);
             }
         }
         else
@@ -255,7 +264,7 @@ public class GenericTowers(BossModule module, uint aid = default, bool prioritiz
             var fcount = forbidden.Count;
             if (fcount != 0)
             {
-                hints.AddForbiddenZone(ShapeDistance.Union(forbidden), Towers.Ref(0).Activation);
+                hints.AddForbiddenZone(ShapeDistance.Union(forbidden), firstActivation);
             }
         }
         BitMask mask = default;
@@ -273,7 +282,7 @@ public class GenericTowers(BossModule module, uint aid = default, bool prioritiz
                 }
             }
         }
-        hints.AddPredictedDamage(mask, Towers.Ref(0).Activation, DamageType);
+        hints.AddPredictedDamage(mask, firstActivation, DamageType);
     }
 }
 

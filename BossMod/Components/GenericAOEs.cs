@@ -172,7 +172,7 @@ public class SimpleAOEGroups(BossModule module, uint[] aids, AOEShape shape, int
             if (spell.Action.ID == AIDs[i])
             {
                 Casters.Add(new(Shape, spell.LocXZ, spell.Rotation, Module.CastFinishAt(spell), actorID: caster.InstanceID));
-                if (Casters.Count == ExpectedNumCasters)
+                if (Casters.Count >= ExpectedNumCasters)
                 {
                     Casters.Sort((a, b) => a.Activation.CompareTo(b.Activation));
                 }

@@ -722,9 +722,12 @@ public abstract class BossModule : IDisposable
 
     private void OnActorModelStateChange(Actor actor)
     {
-        var count = Components.Count;
-        for (var i = 0; i < count; ++i)
-            Components[i].OnActorModelStateChange(actor, actor.ModelState.ModelState, actor.ModelState.AnimState1, actor.ModelState.AnimState2);
+        if (actor.Type != ActorType.Pet)
+        {
+            var count = Components.Count;
+            for (var i = 0; i < count; ++i)
+                Components[i].OnActorModelStateChange(actor, actor.ModelState.ModelState, actor.ModelState.AnimState1, actor.ModelState.AnimState2);
+        }
     }
 
     private void OnEnvControl(WorldState.OpEnvControl op)
