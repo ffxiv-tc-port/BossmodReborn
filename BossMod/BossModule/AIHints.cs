@@ -505,6 +505,26 @@ public sealed class AIHints
             ImminentSpecialMode = (mode, activation);
     }
 
+    /// <summary>熱病類（到期那刻不能在移動）從到期前 <paramref name="freezeLeadSeconds"/> 秒起就停手；
+    /// 在 [停手, 到期＋解凍後窗] 判定的禁區把生效時間夾到停手時刻，所有讀禁區的地方（尋路、詠唱讓位、位移閃避）照常再扣緩衝。</summary>
+    /// <remarks>沒有熱病、或已經在停手中時不動任何欄位。解凍後窗＝AI 生效緩衝＋1 秒：更早判定的解凍後來不及走出去。</remarks>
+    public void ClampZonesToPyreticFreeze(DateTime now, float freezeLeadSeconds)
+    {
+        if (ImminentSpecialMode.mode != SpecialMode.Pyretic)
+            return;
+        var freeze = ImminentSpecialMode.activation.AddSeconds(-freezeLeadSeconds);
+        if (now >= freeze)
+            return;
+        var last = ImminentSpecialMode.activation.AddSeconds(_config.ActivationTimeCushion + 1d);
+        var zones = CollectionsMarshal.AsSpan(ForbiddenZones);
+        for (var i = 0; i < zones.Length; ++i)
+        {
+            ref var z = ref zones[i];
+            if (z.activation >= freeze && z.activation <= last)
+                z.activation = freeze;
+        }
+    }
+
     // normalize all entries after gathering data: sort by priority / activation timestamp
     // TODO: note that the name is misleading - it actually happens mid frame, before all actions are gathered (eg before autorotation runs), but further steps (eg ai) might consume previously gathered data
     public void Normalize()

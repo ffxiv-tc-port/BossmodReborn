@@ -47,6 +47,7 @@ public sealed class AIHintsBuilder : IDisposable
     ];
     private static readonly HashSet<uint> ignore = [27503u, 33626u]; // action IDs that the AI should ignore
     private static readonly PartyRolesConfig _config = Service.Config.Get<PartyRolesConfig>();
+    private static readonly ActionTweaksConfig _tweaks = Service.Config.Get<ActionTweaksConfig>();
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<uint, (byte, byte, byte, uint, string, string, string, int, bool, uint)> _spellCache = new(); // 模組元件在背景解析重播的執行緒上也會讀寫
 
     public AIHintsBuilder(WorldState ws, BossModuleManager bmm, ZoneModuleManager zmm, RotationSolverRebornModule? rsr)
@@ -141,6 +142,8 @@ public sealed class AIHintsBuilder : IDisposable
         AddSelfStatusSpecialModes(hints, _ws.Party[playerSlot]);
         // 放在所有提示來源之後：保留要能壓過任何來源（含區域模組）寫的旗標。
         hints.ApplyControlReservations();
+        // 停手起點取兩個凍結的較早者：ActionManagerEx 依 PyreticThreshold 擋移動、NormalMovement 自己在到期前 1 秒停。
+        hints.ClampZonesToPyreticFreeze(_ws.CurrentTime, Math.Max(_tweaks.PyreticThreshold, 1f));
         hints.Normalize();
         if (_rsr != null)
         {
