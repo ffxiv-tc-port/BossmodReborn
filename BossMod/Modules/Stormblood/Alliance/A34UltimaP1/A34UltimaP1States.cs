@@ -17,6 +17,10 @@ class A34UltimaP1States : StateMachineBuilder
             .ActivateOnEnter<ExtremeEdge2>()
             .ActivateOnEnter<CrushWeapon>()
             .ActivateOnEnter<Searchlight>()
-            .ActivateOnEnter<HallowedBolt>();
+            .ActivateOnEnter<HallowedBolt>()
+            .ActivateOnEnter<Plummet>()
+            .ActivateOnEnter<Hammerfall>()
+            .ActivateOnEnter<PrevailingCurrent>()
+            .ActivateOnEnter<UltimateIllusionArena>();
     }
 }

@@ -15,6 +15,8 @@ public enum OID : uint
     Ramza = 0x2638, // R0.650, x0 (spawn during fight)
     Ruination = 0x263A, // R3.900, x0 (spawn during fight), Part type
     TheThunderGod = 0x262C, // R0.500, x0 (spawn during fight)
+    HammerfallMarker = 0x1EAA61, // R0.500, EventObj, spawns at the Hammerfall impact point when Earth Hammer starts casting
+    IllusionBarrier = 0x1EA1A1, // R2.000, EventObj, the one at (600, -620) is Ramza's barrier during Ultimate Illusion
 }
 
 public enum AID : uint
