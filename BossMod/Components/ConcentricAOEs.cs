@@ -25,9 +25,20 @@ public class ConcentricAOEs(BossModule module, AOEShape[] shapes, bool showall =
         {
             return [];
         }
-        var aoes = new AOEInstance[count];
         var time = WorldState.CurrentTime;
         var sequences = CollectionsMarshal.AsSpan(Sequences);
+        var len = Shapes.Length;
+        var total = count;
+        if (showall)
+        {
+            total = 0;
+            for (var i = 0; i < count; ++i)
+            {
+                total += Math.Max(0, len - sequences[i].NumCastsDone);
+            }
+        }
+        var aoes = new AOEInstance[total];
+        var n = 0;
 
         for (var i = 0; i < count; ++i)
         {
@@ -40,14 +51,13 @@ public class ConcentricAOEs(BossModule module, AOEShape[] shapes, bool showall =
             }
             if (!showall)
             {
-                aoes[i] = new(Shapes[s.NumCastsDone], s.Origin, s.Rotation, act, risky: risky);
+                aoes[n++] = new(Shapes[s.NumCastsDone], s.Origin, s.Rotation, act, risky: risky);
             }
             else
             {
-                var len = Shapes.Length;
                 for (var j = s.NumCastsDone; j < len; ++j)
                 {
-                    aoes[i] = new(Shapes[j], s.Origin, s.Rotation, act, risky: risky);
+                    aoes[n++] = new(Shapes[j], s.Origin, s.Rotation, act, risky: risky);
                 }
             }
         }

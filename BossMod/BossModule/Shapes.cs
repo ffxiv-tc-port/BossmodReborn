@@ -411,7 +411,8 @@ public sealed record class Capsule(WPos Center, float HalfHeight, float HalfWidt
 {
     public override List<WDir> Contour(WPos center)
     {
-        var vertices = new WDir[2 * Edges];
+        // 每個半圓 Edges+1 個點（含兩端）；下半圓對 Center 鏡射，不是對傳入的 center
+        var vertices = new WDir[2 * (Edges + 1)];
         var angleIncrement = MathF.PI / Edges;
         var (sinRot, cosRot) = ((float, float))Math.SinCos(Rotation.Rad);
         var halfWidth = HalfWidth;
@@ -419,17 +420,15 @@ public sealed record class Capsule(WPos Center, float HalfHeight, float HalfWidt
         var offset = Center - center;
         var offsetX = offset.X;
         var offsetZ = offset.Z;
-        for (var i = 0; i < Edges; ++i)
+        for (var i = 0; i <= Edges; ++i)
         {
             var (sin, cos) = ((float, float))Math.SinCos(i * angleIncrement);
             var halfWidthCos = halfWidth * cos;
             var halfWidthSin = halfWidth * sin + halfHeight;
-            var rxTop = halfWidthCos * cosRot - halfWidthSin * sinRot + offsetX;
-            var ryTop = halfWidthCos * sinRot + halfWidthSin * cosRot + offsetZ;
-            vertices[i] = new(rxTop, ryTop);
-            var rxBot = -rxTop;
-            var ryBot = -ryTop;
-            vertices[Edges + i] = new(rxBot, ryBot);
+            var rx = halfWidthCos * cosRot - halfWidthSin * sinRot;
+            var rz = halfWidthCos * sinRot + halfWidthSin * cosRot;
+            vertices[i] = new(rx + offsetX, rz + offsetZ);
+            vertices[Edges + 1 + i] = new(-rx + offsetX, -rz + offsetZ);
         }
         return [.. vertices];
     }
