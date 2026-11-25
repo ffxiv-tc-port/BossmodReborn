@@ -70,7 +70,7 @@ class OldMagicArenaChange(BossModule module) : Components.GenericAOEs(module)
 }
 
 class OldMagic(BossModule module) : Components.RaidwideCast(module, (uint)AID.OldMagic);
-class ArcaneEdge(BossModule module) : Components.RaidwideCast(module, (uint)AID.ArcaneEdge);
+class ArcaneEdge(BossModule module) : Components.SingleTargetCast(module, (uint)AID.ArcaneEdge);
 class Contrapasso(BossModule module) : Components.RaidwideCast(module, (uint)AID.Contrapasso);
 
 class DuplicitousBattery(BossModule module) : Components.GenericAOEs(module)
