@@ -44,28 +44,26 @@ The counter is read as a plain evaluated property (not inside a `<Target>`), so 
 - **csproj 算出來的版本號跟實際發版無關**：`release.yml` 建置時用
   `-p:Version=${tag} -p:AssemblyVersion=… -p:FileVersion=… -p:InformationalVersion=…` 從 git tag 覆蓋掉，
   csproj 的 `VersionPrefix`/`BuildNumber` 只影響本機建置產物的版本字串。
-- 因此 `VersionPrefix` 至今仍是 `7.15.0`，而 feed 上的版本是 `v7.20.0.x` ——**這不是漏改**，
-  不要為了「分支叫 tc-7.30」就去動 `VersionPrefix`（先看下面 build-check 那條，改它有副作用）。
+- 因此 `VersionPrefix` 至今仍是 `7.15.0`，而 feed 上的版本是 `v7.30.0.x` ——**這不是漏改**，
+  不要為了「分支叫 tc-7.30」就去動 `VersionPrefix`。
 
 ## 目前的分支 / API 狀態
 
 - 這個 repo 現在在分支 **`tc-7.30`**，`BossMod/BossModReborn.json` 的 `DalamudApiLevel` 是 **13**，TFM 是 `net9.0-windows`。
-- **`tc-7.15` 是凍結的 API12 archive**，只留著當歷史參考，不要往上面提交。
-  （注意 GitHub 上 `origin/HEAD` 目前還指向 `tc-7.15`，`git clone` 預設會落在舊分支上——clone 完先 `git checkout tc-7.30`。）
+- `tc-7.15`（API12 時代）已經不在遠端：`origin` 只有 `tc-7.30` 一個分支，也是預設分支。
 
 ## CI
 
 - **`release.yml`**：只吃 `workflow_dispatch`（不再靠 tag push 自動觸發）。流程是
-  下載釘住的 Dalamud（`dalamud-pin-v13.0.0.6/dalamud-api13-net9.zip`）解到
-  `%AppData%\FFXIVSimpleLauncher\Dalamud\Injector\` → `dotnet build -c Release -p:Version=<tag>` →
+  下載釘住的 Dalamud（`ffxiv-tc-port/Dalamud` 的 release `dalamud-pin-v7.30.0.1/dalamud-api13-net9.zip`，
+  以 workflow 的 `$pinUrl` 為準，下載後驗 SHA256）解到 `$RUNNER_TEMP\dalamud-pinned\` →
+  `dotnet build -c Release -p:Version=<tag> -p:DalamudLibPath=<那個目錄>` →
   壓成 `BossModReborn.zip` → 發佈 zip + `BossModReborn.json`。
-- **`build-check.yml` 目前實質上是空轉**：它有一個 gate job 去 grep csproj 的 `<VersionPrefix>`，
-  只有在**不等於 baseline `7.15.0`** 時才會跑 build job。現在 `VersionPrefix` 就是 `7.15.0`，
-  所以 push 進來的編譯錯誤 **build-check 不會抓到**。要驗證編得過，請本機 `dotnet build` 或直接跑 release.yml。
-  （這個 gate 的原始用意未經確認，動它之前先問清楚，不要順手把 `VersionPrefix` 改成 `7.20.0` 來「打開」它。）
-- ⚠️ **CI 釘的是 Dalamud 13.0.0.6，遊戲執行期跑的是 13.0.0.16**，兩者不同版。
-  所以「本機編得過」不等於「CI 編得過」——特別是只有 13.0.0.16 才有的 API/列舉名（例如
-  `ClientLanguage.TraditionalChinese`），寫進程式碼 CI 會直接炸。
+- **`build-check.yml` 也只吃 `workflow_dispatch`**，用同一顆 pin 建置；push 不會自動觸發它，
+  所以 push 進來的編譯錯誤**不會被自動抓到**。要驗證編得過，請本機 `dotnet build`，或手動觸發 build-check／release。
+- ⚠️ **CI 用的是釘住的那顆 Dalamud（檔案版本 13.0.0.16），本機 `Dalamud\bin\Release` 可能比它新。**
+  所以「本機編得過」不等於「CI 編得過」——用到 pin 之後才加進 Dalamud 的 API 時，CI 會編不過。
+  （更早的 pin 13.0.0.6 沒有 `ClientLanguage.TraditionalChinese` 這個列舉名；現在的 pin 已經有。）
 - `release_plugin.py`（在 `DalamudPluginsTC`）本來就是平行執行的，而且**只推 tag**，
   不會推分支、也不會幫你 commit `repo.json`；分支與 feed 變更要自己推。
 
@@ -79,10 +77,11 @@ The counter is read as a plain evaluated property (not inside a `<Target>`), so 
 error CS0234: 命名空間 'Dalamud' 中沒有類型或命名空間名稱 'Bindings'
 ```
 
-建置時要指到一份真正的 API13 Dalamud（本機實測可用的兩處）：
+建置時要指到一份真正的 API13 Dalamud（本機有兩份）：
 
-- `%APPDATA%\xivlauncher\addon\Hooks\dev` — Dalamud **13.0.0.6**，跟 CI 釘的版本一致，最適合拿來重現 CI。
-- `D:\ffxiv-tc-port\Dalamud\bin\Release` — Dalamud **13.0.0.16**，是 TC 遊戲執行期實際載入的那份。
+- `D:\ffxiv-tc-port\Dalamud\bin\Release` — Dalamud **13.0.0.16**，本機重建的那份，建置就指這裡；
+  遊戲實際載入的是它部署出去的 `D:\ffxiv-tc-port\DalamudLive`。
+- `%APPDATA%\xivlauncher\addon\Hooks\dev` — Dalamud **13.0.0.6**，舊版，和 CI 現在釘的不同代，不要拿來重現 CI。
 
 **不要**去覆寫 `%APPDATA%\FFXIVSimpleLauncher\Dalamud\Injector`（CI 在自己的 runner 上覆寫沒差，
 本機那份跟實際遊戲載入有關）。
