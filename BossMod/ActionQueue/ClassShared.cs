@@ -67,6 +67,7 @@ public enum AID : uint
     SmokeScreen = 7816,
     MagitekPulse = 7962, // MarkXLIIIMiniCannon->location, 1.0s cast, range 6 circle, Castrum Abania, 1st boss
     AethericSiphon = 9102,
+    Vril = 9345, // The Emanation (Lakshmi): reduces Divine Denial knockback
     Shatterstone = 9823,
     Deflect = 10006,
     DeflectVeryEasy = 18863,
@@ -238,6 +239,7 @@ public sealed class Definitions : IDisposable
         d.RegisterSpell(AID.MagitekPulse);
         d.RegisterSpell(AID.SmokeScreen);
         d.RegisterSpell(AID.AethericSiphon);
+        d.RegisterSpell(AID.Vril);
         d.RegisterSpell(AID.Shatterstone);
         d.RegisterSpell(AID.Deflect);
         d.RegisterSpell(AID.DeflectVeryEasy);

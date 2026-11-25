@@ -9,6 +9,7 @@ public enum OID : uint
     DreamingKshatriya = 0x1E22, // R1.000, x2
     Actor1e24 = 0x1E24, // R5.000, x1 (spawn during fight)
     Vril = 0x1E21, // R1.000, x12 (spawn during fight)
+    VoidZone = 0x1EA76C, // R0.500, EventObj, 聖錘落點留下的血池，約 6 秒
 }
 
 // 契約：列舉以外的敵方讀條由 Components.UnclaimedCastAOEs 照沒有模組時的猜法畫；列進來＝不再猜。
@@ -34,6 +35,8 @@ public enum AID : uint
     Chanchala = 9348, // Boss->self, 3.0s cast, single-target
     DivineDenial = 9349, // Boss->self, 8.0s cast, range 40 circle
     InnerDemons = 9613, // DreamingKshatriya->self, 3.7s cast, range 6+R circle
+    TailSlap = 9612, // DreamingKshatriya->self, no cast, range 6 cone
+    VrilDreamer = 9346, // DreamingKshatriya->self, 2.7s cast, single-target
 
     HandOfGrace = 9350, // Boss->self, 7.0s cast, single-target
     HandOfBeauty = 9351, // Boss->self, 7.0s cast, single-target
@@ -47,7 +50,8 @@ public enum AID : uint
     ThePullOfLightTB1 = 9362, // Boss->player, 5.0s cast, single-target
     ThePullOfLightTB2 = 9363, // Boss->player, 5.0s cast, single-target
 
-    ThePathOfLightProtean = 9377, // Boss->self, no cast, range 40+R ?-degree cone
+    ThePathOfLightCleave = 9359, // Boss->self, no cast, range 40+R ?-degree cone
+    ThePathOfLightProtean = 9377, // Boss->self, no cast, range 40+R cone, half-angle >=47 measured
 
     Unknown1 = 9305, // Lakshmi3->self, no cast, single-target
     Unknown2 = 9306, // Helper->self, no cast, single-target
@@ -62,6 +66,7 @@ public enum SID : uint
     Chanchala = 1410, // Boss->Helper/Boss, extra=0x0
     Weakness = 43, // none->player, extra=0x0
     Transcendent = 418, // none->player, extra=0x0
+    Vril = 1290, // player->player, consumed by Divine Denial / Alluring Embrace
 }
 
 public enum IconID : uint
