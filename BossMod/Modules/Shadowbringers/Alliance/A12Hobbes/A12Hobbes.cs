@@ -195,6 +195,37 @@ sealed class FireResistanceTest(BossModule module) : Components.GenericAOEs(modu
 
 sealed class ShortRangeMissile(BossModule module) : Components.SpreadFromCastTargets(module, (uint)AID.ShortRangeMissile, 8f);
 
+// 雷射照射：每個平台點一人，判定時從三平台中心朝他拉一道直線，只打到同平台的人。
+// 別的平台的直線對自己標成禁止：雷達配色、文字提示與 AI 都只認自己平台那道（不標時三道都算可站的分攤線）。
+sealed class LaserLineStack(BossModule module) : Components.LineStack(module, aidMarker: (uint)AID.LaserLineStackMarker, (uint)AID.LaserLineStack, 8.1d, 65f, 4f, markerIsFinalTarget: false)
+{
+    private static readonly WPos[] platforms = [new(-805f, -270f), new(-779.02f, -225f), new(-830.98f, -225f)];
+
+    private static int PlatformOf(WPos p)
+    {
+        var best = 0;
+        for (var i = 1; i < platforms.Length; ++i)
+            if ((p - platforms[i]).LengthSq() < (p - platforms[best]).LengthSq())
+                best = i;
+        return best;
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        var count = CurrentBaits.Count;
+        base.OnEventCast(caster, spell);
+        if (CurrentBaits.Count <= count)
+            return;
+        ref var bait = ref CurrentBaits.Ref(count);
+        var platform = PlatformOf(bait.Target.Position);
+        BitMask forbidden = default;
+        foreach (var (slot, player) in Raid.WithSlot(true))
+            if (PlatformOf(player.Position) != platform)
+                forbidden.Set(slot);
+        bait.Forbidden = forbidden;
+    }
+}
+
 // 場地＝三個聯盟各自的圓形平台（碰撞資料半徑約 19.75，內縮到 19.5），彼此不相連；平台之間不放進場地。
 [ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team, ffxiv-tc-port", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 700, NameID = 9143)]
 public sealed class A12Hobbes(WorldState ws, Actor primary) : BossModule(ws, primary, arena.Center, arena)

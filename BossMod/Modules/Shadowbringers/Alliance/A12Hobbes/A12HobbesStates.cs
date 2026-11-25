@@ -15,6 +15,7 @@ sealed class A12HobbesStates : StateMachineBuilder
             .ActivateOnEnter<Collapse>()
             .ActivateOnEnter<FireResistanceTest>()
             .ActivateOnEnter<ShortRangeMissile>()
+            .ActivateOnEnter<LaserLineStack>()
             .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }

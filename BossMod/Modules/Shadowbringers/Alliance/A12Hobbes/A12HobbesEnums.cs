@@ -27,6 +27,10 @@ public enum AID : uint
 
     ShortRangeMissile = 18453, // Helper->players, 8.0s cast, range 8 circle, spread
 
+    LaserLineStackVisual = 18439, // Boss->self, 7.7s cast, single-target
+    LaserLineStackMarker = 18440, // Helper->player, no cast, one marked player per platform at the visual's cast start
+    LaserLineStack = 18441, // Helper->self, no cast, range 65 width 8 rect, from the hub toward the marked player ~8.1s after the marker
+
     FireResistanceTestCone = 18454, // Helper->self, no cast, 5 ticks from the next platform's outer wall toward the hub
     FireResistanceTestBand = 18455, // Helper->self, no cast, range 12 width 38 rect, 5 ticks, two walls burning 8.5-20.5y from the platform center
     FireResistanceTestHalf = 18456, // Helper->self, no cast, range 22 width 42 rect, 5 ticks, front half of the platform
