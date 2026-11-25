@@ -7,6 +7,11 @@ class A33ThunderGodStates : StateMachineBuilder
         TrivialPhase()
                 .ActivateOnEnter<HallowedBolt>()
                 .ActivateOnEnter<CrushWeapon>()
-                .ActivateOnEnter<Duskblade>();
+                .ActivateOnEnter<Duskblade>()
+                .ActivateOnEnter<HolySword>()
+                .ActivateOnEnter<ColosseumArena>()
+                .ActivateOnEnter<BalanceAsunder>()
+                .ActivateOnEnter<HallowedBoltStack>()
+                .ActivateOnEnter<Shadowblade>();
     }
 }
