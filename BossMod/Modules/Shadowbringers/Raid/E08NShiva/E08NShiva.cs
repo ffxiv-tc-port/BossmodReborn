@@ -56,7 +56,83 @@ sealed class PlatformSwitch(BossModule module) : BossComponent(module)
     }
 }
 
-// 光之波動的扇形（頭上標記 0x17）角度沒有預兆可查、錄影也定不出來，刻意不處理；冰霜（標記 0x57）是距離衰減，散開半徑沒有證據。
+// 光之波動：從場地中央朝頭上標記 0x17 的人放的扇形；半角照錄影量（打中最寬 27.6 度、沒打中最窄 38.7 度）取 30 度。
+sealed class LightWave(BossModule module) : Components.BaitAwayIcon(module, new AOEShapeCone(40f, 30f.Degrees()), (uint)IconID.LightWave, (uint)AID.LightWave, 5.9d);
+
+// 蓄勢衝撞：連線會在隊員之間換手，判定時打連著的那個人＋周圍 4 碼；連到平台中央的心臟時不算誘導。
+// 刻意不在解除連線時移除：解除比判定早約 0.1 秒，移除就等於判定前一刻放人走進去；改在換手、判定、小怪消失時移除。
+sealed class Charge(BossModule module) : Components.GenericBaitAway(module, (uint)AID.Charge, centerAtTarget: true)
+{
+    private static readonly AOEShapeCircle _shape = new(4f);
+    private readonly Dictionary<ulong, DateTime> _expected = [];
+
+    public override void OnTethered(Actor source, ActorTetherInfo tether)
+    {
+        if (tether.ID != (uint)TetherID.Charge)
+        {
+            return;
+        }
+        RemoveBaitFrom(source);
+        if (WorldState.Actors.Find(tether.Target) is { Type: ActorType.Player } target)
+        {
+            var activation = _expected.TryGetValue(source.InstanceID, out var e) && e > WorldState.CurrentTime ? e : WorldState.FutureTime(6d);
+            CurrentBaits.Add(new(source, target, _shape, activation));
+        }
+    }
+
+    // 判定在衝撞讀條結束後約 1.1 秒。
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.Action.ID == (uint)AID.ChargeVisual)
+        {
+            var activation = Module.CastFinishAt(spell, 1.1d);
+            _expected[caster.InstanceID] = activation;
+            var baits = CollectionsMarshal.AsSpan(CurrentBaits);
+            for (var i = 0; i < baits.Length; ++i)
+            {
+                if (baits[i].Source == caster)
+                {
+                    baits[i].Activation = activation;
+                }
+            }
+        }
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        base.OnEventCast(caster, spell);
+        if (spell.Action.ID == (uint)AID.Charge)
+        {
+            RemoveBaitFrom(caster);
+            _expected.Remove(caster.InstanceID);
+        }
+    }
+
+    public override void Update()
+    {
+        for (var i = CurrentBaits.Count - 1; i >= 0; --i)
+        {
+            var source = CurrentBaits[i].Source;
+            if (source.IsDeadOrDestroyed)
+            {
+                CurrentBaits.RemoveAt(i);
+            }
+        }
+    }
+
+    private void RemoveBaitFrom(Actor source)
+    {
+        for (var i = CurrentBaits.Count - 1; i >= 0; --i)
+        {
+            if (CurrentBaits[i].Source == source)
+            {
+                CurrentBaits.RemoveAt(i);
+            }
+        }
+    }
+}
+
+// 冰霜（標記 0x57）是距離衰減，散開半徑沒有證據，刻意不處理。
 sealed class E08NShivaStates : StateMachineBuilder
 {
     public E08NShivaStates(BossModule module) : base(module)
@@ -73,6 +149,8 @@ sealed class E08NShivaStates : StateMachineBuilder
             .ActivateOnEnter<FrigidStone>()
             .ActivateOnEnter<ShiningArmor>()
             .ActivateOnEnter<PlatformSwitch>()
+            .ActivateOnEnter<LightWave>()
+            .ActivateOnEnter<Charge>()
             .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }
