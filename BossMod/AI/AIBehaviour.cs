@@ -1,5 +1,6 @@
 ﻿using BossMod.Autorotation;
 using BossMod.Pathfinding;
+using Dalamud.Game.ClientState.Conditions;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 
@@ -52,6 +53,8 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         public WPos Center;
         // 下游移動閘門與外部指定的移動方向，只給 LogStillInDanger 診斷用
         public bool AutoMovePaused, UserMoveRequested, Moving, MovementBlocked, VnavPath, MoveMightInterruptCast, ExternalForcedMovement, EscapeHatchHeld;
+        public float AnimationLock;
+        public Autorotation.MiscAI.NormalMovement.IdleReason PresetIdle;
     }
 
     /// <summary>尋路用的 Context（背景執行緒寫；外部只准讀它的 <c>TryGetLookaheadDeadline</c>／<c>TryGetPathDeadline</c>）。</summary>
@@ -251,6 +254,8 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             MoveMightInterruptCast = gates.CastGuard,
             ExternalForcedMovement = autorot.Hints.ForcedMovement != null,
             EscapeHatchHeld = gates.EscapeHatch,
+            AnimationLock = WorldState.Client.AnimationLock,
+            PresetIdle = Autorotation.MiscAI.NormalMovement.LastIdleReason,
         };
 
         // note: if there are pending knockbacks, don't update navigation decision to avoid fucking up positioning
@@ -903,7 +908,8 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         if (still < 0.5d || (_ex.Now - _stillInDangerLogged).TotalSeconds < 1d)
             return;
         _stillInDangerLogged = _ex.Now;
-        var blockedSoonest = blockedCell ? SoonestZoneAt(_ex.PlayerPosition) : 0d;
+        var centerSoonest = SoonestZoneAt(_ex.PlayerPosition);
+        var blockedSoonest = blockedCell ? centerSoonest : 0d;
         if (blockedSoonest > 1.5d)
             return; // 站在場地邊界格、腳下沒有快生效的禁區：不是「該閃卻沒動」
 
@@ -925,14 +931,20 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             if (_ex.Now < _navStartTime)
                 reasons.Add($"MoveDelay：目的地出現後先等 {_config.MoveDelay:f1} 秒（還剩 {(_navStartTime - _ex.Now).TotalSeconds:f1} 秒）");
             if (!mustMoveNow)
-                reasons.Add($"MovementUrgencyThreshold＝{_config.MovementUrgencyThreshold:f1} 秒：尋路餘裕 {ForceMovementIn:f1} 秒仍大於門檻，判定還不急");
+                reasons.Add($"MovementUrgencyThreshold＝{_config.MovementUrgencyThreshold:f1} 秒：尋路餘裕 {(ForceMovementIn == float.MaxValue ? "無限" : ForceMovementIn.ToString("f1"))} 秒仍大於門檻，判定還不急");
         }
-        if (target != null)
+        // 讓位時方向由預設集寫進 Hints.ForcedMovement，下游照樣過這兩道
+        if (target != null || yieldMovement)
         {
             if (_ex.VnavPath)
                 reasons.Add("vnavmesh 回報路徑執行中，BMR 讓路");
             if (_ex.MovementBlocked)
                 reasons.Add("移動被出招鎖住（MovementBlocked）");
+        }
+        if (yieldMovement)
+            reasons.Add(_ex.ExternalForcedMovement ? "預設集這一幀有寫出移動方向（Hints.ForcedMovement）" : $"預設集這一幀沒寫出移動方向：{DescribePresetIdle(_ex.PresetIdle)}");
+        if (target != null)
+        {
             if (!ctrl.AllowInterruptingCastByMovement && _ex.MoveMightInterruptCast)
                 reasons.Add($"保護詠唱：移動可能打斷詠唱（詠唱剩 {_ex.PlayerCastRemaining ?? 0f:f1} 秒、尋路餘裕 {navi.LeewaySeconds:f1} 秒）");
             if (!yieldMovement && _ex.ExternalForcedMovement)
@@ -941,12 +953,14 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
                 reasons.Add("導航目標就在腳下");
         }
         if (reasons.Count == 0)
-            reasons.Add("找不到擋住的閘門（導航目標已交給控制器；可能是遊戲本身此刻不收移動輸入，例如被束縛或動作鎖定）");
+            reasons.Add("找不到擋住的閘門（導航目標已交給控制器；可能是遊戲本身此刻不收移動輸入，例如被束縛或動作鎖定，見下一行的遊戲狀態）");
         var dist = (navi.Destination!.Value - _ex.PlayerPosition).Length();
         var cell = blockedCell
             ? $"玩家站在不可通行格（場地邊界或障礙物），覆蓋腳下的禁區最早 {blockedSoonest:f1} 秒後生效；緩衝 {cushion:f1} 秒"
-            : $"玩家格危險度 {g:f2} 秒＋緩衝 {cushion:f1} 秒";
-        Service.Logger.Information($"[AI] 腳下危險區即將生效（{cell}）、尋路目的地在 {dist:f1} 碼外，角色卻已 {still:f1} 秒沒動：{string.Join("；", reasons)}");
+            : centerSoonest == double.MaxValue
+                ? $"玩家格危險度 {g:f2} 秒＋緩衝 {cushion:f1} 秒；中心不在禁區內，是格子層級的危險度"
+                : $"玩家格危險度 {g:f2} 秒＋緩衝 {cushion:f1} 秒";
+        Service.Logger.Information($"[AI] 腳下危險區即將生效（{cell}）、尋路目的地在 {dist:f1} 碼外，角色卻已 {still:f1} 秒沒動（動畫鎖 {_ex.AnimationLock:f2} 秒）：{string.Join("；", reasons)}");
         LogDangerSources(_ex.PlayerPosition);
     }
 
@@ -988,9 +1002,10 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         }
         var head = $"[AI] 腳下危險區來源：覆蓋腳下的禁區 {inside} 個（{(inside == 0 ? "沒有一個蓋到玩家格，可能是仇恨範圍或場地邊界" : $"最早 {soonest:f1} 秒後生效")}）；";
         var ids = sources == null ? [] : sources.ToArray();
+        var ws = WorldState;
         try
         {
-            _ = Service.Framework.Run(() => EmitDangerSources(head, pos, ids));
+            _ = Service.Framework.Run(() => EmitDangerSources(head, pos, ids, ws));
         }
         catch (Exception)
         {
@@ -1008,14 +1023,15 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             (sources ??= []).Add(source);
     }
 
-    // 框架執行緒；卸載後 AIHintsBuilder.Current 為 null，只寫前半
-    private static void EmitDangerSources(string head, WPos pos, ulong[] ids)
+    // 框架執行緒；卸載後 AIHintsBuilder.Current 為 null，只寫前半。遊戲狀態比上一行晚 1 幀
+    private static void EmitDangerSources(string head, WPos pos, ulong[] ids, WorldState ws)
     {
         try
         {
             var sb = new System.Text.StringBuilder(head);
             if (AIHintsBuilder.Current is { } builder)
                 builder.DescribeDangerAt(pos, ids, sb);
+            AppendInputLocks(sb, ws);
             Service.Logger.Information(sb.ToString());
         }
         catch (Exception ex)
@@ -1023,6 +1039,56 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
             Service.Logger.Information($"{head}（查來源失敗：{ex.GetType().Name}）");
         }
     }
+
+    // 常態旗標不列：它們為真不代表擋輸入，列了只會淹掉真正的那一個
+    private static bool IsRoutineCondition(ConditionFlag f)
+        => f is ConditionFlag.NormalConditions or ConditionFlag.InCombat or ConditionFlag.BoundByDuty or ConditionFlag.BoundByDuty56 or ConditionFlag.BoundByDuty95 or ConditionFlag.InDeepDungeon or ConditionFlag.InDutyQueue;
+
+    // 框架執行緒：此刻為真的 Condition（略過常態旗標）與身上 Status 表 LockMovement／LockControl 為真的狀態
+    private static void AppendInputLocks(System.Text.StringBuilder sb, WorldState ws)
+    {
+        sb.Append("；遊戲狀態：為真的 Condition＝");
+        var n = 0;
+        var cond = Service.Condition;
+        for (var i = 0; i < cond.MaxEntries; ++i)
+        {
+            if (!cond[i] || IsRoutineCondition((ConditionFlag)i))
+                continue;
+            sb.Append(n++ == 0 ? "" : "、").Append(((ConditionFlag)i).ToString());
+        }
+        if (n == 0)
+            sb.Append("無（已略過一般／戰鬥中／任務中／深層迷宮／排隊中）");
+        sb.Append("；鎖移動／鎖操作的狀態＝");
+        n = 0;
+        if (ws.Party.Player() is { } player)
+        {
+            foreach (ref readonly var s in player.Statuses.AsSpan())
+            {
+                if (s.ID == 0 || Service.LuminaRow<Lumina.Excel.Sheets.Status>(s.ID) is not { } row || !(row.LockMovement || row.LockControl))
+                    continue;
+                var kind = row.LockMovement && row.LockControl ? "鎖移動＋鎖操作" : row.LockMovement ? "鎖移動" : "鎖操作";
+                var left = (s.ExpireAt - ws.CurrentTime).TotalSeconds;
+                sb.Append(n++ == 0 ? "" : "、").Append($"{Utils.StatusString(s.ID)}（{kind}，剩 {(left is >= 0d and < 3600d ? left.ToString("f1") : "?")} 秒）");
+            }
+        }
+        if (n == 0)
+            sb.Append("無");
+    }
+
+    private static string DescribePresetIdle(Autorotation.MiscAI.NormalMovement.IdleReason r) => r switch
+    {
+        Autorotation.MiscAI.NormalMovement.IdleReason.NotRun => "自動移動模組這一幀沒有跑（不在預設集或擲例外）",
+        Autorotation.MiscAI.NormalMovement.IdleReason.OtherModuleMoving => "別的模組已指定移動方向（自動移動讓路）",
+        Autorotation.MiscAI.NormalMovement.IdleReason.PendingKnockback => "擊退未結算，刻意不動",
+        Autorotation.MiscAI.NormalMovement.IdleReason.PyreticImminent => "Pyretic 將至，刻意不動",
+        Autorotation.MiscAI.NormalMovement.IdleReason.NoDestination => "算不出目的地（交還擁有權前的遲滯期間）",
+        Autorotation.MiscAI.NormalMovement.IdleReason.Spinning => "旋轉移動中，只交出轉向",
+        Autorotation.MiscAI.NormalMovement.IdleReason.Arrived => "已到目的地（0.1 碼內）",
+        Autorotation.MiscAI.NormalMovement.IdleReason.ArrivalHold => "到點停留（防過衝）",
+        Autorotation.MiscAI.NormalMovement.IdleReason.MisdirectionWrongWay => "迷惑中：強制方向不對，等方向轉過來",
+        Autorotation.MiscAI.NormalMovement.IdleReason.CastProtected => "詠唱中、不打斷詠唱",
+        _ => $"原因碼 {(int)r}",
+    };
 
     #endregion
 

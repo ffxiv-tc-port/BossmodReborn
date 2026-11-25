@@ -79,7 +79,15 @@ public sealed class NormalMovement : RotationModule
     {
         if (Instance is { } m)
             m._ownsMovement = false;
+        _idleReason = (int)IdleReason.NotRun;
     }
+
+    /// <summary>這一幀本模組為什麼沒寫出移動方向（<see cref="IdleReason.Moving"/>＝有寫）；只給 AI 診斷讀，不參與決策。</summary>
+    public enum IdleReason { NotRun, Moving, OtherModuleMoving, PendingKnockback, PyreticImminent, NoDestination, Spinning, Arrived, ArrivalHold, MisdirectionWrongWay, CastProtected }
+
+    // 主執行緒寫；AI 在快照建立處讀（同一幀、模組迴圈之後）
+    private static volatile int _idleReason;
+    public static IdleReason LastIdleReason => (IdleReason)_idleReason;
 
     // ---- 顯示層（純顯示，不參與任何移動決策）----
 
@@ -424,7 +432,10 @@ public sealed class NormalMovement : RotationModule
     {
         // do nothing if we're already being moved by some other module (i.e. quest battle pathfinding)
         if (Hints.ForcedMovement != null)
+        {
+            _idleReason = (int)IdleReason.OtherModuleMoving;
             return;
+        }
 
         var castOpt = strategy.Option(Track.Cast);
         var castStrategy = castOpt.As<CastStrategy>();
@@ -438,11 +449,15 @@ public sealed class NormalMovement : RotationModule
         if (allowSpecialModes)
         {
             if (Player.PendingKnockbacks.Count > 0)
+            {
+                _idleReason = (int)IdleReason.PendingKnockback;
                 return; // do not move if there are any unresolved knockbacks - the positions are taken at resolve time, so we might fuck things up
+            }
 
             if (Hints.ImminentSpecialMode.mode == AIHints.SpecialMode.Pyretic && Hints.ImminentSpecialMode.activation <= World.FutureTime(1d))
             {
                 Hints.ForceCancelCast = true; // this is only useful if autopyretic tweak is disabled
+                _idleReason = (int)IdleReason.PyreticImminent;
                 return; // pyretic is imminent, do not move
             }
 
@@ -502,6 +517,7 @@ public sealed class NormalMovement : RotationModule
                     ++_noDestinationSuppressed;
                 }
             }
+            _idleReason = (int)IdleReason.NoDestination;
             return; // nothing to do
         }
         // 算得出目的地 ⇒ 遲滯計時歸零。升級永遠即時，只有降級要等——與深牢座標閘門同一套不對稱。
@@ -516,6 +532,7 @@ public sealed class NormalMovement : RotationModule
         if (Hints.SpinDirection == null && AIHints.IsSpinning(World, Player))
         {
             Hints.SpinDirection = Player.DirectionTo(navi.Destination.Value).ToAngle();
+            _idleReason = (int)IdleReason.Spinning;
             return;
         }
 
@@ -591,6 +608,7 @@ public sealed class NormalMovement : RotationModule
             // we're already very close to destination
             // TODO: what should we do if forced-movement is already set to something?.. not sure who could set it, some other module?..
             Hints.ForcedMovement = default;
+            _idleReason = (int)(distSq <= 0.01f ? IdleReason.Arrived : IdleReason.ArrivalHold);
             return;
         }
 
@@ -665,6 +683,7 @@ public sealed class NormalMovement : RotationModule
                 Hints.ForcedMovement = dir.ToVec3(Player.PosRot.Y);
             }
         }
+        _idleReason = (int)(Hints.ForcedMovement != null ? IdleReason.Moving : misdirection ? IdleReason.MisdirectionWrongWay : IdleReason.CastProtected);
     }
 
     /// <summary>上一次記過的「這一段有沒有目的地」；用來只在<b>狀態翻轉</b>時記一行 log。</summary>
