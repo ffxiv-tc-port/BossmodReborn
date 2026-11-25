@@ -11,6 +11,7 @@ public sealed class D11DzemaelDarkhold : ZoneModule
     private const uint EvilEyeAID = 1114;
     private const float EyeRadius = 23.2f; // 20 + R 2.7 + 0.5 餘裕；錄影 24 碼外全沒中
     private const float VeilRadius = 6f; // 狀態得到時離水晶 p10 5.6、中位 7.9 碼，取保守值
+    private const float HoldOverrideHpRatio = 0.5f; // 沒有紗帳時一發約最大 HP 的 43%
     private static readonly TimeSpan _period = TimeSpan.FromSeconds(10d);
     private static readonly TimeSpan _lead = TimeSpan.FromSeconds(3d);
     private static readonly TimeSpan _grace = TimeSpan.FromSeconds(0.5d);
@@ -42,6 +43,10 @@ public sealed class D11DzemaelDarkhold : ZoneModule
     public override void CalculateAIHints(int playerSlot, Actor player, AIHints hints)
     {
         if (_nextPulse.Count == 0)
+            return;
+        // 別的插件要求原地站定（例：AutoDuty 站魔導終端等點亮）時不畫：一發約 43% 血就會壓到站定租約的血量門檻以下，
+        // 畫了會在下一發前把人拉離終端、整段重做；只在血量低到下一發可能致命時才照畫。
+        if (ExternalMovementHold.HasLeases && player.HPMP.MaxHP > 0 && player.HPRatio > HoldOverrideHpRatio)
             return;
         var now = World.CurrentTime;
         var crystalsCollected = false;
