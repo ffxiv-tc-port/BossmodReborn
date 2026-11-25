@@ -106,6 +106,45 @@ public class RaidwideCastDelay(BossModule module, uint actionVisual, uint action
     }
 }
 
+// several visual->AOE pairs; contract: aidsVisual[i] is followed by aidsAOE[i] (same index)
+public class RaidwideCastsDelay(BossModule module, uint[] aidsVisual, uint[] aidsAOE, double delay, string hint = "Raidwide") : RaidwideCastDelay(module, default, default, delay, hint)
+{
+    private readonly uint[] AIDsVisual = aidsVisual;
+    private readonly uint[] AIDsAOE = aidsAOE;
+    private uint _pendingAOE;
+
+    public override uint[] HintDamageActions => AIDsAOE;
+    protected override uint PredictedSourceAction => _pendingAOE;
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        var id = spell.Action.ID;
+        var len = AIDsVisual.Length;
+        for (var i = 0; i < len; ++i)
+        {
+            if (id == AIDsVisual[i])
+            {
+                Activation = Module.CastFinishAt(spell, Delay);
+                _pendingAOE = i < AIDsAOE.Length ? AIDsAOE[i] : 0u;
+            }
+        }
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        var id = spell.Action.ID;
+        var len = AIDsAOE.Length;
+        for (var i = 0; i < len; ++i)
+        {
+            if (id == AIDsAOE[i])
+            {
+                ++NumCasts;
+                Activation = default;
+            }
+        }
+    }
+}
+
 // generic unavoidable instant raidwide cast initiated by NPC yell
 public class RaidwideAfterNPCYell(BossModule module, uint aid, uint npcYellID, double delay, string hint = "Raidwide") : RaidwideInstant(module, aid, delay, hint)
 {

@@ -295,16 +295,17 @@ sealed class ArcaneRecoil(BossModule module) : BossComponent(module)
     }
 }
 
-sealed class AuraBurstHolyRaidwide(BossModule module) : Components.RaidwideCasts(module, [(uint)AID.AuraBurst, (uint)AID.Holy])
+// the damage helpers only cast for 1s, so timing is taken from the 19s boss visual cast
+sealed class AuraBurstHolyRaidwide(BossModule module) : Components.RaidwideCastsDelay(module, [(uint)AID.AuraBurstVisual, (uint)AID.HolyVisual], [(uint)AID.AuraBurst, (uint)AID.Holy], 1d)
 {
     public override void AddGlobalHints(GlobalHints hints)
     {
-        if (Casters.Count == 0)
+        if (Activation == default)
         {
             return;
         }
 
-        if (Casters[0].CastInfo!.RemainingTime < 6f)
+        if ((Activation - WorldState.CurrentTime).TotalSeconds < 6d)
         {
             hints.Add(Hint);
         }
