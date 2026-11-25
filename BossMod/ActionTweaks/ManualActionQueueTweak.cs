@@ -171,6 +171,14 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
     public void FillQueue(ActionQueue queue)
     {
         _offered.Clear();
+        // 與 Push 同一條讓位判斷：升緊急之後期限才出現、又沒有重送時，不在這裡退回就會照樣放出。鎖操作技能的讓位行由下面的 LockHeld 寫
+        if (_emergencyMode && _queue.Count > 0 && _queue[0] is var head && Math.Max(head.CastTime, LockAfterUse(head.Action)) is var holdTime && holdTime > 0 && ws.CurrentTime.AddSeconds(holdTime) > _castDeadline)
+        {
+            if (LockAfterUse(head.Action) <= 0)
+                LogCastHold(head.Action, head.CastTime, head.Adjusted);
+            FlushEmergencyLog(head.Action, "returned to normal queue");
+            _emergencyMode = false;
+        }
         if (_emergencyMode && _queue.Count > 0)
         {
             ref var entry = ref _queue.Ref(0);
