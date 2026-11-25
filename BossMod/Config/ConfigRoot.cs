@@ -153,10 +153,19 @@ public sealed class ConfigRoot
         }
         else
         {
+            // 名稱完全相同（不分大小寫）就只取那一個，不因為它同時是別的名稱的子字串而回「Ambiguous」
             List<ConfigNode> matchingNodes = [];
             foreach (var (t, n) in _nodes)
+            {
+                if (string.Equals(t.Name, args[0], StringComparison.CurrentCultureIgnoreCase))
+                {
+                    matchingNodes.Clear();
+                    matchingNodes.Add(n);
+                    break;
+                }
                 if (t.Name.Contains(args[0], StringComparison.CurrentCultureIgnoreCase))
                     matchingNodes.Add(n);
+            }
             if (matchingNodes.Count == 0)
             {
                 result.Add("Config type not found. Valid types:");
@@ -180,8 +189,16 @@ public sealed class ConfigRoot
             {
                 List<FieldInfo> matchingFields = [];
                 foreach (var f in matchingNodes[0].GetType().GetFields().Where(f => f.GetCustomAttribute<PropertyDisplayAttribute>() != null))
+                {
+                    if (string.Equals(f.Name, args[1], StringComparison.CurrentCultureIgnoreCase))
+                    {
+                        matchingFields.Clear();
+                        matchingFields.Add(f);
+                        break;
+                    }
                     if (f.Name.Contains(args[1], StringComparison.CurrentCultureIgnoreCase))
                         matchingFields.Add(f);
+                }
                 if (matchingFields.Count == 0)
                 {
                     result.Add($"Field not found {args[1]}, Valid fields:");
