@@ -1247,6 +1247,12 @@
   "When a module announces what comes next (for example a circle followed by a donut a couple of seconds later), prefer safe spots from which the next safe area can still be reached in time. Turn off to only consider AOEs that are already marked dangerous.": {
     "message": "模組預告同一串攻擊的下一波時（例如圓形 AOE 放完、兩秒後換環形 AOE），在安全的位置裡優先挑「躲得過這一波、又來得及走到下一波安全區」的地方。關閉後只躲已經標成危險的 AOE（舊行為）。"
   },
+  "24-player raids: no extra margin around other players' spread markers": {
+    "message": "24 人團隊任務：別人身上的分散圈不多留距離"
+  },
+  "In 24-player alliance raids (while the other two parties are in the alliance), the AI keeps out of other players' spread markers by their actual radius instead of radius + 1 yalm, so two dozen spread circles do not fill up the arena. When you have a spread marker yourself, you still keep the extra yalm away from everyone else. Content with 8 players or fewer is not affected.\nTurn off to keep the extra yalm everywhere (previous behavior).": {
+    "message": "24 人團隊任務中（另外兩個小隊都在聯盟裡時），AI 避開別人身上的分散圈只照實際半徑，不再多留 1 米，免得二十幾個分散圈把場地塞滿。自己被點分散時，離其他人照樣多留 1 米。8 人以下的內容不受影響。\n關閉＝不論哪裡都多留 1 米（舊行為）。"
+  },
   "Dodge timing safety cushion (seconds)": {
     "message": "閃避時機安全緩衝（秒）"
   },

@@ -46,6 +46,7 @@ public abstract class GenericStackSpread(BossModule module, bool alwaysShowSprea
     public readonly bool RaidwideOnResolve = raidwideOnResolve; // if true, assume even if mechanic is correctly resolved everyone will still take damage
     public readonly bool IncludeDeadTargets = includeDeadTargets; // if false, stacks & spreads with dead targets are ignored
     public int ExtraAISpreadThreshold = 1;
+    private static readonly AI.AIConfig _aiConfig = Service.Config.Get<AI.AIConfig>();
     public readonly List<Stack> Stacks = [];
     public List<Spread> Spreads = [];
     public const string StackHint = "Stack!";
@@ -160,6 +161,18 @@ public abstract class GenericStackSpread(BossModule module, bool alwaysShowSprea
         return false;
     }
 
+    // 24 人團隊任務的判準＝另外兩個小隊的格位（8～23）有人；不看 ContentType，它把 8 人零式也算進去
+    private bool HasAllianceMembers()
+    {
+        var members = Raid.Members;
+        for (var i = PartyState.MaxPartySize; i < PartyState.MaxAllianceSize; ++i)
+        {
+            if (members[i].IsValid())
+                return true;
+        }
+        return false;
+    }
+
     public override void AddHints(int slot, Actor actor, TextHints hints)
     {
         if (IndexOfSpread(actor) is var iSpread && iSpread >= 0)
@@ -240,11 +253,12 @@ public abstract class GenericStackSpread(BossModule module, bool alwaysShowSprea
         // TODO: think how to improve this, current implementation works, but isn't particularly good - e.g. nearby players tend to move to same spot, turn around, etc.
         // ideally we should provide per-mechanic spread spots, but for simple cases we should try to let melee spread close and healers/rdd spread far from main target...
         var countSp = Spreads.Count;
+        var otherSpreadExtra = countSp != 0 && _aiConfig.AllianceNoExtraOtherSpread && HasAllianceMembers() ? 0 : ExtraAISpreadThreshold;
         for (var i = 0; i < countSp; ++i)
         {
             var spreadFrom = Spreads[i];
             if (Counts(spreadFrom) && spreadFrom.Target != actor)
-                hints.AddForbiddenZone(ShapeDistance.Circle(spreadFrom.Target.Position.Quantized(), spreadFrom.Radius + ExtraAISpreadThreshold), spreadFrom.Activation);
+                hints.AddForbiddenZone(ShapeDistance.Circle(spreadFrom.Target.Position.Quantized(), spreadFrom.Radius + otherSpreadExtra), spreadFrom.Activation);
         }
         for (var i = 0; i < countSp; ++i)
         {

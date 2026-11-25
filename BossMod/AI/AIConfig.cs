@@ -91,6 +91,9 @@ sealed class AIConfig : ConfigNode
     [PropertyDisplay("Plan dodges for the next AOEs of a chain", tooltip: "When a module announces what comes next (for example a circle followed by a donut a couple of seconds later), prefer safe spots from which the next safe area can still be reached in time. Turn off to only consider AOEs that are already marked dangerous.")]
     public bool DodgeLookahead = true;
 
+    [PropertyDisplay("24-player raids: no extra margin around other players' spread markers", tooltip: "In 24-player alliance raids (while the other two parties are in the alliance), the AI keeps out of other players' spread markers by their actual radius instead of radius + 1 yalm, so two dozen spread circles do not fill up the arena. When you have a spread marker yourself, you still keep the extra yalm away from everyone else. Content with 8 players or fewer is not affected.\nTurn off to keep the extra yalm everywhere (previous behavior).")]
+    public bool AllianceNoExtraOtherSpread = true;
+
     [PropertyDisplay("Dodge timing safety cushion (seconds)", tooltip: "How many seconds before a mechanic actually resolves the AI still treats it as \"safe to be in\" for pathfinding purposes. Lower = dodges later/closer to the last safe moment (more uptime, less margin for lag/hitching). Higher = dodges earlier/more conservatively. Default is 1s; try 0.1-0.2 for aggressive uptime, only if you trust your connection and this fight's pathfinding.")]
     [PropertySlider(0f, 2f)]
     public float ActivationTimeCushion = Pathfinding.NavigationDecision.ActivationTimeCushion;
