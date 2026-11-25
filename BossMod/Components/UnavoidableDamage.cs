@@ -67,8 +67,10 @@ public class RaidwideInstant(BossModule module, uint aid, double delay = default
     public readonly string Hint = hint;
     public DateTime Activation; // default if inactive, otherwise expected cast time
 
-    // 刻意預設 0：純瞬發沒有可靠的來源 AID，危險度走副本預設；有視覺讀條＋傷害 AID 的子類別才覆寫
-    protected virtual uint PredictedSourceAction => 0u;
+    // 刻意只在危險度表有列時才回報傷害 AID、表外回 0（走副本預設）：非 0 來源還會改變減傷的物理／魔法判定、
+    // 本場實測升級與 IPC 來源，表外的瞬發招沒逐招驗過；有視覺讀條＋傷害 AID 的子類別直接覆寫成 WatchedAction
+    protected virtual uint PredictedSourceAction
+        => WatchedAction != 0 && DamageSeverityTable.TryGetEntry(WorldState.CurrentCFCID, WatchedAction, out _) ? WatchedAction : 0u;
 
     public override void AddGlobalHints(GlobalHints hints)
     {
