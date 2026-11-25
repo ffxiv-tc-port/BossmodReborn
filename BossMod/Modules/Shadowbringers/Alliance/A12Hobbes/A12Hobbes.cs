@@ -197,7 +197,8 @@ sealed class ShortRangeMissile(BossModule module) : Components.SpreadFromCastTar
 
 // 雷射照射：每個平台點一人，判定時從三平台中心朝他拉一道直線，只打到同平台的人。
 // 別的平台的直線對自己標成禁止：雷達配色、文字提示與 AI 都只認自己平台那道（不標時三道都算可站的分攤線）。
-sealed class LaserLineStack(BossModule module) : Components.LineStack(module, aidMarker: (uint)AID.LaserLineStackMarker, (uint)AID.LaserLineStack, 8.1d, 65f, 4f, markerIsFinalTarget: false)
+// 半寬刻意取 3（實際寬 8）：AI 會停在線內邊緣，線跟著被點名者轉，留 1 碼免得最後一刻出線。
+sealed class LaserLineStack(BossModule module) : Components.LineStack(module, aidMarker: (uint)AID.LaserLineStackMarker, (uint)AID.LaserLineStack, 8.1d, 65f, 3f, markerIsFinalTarget: false)
 {
     private static readonly WPos[] platforms = [new(-805f, -270f), new(-779.02f, -225f), new(-830.98f, -225f)];
 
