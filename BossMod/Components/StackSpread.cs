@@ -272,7 +272,8 @@ public abstract class GenericStackSpread(BossModule module, bool alwaysShowSprea
         for (var i = 0; i < countSt; ++i)
         {
             var s = Stacks[i];
-            if (Counts(s) && s.Target != actor && (s.ForbiddenPlayers[slot] || !s.IsInside(actor) && (s.CorrectAmountInside(Module) || s.TooManyInside(Module)) || s.IsInside(actor) && s.TooManyInside(Module)))
+            // 外面的人只在已滿（>= 上限）時擋；未滿時下面會叫他加入，兩支同時成立＝全場沒有安全格（例：最少 7、最多不限）。
+            if (Counts(s) && s.Target != actor && (s.ForbiddenPlayers[slot] || !s.IsInside(actor) && s.NumInside(Module) >= s.MaxSize || s.IsInside(actor) && s.TooManyInside(Module)))
                 hints.AddForbiddenZone(ShapeDistance.Circle(s.Target.Position.Quantized(), s.Radius), s.Activation);
         }
 
@@ -407,7 +408,7 @@ public abstract class GenericStackSpread(BossModule module, bool alwaysShowSprea
             {
                 var x = Stacks[i];
                 if (Counts(x) && x.Target != pc && (IsStackTarget(pc) || x.ForbiddenPlayers[pcSlot] || IsSpreadTarget(pc) ||
-                    !x.IsInside(pc) && (x.CorrectAmountInside(Module) || x.TooManyInside(Module)) ||
+                    !x.IsInside(pc) && x.NumInside(Module) >= x.MaxSize ||
                     x.IsInside(pc) && x.TooManyInside(Module)))
                     DrawCircle(x.Target.Position.Quantized(), x.Radius);
             }
