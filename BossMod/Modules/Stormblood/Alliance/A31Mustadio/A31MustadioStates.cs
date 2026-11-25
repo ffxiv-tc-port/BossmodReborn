@@ -10,8 +10,8 @@ class A31MustadioStates : StateMachineBuilder
             .ActivateOnEnter<LegShot>()
             .ActivateOnEnter<LeftHandgonne>()
             .ActivateOnEnter<RightHandgonne>()
-            .ActivateOnEnter<SatelliteBeam>()
-            .ActivateOnEnter<Compress>()
+            .ActivateOnEnter<MaintenanceLasers>()
+            .ActivateOnEnter<Searchlight>()
             .ActivateOnEnter<BallisticSpread>()
             .ActivateOnEnter<LastTestament>();
     }
