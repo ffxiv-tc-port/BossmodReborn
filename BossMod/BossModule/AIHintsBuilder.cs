@@ -12,6 +12,7 @@ public sealed class AIHintsBuilder : IDisposable
     private readonly ZoneModuleManager _zmm;
     private readonly EventSubscriptions _subscriptions;
     private readonly RotationSolverRebornModule? _rsr;
+    private readonly DamageSeverityObserver _severityObserver;
     private readonly Dictionary<ulong, (Actor Caster, Actor? Target, AOEShape Shape, bool IsCharge)> _activeAOEs = [];
     private readonly Dictionary<ulong, (Actor Caster, Actor? Target, AOEShape Shape)> _activeGazes = [];
     private readonly Dictionary<ulong, CastGuessTimeout> _guessTimeouts = []; // 鍵同上兩表；只在逾時清除開著時更新
@@ -58,6 +59,7 @@ public sealed class AIHintsBuilder : IDisposable
         _rsr = rsr;
         Current = this;
         Obstacles = new(ws);
+        _severityObserver = new(ws);
         _subscriptions = new
         (
             ws.Actors.CastStarted.Subscribe(OnCastStarted),
@@ -71,6 +73,7 @@ public sealed class AIHintsBuilder : IDisposable
         if (ReferenceEquals(Current, this))
             Current = null;
         _subscriptions.Dispose();
+        _severityObserver.Dispose();
         Obstacles.Dispose();
     }
 
@@ -116,6 +119,7 @@ public sealed class AIHintsBuilder : IDisposable
         var player = _ws.Party[playerSlot];
 
         hints.Clear();
+        hints.SeverityObserver = _severityObserver;
         if (moveImminent || player?.PendingKnockbacks.Count > 0)
             hints.MaxCastTime = 0;
         if (player != null)

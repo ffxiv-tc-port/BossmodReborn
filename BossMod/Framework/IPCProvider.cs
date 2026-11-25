@@ -194,6 +194,16 @@ sealed class IPCProvider : IDisposable
             var i = nextMitigable(out _, out _);
             return i < 0 ? 0u : hints.PredictedDamage[i].SourceAction;
         }, 0u));
+        // 下一次高危全體傷害還有幾秒（AIHints.NextHighRaidwide：本幀預告＋沿狀態機往後找），給外部循環「保留冷卻」用。
+        // 🔴 契約：沒有＝float.MaxValue；危險度與上面幾支同一套（含本場實測升級）。名稱與型別不可改。
+        // 內層委派只建一次：WC 在中危預告期間每幀問一次。
+        Func<float> nextHighRaidwideIn = () =>
+        {
+            var now = bossmod.WorldState.CurrentTime;
+            var at = hints.NextHighRaidwide(bossmod.WorldState.CurrentCFCID, now, bossmod.ActiveModule?.StateMachine);
+            return at == DateTime.MaxValue ? float.MaxValue : (float)(at - now).TotalSeconds;
+        };
+        Register("Hints.NextHighRaidwideIn", () => IpcFrameworkGate.Get("Hints.NextHighRaidwideIn", nextHighRaidwideIn, float.MaxValue));
 
         Register("Hints.MaxCastTime", () => hints.MaxCastTime);
 

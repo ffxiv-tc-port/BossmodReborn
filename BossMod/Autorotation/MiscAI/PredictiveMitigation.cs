@@ -339,7 +339,7 @@ public sealed class PredictiveMitigation(RotationModuleManager manager, Actor pl
             var dt = (float)(d.Activation - now).TotalSeconds;
             if (dt <= StaleCutoff)
                 continue;
-            var sev = DamageSeverityTable.Get(cfc, in d);
+            var sev = Hints.SeverityOf(cfc, in d);
             if (skipLow && sev == DamageSeverity.Low)
                 Merge(ref low, in d, dt, sev);
             else

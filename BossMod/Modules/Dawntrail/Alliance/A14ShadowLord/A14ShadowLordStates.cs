@@ -165,7 +165,8 @@ sealed class A14ShadowLordStates : StateMachineBuilder
         ComponentCondition<TeraSlash>(id + 0x10, 34.1f, comp => comp.NumCasts > 0, "Raidwide")
             .ActivateOnEnter<TeraSlash>()
             .DeactivateOnExit<TeraSlash>()
-            .SetHint(StateMachine.StateHint.Raidwide);
+            .SetHint(StateMachine.StateHint.Raidwide)
+            .DamageActions((uint)AID.TeraSlash);
     }
 
     private State GigaSlashNightfall(uint id, float delay, bool removeComponent = true)

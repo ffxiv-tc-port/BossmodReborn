@@ -189,6 +189,9 @@ public sealed class AIHints
     // AI will attempt to shield & mitigate
     public readonly List<DamagePrediction> PredictedDamage = [];
 
+    // 本場實測的危險度升級（AIHintsBuilder 每幀掛上；Clear() 不動它）；null＝只看資料表
+    public DamageSeverityObserver? SeverityObserver;
+
     // list of party members with cleansable debuffs that are dangerous enough to sacrifice a GCD to cleanse them, i.e. doom, throttle, some types of vuln debuff, etc
     public BitMask ShouldCleanse;
 
@@ -391,6 +394,20 @@ public sealed class AIHints
     /// <summary>同一波預告的合併窗：活化時刻差這麼多秒以內視為同一發（例：散開與全體傷害同時結算）。</summary>
     public const float RaidwideCoalesceSeconds = 0.5f;
 
+    /// <summary>資料表的危險度（<see cref="DamageSeverityTable.Get(ushort, in DamagePrediction)"/>），再依本場實測只升不降（<see cref="SeverityObserver"/>）。</summary>
+    public DamageSeverity SeverityOf(ushort cfc, in DamagePrediction d)
+    {
+        var sev = DamageSeverityTable.Get(cfc, in d);
+        return SeverityObserver?.Adjust(cfc, d.SourceAction, sev) ?? sev;
+    }
+
+    /// <summary>同上，給沒有預告實體的來源（狀態機提示）：AID 0 走副本預設。</summary>
+    public DamageSeverity SeverityOf(ushort cfc, uint aid, PredictedDamageType type)
+    {
+        var sev = DamageSeverityTable.Get(cfc, aid, type);
+        return SeverityObserver?.Adjust(cfc, aid, sev) ?? sev;
+    }
+
     /// <summary>
     /// 第一筆 <see cref="PredictedDamageType.Raidwide"/>（與 IPC <c>Hints.NextRaidwideDamageIn</c> 同一筆）的危險度；
     /// 合併窗內另有更危險的同類預告就改取那筆。<paramref name="index"/>＝取用那筆的索引；沒有預告回 -1 與 <see cref="DamageSeverity.Unknown"/>。
@@ -411,12 +428,12 @@ public sealed class AIHints
             {
                 anchor = d.Activation;
                 index = i;
-                res = DamageSeverityTable.Get(cfc, in d);
+                res = SeverityOf(cfc, in d);
                 continue;
             }
             if (Math.Abs((d.Activation - anchor).TotalSeconds) >= RaidwideCoalesceSeconds)
                 continue;
-            var sev = DamageSeverityTable.Get(cfc, in d);
+            var sev = SeverityOf(cfc, in d);
             if (DamageSeverityTable.Rank(sev) > DamageSeverityTable.Rank(res))
             {
                 index = i;
@@ -443,7 +460,7 @@ public sealed class AIHints
             ref readonly var d = ref span[i];
             if (d.Type != PredictedDamageType.Raidwide || d.Activation < now)
                 continue;
-            ref var first = ref DamageSeverityTable.Get(cfc, in d) == DamageSeverity.Low ? ref firstLow : ref firstOther;
+            ref var first = ref SeverityOf(cfc, in d) == DamageSeverity.Low ? ref firstLow : ref firstOther;
             if (d.Activation < first)
                 first = d.Activation;
         }
@@ -460,7 +477,7 @@ public sealed class AIHints
             ref readonly var d = ref span[i];
             if (d.Type != PredictedDamageType.Raidwide || d.Activation < start || d.Activation >= end)
                 continue;
-            var sev = DamageSeverityTable.Get(cfc, in d);
+            var sev = SeverityOf(cfc, in d);
             if (!lowOnly && sev == DamageSeverity.Low)
                 continue;
             if (index < 0 || IsBetter(sev, in d, severity, in span[index]))
@@ -481,6 +498,89 @@ public sealed class AIHints
                 return d.SourceAction != 0;
             return d.Activation < cur.Activation;
         }
+    }
+
+    /// <summary>沿狀態機往後找高危全體傷害的上限秒數（比最長的團減冷卻還長）。</summary>
+    public const float HighRaidwideLookaheadSeconds = 300f;
+
+    /// <summary>狀態機提示與某筆全體傷害預告差這麼多秒以內＝同一發，以預告為準（有來源技能、時間準）。</summary>
+    public const float TimelineMatchSeconds = 2f;
+
+    /// <summary>
+    /// 下一次高危全體傷害的時刻（IPC <c>Hints.NextHighRaidwideIn</c>）：本幀預告與狀態機往後的 <see cref="StateMachine.StateHint.Raidwide"/> 提示取最早；沒有回 <see cref="DateTime.MaxValue"/>。
+    /// 危險度一律經 <see cref="SeverityOf(ushort, in DamagePrediction)"/>（含本場實測升級）。
+    /// </summary>
+    /// <remarks>
+    /// 狀態機只走單一後繼（遇到分支就停，同 <see cref="StateMachine.NextTransitionWithFlag"/>）；提示狀態的技能取自己的 <see cref="StateMachine.State.CastAIDs"/>，
+    /// 沒有就取同一組（ID 高 16 位相同）前面最近的讀條，再沒有走副本預設；多個候選取最危險。已逾時的目前狀態當成現在結束，後面順延。
+    /// </remarks>
+    public DateTime NextHighRaidwide(ushort cfc, DateTime now, StateMachine? sm)
+    {
+        var best = DateTime.MaxValue;
+        var span = CollectionsMarshal.AsSpan(PredictedDamage);
+        for (var i = 0; i < span.Length; ++i)
+        {
+            ref readonly var d = ref span[i];
+            if (d.Type == PredictedDamageType.Raidwide && d.Activation >= now && d.Activation < best && SeverityOf(cfc, in d) == DamageSeverity.High)
+                best = d.Activation;
+        }
+
+        var state = sm?.ActiveState;
+        if (state == null)
+            return best;
+        var time = sm!.LastTransition;
+        var limit = now.AddSeconds(HighRaidwideLookaheadSeconds);
+        var groupAIDs = (uint[]?)null;
+        var group = 0u;
+        var overdueChecked = false;
+        while (state != null && time < best && time < limit)
+        {
+            time = time.AddSeconds(state.Duration);
+            if (!overdueChecked)
+            {
+                overdueChecked = true;
+                if (time < now)
+                    time = now;
+            }
+            var g = state.ID & 0xFFFF0000u;
+            if (state.CastAIDs != null)
+            {
+                groupAIDs = state.CastAIDs;
+                group = g;
+            }
+            if (state.EndHint.HasFlag(StateMachine.StateHint.Raidwide) && time < best && !NearRaidwidePrediction(span, time)
+                && StateSeverity(cfc, state.CastAIDs ?? (group == g ? groupAIDs : null)) == DamageSeverity.High)
+            {
+                best = time;
+                break;
+            }
+            state = state.NextStates?.Length == 1 ? state.NextStates[0] : null;
+        }
+        return best;
+
+        static bool NearRaidwidePrediction(ReadOnlySpan<DamagePrediction> span, DateTime t)
+        {
+            for (var i = 0; i < span.Length; ++i)
+            {
+                if (span[i].Type == PredictedDamageType.Raidwide && Math.Abs((span[i].Activation - t).TotalSeconds) <= TimelineMatchSeconds)
+                    return true;
+            }
+            return false;
+        }
+    }
+
+    private DamageSeverity StateSeverity(ushort cfc, uint[]? aids)
+    {
+        if (aids == null || aids.Length == 0)
+            return SeverityOf(cfc, 0, PredictedDamageType.Raidwide);
+        var res = DamageSeverity.Unknown;
+        foreach (var aid in aids)
+        {
+            var sev = SeverityOf(cfc, aid, PredictedDamageType.Raidwide);
+            if (DamageSeverityTable.Rank(sev) > DamageSeverityTable.Rank(res))
+                res = sev;
+        }
+        return res;
     }
 
     /// <summary>本幀最早一筆打到 <paramref name="slot"/> 的死刑（<see cref="PredictedDamageType.Tankbuster"/>）還有幾秒；沒有回 <see cref="float.MaxValue"/>。</summary>

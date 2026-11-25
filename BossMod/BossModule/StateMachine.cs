@@ -44,6 +44,7 @@ public sealed class StateMachine(List<StateMachine.Phase> phases)
         public Func<float, int>? Update; // callback executed every frame when state is active; should return target state index for transition or -1 to remain in current state; argument = time since activation
         public State[]? NextStates; // potential successor states
         public StateHint EndHint = StateHint.None; // special flags for state end (used for visualization, autorotation, etc.)
+        public uint[]? CastAIDs; // 讀條狀態預期的技能，或 DamageActions 標註的傷害技能（StateMachineBuilder 填）；給往後查危險度用
     }
 
     public class Phase(State initialState, string name, float expectedDuration = -1)
@@ -66,6 +67,7 @@ public sealed class StateMachine(List<StateMachine.Phase> phases)
     public float TimeSinceActivation => (float)(_curTime - _activation).TotalSeconds;
     public float TimeSincePhaseEnter => (float)(_curTime - _phaseEnter).TotalSeconds;
     public float TimeSinceTransition => (float)(_curTime - _lastTransition).TotalSeconds;
+    public DateTime LastTransition => _lastTransition;
     public float TimeSinceTransitionClamped => Math.Min(TimeSinceTransition, ActiveState?.Duration ?? 0);
 
     public int ActivePhaseIndex = -1;

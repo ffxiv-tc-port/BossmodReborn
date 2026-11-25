@@ -87,6 +87,13 @@ public class StateMachineBuilder(BossModule module)
             return this;
         }
 
+        // 結算傷害的技能不是這個狀態自己的讀條時（例：元件條件狀態、無讀條的全體傷害），標出來給往後查危險度（AIHints.NextHighRaidwide）
+        public State DamageActions(params uint[] aids)
+        {
+            Raw.CastAIDs = aids;
+            return this;
+        }
+
         private Action ExecForComponent<C>(Action<C> fn) where C : BossComponent => () =>
         {
             var c = module.FindComponent<C>();
@@ -281,6 +288,7 @@ public class StateMachineBuilder(BossModule module)
     {
         var state = SimpleState(id, delay, name).SetHint(StateMachine.StateHint.BossCastStart, isBoss);
         state.Raw.Comment = $"Cast start: {aid}";
+        state.Raw.CastAIDs = [aid];
         state.Raw.Update = _ =>
         {
             var castInfo = actorAcc()?.CastInfo;
@@ -302,6 +310,7 @@ public class StateMachineBuilder(BossModule module)
     {
         var state = SimpleState(id, delay, name).SetHint(StateMachine.StateHint.BossCastStart, isBoss);
         state.Raw.Comment = $"Cast start: [{string.Join(", ", aids)}]";
+        state.Raw.CastAIDs = aids;
         state.Raw.Update = _ =>
         {
             var castInfo = actorAcc()?.CastInfo;
@@ -332,7 +341,9 @@ public class StateMachineBuilder(BossModule module)
     // create a state triggered by cast end by arbitrary actor
     public State ActorCastEnd(uint id, Func<Actor?> actorAcc, float castTime, bool isBoss = false, string name = "", bool interruptible = false)
     {
+        var castAIDs = _lastState?.CastAIDs;
         var state = SimpleState(id, castTime, name).SetHint(StateMachine.StateHint.BossCastEnd, isBoss);
+        state.Raw.CastAIDs = castAIDs;
         state.Raw.Comment = interruptible ? "Interruptible cast end" : "Cast end";
         state.Raw.Update = timeSinceTransition => actorAcc()?.CastInfo == null && (!interruptible || timeSinceTransition >= state.Raw.Duration) ? 0 : -1;
         return state;
