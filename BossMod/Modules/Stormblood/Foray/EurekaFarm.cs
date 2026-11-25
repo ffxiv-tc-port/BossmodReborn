@@ -38,9 +38,20 @@ public abstract class EurekaZone<NM> : ZoneModule where NM : struct, Enum
 
     private readonly EventSubscriptions _subscriptions;
 
-    private static NMAttribute? GetAttr(Enum nm) => nm.GetType().GetField(nm.ToString())?.GetCustomAttribute<NMAttribute>();
-    private static uint GetFateID(Enum nm) => GetAttr(nm)?.FateID ?? 0;
-    private static uint GetPrepID(Enum nm) => GetAttr(nm)?.PrepNameID ?? 0;
+    // 每幀都會查；反射結果按列舉值快取一次，查詢不配置。
+    private static readonly Dictionary<NM, NMAttribute?> _attrCache = BuildAttrCache();
+
+    private static Dictionary<NM, NMAttribute?> BuildAttrCache()
+    {
+        var cache = new Dictionary<NM, NMAttribute?>();
+        foreach (var f in typeof(NM).GetFields(BindingFlags.Public | BindingFlags.Static))
+            cache.TryAdd((NM)f.GetValue(null)!, f.GetCustomAttribute<NMAttribute>());
+        return cache;
+    }
+
+    private static NMAttribute? GetAttr(NM nm) => _attrCache.GetValueOrDefault(nm);
+    private static uint GetFateID(NM nm) => GetAttr(nm)?.FateID ?? 0;
+    private static uint GetPrepID(NM nm) => GetAttr(nm)?.PrepNameID ?? 0;
 
     protected abstract NM FarmTarget { get; set; }
 

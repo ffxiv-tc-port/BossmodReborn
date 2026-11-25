@@ -38,9 +38,20 @@ public abstract class DuelFarm<Duel> : ZoneModule where Duel : struct, Enum
 
     private readonly EventSubscriptions _subscriptions;
 
-    private static DuelAttribute? GetAttr(Enum nm) => nm.GetType().GetField(nm.ToString())?.GetCustomAttribute<DuelAttribute>();
-    private static uint GetFateID(Enum nm) => GetAttr(nm)?.FateID ?? 0;
-    private static uint GetPrepID(Enum nm) => GetAttr(nm)?.PrepNameID ?? 0;
+    // 每幀都會查；反射結果按列舉值快取一次，查詢不配置。
+    private static readonly Dictionary<Duel, DuelAttribute?> _attrCache = BuildAttrCache();
+
+    private static Dictionary<Duel, DuelAttribute?> BuildAttrCache()
+    {
+        var cache = new Dictionary<Duel, DuelAttribute?>();
+        foreach (var f in typeof(Duel).GetFields(BindingFlags.Public | BindingFlags.Static))
+            cache.TryAdd((Duel)f.GetValue(null)!, f.GetCustomAttribute<DuelAttribute>());
+        return cache;
+    }
+
+    private static DuelAttribute? GetAttr(Duel nm) => _attrCache.GetValueOrDefault(nm);
+    private static uint GetFateID(Duel nm) => GetAttr(nm)?.FateID ?? 0;
+    private static uint GetPrepID(Duel nm) => GetAttr(nm)?.PrepNameID ?? 0;
 
     protected abstract Duel FarmTarget { get; set; }
 
