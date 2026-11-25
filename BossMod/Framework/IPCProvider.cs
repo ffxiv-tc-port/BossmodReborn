@@ -457,7 +457,11 @@ sealed class IPCProvider : IDisposable
             if (e.Kind != PluginListInvalidationKind.Unloaded)
                 return;
             foreach (var name in e.AffectedInternalNames)
+            {
                 clearOwnerOverrides(name, "已卸載");
+                if (ExternalMovementHold.Release(name) > 0)
+                    Service.Logger.Information($"[BMR IPC] {name} 已卸載，清掉它的暫停自動移動租約。");
+            }
         }
         Service.PluginInterface.ActivePluginsChanged += onActivePluginsChanged;
         _disposeActions += () => Service.PluginInterface.ActivePluginsChanged -= onActivePluginsChanged;
@@ -663,6 +667,27 @@ sealed class IPCProvider : IDisposable
         });
         // 唯讀且只是參考比較（Beh != null），照本檔慣例不包閘門。
         Register("AI.IsEnabled", () => ai.IsEnabled);
+
+        // 暫停自動移動與閃避的租約（語意見 ExternalMovementHold）：
+        //   SuppressMovement(owner, seconds, minHpRatio) -> bool：同一 owner 重送＝續期；秒數上限 15；owner 須是已載入插件的 InternalName。
+        //   ReleaseMovementSuppression(owner) -> bool（有清到才 true）；IsMovementSuppressed() -> bool＝上一幀實際有沒有生效。
+        // 表自帶鎖、每幀判定讀快照，所以同 Configuration.SetTransient* 不走 IpcFrameworkGate；呼叫端每秒續期，拒收的 log 自己節流。
+        long suppressRejectLoggedAt = -60000;
+        Register("AI.SuppressMovement", (string owner, float seconds, float minHpRatio) =>
+        {
+            var plugin = owner == null ? null : Service.PluginInterface.InstalledPlugins.FirstOrDefault(p => p.InternalName == owner);
+            var ok = ExternalMovementHold.Hold(owner!, seconds, minHpRatio, Environment.TickCount64, () => plugin?.IsLoaded == true);
+            var now = Environment.TickCount64;
+            if (!ok && now - System.Threading.Interlocked.Read(ref suppressRejectLoggedAt) >= 60000)
+            {
+                System.Threading.Interlocked.Exchange(ref suppressRejectLoggedAt, now);
+                Service.Logger.Information($"[BMR IPC] 拒絕 {owner} 的暫停自動移動要求（{seconds} 秒、血量門檻 {minHpRatio}）：擁有者不是已載入的插件，或秒數／門檻不是正常數值；60 秒內同類不再記。");
+            }
+            return ok;
+        });
+        Register("AI.ReleaseMovementSuppression", (string owner) => ExternalMovementHold.Release(owner) > 0);
+        Register("AI.IsMovementSuppressed", () => ExternalMovementHold.Effective);
+        _disposeActions += ExternalMovementHold.Reset;
 
         // 深宮「拉這隻會不會一次帶上太多隻」；快照由 AutoClear 在框架執行緒每幀發佈，端點只讀快照、不經 IpcFrameworkGate。
         Register("DeepDungeon.IsPullSafe", (ulong gameObjectId) => Global.DeepDungeon.DeepDungeonPullSafety.IsPullSafe(gameObjectId));

@@ -915,7 +915,7 @@ sealed class AIBehaviour(AIController ctrl, RotationModuleManager autorot, Prese
         var target = ctrl.NaviTargetPos;
         // 這三道擋的是所有自動移動（含預設集的自動移動模組），讓位時也要列
         if (_ex.AutoMovePaused)
-            reasons.Add("「暫停自動移動」鍵按著");
+            reasons.Add("「暫停自動移動」鍵按著，或其他插件暫停了自動移動與閃避");
         if (_ex.EscapeHatchHeld)
             reasons.Add("逃生鍵（詠唱期間允許移動需按住的按鍵）按著");
         if (_ex.UserMoveRequested)

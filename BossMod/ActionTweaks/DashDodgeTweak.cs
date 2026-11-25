@@ -150,7 +150,7 @@ public sealed class DashDodgeTweak
 
         var gate = gates.EscapeHatchHeld ? "逃生鍵按著"
             : gates.UserMoving ? "使用者正在手動移動"
-            : gates.AutoMovePaused ? "「暫停自動移動」鍵按著"
+            : gates.AutoMovePaused ? (MovementOverride.Instance?.ExternalHoldActive == true ? "其他插件暫停了自動移動與閃避" : "「暫停自動移動」鍵按著")
             : gates.FollowPathActive ? "vnavmesh 正在走路線"
             : _aiConfig.ForbidMovement ? "AI 設定禁止移動"
             : player.MountId != 0 ? "騎乘中"

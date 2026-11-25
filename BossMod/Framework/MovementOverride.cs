@@ -110,7 +110,7 @@ public sealed unsafe class MovementOverride : IDisposable
     /// 與「認到了但走的人不是 BMR」（例如 vnavmesh 在走）；這顆鍵常兼任別的熱鍵，平時不該佔一般 log。
     /// 只在翻轉時印——這支每幀都會被呼叫到。放開那一行附按住的秒數。
     /// </remarks>
-    public void UpdateAutoMovementPause(DateTime now)
+    public void UpdateAutoMovementPause(DateTime now, bool externalHold = false)
     {
         var key = _tweaksConfig.PauseAutoMoveKey;
         var held = key != ActionTweaksConfig.ModifierKey.None && IsModifierHeld(key);
@@ -118,7 +118,9 @@ public sealed unsafe class MovementOverride : IDisposable
         var moveIn = held ? FootDangerMoveIn(AI.AIManager.Instance?.Beh?.NavigationContext, now) : null;
         var yielding = PauseYieldsToDanger(held, _aiConfig.PauseKeyYieldsToDanger, _aiConfig.PauseKeyDangerSeconds, moveIn, _pauseYieldingToDanger);
         PauseKeyHeld = held;
-        AutoMovementPaused = held && !yielding;
+        ExternalHoldActive = externalHold;
+        // 外部暫停刻意不套「危險時失效」：呼叫端要的就是危險時也站著；血量安全閥在 ExternalMovementHold 裡。
+        AutoMovementPaused = held && !yielding || externalHold;
         LogPauseKeyFlip(held, key);
         LogPauseYieldFlip(yielding, held, moveIn);
         UpdatePauseDangerNotice(held, key, moveIn, yielding);
@@ -126,6 +128,9 @@ public sealed unsafe class MovementOverride : IDisposable
 
     /// <summary>暫停鍵是不是實體按著（不管「危險時暫停鍵失效」）；只給要照鍵本身行事的地方用，例如深宮路線的 vnavmesh 暫停。</summary>
     public bool PauseKeyHeld { get; private set; }
+
+    /// <summary>這一幀有其他插件經 IPC 暫停自動移動（<see cref="ExternalMovementHold"/>），已併入 <see cref="AutoMovementPaused"/>。</summary>
+    public bool ExternalHoldActive { get; private set; }
 
     /// <summary>上一幀暫停鍵是不是因為腳下危險而失效。</summary>
     private bool _pauseYieldingToDanger;

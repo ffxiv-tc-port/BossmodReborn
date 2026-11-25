@@ -435,9 +435,19 @@ public sealed class Plugin : IDalamudPlugin
         // 不隔離的話同一幀後面的**全部**處理(_hintsBuilder.Update、_amex 的技能佇列、_rotation、_ai、WindowSystem.Draw()、ExecuteHints())整段不執行,
         // 而 Dalamud 的 UiBuilder.Draw 是逐個訂閱者接例外、每一幀寫一行 Log.Error,不會把 BMR 關掉 ⇒ 外面看到的只是「log 一直在噴、BMR 半死不活」。
         // 這不是 AccessViolationException 的防護,處理的只有受管理例外。
+        // 外部暫停判定擲例外時退回 false＝照常移動與閃避（保守方向）。
+        var externalHold = false;
         try
         {
-            _movementOverride.UpdateAutoMovementPause(_ws.CurrentTime);
+            externalHold = UpdateExternalMovementHold();
+        }
+        catch (Exception ex)
+        {
+            LogDrawStepFailure("ExternalMovementHold.UpdateFrame", ex);
+        }
+        try
+        {
+            _movementOverride.UpdateAutoMovementPause(_ws.CurrentTime, externalHold);
         }
         catch (Exception ex)
         {
@@ -946,6 +956,39 @@ public sealed class Plugin : IDalamudPlugin
                 _throttleInteract = _ws.FutureTime(1.1d);
             }
         }
+    }
+
+    private ExternalMovementHold.State _lastExternalHoldState;
+    private string? _lastExternalHoldOwner;
+    private long _externalHoldSinceMs;
+
+    // 每幀一次；只在狀態翻轉時寫 log。沒有任何租約且上一幀也沒生效時只讀一個欄位就返回。
+    private bool UpdateExternalMovementHold()
+    {
+        if (_lastExternalHoldState == ExternalMovementHold.State.None && !ExternalMovementHold.HasLeases)
+            return false;
+        var player = _ws.Party.Player();
+        var hpRatio = player != null && player.HPMP.MaxHP > 0 ? player.HPRatio : float.NaN;
+        var now = Environment.TickCount64;
+        var state = ExternalMovementHold.UpdateFrame(now, player != null && !player.IsDead, hpRatio, out var owner);
+        if (state != _lastExternalHoldState)
+        {
+            var prev = _lastExternalHoldState;
+            var held = (now - _externalHoldSinceMs) / 1000d;
+            _lastExternalHoldState = state;
+            _externalHoldSinceMs = now;
+            Service.Logger.Information(state switch
+            {
+                ExternalMovementHold.State.Active => $"[MovementOverride] {owner} 暫停 BMR 自動移動與閃避：開始（出招與減傷照常；租約到期或對方釋放就恢復，血量 {hpRatio:p0}）",
+                ExternalMovementHold.State.YieldLowHp => $"[MovementOverride] {owner} 要求暫停自動移動，但血量 {hpRatio:p0} 低於對方給的門檻：照常移動與閃避",
+                _ => $"[MovementOverride] {_lastExternalHoldOwner} 的暫停自動移動：結束（{(ExternalMovementHold.HasLeases ? "租約到期或角色無法行動" : "對方已釋放")}；前一狀態 {prev} 維持 {held:f1} 秒），恢復自動移動與閃避",
+            });
+        }
+        if (owner != null)
+            _lastExternalHoldOwner = owner;
+        else if (state == ExternalMovementHold.State.None)
+            ExternalMovementHold.PruneExpired(now);
+        return state == ExternalMovementHold.State.Active;
     }
 
     // 只在 AI 或自動移動模組在跑時觀察；讀的是 ExecuteHints 剛寫好的最終移動輸出
