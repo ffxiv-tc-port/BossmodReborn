@@ -783,9 +783,12 @@ public sealed unsafe class ActionManagerEx : IDisposable
                 if (_ws.Party.Player()?.CastInfo != null && _cancelCastTweak.ShouldCancel(_ws.CurrentTime, _hints.ForceCancelCast))
                     uiState->Hotbar.CancelCast();
 
-                var autosEnabled = uiState->WeaponState.AutoAttackState.IsAutoAttacking;
-                if (_autoAutosTweak.GetDesiredState(autosEnabled, _ws.Party.Player()?.TargetID ?? 0) != autosEnabled)
-                    _inst->UseAction(CSActionType.GeneralAction, 1);
+                if (!AutoAttackToggleSuppressed())
+                {
+                    var autosEnabled = uiState->WeaponState.AutoAttackState.IsAutoAttacking;
+                    if (_autoAutosTweak.GetDesiredState(autosEnabled, _ws.Party.Player()?.TargetID ?? 0) != autosEnabled)
+                        _inst->UseAction(CSActionType.GeneralAction, 1);
+                }
             }
 
             if (_hints.WantDismount)
@@ -1203,6 +1206,11 @@ public sealed unsafe class ActionManagerEx : IDisposable
         }
         return _setAutoAttackStateHook.Original(self, value, sendPacket, isInstant);
     }
+
+    // duty recorder playback / condition 89 ("unable to execute command"): the player isn't acting, so never toggle autos there
+    internal static bool AutoAttackToggleSuppressed()
+        => Service.Condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.DutyRecorderPlayback]
+        || Service.Condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InThisState89];
 
     // just the LoS portion of ActionManager::GetActionInRangeOrLoS (which also checks range, which we don't care about, and also checks facing angle, which we don't care about)
     private static bool CheckActionLoS(ActionID action, ulong targetID)
