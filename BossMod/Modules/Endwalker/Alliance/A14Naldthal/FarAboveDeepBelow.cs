@@ -100,7 +100,7 @@ class DeepestPit(BossModule module) : Components.GenericAOEs(module)
                     break;
                 }
             }
-            if (count == 0)
+            if (_aoes.Count == 0)
                 _targets.Clear();
         }
     }
