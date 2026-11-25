@@ -3207,7 +3207,7 @@ public abstract partial class AutoClear : ZoneModule
             ResetMagiciteAttempts();
 
         // 「走過去」與「開起來」是兩件事，分開判斷（AutoMoveTreasure 管走、AutoOpenTreasure 管開）。
-        // 🔴 `InteractWithTarget` 本身也會讓 AI 走過去（AIBehaviour 把它當 forceDestination），
+        // 🔴 `InteractWithTarget` 本身也會讓 AI 走過去（NormalMovement 把它加成權重 100 的目標區），
         //    所以「只開不走」不能無條件設它，必須限制在已經走到旁邊的情況，否則等於從後門把移動又加回來。
         // 🔴 走過去的目標區不能用平台函式：權重相同的範圍只要把玩家包進去，尋路就認定「已經在最佳位置」
         //    ⇒ Destination 是 null ⇒ 角色走幾步就停、不畫標線、不報錯。下面用 GoalProximityLinear（隨距離線性遞減的梯度）。
@@ -3255,7 +3255,7 @@ public abstract partial class AutoClear : ZoneModule
                 }
 
                 // 🔴 「到了就自動點下去」——獨立開關，預設關。
-                //    只在「已經走到互動距離內」才設，理由與上面寶箱那條相同：InteractWithTarget 會變成 AI 的 forceDestination，
+                //    只在「已經走到互動距離內」才設，理由與上面寶箱那條相同：InteractWithTarget 會變成 NormalMovement 的強目標區，
                 //    無條件設它等於從後門多加一條移動來源。走過去是上面那兩個 GoalZone 的事，這一行只負責最後那一下。
                 // 📌 這一行住在 `passage is Actor c && !fullClear` 裡面是刻意的：全清模式還有房間沒逛完時連走過去都不做，更不該替使用者點下去。
                 // ⚠️ 遊戲接著跳的「要前往下一層嗎」確認視窗不由 BMR 回答，使用者仍然要自己按「是」——設定的 tooltip 有寫明。
