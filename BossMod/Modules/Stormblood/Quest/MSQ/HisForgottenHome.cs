@@ -44,7 +44,7 @@ class SlickshellCaptainStates : StateMachineBuilder
             .ActivateOnEnter<Kasaya>()
             .ActivateOnEnter<BlizzardIIIIcon>()
             .ActivateOnEnter<BlizzardIIICast>()
-            .Raw.Update = () => Module.Raid.Player()?.IsDeadOrDestroyed ?? true;
+            .Raw.Update = () => module.WorldState.CurrentCFCID != 469u;
     }
 }
 
