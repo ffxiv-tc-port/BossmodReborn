@@ -22,14 +22,8 @@ sealed class HolyShieldBlock(BossModule module) : Components.GenericGaze(module)
         || _pressedAt.TryGetValue(actor.InstanceID, out var t) && t > WorldState.CurrentTime.AddSeconds(-1d);
     private bool HasShield(Actor actor) => Raised(actor) || actor.FindStatus((uint)SID.Shieldbearer) != null;
 
-    // 舉著盾再按一次是放下，不算舉盾。
-    public void OnShieldPressed(Actor actor)
-    {
-        if (actor.FindStatus((uint)SID.HolyShield) == null)
-            _pressedAt[actor.InstanceID] = WorldState.CurrentTime;
-        else
-            _pressedAt.Remove(actor.InstanceID);
-    }
+    // 舉著盾再按一次是重新舉盾，不是放下：狀態當下消失、約 0.4 秒後回來，中間仍要算已舉盾。
+    public void OnShieldPressed(Actor actor) => _pressedAt[actor.InstanceID] = WorldState.CurrentTime;
 
     // 狀態到了就以狀態為準：之後被解除要立刻算放下，不能再靠按下的那 1 秒撐著。
     public override void OnStatusGain(Actor actor, ActorStatus status)
