@@ -920,6 +920,11 @@ public sealed class Plugin : IDalamudPlugin
             || FFXIVClientStructs.FFXIV.Client.Game.UI.UIState.Instance()->IsUnlockLinkUnlockedOrQuestCompleted(link);
     }
 
+    // nameplates stop rendering past 50y, so selecting something farther gives the player an invisible target;
+    // only the game-side target write is skipped, ForcedTarget itself is left for rotations
+    internal static bool ForcedTargetWithinNameplateRange(Actor? player, Actor target)
+        => player != null && (player.PosRot.XYZ() - target.PosRot.XYZ()).LengthSquared() < 2500f;
+
     private unsafe void ExecuteHints()
     {
         _movementOverride.DesiredDirection = _hints.ForcedMovement;
@@ -931,7 +936,8 @@ public sealed class Plugin : IDalamudPlugin
             var obj = _hints.ForcedTarget.SpawnIndex >= 0 ? FFXIVClientStructs.FFXIV.Client.Game.Object.GameObjectManager.Instance()->Objects.IndexSorted[_hints.ForcedTarget.SpawnIndex].Value : null;
             if (obj != null && obj->EntityId != _hints.ForcedTarget.InstanceID)
                 Service.Log($"[ExecHints] Unexpected new target: expected {_hints.ForcedTarget.InstanceID:X} at #{_hints.ForcedTarget.SpawnIndex}, but found {obj->EntityId:X}");
-            FFXIVClientStructs.FFXIV.Client.Game.Control.TargetSystem.Instance()->Target = obj;
+            if (ForcedTargetWithinNameplateRange(_ws.Party.Player(), _hints.ForcedTarget))
+                FFXIVClientStructs.FFXIV.Client.Game.Control.TargetSystem.Instance()->Target = obj;
         }
         foreach (var s in _hints.StatusesToCancel)
         {
