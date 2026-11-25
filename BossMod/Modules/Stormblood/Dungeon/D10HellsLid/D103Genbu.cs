@@ -13,8 +13,8 @@ public enum AID : uint
     HellOfWaste = 10194 // Boss->player, no cast, range 8 circle spread
 }
 
-// 頭上標記 0x2B 到判定的秒數沒有證據；取 5 秒，只影響 AI 的急迫度。
-sealed class HellOfWaste(BossModule module) : Components.SpreadFromIcon(module, 0x2Bu, (uint)AID.HellOfWaste, 8f, 5d);
+// 頭上標記 0x2B 到判定約 3.25 秒（錄影一輪；標記與玄冥瀑讀條同時出現、判定在讀條結束後 0.1 秒）。
+sealed class HellOfWaste(BossModule module) : Components.SpreadFromIcon(module, 0x2Bu, (uint)AID.HellOfWaste, 8f, 3.2d);
 
 sealed class D103GenbuStates : StateMachineBuilder
 {
@@ -26,8 +26,8 @@ sealed class D103GenbuStates : StateMachineBuilder
     }
 }
 
-// 場地與尋路沿用沒有模組時的做法（跟著玩家走的方框）：這個副本沒有障礙物圖，也沒有錄影可量場地。
-// 刻意不做迷潮的水流路線與玄冥波的擊退距離（地板與距離沒有證據）、蛇杖擊（沒有讀條）。
+// 場地與尋路沿用沒有模組時的做法（跟著玩家走的方框）：這個副本沒有障礙物圖。
+// 刻意不做迷潮的水流路線（三輪各走不同路線，對不出規則）、玄冥波的擊退（全場必中，擊退後沒有要閃的東西）、蛇杖擊（沒有讀條）。
 [ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "ffxiv-tc-port", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 284, NameID = 6996)]
 public sealed class D103Genbu(WorldState ws, Actor primary) : SimpleBossModule(ws, primary)
 {
