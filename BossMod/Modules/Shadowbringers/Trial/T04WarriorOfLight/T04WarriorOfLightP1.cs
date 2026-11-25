@@ -209,19 +209,19 @@ class ElementStayMove(BossModule module) : Components.StayMove(module)
             case Requirement.Stay:
                 if (state.Activation <= WorldState.CurrentTime && WorldState.CurrentTime <= state.Finish)
                 {
-                    hints.Add("Stop everything!", actor.PrevPosition != actor.PrevPosition || actor.CastInfo != null || actor.TargetID != default); // note: assume if target is selected, we might autoattack...
+                    hints.Add("Stop everything!", actor.Position != actor.PrevPosition || actor.CastInfo != null || actor.TargetID != default); // note: assume if target is selected, we might autoattack...
                 }
                 break;
             case Requirement.Stay2:
                 if (state.Activation <= WorldState.CurrentTime && WorldState.CurrentTime <= state.Finish)
                 {
-                    hints.Add("Don't move!", actor.PrevPosition != actor.PrevPosition); // you are allowed to attack here, only moving is forbidden
+                    hints.Add("Don't move!", actor.Position != actor.PrevPosition); // you are allowed to attack here, only moving is forbidden
                 }
                 break;
             case Requirement.Move:
                 if (state.Activation <= WorldState.CurrentTime && WorldState.CurrentTime <= state.Finish)
                 {
-                    hints.Add("Move!", actor.PrevPosition == actor.PrevPosition && actor.PosRot.Y == actor.PrevPosRot.Y);
+                    hints.Add("Move!", actor.Position == actor.PrevPosition && actor.PosRot.Y == actor.PrevPosRot.Y);
                 }
                 break;
 
