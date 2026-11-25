@@ -3,10 +3,82 @@
 class DivineLight(BossModule module) : Components.RaidwideCast(module, (uint)AID.DivineLight);
 class NorthswainsStrikeEphemeralKnight(BossModule module) : Components.SimpleAOEs(module, (uint)AID.NorthswainsStrikeEphemeralKnight, new AOEShapeRect(60, 3));
 class CleansingFlameSpread(BossModule module) : Components.SpreadFromCastTargets(module, (uint)AID.CleansingFlameSpread, 6);
-class HallowedBoltAOE(BossModule module) : Components.SimpleAOEs(module, (uint)AID.HallowedBoltAOE, 15);
-sealed class HallowedBoltDonut(BossModule module) : Components.SimpleAOEs(module, (uint)AID.HallowedBoltDonut, new AOEShapeDonut(15f, 30f));
 sealed class MortalBlow(BossModule module) : Components.SimpleAOEs(module, (uint)AID.MortalBlow, 30f);
 sealed class HeavenlyJudgment(BossModule module) : Components.RaidwideCast(module, (uint)AID.HeavenlyJudgment2);
+
+// 同一個落點先後各放一次 15 碼圓與 15～30 碼環，順序不固定、間隔約 4.6 秒 ⇒ 第一發讀條時就把第二發也畫出來。
+sealed class HallowedBolt(BossModule module) : Components.GenericAOEs(module)
+{
+    private static readonly AOEShapeCircle _circle = new(15f);
+    private static readonly AOEShapeDonut _donut = new(15f, 30f);
+    private const double SecondDelay = 4.6d;
+    private readonly List<AOEInstance> _aoes = [];
+
+    public override ReadOnlySpan<AOEInstance> ActiveAOEs(int slot, Actor actor) => CollectionsMarshal.AsSpan(_aoes);
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        AOEShape? shape = spell.Action.ID switch
+        {
+            (uint)AID.HallowedBoltAOE => _circle,
+            (uint)AID.HallowedBoltDonut => _donut,
+            _ => null
+        };
+        if (shape == null)
+            return;
+        var finish = Module.CastFinishAt(spell);
+        var aoe = new AOEInstance(shape, spell.LocXZ, default, finish, actorID: caster.InstanceID);
+        // 預測的那一發 ActorID 為 0；第二發真的讀條時取代它，不再追加預測。
+        for (var i = 0; i < _aoes.Count; ++i)
+        {
+            if (_aoes[i].ActorID == 0 && _aoes[i].Shape == shape && _aoes[i].Origin.InCircle(spell.LocXZ, 1f))
+            {
+                _aoes[i] = aoe;
+                Recolor();
+                return;
+            }
+        }
+        _aoes.Add(aoe);
+        _aoes.Add(new(shape == _circle ? _donut : _circle, spell.LocXZ, default, finish.AddSeconds(SecondDelay)));
+        Recolor();
+    }
+
+    public override void OnCastFinished(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.Action.ID is not ((uint)AID.HallowedBoltAOE or (uint)AID.HallowedBoltDonut))
+            return;
+        for (var i = 0; i < _aoes.Count; ++i)
+        {
+            if (_aoes[i].ActorID == caster.InstanceID)
+            {
+                _aoes.RemoveAt(i);
+                Recolor();
+                return;
+            }
+        }
+    }
+
+    // 預測的第二發沒等到讀條，就在預定時間過 1 秒後放掉。
+    public override void Update()
+    {
+        var expired = WorldState.FutureTime(-1d);
+        for (var i = _aoes.Count - 1; i >= 0; --i)
+            if (_aoes[i].ActorID == 0 && _aoes[i].Activation < expired)
+                _aoes.RemoveAt(i);
+    }
+
+    // 下一批判定用危險色、之後的用一般色。
+    private void Recolor()
+    {
+        var first = DateTime.MaxValue;
+        for (var i = 0; i < _aoes.Count; ++i)
+            if (_aoes[i].Activation < first)
+                first = _aoes[i].Activation;
+        var span = CollectionsMarshal.AsSpan(_aoes);
+        for (var i = 0; i < span.Length; ++i)
+            span[i].Color = span[i].Activation < first.AddSeconds(1d) ? Colors.Danger : default;
+    }
+}
 
 // 持有聖盾的人面向阿格莉亞絲按任務指令「聖盾防禦」，才擋得下不動無明劍與聖光爆裂破。
 // 聖盾防禦和武裝戍衛同類（狀態旗標相同）：用技能、開始詠唱、移動、轉向都會解除 ⇒
