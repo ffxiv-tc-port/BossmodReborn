@@ -26,7 +26,22 @@ public enum SID : uint
     Invincibility = 325 // none->Boss, extra=0x0
 }
 
-class GrimFate(BossModule module) : Components.Cleave(module, (uint)AID.GrimFate, new AOEShapeCone(12.6f, 60f.Degrees())); // TODO: verify angle
+class GrimFate(BossModule module) : Components.Cleave(module, (uint)AID.GrimFate, new AOEShapeCone(12.6f, 60f.Degrees())) // TODO: verify angle
+{
+    // 刻意不給被盯上的人「別讓順劈掃到隊友」的禁區：那是朝每個隊友各一個 100 碼錐形，
+    // 首領轉打遠程時會蓋掉大半個場地，閃荒蕪新星（直線打被盯上的人）只剩往首領身上跑一條路。
+    public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
+    {
+        var origins = OriginsAndTargets();
+        var count = origins.Count;
+        for (var i = 0; i < count; ++i)
+        {
+            var e = origins[i];
+            if (actor != e.target)
+                hints.AddForbiddenZone(Shape, e.origin.Position.Quantized(), e.angle, NextExpected);
+        }
+    }
+}
 // 無讀條、間隔不規律、半徑蓋過近戰距離：只在雷達畫外框，刻意不給 AI 禁區（否則近戰永遠貼不了王）。
 class GrimHalo(BossModule module) : BossComponent(module)
 {
