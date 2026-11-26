@@ -6,6 +6,7 @@ class A22GlasyaStates : StateMachineBuilder
     {
         TrivialPhase()
             .ActivateOnEnter<Aura>()
-            .ActivateOnEnter<VileUtterance>();
+            .ActivateOnEnter<VileUtterance>()
+            .ActivateOnEnter<AstralPunch>();
     }
 }

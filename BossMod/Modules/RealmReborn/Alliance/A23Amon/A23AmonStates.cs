@@ -7,6 +7,7 @@ class A23AmonStates : StateMachineBuilder
         TrivialPhase()
             .ActivateOnEnter<BlizzagaForte>()
             .ActivateOnEnter<Darkness>()
+            .ActivateOnEnter<Coloratura>()
             .ActivateOnEnter<CurtainCall>()
             .ActivateOnEnter<ThundagaForte1>()
             .ActivateOnEnter<ThundagaForte2>();

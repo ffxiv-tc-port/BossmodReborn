@@ -2,6 +2,8 @@
 
 class BlizzagaForte(BossModule module) : Components.SimpleAOEs(module, (uint)AID.BlizzagaForte, 10f);
 class Darkness(BossModule module) : Components.SimpleAOEs(module, (uint)AID.Darkness, new AOEShapeCone(6f, 22.5f.Degrees()));
+// 無讀條、朝主目標的正面順劈（8+R）；角度未知，實測打中最寬 23 度、48 度外沒中，取 45 度偏安全側。
+class Coloratura(BossModule module) : Components.Cleave(module, (uint)AID.Coloratura, new AOEShapeCone(12f, 45f.Degrees()));
 
 class CurtainCall(BossModule module) : Components.CastLineOfSightAOE(module, (uint)AID.CurtainCall, 60f)
 {
