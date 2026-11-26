@@ -389,6 +389,10 @@ public struct NavigationDecision
         // 只在起點格不可通行時改取整條路的最小值（只會更急）；起點可通行時刻意維持原值，不改既有行為。
         if (ctx.ThetaStar.StartFromNeighbourMaxG && bestNodeIndex != ctx.ThetaStar.StartNodeIndex)
             leeway = Math.Min(leeway, LeewayAlongPath(ctx.ThetaStar, ctx.Map, bestNodeIndex));
+        // 起點格與鄰格都不可通行（深陷場外）時上面那條不生效：玩家實際位置在禁區裡就改取該禁區的生效期限（只會更急）；
+        // 不在禁區裡刻意維持原值，不為了走回場內打斷詠唱。
+        else if (playerInWindow && ctx.Map.PixelMaxG[playerCell] < 0f && bestNodeIndex != ctx.ThetaStar.StartNodeIndex)
+            leeway = Math.Min(leeway, SoonestZoneGAt(localForbiddenZones, playerPosition, now, activationTimeCushion));
         var steering = lookahead.Applied && !lookahead.StartGood;
         // 接不上：照併入的餘裕動身；接得上但還要走一段：照預判算的最晚動身時間（詠唱太長也會趕不上）
         var lookaheadBy = steering ? leeway : lookahead.StartGood && lookahead.MoveBySeconds != float.MaxValue ? lookahead.MoveBySeconds - ServerJudgementLeadSeconds : float.MaxValue;
@@ -1057,6 +1061,16 @@ public struct NavigationDecision
         }
     }
     private static float ActivationToG(DateTime activation, DateTime current, float activationTimeCushion) => Math.Max(0f, (float)(activation - current).TotalSeconds - activationTimeCushion);
+
+    /// <summary>蓋住 <paramref name="p"/> 的禁區裡最早生效者換算的 G（同光柵化口徑）；沒有禁區蓋住＝<c>float.MaxValue</c>。</summary>
+    private static float SoonestZoneGAt((Func<WPos, float>, DateTime, ulong)[] zones, WPos p, DateTime now, float activationTimeCushion)
+    {
+        var g = float.MaxValue;
+        for (var i = 0; i < zones.Length; ++i)
+            if (zones[i].Item1(p) < 0f)
+                g = Math.Min(g, ActivationToG(zones[i].Item2, now, activationTimeCushion));
+        return g;
+    }
 
     private static float CalculateMaxG(ReadOnlySpan<(Func<WPos, float> shapeDistance, float g)> zones, WPos p, float cushion = 0f)
     {
