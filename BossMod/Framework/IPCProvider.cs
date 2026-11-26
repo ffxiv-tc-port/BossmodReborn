@@ -271,8 +271,28 @@ sealed class IPCProvider : IDisposable
         // 只讀一個參考是否為 null，不必走主執行緒閘門；舊版 BMR 沒有這兩個端點＝呼叫端當作沒有保留。
         Register("Hints.StunsReserved", () => hints.StunReservedFor != null);
         Register("Hints.InterruptsReserved", () => hints.InterruptReservedFor != null);
-        // 限時必殺目標（AIHints.Enemy.UrgentKill）：沒掛預設集也照樣算，給外部自動化切目標用；順序＝優先度由高到低。
-        Register("Hints.UrgentKillTargets", () => IpcFrameworkGate.Get<ulong[]>("Hints.UrgentKillTargets", () => flaggedEnemies(hints.PotentialTargets, static e => e.UrgentKill), []));
+        // 限時必殺目標（AIHints.Enemy.UrgentKill）：沒掛預設集也照樣算，給外部自動化切目標用；順序＝優先度由高到低（AIHints.UrgentKillByPriority）。
+        // UrgentKillPriorities 與 UrgentKillTargets 逐項對應（元素＝該目標的 AIHints.Enemy.Priority）；只在同一幀內讀的兩份才保證長度與順序一致。
+        Register("Hints.UrgentKillTargets", () => IpcFrameworkGate.Get<ulong[]>("Hints.UrgentKillTargets", () =>
+        {
+            var urgent = hints.UrgentKillByPriority();
+            if (urgent.Length == 0)
+                return [];
+            var res = new ulong[urgent.Length];
+            for (var i = 0; i < urgent.Length; ++i)
+                res[i] = urgent[i].Actor.InstanceID;
+            return res;
+        }, []));
+        Register("Hints.UrgentKillPriorities", () => IpcFrameworkGate.Get<int[]>("Hints.UrgentKillPriorities", () =>
+        {
+            var urgent = hints.UrgentKillByPriority();
+            if (urgent.Length == 0)
+                return [];
+            var res = new int[urgent.Length];
+            for (var i = 0; i < urgent.Length; ++i)
+                res[i] = urgent[i].Priority;
+            return res;
+        }, []));
 
         Register("Hints.SpecialModeIn", () => hints.ImminentSpecialMode == default
             ? float.MaxValue

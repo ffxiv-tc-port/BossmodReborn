@@ -105,6 +105,8 @@ public class D113Batraal(WorldState ws, Actor primary) : BossModule(ws, primary,
             // 分隊號令：水晶一可選取就宣告，不等首領身上的無敵（無敵要晚幾秒才上、與水晶同時消失）；水晶死了分隊會自己回首領
             if (e.Actor.OID == (uint)OID.CorruptedCrystal)
             {
+                // 首領無敵到水晶死為止：這段時間打首領完全沒用，標限時必殺讓外部自動化把玩家目標切過來
+                e.UrgentKill = invincible;
                 e.SquadronFocus = 1;
                 var dist = (e.Actor.Position - actor.Position).LengthSq();
                 if (dist < nearestDist)

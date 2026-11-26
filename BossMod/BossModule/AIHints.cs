@@ -703,6 +703,39 @@ public sealed class AIHints
         }
     }
 
+    /// <summary>
+    /// 標了 <see cref="Enemy.UrgentKill"/> 的敵人，照 <see cref="Enemy.Priority"/> 由高到低、同優先度照 <see cref="PotentialTargets"/> 原順序。
+    /// IPC <c>Hints.UrgentKillTargets</c>／<c>Hints.UrgentKillPriorities</c> 共用：同一份 hints 兩邊逐項對應。沒有時回空陣列、不配置。
+    /// </summary>
+    /// <remarks>不信 <see cref="Normalize"/> 的排序：之後的循環模組（AutoFarm 等）還會改 Priority。</remarks>
+    public Enemy[] UrgentKillByPriority()
+    {
+        var count = PotentialTargets.Count;
+        var n = 0;
+        for (var i = 0; i < count; ++i)
+            if (PotentialTargets[i].UrgentKill)
+                ++n;
+        if (n == 0)
+            return [];
+        var res = new Enemy[n];
+        var j = 0;
+        for (var i = 0; i < count && j < n; ++i)
+        {
+            var e = PotentialTargets[i];
+            if (!e.UrgentKill)
+                continue;
+            // 穩定插入排序：n 很小，同優先度保持原順序
+            var k = j++;
+            while (k > 0 && res[k - 1].Priority < e.Priority)
+            {
+                res[k] = res[k - 1];
+                --k;
+            }
+            res[k] = e;
+        }
+        return j == n ? res : res[..j];
+    }
+
     // PriorityTargets 的長度：它是 PotentialTargets 開頭連續的一段，直接掃不另建清單
     private int PriorityTargetCount()
     {

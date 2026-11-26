@@ -60,10 +60,15 @@ class PlainPound(BossModule module) : Components.ConcentricAOEs(module, _shapes)
     }
 }
 
-// 分隊號令：燃燒護盾期間要分隊去打怨火／毒火（沒打掉約 26 秒後放全場的焦土）；先出生的先打，同時出生的打離玩家近的。
+// 火靈的守護期間首領無敵，怨火／毒火沒打掉約 26 秒後放全場的焦土：可選取的全標限時必殺，毒火一律排在怨火前面。
+// 號令只宣告最前面那一層（有毒火只宣告毒火），分隊在打怨火時毒火一出來就會被叫去轉打。
+// 每層挑一隻當頭（優先度＋1、號令最高）：玩家正在打的 > 上一幀的頭 > 先出生 > 離玩家近，避免每幀換人。
 class SquadronAdds(BossModule module) : BossComponent(module)
 {
+    public const int PriorityNoxius = 3;
+    public const int PriorityDamantus = 1;
     private readonly Dictionary<ulong, DateTime> _spawnedAt = [];
+    private ulong _lead;
 
     public override void OnActorCreated(Actor actor)
     {
@@ -76,27 +81,49 @@ class SquadronAdds(BossModule module) : BossComponent(module)
     public override void AddAIHints(int slot, Actor actor, PartyRolesConfig.Assignment assignment, AIHints hints)
     {
         if (Module.PrimaryActor.FindStatus((uint)SID.BurningWard) == null)
+        {
+            _lead = 0;
             return;
-        AIHints.Enemy? first = null;
-        DateTime firstAt = default;
-        var firstDist = float.MaxValue;
+        }
+        var anyNoxius = false;
+        foreach (var e in hints.PotentialTargets)
+            anyNoxius |= IsAdd(e.Actor) && e.Actor.OID == (uint)OID.Noxius;
+        var tier = anyNoxius ? (uint)OID.Noxius : (uint)OID.Damantus;
+
+        AIHints.Enemy? lead = null;
+        var leadRank = 0;
+        DateTime leadAt = default;
+        var leadDist = float.MaxValue;
         foreach (var e in hints.PotentialTargets)
         {
-            if (e.Actor.OID is not ((uint)OID.Damantus or (uint)OID.Noxius))
+            if (!IsAdd(e.Actor))
+                continue;
+            e.UrgentKill = true;
+            e.Priority = e.Actor.OID == (uint)OID.Noxius ? PriorityNoxius : PriorityDamantus;
+            if (e.Actor.OID != tier)
                 continue;
             e.SquadronFocus = 1;
-            var at = _spawnedAt.GetValueOrDefault(e.Actor.InstanceID); // 元件啟用前就在場的當作最早
+            var id = e.Actor.InstanceID;
+            var rank = id == actor.TargetID ? 2 : id == _lead ? 1 : 0;
+            var at = _spawnedAt.GetValueOrDefault(id); // 元件啟用前就在場的當作最早
             var dist = (e.Actor.Position - actor.Position).LengthSq();
-            if (first == null || at < firstAt || at == firstAt && dist < firstDist)
+            if (lead == null || rank > leadRank || rank == leadRank && (at < leadAt || at == leadAt && dist < leadDist))
             {
-                first = e;
-                firstAt = at;
-                firstDist = dist;
+                lead = e;
+                leadRank = rank;
+                leadAt = at;
+                leadDist = dist;
             }
         }
-        if (first != null)
-            first.SquadronFocus = 2;
+        _lead = lead?.Actor.InstanceID ?? 0;
+        if (lead != null)
+        {
+            lead.SquadronFocus = 2;
+            ++lead.Priority;
+        }
     }
+
+    private static bool IsAdd(Actor a) => a.OID is (uint)OID.Damantus or (uint)OID.Noxius && a.IsTargetable && !a.IsDead;
 }
 
 class D043TangataStates : StateMachineBuilder
@@ -159,7 +186,7 @@ public class D043Tangata(WorldState ws, Actor primary) : BossModule(ws, primary,
             var e = hints.PotentialTargets[i];
             if (e.Actor.FindStatus(SID.BurningWard) != null)
             {
-                e.Priority = -1;
+                e.Priority = AIHints.Enemy.PriorityInvincible; // 火靈的守護：一切攻擊都無法造成傷害
                 break;
             }
         }
