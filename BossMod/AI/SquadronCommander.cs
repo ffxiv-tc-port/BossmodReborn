@@ -341,11 +341,9 @@ public sealed class SquadronCommander
             Once("gateex", $"讀不到號令狀態，不下令：{ex.GetType().Name}: {ex.Message}");
             return;
         }
+        // 刻意不拿 HasHelpers 當閘門：分隊攻略任務實機回 false，是不是分隊已由作戰狀態判過，可不可用交給 GetActionStatus。
         if (!hasHelpers)
-        {
-            Once("nohelpers", "遊戲說目前沒有 NPC 隊員（DutyHelperInfo.HasHelpers=false）：不下令");
-            return;
-        }
+            Once("nohelpers", "DutyHelperInfo.HasHelpers=false（分隊攻略任務常態），照常依號令狀態下令");
         if (status != 0)
         {
             Once($"status{status}", $"號令不可用（GetActionStatus={status}）：不下令");
