@@ -49,7 +49,8 @@ class ParticleBeam1(BossModule module) : Components.GenericAOEs(module, (uint)AI
     }
 }
 
-class FeintParticleBeam(BossModule module) : Components.StandardChasingAOEs(module, new AOEShapeCircle(10), (uint)AID.FeintParticleBeam1, (uint)AID.FeintParticleBeam2, 4, 1.5f, 5, true)
+// 第一下讀條後還會追 9 下：每下約隔 0.55 秒、往目標移動約 3 碼；只算 5 下會在追到一半時就不再提示。
+class FeintParticleBeam(BossModule module) : Components.StandardChasingAOEs(module, new AOEShapeCircle(10), (uint)AID.FeintParticleBeam1, (uint)AID.FeintParticleBeam2, 3, 0.55f, 10, true)
 {
 }
 
