@@ -10,24 +10,23 @@ public enum OID : uint
 public enum AID : uint
 {
     Firespit = 3217, // Boss->player, 2.0s cast, single-target tankbuster
-    SoulDouse = 3230 // ?->self, 3.0s cast, gaze, inflicts Doom on players facing the caster
+    Toad = 3219 // Boss->player, 2.5s cast, 隨機一人變青蛙；不是凝視（面向首領的人沒中）
 }
 
 sealed class Firespit(BossModule module) : Components.SingleTargetCast(module, (uint)AID.Firespit);
-// 靈魂熄滅的 Action 表沒有凝視旗標（VFX 不是 25），後備猜法不會當凝視處理 ⇒ 模組自己背對。
-sealed class SoulDouse(BossModule module) : Components.CastGaze(module, (uint)AID.SoulDouse);
 
+// 刻意不處理設置咒具（3220）放下的咒具：四種效果（增傷／降火耐／加重／青蛙）外觀只差顏色，錄影分不出是哪一種，
+// 一律避開會讓首領收回咒具自己吃增益。
 sealed class D302SlithyZoloolJaStates : StateMachineBuilder
 {
     public D302SlithyZoloolJaStates(BossModule module) : base(module)
     {
         TrivialPhase()
             .ActivateOnEnter<Firespit>()
-            .ActivateOnEnter<SoulDouse>()
             .ActivateOnEnter<Components.UnclaimedCastAOEs>();
     }
 }
 
-// 場地與尋路沿用沒有模組時的做法（跟著玩家走的方框）：這個副本沒有障礙物圖，也沒有錄影可量場地。
+// 場地沿用沒有模組時的做法（跟著玩家走的方框）；牆由整座副本的障礙物圖（188.30）提供。
 [ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "ffxiv-tc-port", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 30, NameID = 3093)]
 public sealed class D302SlithyZoloolJa(WorldState ws, Actor primary) : SimpleBossModule(ws, primary);
