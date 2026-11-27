@@ -9,7 +9,8 @@ sealed class StampedingThunder(BossModule module) : Components.GenericAOEs(modul
 
     public override void OnEventCast(Actor caster, ActorCastEvent spell)
     {
-        var activation = WorldState.FutureTime(9.4d);
+        // 方向演出後約 2.4 秒起，範圍內每秒就有一下 StampedingThunderVisual(35335) 的實際傷害，7 秒讀條的大招只是最後一下。
+        var activation = WorldState.FutureTime(2.3d);
         if (spell.Action.ID == (uint)AID.StampedingThunderVisualWest)
             _aoe = new(rect, new(95f, 80f), caster.Rotation, activation);
         else if (spell.Action.ID == (uint)AID.StampedingThunderVisualEast)
