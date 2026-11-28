@@ -9,6 +9,7 @@ class A31AngraMainyuStates : StateMachineBuilder
             .ActivateOnEnter<MortalGaze>()
             .ActivateOnEnter<Stare>()
             .ActivateOnEnter<Level100Flare1>()
-            .ActivateOnEnter<Level150Death1>();
+            .ActivateOnEnter<Level150Death1>()
+            .ActivateOnEnter<EyesOnMe>();
     }
 }
