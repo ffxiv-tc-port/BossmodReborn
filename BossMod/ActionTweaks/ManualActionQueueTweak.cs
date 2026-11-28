@@ -204,6 +204,25 @@ public sealed class ManualActionQueueTweak(WorldState ws, AIHints hints, Func<Ac
 
     private static float LockAfterUse(ActionID action) => action == RageAction ? RageLockSeconds : 0f;
 
+    /// <summary>詠唱讓位的判準（與 Push 退回一般佇列同一條）：有詠唱時間、且唸完會晚於這一幀的讓位期限。期限 MaxValue＝讓位沒在算。</summary>
+    public static bool IsCastYieldHeld(DateTime now, float castTime, DateTime castDeadline)
+        => castTime > 0f && castDeadline != DateTime.MaxValue && now.AddSeconds(castTime) > castDeadline;
+
+    /// <summary>
+    /// 手動佇列裡有 <paramref name="action"/>（排的、按下的或放出時會換成的那一招）且正被詠唱讓位扣住＝true。
+    /// 讀 UpdateCastHazard 這一幀寫的期限，與 <see cref="HoldAtExecution"/> 同一條執行緒、同一份值。
+    /// </summary>
+    public bool CastYieldHolding(ActionID action)
+    {
+        if (!action)
+            return false;
+        var now = ws.CurrentTime;
+        foreach (ref var e in _queue.AsSpan())
+            if ((e.Action == action || e.Original == action || e.Adjusted == action) && IsCastYieldHeld(now, e.CastTime, _castDeadline))
+                return true;
+        return false;
+    }
+
     // 讀 UpdateCastHazard 這一幀寫的期限；AI 關或逃生鍵按著時期限是 MaxValue ⇒ 永遠 false
     private bool LockHeld(ActionID action)
     {

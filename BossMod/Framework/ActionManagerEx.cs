@@ -607,6 +607,21 @@ public sealed unsafe class ActionManagerEx : IDisposable
         return avoidGaze ?? restored;
     }
 
+    private DateTime _yieldMoveLogTime;
+
+    // 詠唱讓位扣著的那一發要等危險過去才放，照它擋移動＝人走不出危險、詠唱也永遠放不出來；沒在讓位時照舊擋
+    private bool YieldHeldSkipsMoveBlock(ActionID action, ActionID adjusted)
+    {
+        if (!_manualQueue.CastYieldHolding(action) && !(adjusted != action && _manualQueue.CastYieldHolding(adjusted)))
+            return false;
+        if (Config.PreventMovingWhileCasting && (_ws.CurrentTime - _yieldMoveLogTime).TotalSeconds >= 10d)
+        {
+            _yieldMoveLogTime = _ws.CurrentTime;
+            Service.Logger.Information($"[AMEx][詠唱讓位] 讓位扣住「{action.Name()}」（{action}）：暫時不因這一發詠唱擋移動。");
+        }
+        return true;
+    }
+
     // fail-closed 約定（見 Util/DetourGuard.cs）：自訂邏輯進 try、Original 留在 try 外。這一支每幀執行，DetourGuard.Report 的節流是必要條件。
     // 受管理例外來源：① ExecuteAction 的 General/PetAction 分支呼叫 _useActionHook.Original（HookAddress<T>.Original 在位址解析失敗時
     // 擲 InvalidOperationException，而 Update 與 UseAction 的位址是各自解析的）② Service.LuminaRow<Action>／<LogMessage>
@@ -689,7 +704,8 @@ public sealed unsafe class ActionManagerEx : IDisposable
             MoveMightInterruptCast &= CastTimeRemaining > 0; // previous cast could have ended without action effect
             // if we're not casting, but will start soon, moving might interrupt future cast
             // 這一幀不放的手動詠唱不算「馬上要詠唱」：照它擋移動會把該閃的人釘住
-            if (imminentActionAdj && !(holdManual && imminentAction == AutoQueue.Action) && CastTimeRemaining <= 0 && _inst->AnimationLock < 0.1f && GetAdjustedCastTime(imminentActionAdj) > 0 && !CanMoveWhileCasting(imminentActionAdj) && GCD() < 0.1f)
+            if (imminentActionAdj && !(holdManual && imminentAction == AutoQueue.Action) && CastTimeRemaining <= 0 && _inst->AnimationLock < 0.1f && GetAdjustedCastTime(imminentActionAdj) > 0 && !CanMoveWhileCasting(imminentActionAdj) && GCD() < 0.1f
+                && !YieldHeldSkipsMoveBlock(imminentAction, imminentActionAdj))
             {
                 // check LoS on target; blocking movement can cause AI mode to get stuck behind a wall trying to cast a spell on an unreachable target forever
                 MoveMightInterruptCast |= CheckActionLoS(imminentAction, _inst->ActionQueued ? _inst->QueuedTargetId : (AutoQueue.Target?.InstanceID ?? 0));
