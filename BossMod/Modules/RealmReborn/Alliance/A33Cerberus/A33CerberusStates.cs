@@ -13,6 +13,7 @@ class A33CerberusStates : StateMachineBuilder
             .ActivateOnEnter<SulphurousBreath2>()
             .ActivateOnEnter<LightningBolt2>()
             .ActivateOnEnter<HoundOutOfHell>()
-            .ActivateOnEnter<Ululation>();
+            .ActivateOnEnter<Ululation>()
+            .ActivateOnEnter<LightningBolt1>();
     }
 }
