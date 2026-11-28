@@ -49,10 +49,11 @@ class ParticleBeam1(BossModule module) : Components.GenericAOEs(module, (uint)AI
     }
 }
 
-// 第一下讀條後還會追 9 下：每下約隔 0.55 秒、往目標移動約 3 碼；只算 5 下會在追到一半時就不再提示。
-class FeintParticleBeam(BossModule module) : Components.StandardChasingAOEs(module, new AOEShapeCircle(10), (uint)AID.FeintParticleBeam1, (uint)AID.FeintParticleBeam2, 3, 0.55f, 10, true)
+// 第一下讀條（半徑 8）後還會追 16 下（半徑 3）：每下約隔 0.55 秒、往目標移動約 3 碼；目標中途倒下會提早結束。
+class FeintParticleBeam(BossModule module) : Components.StandardChasingAOEs(module, new AOEShapeCircle(3f), (uint)AID.FeintParticleBeam1, (uint)AID.FeintParticleBeam2, 3, 0.55f, 17, true)
 {
 }
+class FeintParticleBeamFirst(BossModule module) : Components.SimpleAOEs(module, (uint)AID.FeintParticleBeam1, 8f);
 
 [ModuleInfo(BossModuleInfo.Maturity.WIP, Contributors = "The Combat Reborn Team", GroupType = BossModuleInfo.GroupType.CFC, GroupID = 111, NameID = 3240)]
 public class A34CloudofDarkness(WorldState ws, Actor primary) : BossModule(ws, primary, new(-300, -400), new ArenaBoundsCircle(30))
