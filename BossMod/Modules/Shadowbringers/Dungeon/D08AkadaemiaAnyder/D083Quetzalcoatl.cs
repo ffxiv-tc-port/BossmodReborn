@@ -40,9 +40,11 @@ sealed class ThunderstormSpread(BossModule module) : Components.SpreadFromCastTa
 sealed class OrbCollecting(BossModule module) : BossComponent(module)
 {
     private readonly List<Actor> _orbs = [];
-    private readonly List<DateTime> _absorbAt = []; // 與 _orbs 同索引
+    private readonly List<DateTime> _spawnAt = []; // 與 _orbs 同索引
     private readonly ShockingPlumage _aoe = module.FindComponent<ShockingPlumage>()!;
-    // 沒人吃的電球約在出現後 13.1～13.2 秒飛進首領（UncollectedOrb）；AI 期限用這個真時間，不用每幀往後推的假期限
+    // 沒人吃的電球約在出現後 13.1～13.2 秒飛進首領（UncollectedOrb）、約 8 秒連線到首領；AI 期限用這兩個真時間，不用每幀往後推的假期限。
+    // 先以連線時間當期限讓 AI 早點動身，過了還沒被吃的球改以飛走時間當期限、照樣是目標
+    private const double TetherDeadline = 8d;
     private const double OrbLifetime = 13d;
 
     public override void OnActorCreated(Actor actor)
@@ -50,7 +52,7 @@ sealed class OrbCollecting(BossModule module) : BossComponent(module)
         if (actor.OID == (uint)OID.CollectableOrb)
         {
             _orbs.Add(actor);
-            _absorbAt.Add(WorldState.FutureTime(OrbLifetime));
+            _spawnAt.Add(WorldState.CurrentTime);
         }
     }
 
@@ -71,12 +73,14 @@ sealed class OrbCollecting(BossModule module) : BossComponent(module)
         for (var i = 0; i < count; ++i)
         {
             // 過了飛進首領的時間還在清單裡＝沒收到結束事件：不再當目標，否則期限落在過去、整個場地一直是「現在就危險」
-            if (_absorbAt[i] <= now)
+            var spawn = _spawnAt[i];
+            if (spawn.AddSeconds(OrbLifetime) <= now)
                 continue;
             var o = _orbs[i];
             orbs.Add(ShapeDistance.InvertedRect(o.Position + 0.5f * o.Rotation.ToDirection(), new WDir(default, 1f), 0.5f, 0.5f, 0.5f));
-            if (_absorbAt[i] < deadline)
-                deadline = _absorbAt[i];
+            var orbDeadline = spawn.AddSeconds(TetherDeadline) is var tether && now < tether ? tether : spawn.AddSeconds(OrbLifetime);
+            if (orbDeadline < deadline)
+                deadline = orbDeadline;
         }
         if (orbs.Count == 0)
             return;
@@ -104,7 +108,7 @@ sealed class OrbCollecting(BossModule module) : BossComponent(module)
             if (i >= 0)
             {
                 _orbs.RemoveAt(i);
-                _absorbAt.RemoveAt(i);
+                _spawnAt.RemoveAt(i);
             }
         }
     }
