@@ -40,12 +40,18 @@ sealed class ThunderstormSpread(BossModule module) : Components.SpreadFromCastTa
 sealed class OrbCollecting(BossModule module) : BossComponent(module)
 {
     private readonly List<Actor> _orbs = [];
+    private readonly List<DateTime> _absorbAt = []; // 與 _orbs 同索引
     private readonly ShockingPlumage _aoe = module.FindComponent<ShockingPlumage>()!;
+    // 沒人吃的電球約在出現後 13.1～13.2 秒飛進首領（UncollectedOrb）；AI 期限用這個真時間，不用每幀往後推的假期限
+    private const double OrbLifetime = 13d;
 
     public override void OnActorCreated(Actor actor)
     {
         if (actor.OID == (uint)OID.CollectableOrb)
+        {
             _orbs.Add(actor);
+            _absorbAt.Add(WorldState.FutureTime(OrbLifetime));
+        }
     }
 
     public override void AddGlobalHints(GlobalHints hints)
@@ -59,14 +65,25 @@ sealed class OrbCollecting(BossModule module) : BossComponent(module)
         var count = _orbs.Count;
         if (count == 0)
             return;
-        var orbs = new Func<WPos, float>[count];
-        var aoes = _aoe.Casters;
-        var activation = aoes.Count != 0 ? aoes.Ref(0).Activation.AddSeconds(1.1d) : WorldState.FutureTime(2d);
+        var now = WorldState.CurrentTime;
+        var orbs = new List<Func<WPos, float>>(count);
+        var deadline = DateTime.MaxValue;
         for (var i = 0; i < count; ++i)
         {
+            // 過了飛進首領的時間還在清單裡＝沒收到結束事件：不再當目標，否則期限落在過去、整個場地一直是「現在就危險」
+            if (_absorbAt[i] <= now)
+                continue;
             var o = _orbs[i];
-            orbs[i] = ShapeDistance.InvertedRect(o.Position + 0.5f * o.Rotation.ToDirection(), new WDir(default, 1f), 0.5f, 0.5f, 0.5f);
+            orbs.Add(ShapeDistance.InvertedRect(o.Position + 0.5f * o.Rotation.ToDirection(), new WDir(default, 1f), 0.5f, 0.5f, 0.5f));
+            if (_absorbAt[i] < deadline)
+                deadline = _absorbAt[i];
         }
+        if (orbs.Count == 0)
+            return;
+        var aoes = _aoe.Casters;
+        var activation = aoes.Count != 0 ? aoes.Ref(0).Activation.AddSeconds(1.1d) : deadline;
+        if (deadline < activation)
+            activation = deadline;
         hints.AddForbiddenZone(ShapeDistance.Intersection(orbs), activation);
     }
 
@@ -83,7 +100,12 @@ sealed class OrbCollecting(BossModule module) : BossComponent(module)
     {
         if (spell.Action.ID is (uint)AID.CollectedOrb or (uint)AID.UncollectedOrb)
         {
-            _orbs.Remove(caster);
+            var i = _orbs.IndexOf(caster);
+            if (i >= 0)
+            {
+                _orbs.RemoveAt(i);
+                _absorbAt.RemoveAt(i);
+            }
         }
     }
 }
