@@ -39,6 +39,44 @@ public enum AID : uint
 
 class AglaeaClimb(BossModule module) : Components.SingleTargetCast(module, (uint)AID.AglaeaClimb);
 class ArtificialPlasma(BossModule module) : Components.RaidwideCast(module, (uint)AID.ArtificialPlasma);
+
+// 增幅版：讀條結束那一下之後還有 3 下無讀條全體傷害，間隔約 1.8 秒；次數對不上時預告最多殘留 2 秒
+sealed class ArtificialPlasmaBoost(BossModule module) : Components.RaidwideInstant(module, (uint)AID.ArtificialPlasmaBoostRest, 1.8d)
+{
+    private const int RestHits = 3;
+    private int _remaining;
+
+    public override void OnCastStarted(Actor caster, ActorCastInfo spell)
+    {
+        if (spell.Action.ID == (uint)AID.ArtificialPlasmaBoostFirst)
+        {
+            Activation = Module.CastFinishAt(spell);
+            _remaining = RestHits;
+        }
+    }
+
+    public override void OnEventCast(Actor caster, ActorCastEvent spell)
+    {
+        var id = spell.Action.ID;
+        if (id == (uint)AID.ArtificialPlasmaBoostFirst)
+        {
+            Activation = WorldState.FutureTime(Delay);
+        }
+        else if (id == (uint)AID.ArtificialPlasmaBoostRest)
+        {
+            ++NumCasts;
+            Activation = --_remaining > 0 ? WorldState.FutureTime(Delay) : default;
+        }
+    }
+
+    public override void Update()
+    {
+        if (Activation != default && WorldState.CurrentTime > Activation.AddSeconds(2d))
+        {
+            Activation = default;
+        }
+    }
+}
 class AngrySalamanderAOE(BossModule module) : Components.SimpleAOEs(module, (uint)AID.AngrySalamanderAOE, new AOEShapeCross(20f, 2f));
 class ThermobaricCharge(BossModule module) : Components.SimpleAOEs(module, (uint)AID.ThermobaricCharge, 13f)
 {
@@ -71,6 +109,7 @@ class D133LiviaStates : StateMachineBuilder
         TrivialPhase()
             .ActivateOnEnter<AglaeaClimb>()
             .ActivateOnEnter<ArtificialPlasma>()
+            .ActivateOnEnter<ArtificialPlasmaBoost>()
             .ActivateOnEnter<AngrySalamanderAOE>()
             .ActivateOnEnter<StunningSweepAOE>()
             .ActivateOnEnter<StunningSweepDischarge>()
